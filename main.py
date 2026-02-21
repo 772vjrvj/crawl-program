@@ -2,17 +2,16 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path  # === 신규 ===
-from typing import Optional, Any, Dict, List  # === 신규 ===
+from pathlib import Path
+from typing import Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from src.app_manager import AppManager
 from src.core.global_state import GlobalState
-
-from src.utils.app_config_loader import AppConfigLoader  # === 신규 ===
-from src.utils.config import set_app_server_config  # === 신규 ===
+from src.utils.app_config_loader import AppConfigLoader
+from src.utils.config import set_app_server_config
 
 
 def show_already_running_alert(existing_app: Optional[QApplication] = None) -> None:
@@ -90,7 +89,6 @@ def main() -> int:
     state = GlobalState()
     state.initialize()
 
-    # === 신규 === runtime 설정 로드(빌드 후에도 exe 기준 runtime/app.json 사용)
     try:
         _bootstrap_runtime_config(state)
     except Exception as e:

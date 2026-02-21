@@ -49,8 +49,6 @@ class GlobalState:
                 self.REGION: None,
                 self.POPUP: False,
                 self.SITES: [],
-
-                # === 신규 ===
                 self.APP_CONFIG: {},
                 self.SITE_CONFIGS: [],
             }

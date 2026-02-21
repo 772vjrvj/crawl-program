@@ -7,15 +7,6 @@ from PySide6.QtCore import QThread, Signal
 
 
 class BaseApiWorker(QThread):
-    """
-    === 핵심 ===
-    PySide6(QThread/QObject) + ABCMeta 조합은 메타 충돌/초기화 문제로
-    '... has no attribute _abc_impl' 같은 에러가 발생할 수 있음.
-
-    그래서 ABCMeta/abstractmethod를 쓰지 않고,
-    하위 클래스에서 반드시 override 하도록 NotImplementedError로 강제한다.
-    """
-
     # =========================
     # signals
     # =========================
