@@ -40,4 +40,42 @@
     script : E:/git/crawl-program/main.py
     Working directory : E:/git/crawl-program
     나머지는 기본
-    
+
+
+
+■ 트리구조 확인
+python tools/tree/print_tree.py --include .py .js .ts --depth 6
+
+
+■ requirements.txt 만들기
+pip freeze > requirements.txt
+
+
+■ requirements 사용
+pip install -r requirements.txt
+
+
+■ 빌드
+pyinstaller .\main.py `
+--noconfirm `
+--clean `
+--windowed `
+--name "CrawlProgram" `
+--icon ".\image\crawling.ico" `
+--distpath ".\dist" `
+--workpath ".\build" `
+--add-data "src/resources;resources" `
+--collect-all PySide6
+
+
+■ 빌드 설명
+pyinstaller .\main.py `                     # 시작 파일 (엔트리 포인트)
+--noconfirm `                              # 기존 build/dist 폴더 덮어쓰기 확인 없이 진행
+--clean `                                  # 이전 빌드 캐시 제거 후 새로 빌드
+--windowed `                               # 콘솔창 없이 GUI 프로그램으로 빌드
+--name "CrawlProgram" `                    # 생성될 exe 이름
+--icon ".\image\crawling.ico" `            # exe 아이콘 설정
+--distpath ".\dist" `                      # 결과물 저장 위치 (dist 폴더)
+--workpath ".\build" `                     # 빌드 중간 파일 저장 위치 (build 폴더)
+--add-data "src/resources;resources" `     # resources 폴더를 exe 내부에 포함
+--collect-all PySide6                      # PySide6 관련 리소스/플러그인 전체 포함 (UI 오류 방지)

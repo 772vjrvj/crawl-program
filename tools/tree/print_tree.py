@@ -140,4 +140,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 if __name__ == "__main__":
     raise SystemExit(main())
 
-# python tools/print_tree.py --include .py .js .ts --depth 6
+# python tools/tree/print_tree.py --include .py .js .ts --depth 6
