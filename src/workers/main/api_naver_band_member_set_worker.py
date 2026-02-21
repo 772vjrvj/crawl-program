@@ -24,7 +24,7 @@ from src.workers.api_base_worker import BaseApiWorker
 from selenium.webdriver.remote.webdriver import WebDriver
 
 
-class ApiNaverBandMemberSetLoadWorker(BaseApiWorker):
+class ApiNaverBandMemberSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 

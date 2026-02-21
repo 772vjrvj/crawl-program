@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 from src.utils.config import server_name, server_url
 from src.workers.check_worker import CheckWorker
-from src.workers.worker_factory import WORKER_CLASS_MAP
+from src.workers.worker_factory import create_worker_from_site_config
 from src.workers.progress_worker import ProgressWorker
 
 from src.core.global_state import GlobalState
@@ -173,7 +173,6 @@ class MainWindow(QWidget):
 
     # 메인 워커 세팅
     def main_worker_set(self) -> None:
-
         if self.progress_worker is None:
             self.task_queue = Queue()
             pw = ProgressWorker(self.task_queue)
@@ -186,17 +185,26 @@ class MainWindow(QWidget):
                 self.add_log("[오류] site가 비어있습니다.")
                 return
 
-            worker_class = WORKER_CLASS_MAP.get(self.site)
-            if worker_class:
-                w = worker_class()
+            # === 신규 === site_configs에서 현재 site key config 찾기
+            st = GlobalState()
+
+            site_conf = (st.get("site_configs_by_key", {}) or {}).get(str(self.site))
+            if not site_conf:
+                self.add_log(f"[오류] site_configs_by_key에서 '{self.site}' 설정을 찾지 못했습니다.")
+                return
+
+            try:
+                w = create_worker_from_site_config(site_conf)
                 w.log_signal.connect(self.add_log)
                 w.show_countdown_signal.connect(self.show_countdown_popup)
                 w.progress_signal.connect(self.set_progress)
                 w.msg_signal.connect(self.show_message)
                 w.progress_end_signal.connect(self.stop)
                 self.on_demand_worker = cast(OnDemandWorkerProto, w)
-            else:
-                self.add_log(f"[오류] '{self.site}'에 해당하는 워커가 없습니다.")
+            except Exception as e:
+                self.add_log(f"[오류] 워커 생성 실패: {str(e)}")
+                return
+
 
     # 화면 업데이트
     def ui_set(self) -> None:

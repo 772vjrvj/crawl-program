@@ -228,3 +228,8 @@ class SelectWindow(QWidget):
 
         self.close()
         self.app_manager.go_to_main()
+
+    def set_sites(self, sites: List[Site]) -> None:
+        self.sites = list(sites)
+        self.filtered_sites = list(sites)
+        self._rebuild_buttons()

@@ -61,10 +61,18 @@ class AppManager:
         self._switch_to(self.login_window)
 
     def go_to_select(self) -> None:
+        from src.core.global_state import GlobalState
+        from src.models.site import Site
+        from src.ui.select_window import SelectWindow
+
+        st = GlobalState()
+        raw_list = st.get(GlobalState.SITE_CONFIGS, [])
+        site_list = [Site.from_dict(d) for d in (raw_list or [])]
+
         if self.select_window is None:
-            from src.ui.select_window import SelectWindow
-            from src.utils.config import SITE_LIST
-            self.select_window = SelectWindow(self, SITE_LIST)
+            self.select_window = SelectWindow(self, site_list)
+        else:
+            self.select_window.set_sites(site_list)  # public
 
         self._switch_to(self.select_window)
 

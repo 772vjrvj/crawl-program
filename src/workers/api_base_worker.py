@@ -1,25 +1,29 @@
 # src/workers/api_base_worker.py
 from __future__ import annotations
 
-from abc import ABCMeta, abstractmethod
 from typing import Any, Optional, Sequence
 
 from PySide6.QtCore import QThread, Signal
 
 
-class QThreadABCMeta(type(QThread), ABCMeta):
-    pass
+class BaseApiWorker(QThread):
+    """
+    === 핵심 ===
+    PySide6(QThread/QObject) + ABCMeta 조합은 메타 충돌/초기화 문제로
+    '... has no attribute _abc_impl' 같은 에러가 발생할 수 있음.
 
+    그래서 ABCMeta/abstractmethod를 쓰지 않고,
+    하위 클래스에서 반드시 override 하도록 NotImplementedError로 강제한다.
+    """
 
-class BaseApiWorker(QThread, metaclass=QThreadABCMeta):
     # =========================
     # signals
     # =========================
-    log_signal: Signal = Signal(str)
-    progress_signal: Signal = Signal(float, float)
-    progress_end_signal: Signal = Signal()
-    msg_signal: Signal = Signal(str, str, object)
-    show_countdown_signal: Signal = Signal(int)
+    log_signal = Signal(str)
+    progress_signal = Signal(float, float)
+    progress_end_signal = Signal()
+    msg_signal = Signal(str, str, object)
+    show_countdown_signal = Signal(int)
 
     # =========================
     # lifecycle
@@ -27,19 +31,15 @@ class BaseApiWorker(QThread, metaclass=QThreadABCMeta):
     def __init__(self) -> None:
         super().__init__()
 
-        # 상태/설정(프로젝트마다 구조가 달라 Any 허용)
         self.setting_detail: Optional[Any] = None
         self.user: Optional[Any] = None
         self.excel_data_list: Optional[Any] = None
         self.region: Optional[Any] = None
 
-        # 실제 사용상 list[str]로 굳히는 게 타입 안정화에 유리
         self.columns: list[str] = []
         self.sites: list[str] = []
-
         self.setting: Optional[Any] = None
 
-        # 실행 상태 플래그
         self.running: bool = True
 
     # =========================
@@ -111,7 +111,6 @@ class BaseApiWorker(QThread, metaclass=QThreadABCMeta):
     def set_columns(self, columns: Optional[Sequence[dict[str, Any]]]) -> None:
         self.columns = []
         if columns:
-            # value가 숫자/None 섞여도 안전하게 str로
             self.columns = [str(col.get("value")) for col in columns if col.get("checked", False)]
 
     def set_sites(self, sites: Optional[Sequence[dict[str, Any]]]) -> None:
@@ -123,16 +122,13 @@ class BaseApiWorker(QThread, metaclass=QThreadABCMeta):
         self.region = region
 
     # =========================
-    # abstract hooks
+    # hooks (override required)
     # =========================
-    @abstractmethod
     def init(self) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError("init() must be implemented by subclass")
 
-    @abstractmethod
     def main(self) -> bool:
-        raise NotImplementedError
+        raise NotImplementedError("main() must be implemented by subclass")
 
-    @abstractmethod
     def destroy(self) -> None:
-        raise NotImplementedError
+        raise NotImplementedError("destroy() must be implemented by subclass")
