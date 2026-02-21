@@ -4,18 +4,14 @@ from __future__ import annotations
 import sys
 from typing import Optional
 
-from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from src.app_manager import AppManager
 from src.core.global_state import GlobalState
 
 
 def show_already_running_alert(existing_app: Optional[QApplication] = None) -> None:
-    """
-    콘솔 대신 경고창을 최상단으로 띄움.
-    - QApplication이 없으면 임시 생성하여 메시지 표시 후 정리
-    """
     app_created = False
     app = existing_app or QApplication.instance()
     if app is None:
@@ -37,17 +33,17 @@ def show_already_running_alert(existing_app: Optional[QApplication] = None) -> N
             pass
 
 
-def main() -> None:
+def main() -> int:
     app = QApplication(sys.argv)
 
     state = GlobalState()
     state.initialize()
 
-    app_manager = AppManager()
-    app_manager.go_to_login()
+    manager = AppManager(app)
+    manager.start()
 
-    sys.exit(app.exec())
+    return app.exec()
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
