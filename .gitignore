@@ -1,0 +1,33 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+
+# venv
+venv/
+.env/
+
+# IDE
+.idea/
+*.iml
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# dotenv
+.env
+
+# runtime files (행님 스타일 추가)
+runtime/
+downloads/
+output/
+temp/
