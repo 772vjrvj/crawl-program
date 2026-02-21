@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 from src.core.global_state import GlobalState                # 전역 상태 저장/조회
 from src.ui.style.style import create_common_button, main_style  # 공통 버튼/입력창 스타일
-from src.vo.site import Site                                 # 사이트 정보 VO(레이블/키/컬러 등)
+from src.models.site import Site                                 # 사이트 정보 VO(레이블/키/컬러 등)
 
 
 class SelectWindow(QWidget):

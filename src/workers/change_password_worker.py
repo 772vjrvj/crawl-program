@@ -1,4 +1,4 @@
-# src/workers/change_password_woker.py
+# src/workers/change_password_worker.py
 
 from __future__ import annotations
 

@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 from src.utils.config import server_name, server_url
 from src.workers.check_worker import CheckWorker
-from src.workers.factory.worker_factory import WORKER_CLASS_MAP
+from src.workers.worker_factory import WORKER_CLASS_MAP
 from src.workers.progress_worker import ProgressWorker
 
 from src.core.global_state import GlobalState

@@ -7,7 +7,7 @@ import requests
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QMessageBox
 
-from src.workers.change_password_woker import ChangePasswordWorker
+from src.workers.change_password_worker import ChangePasswordWorker
 from src.ui.style.style import create_line_edit, create_common_button
 
 

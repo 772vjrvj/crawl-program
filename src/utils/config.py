@@ -2,7 +2,7 @@
 from __future__ import annotations  # === 신규 ===
 
 from typing import List, Literal, TypedDict, Final
-from src.vo.site import Site
+from src.models.site import Site
 
 
 # === 신규 === setting/columns dict schema 타입 고정
