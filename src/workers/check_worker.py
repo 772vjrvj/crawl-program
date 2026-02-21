@@ -1,24 +1,21 @@
 # src/workers/check_worker.py
 from __future__ import annotations
 
-from typing import Mapping, Optional, Union
+from typing import Optional
 
 import requests
-from requests.cookies import RequestsCookieJar
+from requests import Session  # === 신규 ===
 
 from PySide6.QtCore import QThread, Signal
-
-
-CookiesType = Union[RequestsCookieJar, Mapping[str, str]]
 
 
 class CheckWorker(QThread):
     api_failure: Signal = Signal(str)
     log_signal: Signal = Signal(str)
 
-    def __init__(self, cookies: CookiesType, server_url: str) -> None:
+    def __init__(self, session: Session, server_url: str) -> None:
         super().__init__()
-        self.cookies: CookiesType = cookies
+        self.session: Session = session            # === 신규 === cookies -> session
         self.server_url: str = server_url
         self.running: bool = True
 
@@ -32,10 +29,9 @@ class CheckWorker(QThread):
 
         while self.running:
             try:
-                res = requests.get(
+                res = self.session.get(            # === 신규 === requests.get -> session.get
                     url,
                     headers=headers,
-                    cookies=self.cookies,   # requests가 dict/cookiejar 둘 다 받음
                     timeout=15,
                 )
                 if res.status_code != 200 or (res.text or "").strip() == "fail":

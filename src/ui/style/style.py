@@ -35,6 +35,17 @@ def main_style(color: str) -> str:
         color: #333333;
     """
 
+def input_style(color: str) -> str:
+    return f"""
+        QLineEdit {{
+            border-radius: 10px;
+            border: 2px solid {color};
+            padding: 0px 12px;          /* ✅ 세로 padding 제거, 좌우만 */
+            font-size: 15px;
+            color: #333333;
+        }}
+    """
+
 
 def main_disabled_style() -> str:
     return """
@@ -96,11 +107,16 @@ def create_line_edit(
 ) -> QLineEdit:
     line_edit = QLineEdit()
     line_edit.setPlaceholderText(placeholder)
-    line_edit.setStyleSheet(main_style(color))
+    line_edit.setStyleSheet(input_style(color))
     line_edit.setFixedHeight(40)
     line_edit.setFixedWidth(width)
 
     if pw:
         line_edit.setEchoMode(QLineEdit.EchoMode.Password)
+
+        # === 신규 === 패스워드 ● 잘림 방지(일부 폰트에서 효과 큼)
+        f = line_edit.font()
+        f.setPointSize(14)  # 필요하면 13~15로 조절
+        line_edit.setFont(f)
 
     return line_edit

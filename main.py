@@ -41,9 +41,8 @@ def show_already_running_alert(existing_app: Optional[QApplication] = None) -> N
 # =========================================================
 def _get_base_path() -> Path:
     """
-    === 신규 ===
     - 개발: 프로젝트 기준
-    - 빌드(frozen): exe 위치 기준
+    - 빌드(frozen): exe 위치 기준. 개발 main.py 기준
     """
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
@@ -60,21 +59,17 @@ def _bootstrap_runtime_config(state: GlobalState) -> None:
     app_conf = loader.load_app_config()
     set_app_server_config(app_conf.server_url, app_conf.server_name)
 
-    site_configs = loader.get_enabled_site_configs()
+    site_configs = loader.get_enabled_site_configs(app_conf)
 
-    # 4) GlobalState 저장
     state.set(
-        GlobalState.APP_CONFIG,   # 네가 상수화 했으면 이걸로
+        GlobalState.APP_CONFIG,
         {
-            "server_url": app_conf.server_url,
-            "server_name": app_conf.server_name,
             "site_list_use": app_conf.site_list_use,
             "runtime_dir": str(runtime_dir),
         },
     )
     state.set(GlobalState.SITE_CONFIGS, site_configs)
 
-    # === 신규(선택) === key → config dict 맵도 저장(빠른 조회용)
     site_configs_by_key = {}
     for d in (site_configs or []):
         k = str(d.get("key") or "").strip()

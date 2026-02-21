@@ -16,7 +16,6 @@ class GlobalState:
     POPUP: ClassVar[str] = "popup"
     SITES: ClassVar[str] = "sites"
 
-    # === 신규 ===
     APP_CONFIG: ClassVar[str] = "app_config"
     SITE_CONFIGS: ClassVar[str] = "site_configs"
 

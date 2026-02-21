@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from requests import Session  # === 신규 ===
+
 from src.core.global_state import GlobalState
 from src.ui.password_change_window import PasswordChangeWindow
 from src.ui.style.style import create_common_button, create_line_edit
@@ -137,7 +139,9 @@ class LoginWindow(QWidget):
 
         # === 신규 === 기존 워커가 살아있으면 참조 해제(중복 클릭 대비)
         self.login_worker = LoginWorker(username, password)
-        self.login_worker.login_success.connect(self.main_window)
+
+        # === 신규 === LoginWorker가 Session을 emit 하는 형태로 연결
+        self.login_worker.login_success.connect(self.on_login_success)
         self.login_worker.login_failed.connect(self.show_error_message)
         self.login_worker.start()
 
@@ -153,10 +157,18 @@ class LoginWindow(QWidget):
         popup = PasswordChangeWindow(parent=self)
         popup.exec()  # PySide6: exec_() → exec()
 
+    # === 신규 === cookies 대신 Session을 받는다
     @Slot(object)
-    def main_window(self, cookies: Any) -> None:
+    def on_login_success(self, session_obj: object) -> None:
+        # PySide6 Signal(object)로 넘어오므로 런타임 캐스팅만 수행
+        session = session_obj  # type: ignore[assignment]
+        if not isinstance(session, Session):
+            # 방어 코드: 예상 타입이 아니면 실패 처리
+            QMessageBox.critical(self, "로그인 실패", "세션 객체가 올바르지 않습니다.")
+            return
+
         state = GlobalState()
-        state.set("cookies", cookies)
+        state.set("session", session)  # === 신규 === cookies -> session
 
         if self.auto_login_checkbox.isChecked():
             username = self.id_input.text()

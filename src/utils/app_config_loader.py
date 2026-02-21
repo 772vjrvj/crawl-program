@@ -46,7 +46,6 @@ class AppConfigLoader:
         )
 
     def load_site_config(self, config_path: str) -> Dict[str, Any]:
-        # runtime 기준으로만 결합
         rel = str(config_path or "").strip().lstrip("/\\")
         if not rel:
             raise ValueError("config_path is empty")
@@ -54,8 +53,7 @@ class AppConfigLoader:
         path = (self.runtime_dir / rel).resolve()
         return self._read_json(path)
 
-    def get_enabled_site_configs(self) -> List[Dict[str, Any]]:
-        app_conf = self.load_app_config()
+    def get_enabled_site_configs(self, app_conf: AppConfig) -> List[Dict[str, Any]]:
         use_set = set(app_conf.site_list_use or [])
 
         out: List[Dict[str, Any]] = []

@@ -17,6 +17,8 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QProgressBar,
 )
+from requests import Session
+from src.workers.logout_worker import LogoutWorker
 from src.utils.config import server_name, server_url
 from src.workers.check_worker import CheckWorker
 from src.workers.worker_factory import create_worker_from_site_config
@@ -102,7 +104,7 @@ class MainWindow(QWidget):
         self.name: Optional[str] = None
         self.site: Optional[str] = None
         self.color: Optional[str] = None
-        self.cookies: Optional[Any] = None
+        self.session: Optional[Session] = None
 
         # UI 레퍼런스
         self.header_label: Optional[QLabel] = None
@@ -124,6 +126,7 @@ class MainWindow(QWidget):
 
         self.progress_bar: Optional[QProgressBar] = None
         self.log_window: Optional[QTextEdit] = None
+        self.logout_worker: Optional[LogoutWorker] = None
 
         # 팝업
         self.region_set_pop: Optional[RegionSetPop] = None
@@ -148,7 +151,7 @@ class MainWindow(QWidget):
         self.site = cast(Optional[str], state.get("site"))
         self.color = cast(Optional[str], state.get("color"))
         self.setting = state.get("setting")
-        self.cookies = state.get("cookies")
+        self.session = cast(Optional[Session], state.get("session"))
         self.columns = state.get("columns")
         self.sites = state.get("sites")
         self.region = state.get("region")
@@ -164,8 +167,13 @@ class MainWindow(QWidget):
 
     # 로그인 확인 체크
     def api_worker_set(self) -> None:
-        if self.api_worker is None:  # 스레드가 있으면 중단
-            w = CheckWorker(self.cookies, server_url)
+        if self.api_worker is None:
+            if self.session is None:  # === 신규 ===
+                self.add_log("[오류] session이 없습니다. 다시 로그인 해주세요.")
+                self.app_manager.go_to_login()
+                return
+
+            w = CheckWorker(self.session, server_url)  # === 신규 === cookies -> session
             w.api_failure.connect(self.handle_api_failure)
             w.log_signal.connect(self.add_log)
             w.start()
@@ -381,16 +389,15 @@ class MainWindow(QWidget):
         self.progress_bar.setValue(0)
         self.progress_bar.setTextVisible(True)
         self.progress_bar.setStyleSheet("""
-            QProgressBar {
-                border: 2px solid #ccc;
-                border-radius: 5px;
-                text-align: center;
-            }
-            QProgressBar::chunk {
-                background-color: #4caf50;
-                width: 100%;
-                margin: 0.5px;
-            }
+        QProgressBar {
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            text-align: center;
+        }
+        QProgressBar::chunk {
+            background-color: #4caf50;
+            margin: 0px;
+        }
         """)
 
         self.log_window = QTextEdit(self)
@@ -540,6 +547,13 @@ class MainWindow(QWidget):
 
     # 로그아웃
     def on_log_out(self) -> None:
+        # 0) 실행 중 작업/스레드 정리(안전)
+        try:
+            self.stop()
+        except Exception:
+            pass
+
+        # 1) 자동 로그인 저장정보 삭제
         try:
             keyring.delete_password(server_name, "username")
             keyring.delete_password(server_name, "password")
@@ -549,9 +563,62 @@ class MainWindow(QWidget):
         except Exception as e:
             self.add_log(f"❌ 로그인 정보 삭제 중 예외 발생: {str(e)}")
 
-        self.add_log("🚪 로그아웃 처리 및 로그인 화면으로 이동")
+        # 2) 서버 로그아웃 호출 (세션 기반)
+        st = GlobalState()
+        session = cast(Optional[Session], st.get("session"))
+
+        if session is None:
+            # 세션이 없으면 그냥 화면 전환만
+            self.add_log("🚪 session 없음 → 로그인 화면으로 이동")
+            self.close()
+            self.app_manager.go_to_login()
+            return
+
+        # === 신규 === 로그아웃 워커 실행
+        self.add_log("🚪 서버 로그아웃 요청 중...")
+
+        self.logout_worker = LogoutWorker(session)
+        self.logout_worker.logout_success.connect(self._on_logout_success)  # === 신규 ===
+        self.logout_worker.logout_failed.connect(self._on_logout_failed)    # === 신규 ===
+        self.logout_worker.start()
+
+
+    def _on_logout_success(self, msg: str) -> None:
+        self.add_log(f"✅ 로그아웃 성공: {msg}")
+
+        st = GlobalState()
+        sess = cast(Optional[Session], st.get("session"))
+        if sess is not None:
+            try:
+                sess.cookies.clear()
+            except Exception:
+                pass
+
+        st.set("session", None)  # === 신규 ===
+        self.session = None      # === 신규 ===
+
         self.close()
         self.app_manager.go_to_login()
+
+
+    def _on_logout_failed(self, msg: str) -> None:
+        self.add_log(f"⚠️ 로그아웃 실패: {msg}")
+        self.add_log("➡️ 로컬 세션 정리 후 로그인 화면으로 이동")
+
+        st = GlobalState()
+        sess = cast(Optional[Session], st.get("session"))
+        if sess is not None:
+            try:
+                sess.cookies.clear()
+            except Exception:
+                pass
+
+        st.set("session", None)
+        self.session = None
+
+        self.close()
+        self.app_manager.go_to_login()
+
 
     # 세팅 버튼
     def open_setting(self) -> None:

@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations  # === 신규 ===
 
-from typing import Final
-
 # 기본값(안전용)
 server_url: str = ""
 server_name: str = ""

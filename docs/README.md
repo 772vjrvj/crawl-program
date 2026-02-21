@@ -65,7 +65,7 @@ pyinstaller .\main.py `
 --version-file ".\version_info.txt" `
 --distpath ".\dist" `
 --workpath ".\build" `
---collect-all PySide6
+--hidden-import "src.workers.main.api_naver_band_member_set_worker" 
 
 
 ■ 빌드 설명
@@ -78,4 +78,10 @@ pyinstaller .\main.py `                    # 시작 파일 (엔트리 포인트)
 --version-file ".\version_info.txt" `      # 버전 정보
 --distpath ".\dist" `                      # 결과물 저장 위치 (dist 폴더)
 --workpath ".\build" `                     # 빌드 중간 파일 저장 위치 (build 폴더)
---collect-all PySide6                      # PySide6 관련 리소스/플러그인 전체 포함 (UI 오류 방지)
+--collect-all PySide6 `                    # PySide6 관련 리소스/플러그인 전체 포함 (UI 오류 방지) 현재 사용 안함
+--hidden-import "src.workers.main."        # 동적 import 되는 워커 모듈 강제 포함 (importlib 사용 대응)
+
+
+■ 빌드 후
+runtime에 해당 worker 폴더 이동 app.json이동
+resources 통째로 이동
