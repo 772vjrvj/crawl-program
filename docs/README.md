@@ -44,7 +44,7 @@
 
 
 ■ 트리구조 확인
-python tools/tree/print_tree.py --include .py .js .ts --depth 6
+python tools/tree/print_tree.py --include .py .js .ts .json .md --depth 6
 
 
 ■ requirements.txt 만들기

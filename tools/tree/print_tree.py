@@ -5,13 +5,16 @@ import argparse
 import fnmatch
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, List, Sequence, Set
+from typing import Sequence, Set, List
 
 
 @dataclass(frozen=True)
 class TreeConfig:
     max_depth: int = 4
-    include_exts: Set[str] = field(default_factory=lambda: {".py", ".bat", ".log", ".exe"})
+    # ✅ json / md 추가
+    include_exts: Set[str] = field(default_factory=lambda: {
+        ".py", ".bat", ".log", ".exe", ".json", ".md"
+    })
     exclude_dirs: Set[str] = field(default_factory=lambda: {
         ".idea", "build", "image", "test", "seleniumwire", "__pycache__",
         ".git", ".venv", "venv", "dist"
@@ -22,7 +25,6 @@ class TreeConfig:
 
 
 def _is_hidden(p: Path) -> bool:
-    # Windows/Unix 공통으로 "점(.)으로 시작" 기준
     return p.name.startswith(".")
 
 
@@ -76,8 +78,6 @@ def print_dir_tree(root: Path, cfg: TreeConfig) -> None:
             return
 
         folders, files = _iter_children(current, cfg)
-
-        # 출력할 항목들: 폴더 먼저, 그 다음 파일
         items: list[tuple[Path, bool]] = [(p, True) for p in folders] + [(p, False) for p in files]
 
         for idx, (p, is_dir) in enumerate(items):
@@ -101,8 +101,9 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--include",
         nargs="*",
-        default=[".py", ".bat", ".log", ".exe"],
-        help="Include file extensions (e.g. .py .js .ts). Default: .py .bat .log .exe",
+        # ✅ json / md 추가
+        default=[".py", ".js", ".ts", ".bat", ".log", ".exe", ".json", ".md"],
+        help="Include file extensions (e.g. .py .js .ts .json .md).",
     )
     parser.add_argument("--show-hidden", action="store_true", help="Show dotfiles and dotfolders")
     parser.add_argument("--exclude-dir", nargs="*", default=None, help="Extra exclude dir names")
@@ -116,11 +117,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     cfg = TreeConfig(
         max_depth=int(args.depth),
-        include_exts={str(x).lower() if str(x).startswith(".") else f".{str(x).lower()}" for x in args.include},
+        include_exts={
+            (str(x).lower() if str(x).startswith(".") else f".{str(x).lower()}")
+            for x in args.include
+        },
         show_hidden=bool(args.show_hidden),
     )
 
-    # 추가 exclude 옵션 병합
     if args.exclude_dir:
         object.__setattr__(cfg, "exclude_dirs", set(cfg.exclude_dirs) | set(args.exclude_dir))  # type: ignore[misc]
     if args.exclude_file:
@@ -140,4 +143,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 if __name__ == "__main__":
     raise SystemExit(main())
 
-# python tools/tree/print_tree.py --include .py .js .ts --depth 6
+# python tools/tree/print_tree.py --include .py .js .ts .json .md --depth 6
