@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Tuple
+
 import requests
 from requests import Session
 from PySide6.QtCore import QThread, Signal
@@ -10,7 +11,7 @@ from src.utils.config import server_url
 
 
 class LoginWorker(QThread):
-    login_success: Signal = Signal(object)   # Session
+    login_success: Signal = Signal(object)  # Session
     login_failed: Signal = Signal(str)
 
     def __init__(self, username: str, password: str) -> None:

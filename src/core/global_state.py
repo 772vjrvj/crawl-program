@@ -8,7 +8,7 @@ class GlobalState:
     NAME: ClassVar[str] = "name"
     SITE: ClassVar[str] = "site"
     COLOR: ClassVar[str] = "color"
-    COOKIES: ClassVar[str] = "cookies"
+    SESSION: ClassVar[str] = "session"
     SETTING: ClassVar[str] = "setting"
     SETTING_DETAIL: ClassVar[str] = "setting_detail"
     COLUMNS: ClassVar[str] = "columns"
@@ -38,10 +38,10 @@ class GlobalState:
     def initialize(self) -> None:
         if not self._initialized:
             self._data = {
-                self.COOKIES: "",
                 self.NAME: "",
                 self.SITE: "",
                 self.COLOR: "",
+                self.SESSION: None,
                 self.SETTING: None,
                 self.SETTING_DETAIL: None,
                 self.COLUMNS: None,

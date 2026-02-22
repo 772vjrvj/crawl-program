@@ -183,7 +183,7 @@ class MainWindow(QWidget):
                 self.app_manager.go_to_login()
                 return
 
-            w = CheckWorker(self.session, server_url)  # === 신규 === cookies -> session
+            w = CheckWorker(self.session, server_url)
             w.api_failure.connect(self.handle_api_failure)
             w.log_signal.connect(self.add_log)
             w.start()
@@ -305,6 +305,7 @@ class MainWindow(QWidget):
 
     # 프로그램 일시 중지 (동일한 아이디로 로그인시)
     def handle_api_failure(self, error_message: str) -> None:
+        # UI 복구
         if self.collect_button is not None:
             self.collect_button.setStyleSheet(main_style(self.color))
             self.collect_button.repaint()
@@ -313,20 +314,25 @@ class MainWindow(QWidget):
             self.log_window.setStyleSheet(LOG_STYLE)
             self.log_window.repaint()
 
-        # 모든 스레드 종료 요청
-        if self.api_worker is not None:
-            self.api_worker.stop()
-            self.api_worker.wait(3000)
-            self.api_worker = None
+        # ✅ 전환용 자원 정리
+        self.cleanup_for_switch()
 
-        # 동시접속/세션오류 종료에서는 "크롤링 종료" 팝업 안 띄움
-        self.stop(show_popup=False)
-
-        # 여기서만 메시지/로그를 남김 (원하는 UX)
+        # 로그 + 메시지
         self.add_log(f"동시사용자 접속으로 프로그램을 종료하겠습니다... {error_message}")
-        self.show_message("동시 사용자 접속이 감지되었습니다.\n다시 로그인 해주세요.", "warn", None)
-        self.close()
-        self.app_manager.go_to_login()
+        self.show_message(
+            "동시 사용자 접속이 감지되었습니다.\n다시 로그인 해주세요.",
+            "warn",
+            None
+        )
+
+        # ✅ 1) 창 숨김
+        self.hide()
+
+        # ✅ 2) 로그인 화면 전환 (이벤트 루프 한 틱 뒤 실행)
+        QTimer.singleShot(0, self.app_manager.go_to_login)
+
+        # ✅ 3) MainWindow 객체 완전 제거
+        QTimer.singleShot(0, self.deleteLater)
 
 
     # 레이아웃 설정
@@ -579,31 +585,24 @@ class MainWindow(QWidget):
                 self.api_worker.stop()
                 self.api_worker.wait(3000)
                 self.api_worker = None
-                self.add_log("✅ 로그인 체크 워커 종료")
-        except Exception as e:
-            self.add_log(f"⚠️ 로그인 체크 워커 종료 중 예외: {str(e)}")
+        except Exception:
+            pass
 
         # 1) 자동 로그인 저장정보 삭제
         try:
             keyring.delete_password(server_name, "username")
             keyring.delete_password(server_name, "password")
-            self.add_log("🔐 저장된 로그인 정보 삭제 완료")
-        except keyring.errors.PasswordDeleteError as e:
-            self.add_log(f"⚠️ 로그인 정보 삭제 실패 (저장 안 되어 있음): {str(e)}")
         except Exception as e:
-            self.add_log(f"❌ 로그인 정보 삭제 중 예외 발생: {str(e)}")
+            pass
 
         # 2) 서버 로그아웃 호출 (세션 기반)
         st = GlobalState()
         session = cast(Optional[Session], st.get("session"))
 
         if session is None:
-            self.add_log("🚪 session 없음 → 로그인 화면으로 이동")
             self.close()
             self.app_manager.go_to_login()
             return
-
-        self.add_log("🚪 서버 로그아웃 요청 중...")
 
         self.logout_worker = LogoutWorker(session)
         self.logout_worker.logout_success.connect(self._on_logout_success)
@@ -612,41 +611,33 @@ class MainWindow(QWidget):
 
 
     def _on_logout_success(self, msg: str) -> None:
-        self.add_log(f"✅ 로그아웃 성공: {msg}")
+        # ✅ 전환용 자원 정리(워커/세션 등)
+        self.cleanup_for_switch()
 
-        st = GlobalState()
-        sess = cast(Optional[Session], st.get("session"))
-        if sess is not None:
-            try:
-                sess.cookies.clear()
-            except Exception:
-                pass
-
-        st.set("session", None)  # === 신규 ===
-        self.session = None      # === 신규 ===
-
-        self.close()
-        self.app_manager.go_to_login()
+        # ✅ 로그인 화면으로 전환
+        self._switch_to_login()
 
 
     def _on_logout_failed(self, msg: str) -> None:
-        self.add_log(f"⚠️ 로그아웃 실패: {msg}")
-        self.add_log("➡️ 로컬 세션 정리 후 로그인 화면으로 이동")
+        # ✅ 전환용 자원 정리(워커/세션 등)
+        self.cleanup_for_switch()
 
-        st = GlobalState()
-        sess = cast(Optional[Session], st.get("session"))
-        if sess is not None:
-            try:
-                sess.cookies.clear()
-            except Exception:
-                pass
+        # ✅ 로그인 화면으로 전환
+        self._switch_to_login()
 
-        st.set("session", None)
-        self.session = None
 
-        self.close()
-        self.app_manager.go_to_login()
+    def _switch_to_login(self) -> None:
+        # === 신규 === 메인 -> 로그인 전환 공통 처리
+        try:
+            self.hide()
+        except Exception:
+            pass
 
+        # UI 전환 안정화
+        QTimer.singleShot(0, self.app_manager.go_to_login)
+
+        # 메인윈도우 객체 정리
+        QTimer.singleShot(0, self.deleteLater)
 
     # 세팅 버튼
     def open_setting(self) -> None:
@@ -714,6 +705,59 @@ class MainWindow(QWidget):
         self.user = user
         self.add_log(f"유저 : {self.user}")
 
+
+    def cleanup_for_switch(self) -> None:
+        # 1) 크롤링 워커 정지
+        try:
+            if self.on_demand_worker is not None:
+                self.on_demand_worker.stop()
+                self.on_demand_worker = None
+        except Exception:
+            pass
+
+        # 2) 프로그래스 워커 정지
+        try:
+            if self.progress_worker is not None:
+                self.progress_worker.stop()
+                self.progress_worker = None
+                self.task_queue = None
+        except Exception:
+            pass
+
+        # 3) 로그인 체크 워커 정지
+        try:
+            if self.api_worker is not None:
+                self.api_worker.stop()
+                self.api_worker.wait(3000)
+                self.api_worker = None
+        except Exception:
+            pass
+
+        # 4) 세션 정리
+        try:
+            if self.session is not None:
+                try:
+                    self.session.cookies.clear()
+                except Exception:
+                    pass
+
+            st = GlobalState()
+            st.set("session", None)
+            self.session = None
+        except Exception:
+            pass
+
+        # 5) LogoutWorker 정리 (여기에 추가)
+        try:
+            if self.logout_worker is not None:
+                self.logout_worker.quit()
+                self.logout_worker.wait(2000)
+        except Exception:
+            pass
+        self.logout_worker = None
+
+
+
     def closeEvent(self, event: QCloseEvent) -> None:
         # === 신규 === 우리가 강제 종료를 요청한 경우엔 닫힘 허용
         if self._force_close:
@@ -757,7 +801,6 @@ class MainWindow(QWidget):
             if self._closing_pop is not None:
                 self._closing_pop.set_done(ok)
 
-            # ✅ 2초 후 진짜 종료
             QTimer.singleShot(2000, self._force_quit)
         except Exception:
             QTimer.singleShot(2000, self._force_quit)
