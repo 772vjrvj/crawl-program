@@ -29,8 +29,6 @@ class LogoutWorker(QThread):
         try:
             res = self.session.post(url, timeout=15)
             if res.status_code == 200:
-                # 혹시 서버가 쿠키 삭제를 제대로 안 해도, 클라이언트 쿠키도 비워버림
-                self.session.cookies.clear()
                 return True, "로그아웃 성공"
             return False, f"로그아웃 실패: {res.status_code} {res.text}"
         except requests.exceptions.RequestException as e:

@@ -6,8 +6,8 @@ from queue import Queue
 from typing import Optional, Any, List, Tuple, Protocol, cast
 
 import keyring
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QCloseEvent
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QTextEdit,
     QProgressBar,
+    QApplication
 )
 from requests import Session
 from src.workers.logout_worker import LogoutWorker
@@ -23,6 +24,7 @@ from src.utils.config import server_name, server_url
 from src.workers.check_worker import CheckWorker
 from src.workers.worker_factory import create_worker_from_site_config
 from src.workers.progress_worker import ProgressWorker
+from src.workers.cleanup_worker import CleanupWorker
 
 from src.core.global_state import GlobalState
 from src.ui.popup.column_set_pop import ColumnSetPop
@@ -32,6 +34,7 @@ from src.ui.popup.excel_set_pop import ExcelSetPop
 from src.ui.popup.param_set_pop import ParamSetPop
 from src.ui.popup.region_set_pop import RegionSetPop
 from src.ui.popup.site_set_pop import SiteSetPop
+from src.ui.popup.closing_pop import ClosingPop
 from src.ui.style.style import create_common_button, main_style, LOG_STYLE, HEADER_TEXT_STYLE
 
 
@@ -143,6 +146,13 @@ class MainWindow(QWidget):
         self.api_worker: Optional[ApiWorkerProto] = None
 
         self.app_manager: AppManagerProto = app_manager
+
+        self._closing: bool = False
+        self._closing_pop: Optional[ClosingPop] = None
+        self._cleanup_worker: Optional[CleanupWorker] = None
+
+        self._force_close = False
+        self._close_timeout_ms = 8000
 
     # 변경값 세팅
     def common_data_set(self) -> None:
@@ -306,7 +316,7 @@ class MainWindow(QWidget):
         # 모든 스레드 종료 요청
         if self.api_worker is not None:
             self.api_worker.stop()
-            self.api_worker.wait()
+            self.api_worker.wait(3000)
             self.api_worker = None
 
         # 동시접속/세션오류 종료에서는 "크롤링 종료" 팝업 안 띄움
@@ -559,9 +569,19 @@ class MainWindow(QWidget):
     def on_log_out(self) -> None:
         # 0) 실행 중 작업/스레드 정리(안전)
         try:
-            self.stop()
+            self.stop(show_popup=False)
         except Exception:
             pass
+
+        # 0.5) 로그인 체크 워커(CheckWorker) 먼저 중단
+        try:
+            if self.api_worker is not None:
+                self.api_worker.stop()
+                self.api_worker.wait(3000)
+                self.api_worker = None
+                self.add_log("✅ 로그인 체크 워커 종료")
+        except Exception as e:
+            self.add_log(f"⚠️ 로그인 체크 워커 종료 중 예외: {str(e)}")
 
         # 1) 자동 로그인 저장정보 삭제
         try:
@@ -578,18 +598,16 @@ class MainWindow(QWidget):
         session = cast(Optional[Session], st.get("session"))
 
         if session is None:
-            # 세션이 없으면 그냥 화면 전환만
             self.add_log("🚪 session 없음 → 로그인 화면으로 이동")
             self.close()
             self.app_manager.go_to_login()
             return
 
-        # === 신규 === 로그아웃 워커 실행
         self.add_log("🚪 서버 로그아웃 요청 중...")
 
         self.logout_worker = LogoutWorker(session)
-        self.logout_worker.logout_success.connect(self._on_logout_success)  # === 신규 ===
-        self.logout_worker.logout_failed.connect(self._on_logout_failed)    # === 신규 ===
+        self.logout_worker.logout_success.connect(self._on_logout_success)
+        self.logout_worker.logout_failed.connect(self._on_logout_failed)
         self.logout_worker.start()
 
 
@@ -695,3 +713,82 @@ class MainWindow(QWidget):
     def update_user(self, user: Any) -> None:
         self.user = user
         self.add_log(f"유저 : {self.user}")
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        # === 신규 === 우리가 강제 종료를 요청한 경우엔 닫힘 허용
+        if self._force_close:
+            event.accept()
+            return
+
+        # 이미 종료 시퀀스 들어갔으면 중복 방지
+        if self._closing:
+            event.ignore()
+            return
+
+        self._closing = True
+        event.ignore()  # ✅ 일단 종료 막고, 정리 끝나면 우리가 종료시킴
+
+        # 1) 종료 팝업 표시
+        self._closing_pop = ClosingPop(self)
+        self._closing_pop.show()
+
+        # === 신규 === 타임아웃 걸어두기 (CleanupWorker가 멈추면 여기서라도 종료)
+        QTimer.singleShot(self._close_timeout_ms, self._force_quit)
+
+        # 2) 정리 워커 시작 (UI 멈춤 방지)
+        self._cleanup_worker = CleanupWorker(
+            api_worker=self.api_worker,
+            on_demand_worker=self.on_demand_worker,
+            progress_worker=self.progress_worker,
+            session=self.session,
+        )
+        self._cleanup_worker.done.connect(self._on_cleanup_done)
+        self._cleanup_worker.start()
+
+    def _on_cleanup_done(self, ok: bool, msg: str) -> None:
+        try:
+            # 내부 참조도 정리
+            self.api_worker = None
+            self.on_demand_worker = None
+            self.progress_worker = None
+            self.task_queue = None
+            self.session = None
+
+            if self._closing_pop is not None:
+                self._closing_pop.set_done(ok)
+
+            # ✅ 2초 후 진짜 종료
+            QTimer.singleShot(2000, self._force_quit)
+        except Exception:
+            QTimer.singleShot(2000, self._force_quit)
+
+    def _force_quit(self) -> None:
+        # 이미 종료 진행 중인데 또 호출되는 케이스 방지(타임아웃/정상완료 둘 다 호출될 수 있음)
+        if self._force_close:
+            return
+
+        self._force_close = True  # === 신규 === 이제부터는 close를 허용
+
+        try:
+            if self._closing_pop is not None:
+                self._closing_pop.close()
+                self._closing_pop = None
+        except Exception:
+            pass
+
+        # === 신규 === 1) 윈도우 먼저 닫기 시도 (closeEvent가 accept로 통과됨)
+        try:
+            self.close()
+        except Exception:
+            pass
+
+        # === 신규 === 2) 앱 종료
+        try:
+            app = QApplication.instance()
+            if app is not None:
+                app.quit()
+        except Exception:
+            try:
+                self.hide()
+            except Exception:
+                pass
