@@ -309,8 +309,15 @@ class MainWindow(QWidget):
             self.api_worker.wait()
             self.api_worker = None
 
-        self.stop()
+        # 동시접속/세션오류 종료에서는 "크롤링 종료" 팝업 안 띄움
+        self.stop(show_popup=False)
+
+        # 여기서만 메시지/로그를 남김 (원하는 UX)
         self.add_log(f"동시사용자 접속으로 프로그램을 종료하겠습니다... {error_message}")
+        self.show_message("동시 사용자 접속이 감지되었습니다.\n다시 로그인 해주세요.", "warn", None)
+        self.close()
+        self.app_manager.go_to_login()
+
 
     # 레이아웃 설정
     def set_layout(self) -> None:
@@ -477,7 +484,7 @@ class MainWindow(QWidget):
             self.stop()
 
     # 프로그램 중지
-    def stop(self) -> None:
+    def stop(self, *, show_popup: bool = True, reason: Optional[str] = None) -> None:
         # 크롤링 중지
         if self.on_demand_worker is not None:
             self.on_demand_worker.stop()
@@ -489,7 +496,10 @@ class MainWindow(QWidget):
             self.progress_worker = None
             self.task_queue = None
 
-        self.show_message("크롤링 종료", "info", None)
+        # 상황별 UI 알림 제어
+        if show_popup:
+            # reason 있으면 그걸 보여주고, 없으면 기존 문구
+            self.show_message(reason or "크롤링 종료", "info", None)
 
     # 프로그래스 큐 데이터 담기
     def set_progress(self, start_value: int, end_value: int) -> None:
