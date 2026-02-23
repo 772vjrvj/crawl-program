@@ -55,6 +55,34 @@ pip freeze > requirements.txt
 pip install -r requirements.txt
 
 
+■ app.json
+에서 멀티 로그인 여부
+
+
+■ 커밋
+타입	        의미
+feat	    기능 추가
+fix	        버그 수정
+refactor	리팩토링
+docs	    문서
+chore	    빌드/환경
+release	    릴리즈
+
+
+■ SemVer (Semantic Versioning)
+MAJOR.MINOR.PATCH
+1.0.0
+
+
+■ GIT
+release: v1.0.0
+feat: 세션 중복 로그인 차단 구현
+fix: ProgressBar 스타일 오류 수정
+refactor: worker_factory 구조 개선
+chore: pyinstaller 옵션 수정
+docs: 주석 및 README 보완
+
+
 ■ 빌드
 pyinstaller .\main.py `
 --noconfirm `
@@ -85,3 +113,27 @@ pyinstaller .\main.py `                    # 시작 파일 (엔트리 포인트)
 ■ 빌드 후
 runtime에 해당 worker 폴더 이동 app.json이동
 resources 통째로 이동
+
+
+
+■ 런처
+
+최종 정리(행님 흐름을 그대로 다듬은 버전)
+
+런처 실행 → data/current.json 읽기
+
+서버에 (program_id, version) 전송
+
+최신 있으면 안내 팝업
+
+아니오 → 현재 버전 실행
+
+예 → zip 다운로드 → versions/vX_Y_Z.tmp에 설치
+
+검증 성공 → versions/vX_Y_Z로 스왑
+
+data/current.json을 새 버전으로 갱신
+
+오래된 버전 정리(최신 2개만 유지)
+
+새 버전 실행

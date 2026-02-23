@@ -568,18 +568,29 @@ class MainWindow(QWidget):
 
     # 사이트 이동
     def go_site_list(self) -> None:
-        self.close()
-        self.app_manager.go_to_select()
+        try:
+            self.hide()
+        except Exception:
+            pass
+
+        # 전환용 자원 정리(워커/세션 등)
+        self.cleanup_for_switch()
+
+        # 다음 화면 전환은 이벤트루프 한 틱 뒤
+        QTimer.singleShot(0, self.app_manager.go_to_select)
+
+        # 재 메인윈도우 객체 정리
+        QTimer.singleShot(0, self.deleteLater)
 
     # 로그아웃
     def on_log_out(self) -> None:
-        # 0) 실행 중 작업/스레드 정리(안전)
+        # 0) 실행 중 작업/스레드 정리
         try:
             self.stop(show_popup=False)
         except Exception:
             pass
 
-        # 0.5) 로그인 체크 워커(CheckWorker) 먼저 중단
+        # 1) 로그인 체크 워커 중단
         try:
             if self.api_worker is not None:
                 self.api_worker.stop()
@@ -588,22 +599,31 @@ class MainWindow(QWidget):
         except Exception:
             pass
 
-        # 1) 자동 로그인 저장정보 삭제
+        # 2) 자동 로그인 정보 삭제
         try:
             keyring.delete_password(server_name, "username")
             keyring.delete_password(server_name, "password")
-        except Exception as e:
+        except Exception:
             pass
 
-        # 2) 서버 로그아웃 호출 (세션 기반)
+        # 3) 세션 가져오기
         st = GlobalState()
         session = cast(Optional[Session], st.get("session"))
 
+        # ✅ 4) 화면 먼저 숨김 (close 금지)
+        try:
+            self.hide()
+        except Exception:
+            pass
+
+        # 세션이 없으면 바로 전환
         if session is None:
-            self.close()
-            self.app_manager.go_to_login()
+            self.cleanup_for_switch()
+            QTimer.singleShot(0, self.app_manager.go_to_login)
+            QTimer.singleShot(0, self.deleteLater)
             return
 
+        # 5) 서버 로그아웃 요청
         self.logout_worker = LogoutWorker(session)
         self.logout_worker.logout_success.connect(self._on_logout_success)
         self.logout_worker.logout_failed.connect(self._on_logout_failed)
