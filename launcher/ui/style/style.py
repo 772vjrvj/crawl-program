@@ -1,6 +1,6 @@
 # launcher/ui/style/style.py
 from __future__ import annotations
-
+from PySide6.QtGui import QColor
 # =========================
 # === 신규 === Style tokens
 # =========================
@@ -22,7 +22,7 @@ def main_style(color: str) -> str:
     return f"""
         border-radius: 5px;
         border: 1px solid {color};
-        padding: 5px 12px;
+        padding: 1px 12px;
         font-weight: 500;
         font-size: 12.5px;
         color: {TEXT_MAIN};
@@ -47,14 +47,26 @@ def disabled_style() -> str:
 # =========================
 # === 신규 === Button stylesheet
 # =========================
+
+def _rgba_with_alpha(hex_color: str, alpha: float) -> str:
+    """
+    hex → rgba 문자열 변환
+    alpha: 0.0 ~ 1.0
+    """
+    c = QColor(hex_color)
+    return f"rgba({c.red()}, {c.green()}, {c.blue()}, {alpha})"
+
+
 def btn_style(color: str) -> str:
+    hover_bg = _rgba_with_alpha(color, 0.2)  # === 신규 === 20% 투명도
+
     return (
             "QPushButton {"
             + main_style(color)
             + "}"
             + f"""
         QPushButton:hover {{
-            border: 2px solid {color};
+            background-color: {hover_bg};
         }}
         QPushButton:pressed {{
             padding-top: 11px;
@@ -114,6 +126,10 @@ def msgbox_style(primary_color: str = BTN_PRIMARY) -> str:
 # =========================
 def notice_banner_style(color: str = BTN_PRIMARY) -> str:
     return (
-        f"padding: 10px; border-radius: 10px; border: 2px solid {color};"
-        f"background: {BG_WHITE}; color: {TEXT_MAIN};"
+        f"padding: 1px 12px;"
+        f"border-radius: 5px;"
+        f"border: 1px solid {color};"
+        f"background: {BG_WHITE};"
+        f"color: {TEXT_MAIN};"
+        f"min-height: 30px;"
     )

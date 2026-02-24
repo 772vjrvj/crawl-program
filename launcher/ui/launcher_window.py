@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar,
     QPushButton, QTextEdit, QMessageBox
 )
-
+from PySide6.QtWidgets import QSizePolicy  # 상단 import에 추가
 from launcher.core.paths import LauncherPaths
 from launcher.core.state import read_current_state  # === 신규 ===
 from launcher.core.notice_store import is_hidden, hide_for_day  # === 신규 ===
@@ -27,6 +27,7 @@ from launcher.ui.notice_dialog import NoticeDialog
 # === 신규 === 공통 스타일 (ui/style로 통일)
 from launcher.ui.style.style import (
     BTN_GRAY,
+    BTN_PRIMARY,
     btn_style,
     msgbox_style,
     notice_banner_style,
@@ -68,15 +69,29 @@ class LauncherWindow(QWidget):
         self.lbl_title.setStyleSheet("font-size: 16px; font-weight: 700;")
         root.addWidget(self.lbl_title)
 
-        # === 신규 === 공지 배너(🔔)
+        # =========================
+        # 공지 배너(🔔) (Label + Button)
+        # =========================
+        notice_row = QHBoxLayout()
+        notice_row.setSpacing(6)
+
         self.lbl_notice = QLabel("")
         self.lbl_notice.setVisible(False)
-        self.lbl_notice.setTextFormat(Qt.TextFormat.RichText)
-        self.lbl_notice.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
-        self.lbl_notice.setOpenExternalLinks(False)
-        self.lbl_notice.linkActivated.connect(self.on_open_notice)  # type: ignore
         self.lbl_notice.setStyleSheet(notice_banner_style(BTN_GRAY))
-        root.addWidget(self.lbl_notice)
+
+        self.btn_notice_open = QPushButton("보기")
+        self.btn_notice_open.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_notice_open.setStyleSheet(btn_style(BTN_GRAY))
+        self.btn_notice_open.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)  # ✅ 세로로 맞춤
+        self.btn_notice_open.setMinimumWidth(64)  # (선택) 버튼 폭 통일
+        self.btn_notice_open.setVisible(False)
+        self.btn_notice_open.clicked.connect(lambda: self.on_open_notice("open"))
+
+        notice_row.addWidget(self.lbl_notice)
+        notice_row.addWidget(self.btn_notice_open)
+        notice_row.addStretch(1)
+
+        root.addLayout(notice_row)
 
         self.lbl_sub = QLabel("잠시만 기다려주세요.")
         self.lbl_sub.setStyleSheet("color: #555;")
@@ -94,7 +109,7 @@ class LauncherWindow(QWidget):
         self.txt_log.setMinimumHeight(180)
         root.addWidget(self.txt_log)
 
-        # === 신규 === 지원 센터(공식 사이트/문의/Q&A) 링크 (버튼 영역 바로 위)
+        # 지원 센터(공식 사이트/문의/Q&A) 링크 (버튼 영역 바로 위)
         self.lbl_support = QLabel("")
         self.lbl_support.setTextFormat(Qt.TextFormat.RichText)
         self.lbl_support.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
@@ -168,8 +183,8 @@ class LauncherWindow(QWidget):
         self.lbl_sub.setText(st.status)
         self.prog.setValue(max(0, min(100, st.percent)))
 
-        self.btn_run.setEnabled(st.can_run and not st.busy)
-        self.btn_retry.setEnabled(st.can_retry and not st.busy)
+        self.btn_run.setEnabled(st.can_run and (not st.busy))
+        self.btn_retry.setEnabled(st.can_retry and (not st.busy))
         self.btn_close.setEnabled(not st.busy)
 
         self.btn_toggle_log.setEnabled(True)
@@ -248,7 +263,10 @@ class LauncherWindow(QWidget):
         self.txt_log.clear()
         self.last_result = None
         self.last_notice = None
+
         self.lbl_notice.setVisible(False)
+        self.btn_notice_open.setVisible(False)  # ✅ 버튼도 같이 숨김
+
         self.start_notice_then_update()
 
     def on_run(self) -> None:
@@ -347,10 +365,15 @@ class LauncherWindow(QWidget):
         # === 긴급 공지는 업데이트 전에 모달로 바로 ===
         if is_modal:
             self.show_notice_dialog(notice, modal=True)
+
+            # 모달 공지는 배너를 굳이 띄우지 않음(원하면 아래 2줄 주석 해제)
+            self.lbl_notice.setVisible(False)
+            self.btn_notice_open.setVisible(False)
         else:
             safe_title = notice.title if notice.title else "새 공지"
-            self.lbl_notice.setText(f'🔔 <b>{safe_title}</b> &nbsp; <a href="open">보기</a>')
+            self.lbl_notice.setText(f"🔔  {safe_title}")
             self.lbl_notice.setVisible(True)
+            self.btn_notice_open.setVisible(True)
 
         # 공지 처리 후 업데이트 체크로
         self.start_worker(auto_update=False)
