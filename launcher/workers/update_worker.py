@@ -3,17 +3,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple, Callable
+from typing import Optional, Tuple
 
 from PySide6.QtCore import QThread, Signal
 
-from core.api import fetch_latest
-from core.downloader import probe_url, download_file
-from core.installer import unzip_to_staging, promote_staging, cleanup_paths
-from core.paths import LauncherPaths
-from core.runner import run_exe
-from core.state import read_current_state, write_current_state, version_to_dirname, CurrentState
-from core.versioning import compare_versions
+from launcher.core.api import fetch_latest
+from launcher.core.downloader import probe_url, download_file
+from launcher.core.installer import unzip_to_staging, promote_staging, cleanup_paths
+from launcher.core.paths import LauncherPaths
+from launcher.core.runner import run_exe
+from launcher.core.state import read_current_state, write_current_state, version_to_dirname, CurrentState
+from launcher.core.versioning import compare_versions
 
 
 @dataclass
@@ -23,6 +23,10 @@ class UpdateResult:
     exe_path: Optional[Path] = None
     did_run: bool = False
 
+    update_available: bool = False
+    latest_version: Optional[str] = None
+    asset_url: Optional[str] = None
+
     def try_run(self, wait: bool = False) -> Tuple[bool, str]:
         if not self.exe_path:
             return False, "exe_path is empty"
@@ -31,7 +35,6 @@ class UpdateResult:
 
 
 def _find_exe(root: Path, exe_name: str) -> Optional[Path]:
-    # zip 구조가 한 겹 더 들어가도 대응
     for p in root.rglob(exe_name):
         if p.is_file():
             return p
@@ -44,9 +47,10 @@ class UpdateWorker(QThread):
     sig_progress: Signal = Signal(int)
     sig_done: Signal = Signal(object)  # UpdateResult
 
-    def __init__(self, paths: LauncherPaths) -> None:
+    def __init__(self, paths: LauncherPaths, auto_update: bool = True) -> None:  # === 신규 ===
         super().__init__()
         self.paths = paths
+        self.auto_update = auto_update  # === 신규 ===
 
     def _status(self, s: str) -> None:
         self.sig_status.emit(s)
@@ -86,35 +90,53 @@ class UpdateWorker(QThread):
 
         cmpv = compare_versions(st.version, latest.latest_version)
 
-        # 서버가 더 오래됨 => 그대로 실행
+        # 서버가 더 오래됨 => 그냥 exe 경로만 반환
         if cmpv > 0:
             self._log(f"[launcher] server older than local (skip): local={st.version} server={latest.latest_version}")
             exe = self._resolve_latest_exe_from_state(st)
-            return self._run_latest(exe)
+            if exe is None:
+                return UpdateResult(False, "latest exe not found", None, False)
+            return UpdateResult(True, "ok(local newer)", exe, False)
 
-        # 최신 동일 => 그대로 실행
+        # 최신 동일 => exe 경로만 반환
         if cmpv == 0:
             self._log(f"[launcher] up-to-date: {st.version}")
             exe = self._resolve_latest_exe_from_state(st)
-            return self._run_latest(exe)
+            if exe is None:
+                return UpdateResult(False, "latest exe not found", None, False)
+            return UpdateResult(True, "ok(up-to-date)", exe, False)
 
-        # 업데이트 필요
+
+        # 업데이트 필요 & auto_update=False => 업데이트 가능 정보만 반환(기존 유지)
+        exe_local = self._resolve_latest_exe_from_state(st)
+
+        if not self.auto_update:
+            return UpdateResult(
+                True,
+                "update available",
+                exe_path=exe_local,
+                did_run=False,
+                update_available=True,
+                latest_version=latest.latest_version,
+                asset_url=latest.asset_url,
+            )
+
+        # 아래부터는 실제 업데이트 수행
         if latest.asset_url is None:
-            return UpdateResult(False, "asset_url is empty")
+            return UpdateResult(False, "asset_url is empty", exe_local, False)
 
         self._status("다운로드 준비(HEAD/GET) 확인 중…")
         ok2, msg2, hdrs = probe_url(latest.asset_url)
         self._log(f"[launcher] probe.ok={ok2}")
         self._log(f"[launcher] probe.msg={msg2}")
 
-        # 다운로드
         self._status("다운로드 중…")
         downloads_dir = self.paths.base_dir / "downloads_tmp"
         zip_path = downloads_dir / f"{st.program_id}_{latest.latest_version}.zip"
 
         def on_dl_progress(written: int, total: int) -> None:
             if total > 0:
-                pct = int((written / total) * 80)  # 다운로드는 0~80%
+                pct = int((written / total) * 80)
                 self._progress(pct)
 
         ok3, msg3, nbytes = download_file(latest.asset_url, zip_path, progress_cb=on_dl_progress)
@@ -124,13 +146,12 @@ class UpdateWorker(QThread):
         self._log(f"[launcher] download.bytes={nbytes}")
 
         if not ok3:
-            return UpdateResult(False, f"download failed: {msg3}")
+            return UpdateResult(False, f"download failed: {msg3}", exe_local, False)
 
-        # unzip
         self._status("압축 해제 중…")
         self._progress(85)
 
-        dir_name = version_to_dirname(latest.latest_version)  # v1_0_1
+        dir_name = version_to_dirname(latest.latest_version)
         staging_dir = self.paths.versions_dir / "_staging" / st.program_id / dir_name
 
         ok4, msg4 = unzip_to_staging(zip_path, staging_dir)
@@ -139,17 +160,15 @@ class UpdateWorker(QThread):
         self._log(f"[launcher] unzip.dir={staging_dir}")
 
         if not ok4:
-            return UpdateResult(False, f"unzip failed: {msg4}")
+            return UpdateResult(False, f"unzip failed: {msg4}", exe_local, False)
 
-        # exe 찾기
         exe_name = "CrawlProgram.exe"
         found_exe = _find_exe(staging_dir, exe_name)
         self._log(f"[launcher] exe_found={found_exe}")
 
         if found_exe is None:
-            return UpdateResult(False, f"exe not found in zip: {exe_name}")
+            return UpdateResult(False, f"exe not found in zip: {exe_name}", exe_local, False)
 
-        # promote
         self._status("설치 반영 중…")
         self._progress(92)
 
@@ -160,9 +179,8 @@ class UpdateWorker(QThread):
         self._log(f"[launcher] promote.target_dir={target_dir}")
 
         if not ok5:
-            return UpdateResult(False, f"promote failed: {msg5}")
+            return UpdateResult(False, f"promote failed: {msg5}", exe_local, False)
 
-        # current.json 갱신
         self._status("버전 정보 저장 중…")
         self._progress(96)
 
@@ -174,7 +192,6 @@ class UpdateWorker(QThread):
         write_current_state(self.paths.current_json, new_state)
         self._log(f"[launcher] current.json updated: version={latest.latest_version}")
 
-        # cleanup
         self._status("정리 중…")
         self._progress(98)
         cleanup_paths(zip_path)
@@ -182,15 +199,19 @@ class UpdateWorker(QThread):
         cleanup_paths(self.paths.versions_dir / "_staging")
         self._log("[launcher] cleanup done")
 
-        # 실행
         self._progress(100)
         exe2 = _find_exe(target_dir, exe_name)
-        return self._run_latest(exe2)
+
+        if exe2 is None:
+            return UpdateResult(False, "installed but exe not found", exe_local, False)
+
+        return UpdateResult(True, "ok(installed)", exe2, False)
 
     def _resolve_latest_exe_from_state(self, st: CurrentState) -> Optional[Path]:
         dir_name = version_to_dirname(st.version)
         root = self.paths.versions_dir / dir_name
         return _find_exe(root, "CrawlProgram.exe")
+
 
     def _run_latest(self, exe_path: Optional[Path]) -> UpdateResult:
         if exe_path is None:

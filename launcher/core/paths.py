@@ -12,7 +12,7 @@ class LauncherPaths:
     data_dir: Path
     versions_dir: Path
     current_json: Path
-
+    notice_ack_json: Path  # === 신규 ===
 
 def get_base_dir() -> Path:
     """
@@ -32,11 +32,13 @@ def get_paths() -> LauncherPaths:
     data = base / "data"
     versions = base / "versions"
     current = data / "current.json"
+    notice_ack = data / "notice_ack.json"  # === 신규 ===
     return LauncherPaths(
         base_dir=base,
         data_dir=data,
         versions_dir=versions,
         current_json=current,
+        notice_ack_json=notice_ack,  # === 신규 ===
     )
 
 
