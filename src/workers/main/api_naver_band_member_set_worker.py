@@ -66,8 +66,13 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
         # ✅ 로그인만 사용 (후킹/캡처 옵션 제거)
-        self.selenium_driver = SeleniumUtils(headless=False)
+        self.selenium_driver = SeleniumUtils(
+            headless=False,
+            debug=True,
+            log_func=self.log_signal_func,
+        )
         self.driver = self.selenium_driver.start_driver(1200)
+
 
     def _close_driver_once(self) -> None:
         if self._driver_closed:
