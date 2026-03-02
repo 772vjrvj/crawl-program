@@ -424,10 +424,46 @@ class MainWindow(QWidget):
         """)
 
         self.log_window = QTextEdit(self)
+
+        # === 신규 === objectName 지정(이 위젯에만 QSS 강제 적용하려고)
+        self.log_window.setObjectName("log_window")
+
         self.log_window.setReadOnly(True)
-        self.log_window.setStyleSheet(LOG_STYLE)
+
+        # === 신규 === 전역 QSS가 스크롤 핸들을 죽여도, 여기서 강제로 살림
+        self.log_window.setStyleSheet(f"""
+        QTextEdit#log_window {{
+            {LOG_STYLE}
+        }}
+        
+        QTextEdit#log_window QScrollBar:vertical {{
+            width: 12px;
+        }}
+        QTextEdit#log_window QScrollBar:horizontal {{
+            height: 12px;
+        }}
+        
+        QTextEdit#log_window QScrollBar::handle:vertical {{
+            min-height: 20px;
+            background: rgba(120, 120, 120, 160);
+            border-radius: 6px;
+        }}
+        QTextEdit#log_window QScrollBar::handle:horizontal {{
+            min-width: 20px;
+            background: rgba(120, 120, 120, 160);
+            border-radius: 6px;
+        }}
+        
+        QTextEdit#log_window QScrollBar::add-line,
+        QTextEdit#log_window QScrollBar::sub-line {{
+            width: 0px;
+            height: 0px;
+        }}
+        """)
+
         self.log_window.setLineWrapMode(QTextEdit.NoWrap)
         self.log_window.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.log_window.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
         main_layout.addLayout(header_layout)
         main_layout.addWidget(self.header_label)
@@ -451,6 +487,11 @@ class MainWindow(QWidget):
             return
 
         if self.collect_button.text() == "시작":
+
+            for i in range(1, 100):
+                self.add_log("[오류] on_demand_worker 생성 실패[오류] on_demand_worker 생성 실패[오류] on_demand_worker 생성 실패[오류] on_demand_worker 생성 실패[오류] on_demand_worker 생성 실패[오류] on_demand_worker 생성 실패")
+
+
             self.collect_button.setText("중지")
             self.collect_button.setStyleSheet(main_style(self.color))
             self.collect_button.repaint()
