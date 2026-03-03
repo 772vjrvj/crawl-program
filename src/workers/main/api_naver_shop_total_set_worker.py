@@ -176,6 +176,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
                     for idx, item_data in enumerate(chunk_items_queue):
                         if not self.running: break
+                        if idx > 2: break
 
                         item = item_data.get("item", {})
                         pc_url = item.get("mallPcUrl")
@@ -202,18 +203,33 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                             if v_match:
                                 total_visit = v_match.group(1).replace(",", "")
 
+                                categories = [
+                                    item.get("category1Name"),
+                                    item.get("category2Name"),
+                                    item.get("category3Name"),
+                                    item.get("category4Name"),
+                                ]
+
+                                category_str = "/".join([c for c in categories if c])
+
                                 chunk_results.append({
                                     "키워드": kw,
                                     "수집일시": time.strftime("%Y-%m-%d %H:%M:%S"),
                                     "상품명": item.get("productName"),
+                                    "카테고리": category_str,
                                     "상품번호": item.get("id"),
+                                    "원가": item.get("listPrice"),
+                                    "최소가": item.get("lowPrice"),
                                     "판매가격": item.get("price"),
-                                    "배송비": item.get("dlvryPrice"),
+                                    "배송비": item.get("dlvryFee"),
+                                    "할인률": item.get("discountRatio"),
+                                    "브랜드": item.get("brand"),
                                     "리뷰수": item.get("reviewCount"),
                                     "구매건수": item.get("purchaseCnt"),
                                     "찜하기수": item.get("keepCnt"),
                                     "스토어명": item.get("mallName"),
-                                    "모바일주소": item.get("mallProdMblUrl"),
+                                    "스토어모바일주소": item.get("mallProdMblUrl"),
+                                    "스토어PC주소": item.get("mallProductUrl"),
                                     "PC주소": pc_url,
                                     "전체방문자수": total_visit,
                                     "페이지": p_num,
