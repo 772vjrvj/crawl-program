@@ -176,7 +176,6 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
                     for idx, item_data in enumerate(chunk_items_queue):
                         if not self.running: break
-                        if idx > 2: break
 
                         item = item_data.get("item", {})
                         pc_url = item.get("mallPcUrl")
