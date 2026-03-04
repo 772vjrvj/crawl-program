@@ -77,6 +77,16 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
         return True
 
+
+    def destroy(self) -> None:
+        self.progress_signal.emit(self.before_pro_value, 1000000)
+        self.log_signal_func("=============== 크롤링 종료중...")
+        time.sleep(5)
+        self.log_signal_func("=============== 크롤링 종료")
+        self.progress_end_signal.emit()
+
+
+
     def main(self) -> bool:
         try:
             fr_date: str = self.get_setting_value(self.setting, "fr_date")
@@ -120,8 +130,21 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
                     time.sleep(random.uniform(1, 2))
 
-                self.append_excel_sheet(all_rows_c1, self.sheet_cond1)
-                self.append_excel_sheet(all_rows_c2, self.sheet_cond2)
+                if all_rows_c1:
+                    self.excel_driver.append_rows_text_excel(
+                        filename=self.output_xlsx,
+                        rows=all_rows_c1,
+                        columns=self.columns,
+                        sheet_name=self.sheet_cond1
+                    )
+
+                if all_rows_c2:
+                    self.excel_driver.append_rows_text_excel(
+                        filename=self.output_xlsx,
+                        rows=all_rows_c2,
+                        columns=self.columns,
+                        sheet_name=self.sheet_cond2
+                    )
 
             return True
 
@@ -148,8 +171,21 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                     try:
                         rows_c1, rows_c2 = self.process_one_day(today, min_rate1, min_sum_won1, min_rate2, min_sum_won2)
 
-                        self.append_excel_sheet(rows_c1, self.sheet_cond1)
-                        self.append_excel_sheet(rows_c2, self.sheet_cond2)
+                        if rows_c1:
+                            self.excel_driver.append_rows_text_excel(
+                                filename=self.output_xlsx,
+                                rows=rows_c1,
+                                columns=self.columns,
+                                sheet_name=self.sheet_cond1
+                            )
+
+                        if rows_c2:
+                            self.excel_driver.append_rows_text_excel(
+                                filename=self.output_xlsx,
+                                rows=rows_c2,
+                                columns=self.columns,
+                                sheet_name=self.sheet_cond2
+                            )
 
                         self.last_auto_date = today
 
@@ -276,6 +312,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
         data: Dict[str, Any] = json.loads(resp)
         return data.get("OutBlock_1", [])
 
+
     def fetch_nextrade(self, ymd: str) -> List[Dict[str, Any]]:
         result: List[Dict[str, Any]] = []
         page: int = 1
@@ -319,32 +356,11 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
         return result
 
     # =========================
-    # excel
-    # =========================
-    def append_excel(self, rows: List[Dict[str, Any]]) -> None:
-        self.excel_driver.append_rows_text_excel(
-            filename=self.output_xlsx,
-            rows=rows,
-            columns=self.columns,
-            sheet_name="Sheet1"
-        )
-
-    def append_excel_sheet(self, rows: List[Dict[str, Any]], sheet_name: str) -> None:
-        if not rows:
-            return
-
-        self.excel_driver.append_rows_text_excel(
-            filename=self.output_xlsx,
-            rows=rows,
-            columns=self.columns,
-            sheet_name=sheet_name
-        )
-
-    # =========================
     # utils
     # =========================
     def map_columns(self, m: Dict[str, Any]) -> Dict[str, Any]:
         return {c: m.get(c, "") for c in self.columns}
+
 
     def make_dates(self, fr: str, to: str) -> List[str]:
         s = datetime.datetime.strptime(str(fr), "%Y%m%d")
@@ -357,8 +373,10 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
         return dates
 
+
     def only_digits(self, s: Any) -> str:
         return "".join(ch for ch in str(s) if ch.isdigit())
+
 
     def parse_auto_hour(self, auto_time: str) -> Tuple[int, int]:
         s = str(auto_time).strip()
@@ -382,13 +400,3 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
             return hour, minute
 
         raise ValueError("auto_time은 HHMM 형식")
-
-    def destroy(self) -> None:
-        self.progress_signal.emit(self.before_pro_value, 1000000)
-        self.log_signal_func("=============== 크롤링 종료중...")
-        time.sleep(5)
-        self.log_signal_func("=============== 크롤링 종료")
-        self.progress_end_signal.emit()
-
-    def stop(self) -> None:
-        self.running = False
