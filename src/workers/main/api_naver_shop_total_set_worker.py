@@ -70,46 +70,68 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             return False
 
     def stop(self) -> None:
+        self.log_signal_func("✅ 일시 중단 자원 정리 시작")
+        # 루프 중단
         self.running = False
 
-        if self.csv_filename and os.path.exists(self.csv_filename):
-            # 엑셀 변환 중에는 시그널을 보내지 말고 작업에만 집중
-            self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
-
-        # 모델 참조 해제 시도 (메모리 충돌 방지)
-        if self.model:
-            del self.model
-            self.model = None
+        # 자원 정리
+        self.cleanup()
+        self.log_signal_func("✅ 일시 중단 자원 정리 완료")
 
 
     def destroy(self) -> None:
-        try:
-            # 1. 엑셀 변환 로직 (가장 중요)
-            if self.csv_filename and os.path.exists(self.csv_filename):
-                # 엑셀 변환 중에는 시그널을 보내지 말고 작업에만 집중
-                self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
+        # 혹시 stop 안 타고 바로 destroy 올 수도 있으므로
+        self.cleanup()
+        self.progress_signal.emit(self.before_pro_value, 1000000)
+        self.log_signal_func("✅ 작업을 안전하게 종료했습니다.")
+        time.sleep(0.2)
+        self.progress_end_signal.emit()
 
-            # 2. 모델 자원 해제 (메모리 충돌 방지)
+
+    def cleanup(self) -> None:
+
+        # 1. CSV → Excel 변환
+        try:
+            if self.csv_filename and os.path.exists(self.csv_filename):
+                if self.excel_driver:
+                    self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
+
+        # 2. Whisper 모델 해제
+        try:
             if self.model is not None:
                 del self.model
-                self.model = None
+        except Exception:
+            pass
+        finally:
+            self.model = None
 
-            # 3. 종료 시그널 전송 (안전하게)
-            # 빌드 환경에서는 UI가 이미 죽어있을 수 있으므로 시그널 송신 실패 시 무시하도록 설정
-            try:
-                self.progress_signal.emit(self.before_pro_value, 1000000)
-                self.log_signal_func("✅ 작업을 안전하게 종료했습니다.")
-                time.sleep(0.2)
-                self.progress_end_signal.emit()
-            except:
-                # 시그널 송신 중 에러(UI 파괴 등)가 나면 그냥 패스
-                pass
+        # 3. 캡차 음성파일 삭제
+        try:
+            if os.path.exists("captcha_audio_final.wav"):
+                os.remove("captcha_audio_final.wav")
+        except Exception:
+            pass
 
+        # 4. file driver
+        try:
+            if self.file_driver and hasattr(self.file_driver, "close"):
+                self.file_driver.close()
         except Exception as e:
-            # 엑셀 변환 등에서 에러가 나더라도 프로그램이 튕기지 않게 함
-            # 필요하다면 로컬에 텍스트 로그만 남김
-            with open("exit_debug.txt", "a", encoding="utf-8") as f:
-                f.write(f"Exit Error: {str(e)}\n")
+            self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
+        finally:
+            self.file_driver = None
+
+        # 5. excel driver
+        try:
+            if self.excel_driver and hasattr(self.excel_driver, "close"):
+                self.excel_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
+        finally:
+            self.excel_driver = None
+
 
 
     # =========================================================
@@ -201,6 +223,8 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                         else:
                             time.sleep(random.uniform(2.0, 3.5))
 
+                    self.current_cnt += 1
+
                 # --- [STEP 2] 상세 페이지 수집 구간 ---
                 if chunk_items_queue:
                     self.log_signal_func(f"🚀 확보된 {len(chunk_items_queue)}개 상품 상세 수집 시작...")
@@ -276,13 +300,11 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                             time.sleep(random.uniform(1.0, 2.5))
 
 
-
                 # --- [STEP 3] 10페이지 묶음 종료 후 브라우저 닫기 및 진행률 업데이트 ---
                 self.log_signal_func(f"🧹 묶음 작업 완료. 브라우저를 정리합니다.")
                 pyautogui.hotkey('alt', 'f4') # 현재 브라우저 종료
                 time.sleep(2) # 안정성을 위한 대기
 
-                self.current_cnt += len(current_chunk)
                 pro_value = (self.current_cnt / self.total_cnt) * 1000000
                 self.progress_signal.emit(self.before_pro_value, pro_value)
                 self.before_pro_value = pro_value
@@ -306,7 +328,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                         break
 
             wave_format = pyaudio.paInt16
-            channels = default_speakers["maxInputChannels"]
+            channels = int(default_speakers.get("maxInputChannels") or 2)
             rate = int(default_speakers["defaultSampleRate"])
 
             stream = p.open(
@@ -321,7 +343,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             for _ in range(0, int(rate / 1024 * duration)):
                 if not self.running: # 정지 버튼 누르면 녹음 즉시 중단
                     break
-                frames.append(stream.read(1024))
+                frames.append(stream.read(1024, exception_on_overflow=False))
 
             stream.stop_stream()
             stream.close()
@@ -424,9 +446,23 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             match = re.search(pattern, html_source, re.DOTALL)
             if not match:
                 return []
+
             json_data = json.loads(match.group(1))
             props = json_data.get("props", {}).get("pageProps", {})
-            return props.get("compositeProducts", {}).get("list", []) or \
-                props.get("initialState", {}).get("products", {}).get("list", [])
-        except:
+
+            raw_list = (
+                    props.get("compositeProducts", {}).get("list", [])
+                    or props.get("initialState", {}).get("products", {}).get("list", [])
+                    or []
+            )
+
+            # === 신규 === 구조 정규화: 항상 {"item": 상품객체}로 맞춤
+            normalized = []
+            for x in raw_list:
+                if isinstance(x, dict) and "item" in x and isinstance(x.get("item"), dict):
+                    normalized.append(x)
+                elif isinstance(x, dict):
+                    normalized.append({"item": x})
+            return normalized
+        except Exception:
             return []

@@ -5,8 +5,7 @@ import time
 import datetime
 import random
 import json
-from typing import Optional, List, Dict, Any, Tuple
-
+from typing import Optional, Callable, List, Dict, Any, Tuple
 from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
@@ -81,10 +80,35 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
     def destroy(self) -> None:
         self.progress_signal.emit(self.before_pro_value, 1000000)
         self.log_signal_func("=============== 크롤링 종료중...")
-        time.sleep(5)
+        self.cleanup()
+        time.sleep(1)
         self.log_signal_func("=============== 크롤링 종료")
         self.progress_end_signal.emit()
 
+
+    def stop(self) -> None:
+        self.running = False
+        self.cleanup()
+
+
+    def cleanup(self) -> None:
+        try:
+            if self.api_client:
+                self.api_client.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
+
+        try:
+            if self.file_driver:
+                self.file_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
+
+        try:
+            if self.excel_driver:
+                self.excel_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
 
 
     def main(self) -> bool:

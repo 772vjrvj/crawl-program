@@ -314,3 +314,14 @@ class APIClient:
             self._log(f"❗ 예기치 못한 오류: {e}")
 
         return None
+
+
+    # =========================
+    # lifecycle
+    # =========================
+    def close(self) -> None:
+        try:
+            if self.session is not None:
+                self.session.close()
+        finally:
+            self.session = None

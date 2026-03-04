@@ -241,3 +241,7 @@ class ExcelUtils:
 
         if self.log_func:
             self.log_func("csv 1행 저장완료")
+
+    def close(self):
+        if self.log_func:
+            self.log_func("[ExcelUtils] close 호출 (정리할 자원 없음)")

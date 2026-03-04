@@ -186,6 +186,8 @@ class SeleniumUtils:
         # performance log 지원 여부 캐시(드라이버별 지원 다름)
         self._perf_supported: Optional[bool] = None
 
+        self._quit_done = False  # === 신규 ===
+
     # ---------------------------------------------------------------------
     # Logging / Config
     # ---------------------------------------------------------------------
@@ -882,12 +884,13 @@ class SeleniumUtils:
 
 
     def quit(self) -> None:
-        """
-        드라이버 종료 + 임시 프로필 디렉토리 정리 + 캡처 상태 초기화.
-        """
+        # === 신규 === 중복 quit 방지 (PySide/QThread에서 매우 중요)
+        if self._quit_done:
+            return
+        self._quit_done = True
+
         self._safe_quit_driver()
 
-        # 임시 프로필 폴더 정리
         try:
             if self._profile_dir and os.path.isdir(self._profile_dir):
                 shutil.rmtree(self._profile_dir, ignore_errors=True)

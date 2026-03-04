@@ -124,9 +124,6 @@ class BaseApiWorker(QThread):
     def set_region(self, region: Any) -> None:
         self.region = region
 
-    def stop(self) -> None:
-        self.running = False
-
     # =========================
     # hooks (override required)
     # =========================

@@ -750,13 +750,12 @@ class MainWindow(QWidget):
         self.add_log(f"유저 : {self.user}")
 
 
-    
     def cleanup_for_nav(self) -> None:
         # 1) 크롤링 워커 정지
         try:
             if self.on_demand_worker is not None:
                 self.on_demand_worker.stop()
-                self.on_demand_worker.wait(2000)
+                self.on_demand_worker.wait(3000)
                 self.on_demand_worker = None
         except Exception:
             pass

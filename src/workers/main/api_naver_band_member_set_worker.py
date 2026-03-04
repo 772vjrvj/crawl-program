@@ -72,29 +72,61 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
         self.driver = self.selenium_driver.start_driver(1200)
 
 
-    def _close_driver_once(self) -> None:
-        if self._driver_closed:
-            return
-        self._driver_closed = True
+    def cleanup(self) -> None:
+
+        # 1) selenium 종료 (driver -> selenium_driver 순서 권장)
+        try:
+            if self.driver:
+                try:
+                    self.driver.quit()
+                except Exception:
+                    pass
+        finally:
+            self.driver = None  # 여기서 끊어줘야 이후 로직이 안정적
 
         try:
             if self.selenium_driver:
-                self.selenium_driver.quit()
-        except Exception:
-            pass
+                try:
+                    self.selenium_driver.quit()
+                except Exception:
+                    pass
         finally:
-            self.driver = None
             self.selenium_driver = None
 
+        # 2) api/file/excel (각각 독립적으로 닫기)
+        try:
+            if self.api_client:
+                self.api_client.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
+        finally:
+            self.api_client = None
+
+        try:
+            if self.file_driver:
+                self.file_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
+        finally:
+            self.file_driver = None
+
+        try:
+            if self.excel_driver:
+                self.excel_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
+        finally:
+            self.excel_driver = None
+
+
     def stop(self) -> None:
-        # === 신규 === Event 기반 stop
+        self.running = False
         self._stop_event.set()
-        self._close_driver_once()
+        self.cleanup()
+
 
     def destroy(self) -> None:
-        self._close_driver_once()
-
-        # BaseApiWorker 시그니처에 맞춰 emit (현재 코드 유지)
+        self.cleanup()
         self.progress_signal.emit(0.0, 1000000)
         self.log_signal_func("크롤링 종료중...")
         time.sleep(2.5)
