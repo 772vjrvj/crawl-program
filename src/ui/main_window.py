@@ -535,35 +535,19 @@ class MainWindow(QWidget):
 
     # 프로그램 중지
     def stop(self, *, show_popup: bool = True, reason: Optional[str] = None) -> None:
+        
         # 1. 중복 호출 방지 및 버튼 텍스트 복구
         if self.collect_button:
             self.collect_button.setText("시작")
             self.collect_button.repaint()
 
-        # 2. 크롤링 워커 중지 (참조 유지하며 stop만 호출)
-        if self.on_demand_worker is not None:
-            try:
-                # 워커 내부의 destroy()가 실행되도록 유도
-                self.on_demand_worker.stop()
-            except Exception as e:
-                self.add_log(f"워커 중지 중 오류: {e}")
+        self.cleanup_for_nav()
 
-        # 3. 프로그래스 워커 중지
-        if self.progress_worker is not None:
-            try:
-                self.progress_worker.stop()
-            except Exception:
-                pass
-
-        # 4. 중요: 상황별 UI 알림을 '메시지 큐'의 맨 뒤로 보냅니다 (SingleShot 사용)
         # 확인 버튼을 누를 때 발생하는 UI 스레드 충돌을 방지하기 위함입니다.
         if show_popup:
             msg_text = reason or "크롤링이 종료되었습니다."
             QTimer.singleShot(100, lambda: self.show_message(msg_text, "info", None))
 
-        # 상황별 UI 알림 제어
-        if show_popup:
-            self.show_message(reason or "크롤링 종료", "info", None)
 
     # 프로그래스 큐 데이터 담기
     def set_progress(self, start_value: int, end_value: int) -> None:
@@ -621,8 +605,8 @@ class MainWindow(QWidget):
         except Exception:
             pass
 
-        # 전환용 자원 정리(워커/세션 등)
-        self.cleanup_for_switch()
+        # 전환용 자원 정리(워커/프로그래스)
+        self.cleanup_for_nav()
 
         # 다음 화면 전환은 이벤트루프 한 틱 뒤
         QTimer.singleShot(0, self.app_manager.go_to_select)
@@ -673,20 +657,12 @@ class MainWindow(QWidget):
 
         # 5) 서버 로그아웃 요청
         self.logout_worker = LogoutWorker(session)
-        self.logout_worker.logout_success.connect(self._on_logout_success)
-        self.logout_worker.logout_failed.connect(self._on_logout_failed)
+        self.logout_worker.logout_success.connect(self._on_logout)
+        self.logout_worker.logout_failed.connect(self._on_logout)
         self.logout_worker.start()
 
 
-    def _on_logout_success(self, msg: str) -> None:
-        # ✅ 전환용 자원 정리(워커/세션 등)
-        self.cleanup_for_switch()
-
-        # ✅ 로그인 화면으로 전환
-        self._switch_to_login()
-
-
-    def _on_logout_failed(self, msg: str) -> None:
+    def _on_logout(self, msg: str) -> None:
         # ✅ 전환용 자원 정리(워커/세션 등)
         self.cleanup_for_switch()
 
@@ -774,18 +750,18 @@ class MainWindow(QWidget):
         self.add_log(f"유저 : {self.user}")
 
 
-    def cleanup_for_switch(self) -> None:
-        # 1) 크롤링 워커 정지 및 대기
+    
+    def cleanup_for_nav(self) -> None:
+        # 1) 크롤링 워커 정지
         try:
             if self.on_demand_worker is not None:
                 self.on_demand_worker.stop()
-                # 빌드 환경에서는 워커가 죽을 시간을 조금 주는 게 좋습니다.
-                # self.on_demand_worker.wait(2000)
+                self.on_demand_worker.wait(2000)
                 self.on_demand_worker = None
         except Exception:
             pass
 
-        # 2) 프로그래스 워커 정지
+        # 2) progress worker 정지
         try:
             if self.progress_worker is not None:
                 self.progress_worker.stop()
@@ -793,6 +769,12 @@ class MainWindow(QWidget):
                 self.task_queue = None
         except Exception:
             pass
+
+
+
+    def cleanup_for_switch(self) -> None:
+        
+        self.cleanup_for_nav()
 
         # 3) 로그인 체크 워커 정지
         try:
@@ -846,7 +828,6 @@ class MainWindow(QWidget):
         self._closing_pop = ClosingPop(self)
         self._closing_pop.show()
 
-        # === 신규 === 타임아웃 걸어두기 (CleanupWorker가 멈추면 여기서라도 종료)
         QTimer.singleShot(self._close_timeout_ms, self._force_quit)
 
         # 2) 정리 워커 시작 (UI 멈춤 방지)

@@ -38,25 +38,37 @@ class BaseApiWorker(QThread):
     # =========================
     def run(self) -> None:
         try:
+
+            if not self.running:
+                return
+
             if not self.init():
                 self.log_signal_func("초기화 실패 → 종료")
-                self.destroy()
+                if self.running:
+                    self.destroy()
                 return
 
             self.log_signal_func("초기화 성공")
+
+            if not self.running:
+                self.log_signal_func("중단 요청 감지")
+                return
 
             if not self.main():
                 self.log_signal_func("메인 실패")
             else:
                 self.log_signal_func("메인 성공")
 
-            self.destroy()
+            if self.running:
+                self.destroy()
+
             self.log_signal_func("종료 완료")
 
         except Exception as e:
             self.log_signal_func("❌ 예외 발생: " + str(e))
             try:
-                self.destroy()
+                if self.running:
+                    self.destroy()
             except Exception:
                 pass
 
@@ -111,6 +123,9 @@ class BaseApiWorker(QThread):
 
     def set_region(self, region: Any) -> None:
         self.region = region
+
+    def stop(self) -> None:
+        self.running = False
 
     # =========================
     # hooks (override required)
