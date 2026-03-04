@@ -12,7 +12,7 @@ pyinstaller .\main.py `
 --distpath ".\dist" `
 --workpath ".\build" `
 --add-data "E:\git\crawl-program\venv\Lib\site-packages\whisper\assets;whisper\assets" `
---add-data ".\resources\bin;resources\bin" `
+--add-data ".\resources\naver_shop_total\bin;resources\naver_shop_total\bin" `
 --hidden-import "src.workers.main.api_naver_shop_total_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `

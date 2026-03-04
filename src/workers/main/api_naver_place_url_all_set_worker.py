@@ -38,8 +38,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         self.before_pro_value: float = 0.0  
         self.file_driver: Optional[FileUtils] = None  
         self.excel_driver: Optional[ExcelUtils] = None  
-        self.sess: Optional[requests.Session] = None  
-        self.api_client: Optional[APIClient] = None  
+        self.api_client: Optional[APIClient] = None
         self.saved_ids: Set[str] = set()  
         self.image_size: int = 1000  
         self.zip: bool = True  
@@ -153,17 +152,46 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         # api
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
+
+    def cleanup(self) -> None:
+        try:
+            if self.api_client:
+                self.api_client.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
+
+        try:
+            if self.file_driver:
+                self.file_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
+
+        try:
+            if self.excel_driver:
+                self.excel_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
+
+    # 정지
+    def stop(self) -> None:
+        if self.excel_driver and self.csv_filename:
+            self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
+
+        self.running = False
+        self.cleanup()
+
+
     # 마무리
     def destroy(self) -> None:  
         if self.excel_driver and self.csv_filename:
             self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
-
         self.progress_signal.emit(self.before_pro_value, 1000000)
         self.log_signal_func("=============== 크롤링 종료중...")
-        time.sleep(5)
+        self.cleanup()
+        time.sleep(1)
         self.log_signal_func("=============== 크롤링 종료")
-        if self.running:
-            self.progress_end_signal.emit()
+        self.progress_end_signal.emit()
+
 
     # 전체 갯수 조회
     def total_cnt_cal(self) -> Optional[List[str]]:  
@@ -739,6 +767,3 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
 
         return '\n'.join(formatted_hours).strip() if formatted_hours else ""
 
-    # 정지
-    def stop(self) -> None:  
-        self.running = False

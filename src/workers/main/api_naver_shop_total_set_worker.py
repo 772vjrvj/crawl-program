@@ -45,7 +45,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             else:
                 root_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-            ffmpeg_path = os.path.join(root_path, 'resources', 'bin')
+            ffmpeg_path = os.path.join(root_path, 'resources', 'naver_shop_total', 'bin')
 
             if os.path.exists(ffmpeg_path):
                 os.environ["PATH"] = ffmpeg_path + os.pathsep + os.environ["PATH"]
