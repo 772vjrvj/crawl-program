@@ -118,7 +118,7 @@ pyinstaller .\main.py `
 --windowed `
 --name "CrawlProgram" `
 --icon ".\resources\icons\crawling.ico" `
---version-file ".\version_info.txt" `
+--version-file ".\docs\customers\krx_nextrade_brand\version_info.txt" `
 --distpath ".\dist" `
 --workpath ".\build" `
 --hidden-import "src.workers.main.api_krx_nextrade_brand_set_worker" `

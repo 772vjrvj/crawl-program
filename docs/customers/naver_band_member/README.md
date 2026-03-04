@@ -18,6 +18,8 @@ mybiz153
 payplay00153!!
 
 
+
+# 빌드
 pyinstaller .\main.py `
 --noconfirm `
 --clean `
@@ -25,7 +27,7 @@ pyinstaller .\main.py `
 --windowed `
 --name "CrawlProgram" `
 --icon ".\resources\icons\crawling.ico" `
---version-file ".\version_info.txt" `
+--version-file ".\docs\customers\naver_band_member\version_info.txt" `
 --distpath ".\dist" `
 --workpath ".\build" `
 --hidden-import "src.workers.main.api_naver_band_member_set_worker" `

@@ -9,7 +9,7 @@ pyinstaller .\main.py `
 --console `
 --name "CrawlProgram" `
 --icon ".\resources\icons\crawling.ico" `
---version-file ".\version_info.txt" `
+--version-file ".\docs\customers\naver_shop_total\version_info.txt" `
 --distpath ".\dist" `
 --workpath ".\build" `
 --add-data "E:\git\crawl-program\venv\Lib\site-packages\whisper\assets;whisper\assets" `
