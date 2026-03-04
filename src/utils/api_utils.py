@@ -1,9 +1,13 @@
 # src/utils/api_utils.py
 
+from __future__ import annotations  # 파일 최상단
+
 import logging
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, Literal, overload
+from typing import Any, Dict, List, Optional
+from typing import Callable, Union, Literal
 
 import requests
+
 try:
     import requests_cache
 except Exception:

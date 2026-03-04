@@ -6,6 +6,14 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+
+import os
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
+
+
 from PySide6.QtCore import Qt, QLockFile, QDir  # === 신규 ===
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -13,6 +21,32 @@ from src.app_manager import AppManager
 from src.core.global_state import GlobalState
 from src.utils.app_config_loader import AppConfigLoader
 from src.utils.config import set_app_server_config
+
+
+
+def _get_base_path() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+def _setup_ffmpeg_path(base_path: Path):
+    """
+    _internal/resources/bin 또는 resources/bin에 있는 ffmpeg를
+    시스템 PATH에 등록하여 Whisper가 인식하도록 합니다.
+    """
+    # PyInstaller 빌드 시 보통 base_path는 exe 위치입니다.
+    # 제공해주신 경로 구조에 맞춰 bin 폴더 위치를 잡습니다.
+    ffmpeg_bin = base_path / "_internal" / "resources" / "bin"
+
+    # 만약 위 경로가 없다면 일반 resources/bin도 확인 (개발 환경 등)
+    if not ffmpeg_bin.exists():
+        ffmpeg_bin = base_path / "resources" / "bin"
+
+    if ffmpeg_bin.exists():
+        bin_str = str(ffmpeg_bin.resolve())
+        if bin_str not in os.environ["PATH"]:
+            os.environ["PATH"] = bin_str + os.pathsep + os.environ["PATH"]
 
 
 def show_already_running_alert(existing_app: Optional[QApplication] = None) -> None:
@@ -152,6 +186,9 @@ def _bootstrap_runtime_config(state: GlobalState) -> None:
 
 
 def main() -> int:
+    base = _get_base_path()
+    _setup_ffmpeg_path(base)
+
     app = QApplication(sys.argv)
 
     base = _get_base_path()

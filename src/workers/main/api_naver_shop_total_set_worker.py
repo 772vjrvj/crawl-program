@@ -1,23 +1,24 @@
-# -*- coding: utf-8 -*-
+# src/workers/main/api_naver_shop_total_set_worker.py
 from __future__ import annotations
 
+import json
 import os
+import random
+import re
 import sys
 import time
-import json
-import re
-import random
-import threading
 import wave
-import pyperclip
-import pyautogui
-import whisper
+from typing import Optional
+
 import pyaudiowpatch as pyaudio
-from typing import Optional, List, Dict, Any
+import pyautogui
+import pyperclip
+import whisper
 
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.workers.api_base_worker import BaseApiWorker
+
 
 class ApiNaverShopTotalSetWorker(BaseApiWorker):
     def __init__(self) -> None:

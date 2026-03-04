@@ -1,6 +1,4 @@
-# ApiNaverBandMemberSetLoadWorker.py
-# -*- coding: utf-8 -*-
-
+# src/workers/main/api_naver_band_member_set_worker.py
 from __future__ import annotations
 
 import base64
