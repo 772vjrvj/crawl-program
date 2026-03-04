@@ -45,7 +45,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             else:
                 root_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-            ffmpeg_path = os.path.join(root_path, 'resources', 'naver_shop_total', 'bin')
+            ffmpeg_path = os.path.join(root_path, 'resources', 'customers', 'naver_shop_total', 'bin')
 
             if os.path.exists(ffmpeg_path):
                 os.environ["PATH"] = ffmpeg_path + os.pathsep + os.environ["PATH"]
@@ -95,6 +95,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             if self.csv_filename and os.path.exists(self.csv_filename):
                 if self.excel_driver:
                     self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
+                    self.log_signal_func(f"[cleanup] 엑셀 변환 성공")
         except Exception as e:
             self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
 
@@ -102,6 +103,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         try:
             if self.model is not None:
                 del self.model
+                self.log_signal_func(f"[Whisper 모델] 해제")
         except Exception:
             pass
         finally:
@@ -111,6 +113,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         try:
             if os.path.exists("captcha_audio_final.wav"):
                 os.remove("captcha_audio_final.wav")
+                self.log_signal_func(f"[캡차 음성파일] 삭제")
         except Exception:
             pass
 
@@ -118,6 +121,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         try:
             if self.file_driver and hasattr(self.file_driver, "close"):
                 self.file_driver.close()
+                self.log_signal_func(f"[파일] 해재")
         except Exception as e:
             self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
         finally:
@@ -127,6 +131,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         try:
             if self.excel_driver and hasattr(self.excel_driver, "close"):
                 self.excel_driver.close()
+                self.log_signal_func(f"[엑셀] 해재")
         except Exception as e:
             self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
         finally:
