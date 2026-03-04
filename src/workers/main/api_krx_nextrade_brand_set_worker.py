@@ -182,20 +182,25 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
         krx_map: Dict[str, Dict[str, Any]] = {self.only_digits(r.get("ISU_SRT_CD")): r for r in krx}
         nx_map: Dict[str, Dict[str, Any]] = {self.only_digits(r.get("isuSrdCd", "").replace("A", "")): r for r in nx}
 
+        # 즉, KRX에만 있는 종목, NXT에만 있는 종목, 둘 다 있는 종목 전부 포함
         all_codes = set(krx_map.keys()) | set(nx_map.keys())
 
         merged: List[Dict[str, Any]] = []
 
+        # 종목별로 “통합 레코드(merged)” 만들기
         for code in all_codes:
             k = krx_map.get(code)
             n = nx_map.get(code)
 
+            # 거래대금(원) 합산
             trade_sum_won: int = (to_int(k.get("ACC_TRDVAL")) if k else 0) + (to_int(n.get("accTrval")) if n else 0)
 
+            # 등락률 결정 (우선순위: KRX → 없으면 NXT)
             rate: Optional[float] = to_float(k.get("FLUC_RT")) if k else None
             if rate is None and n:
                 rate = to_float(n.get("upDownRate"))
 
+            # 종목명 결정 (우선순위: NXT → 없으면 KRX → 없으면 코드)
             name: str = ""
             if n:
                 name = n.get("isuAbwdNm", "")
@@ -211,6 +216,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                 "등락률": rate
             })
 
+        # 거래대금 큰 순서로 정렬 (순위 산정 기반)
         merged.sort(key=lambda x: x.get("거래대금합계_원", 0), reverse=True)
 
         rows_c1: List[Dict[str, Any]] = []

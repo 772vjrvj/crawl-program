@@ -96,7 +96,7 @@ pyinstaller .\main.py `
 --workpath ".\build" `
 --add-data "E:\git\crawl-program\venv\Lib\site-packages\whisper\assets;whisper\assets" `
 --add-data ".\resources\bin;resources\bin" `
---hidden-import "src.workers.main.api_naver_shop_total_set_worker" `
+--hidden-import "src.workers.main.api_krx_nextrade_brand_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `
 --hidden-import "pyaudiowpatch" `
