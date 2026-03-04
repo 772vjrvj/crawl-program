@@ -38,6 +38,8 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
     # =========================================================
     def init(self) -> bool:
         try:
+            if sys.stdout is None:
+                sys.stdout = open(os.devnull, "w")
             if getattr(sys, 'frozen', False):
                 root_path = sys._MEIPASS
             else:
@@ -70,17 +72,44 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
     def stop(self) -> None:
         self.running = False
 
+        if self.csv_filename and os.path.exists(self.csv_filename):
+            # 엑셀 변환 중에는 시그널을 보내지 말고 작업에만 집중
+            self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
+
+        # 모델 참조 해제 시도 (메모리 충돌 방지)
+        if self.model:
+            del self.model
+            self.model = None
+
 
     def destroy(self) -> None:
+        try:
+            # 1. 엑셀 변환 로직 (가장 중요)
+            if self.csv_filename and os.path.exists(self.csv_filename):
+                # 엑셀 변환 중에는 시그널을 보내지 말고 작업에만 집중
+                self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
 
-        if self.csv_filename and os.path.exists(self.csv_filename):
-            self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
-            self.log_signal_func("✅ 수집 및 엑셀 변환 완료")
+            # 2. 모델 자원 해제 (메모리 충돌 방지)
+            if self.model is not None:
+                del self.model
+                self.model = None
 
-        self.progress_signal.emit(self.before_pro_value, 1000000)
-        self.log_signal_func("크롤링 종료 중...")
-        time.sleep(1.5)
-        self.progress_end_signal.emit()
+            # 3. 종료 시그널 전송 (안전하게)
+            # 빌드 환경에서는 UI가 이미 죽어있을 수 있으므로 시그널 송신 실패 시 무시하도록 설정
+            try:
+                self.progress_signal.emit(self.before_pro_value, 1000000)
+                self.log_signal_func("✅ 작업을 안전하게 종료했습니다.")
+                time.sleep(0.2)
+                self.progress_end_signal.emit()
+            except:
+                # 시그널 송신 중 에러(UI 파괴 등)가 나면 그냥 패스
+                pass
+
+        except Exception as e:
+            # 엑셀 변환 등에서 에러가 나더라도 프로그램이 튕기지 않게 함
+            # 필요하다면 로컬에 텍스트 로그만 남김
+            with open("exit_debug.txt", "a", encoding="utf-8") as f:
+                f.write(f"Exit Error: {str(e)}\n")
 
 
     # =========================================================
@@ -91,6 +120,8 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         keywords = [k.strip() for k in keywords_str.split(",") if k.strip()]
         start_p = int(self.get_setting_value(self.setting, "start_page") or 1)
         end_p = int(self.get_setting_value(self.setting, "end_page") or 1)
+
+        site_total_cnt = int(self.get_setting_value(self.setting, "site_total_cnt") or 0)
 
         if not keywords:
             self.log_signal_func("❌ 키워드가 없습니다.")
@@ -212,7 +243,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
                                 category_str = "/".join([c for c in categories if c])
 
-                                chunk_results.append({
+                                rs = {
                                     "키워드": kw,
                                     "수집일시": time.strftime("%Y-%m-%d %H:%M:%S"),
                                     "상품명": item.get("productName"),
@@ -234,13 +265,17 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                                     "전체방문자수": total_visit,
                                     "페이지": p_num,
                                     "번호": idx + 1
-                                })
+                                }
+
+                                chunk_results.append(rs)
+
+                                if site_total_cnt >= int(total_visit):
+                                    self.excel_driver.append_to_csv(self.csv_filename, [rs], self.columns)
 
                             self.log_signal_func(f"📦 [수집 완료] {kw} - {p_num}p | {item.get('mallName')} | 방문자: {total_visit}")
                             time.sleep(random.uniform(1.0, 2.5))
 
-                    if chunk_results:
-                        self.excel_driver.append_to_csv(self.csv_filename, chunk_results, self.columns)
+
 
                 # --- [STEP 3] 10페이지 묶음 종료 후 브라우저 닫기 및 진행률 업데이트 ---
                 self.log_signal_func(f"🧹 묶음 작업 완료. 브라우저를 정리합니다.")
@@ -282,7 +317,11 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                 input_device_index=default_speakers["index"]
             )
 
-            frames = [stream.read(1024) for _ in range(0, int(rate / 1024 * duration))]
+            frames = []
+            for _ in range(0, int(rate / 1024 * duration)):
+                if not self.running: # 정지 버튼 누르면 녹음 즉시 중단
+                    break
+                frames.append(stream.read(1024))
 
             stream.stop_stream()
             stream.close()

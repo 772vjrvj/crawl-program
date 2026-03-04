@@ -87,13 +87,26 @@ docs: 주석 및 README 보완
 pyinstaller .\main.py `
 --noconfirm `
 --clean `
+--console `
 --windowed `
 --name "CrawlProgram" `
 --icon ".\resources\icons\crawling.ico" `
 --version-file ".\version_info.txt" `
 --distpath ".\dist" `
 --workpath ".\build" `
---hidden-import "src.workers.main.api_naver_band_member_set_worker" 
+--add-data "E:\git\crawl-program\venv\Lib\site-packages\whisper\assets;whisper\assets" `
+--add-data ".\resources\bin;resources\bin" `
+--hidden-import "src.workers.main.api_naver_shop_total_set_worker" `
+--hidden-import "pandas" `
+--hidden-import "openpyxl" `
+--hidden-import "pyaudiowpatch" `
+--hidden-import "whisper" `
+--exclude-module tkinter `
+--exclude-module _tkinter `
+--exclude-module tk `
+--exclude-module Tcl `
+--exclude-module tcl
+
 
 
 ■ 빌드 설명

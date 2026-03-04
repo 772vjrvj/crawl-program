@@ -535,20 +535,34 @@ class MainWindow(QWidget):
 
     # 프로그램 중지
     def stop(self, *, show_popup: bool = True, reason: Optional[str] = None) -> None:
-        # 크롤링 중지
-        if self.on_demand_worker is not None:
-            self.on_demand_worker.stop()
-            self.on_demand_worker = None
+        # 1. 중복 호출 방지 및 버튼 텍스트 복구
+        if self.collect_button:
+            self.collect_button.setText("시작")
+            self.collect_button.repaint()
 
-        # 프로그래스 중지
+        # 2. 크롤링 워커 중지 (참조 유지하며 stop만 호출)
+        if self.on_demand_worker is not None:
+            try:
+                # 워커 내부의 destroy()가 실행되도록 유도
+                self.on_demand_worker.stop()
+            except Exception as e:
+                self.add_log(f"워커 중지 중 오류: {e}")
+
+        # 3. 프로그래스 워커 중지
         if self.progress_worker is not None:
-            self.progress_worker.stop()
-            self.progress_worker = None
-            self.task_queue = None
+            try:
+                self.progress_worker.stop()
+            except Exception:
+                pass
+
+        # 4. 중요: 상황별 UI 알림을 '메시지 큐'의 맨 뒤로 보냅니다 (SingleShot 사용)
+        # 확인 버튼을 누를 때 발생하는 UI 스레드 충돌을 방지하기 위함입니다.
+        if show_popup:
+            msg_text = reason or "크롤링이 종료되었습니다."
+            QTimer.singleShot(100, lambda: self.show_message(msg_text, "info", None))
 
         # 상황별 UI 알림 제어
         if show_popup:
-            # reason 있으면 그걸 보여주고, 없으면 기존 문구
             self.show_message(reason or "크롤링 종료", "info", None)
 
     # 프로그래스 큐 데이터 담기
@@ -761,10 +775,12 @@ class MainWindow(QWidget):
 
 
     def cleanup_for_switch(self) -> None:
-        # 1) 크롤링 워커 정지
+        # 1) 크롤링 워커 정지 및 대기
         try:
             if self.on_demand_worker is not None:
                 self.on_demand_worker.stop()
+                # 빌드 환경에서는 워커가 죽을 시간을 조금 주는 게 좋습니다.
+                # self.on_demand_worker.wait(2000)
                 self.on_demand_worker = None
         except Exception:
             pass
