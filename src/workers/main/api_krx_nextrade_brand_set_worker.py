@@ -140,8 +140,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                 all_rows_c2: List[Dict[str, Any]] = []
 
                 for idx, ymd in enumerate(dates, start=1):
-                    if not self.running:
-                        break
+                    if not self.running: return True
 
                     rows_c1, rows_c2 = self.process_one_day(ymd, min_rate1, min_sum_won1, min_rate2, min_sum_won2)
 
@@ -249,6 +248,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
         # 종목별로 “통합 레코드(merged)” 만들기
         for code in all_codes:
+            if not self.running: return [],[]
             k = krx_map.get(code)
             n = nx_map.get(code)
 
@@ -284,6 +284,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
         rank: int = 1
         for m in merged:
+            if not self.running: return [],[]
             m["순위"] = rank
             rank += 1
 
@@ -343,6 +344,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
         total_cnt: int = 0
 
         while True:
+            if not self.running: return result
             payload: Dict[str, Any] = {
                 "_search": "false",
                 "nd": str(int(time.time() * 1000)),
