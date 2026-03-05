@@ -182,6 +182,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
     def stop(self) -> None:
         self.log_signal_func("✅ stop 시작")
         self.running = False
+        time.sleep(2.5)
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
 

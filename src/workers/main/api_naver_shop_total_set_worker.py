@@ -71,6 +71,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
     def stop(self) -> None:
         self.log_signal_func("✅ stop 시작")
         self.running = False
+        time.sleep(2.5)
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
 
@@ -83,14 +84,6 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
 
     def cleanup(self) -> None:
-
-        # === 신규 === 브라우저 종료
-        try:
-            pyautogui.hotkey('alt', 'f4')
-            time.sleep(1)
-            self.log_signal_func("✅ [브라우저] 종료")
-        except Exception:
-            pass
 
         # 1. CSV → Excel 변환
         try:
