@@ -116,16 +116,13 @@ pyinstaller .\main.py `
 --noconfirm `
 --clean `
 --windowed `
---name "CrawlProgram" `
+--name "KRX NEXTRADE" `
 --icon ".\resources\icons\crawling.ico" `
 --version-file ".\docs\customers\krx_nextrade_brand\version_info.txt" `
 --distpath ".\dist" `
---workpath ".\build" `
 --hidden-import "src.workers.main.api_krx_nextrade_brand_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `
---hidden-import "pyaudiowpatch" `
---hidden-import "whisper" `
 --exclude-module tkinter `
 --exclude-module _tkinter `
 --exclude-module tk `
