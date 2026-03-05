@@ -1,17 +1,16 @@
 
---windowed `
+
 --console `
 
 
 pyinstaller .\main.py `
 --noconfirm `
 --clean `
---console `
+--windowed `
 --name "네이버 스토어" `
 --icon ".\resources\icons\crawling.ico" `
 --version-file ".\docs\customers\naver_shop_total\version_info.txt" `
 --distpath ".\dist" `
---workpath ".\build" `
 --add-data "E:\git\crawl-program\venv\Lib\site-packages\whisper\assets;whisper\assets" `
 --add-data ".\resources\customers\naver_shop_total\bin;resources\customers\naver_shop_total\bin" `
 --hidden-import "src.workers.main.api_naver_shop_total_set_worker" `

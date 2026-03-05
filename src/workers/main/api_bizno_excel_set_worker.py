@@ -1,14 +1,9 @@
 # src/workers/main/api_naver_place_url_all_set_worker.py
-import json
 import os
 import random
-import re
-import requests
-import shutil
 import time
-from typing import Any, Dict, List, Optional, Union
-from typing import Set, Pattern  
-from urllib.parse import urlparse
+from typing import List, Optional
+from urllib.parse import quote
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -18,133 +13,358 @@ from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
 from src.workers.api_base_worker import BaseApiWorker
-from urllib.parse import quote
+
 
 class ApiBiznoExcelSetWorker(BaseApiWorker):
 
     # 초기화
-    def __init__(self) -> None:  
+    def __init__(self) -> None:
         super().__init__()
 
         self.driver = None
         self.selenium_driver = None
-        self.url_list: Optional[List[str]] = None
-        self.columns: Optional[List[str]] = None  
-        self.csv_filename: Optional[str] = None  
-        self.keyword_list: Optional[List[str]] = None  
+        self.columns: Optional[List[str]] = None
+        self.csv_filename: Optional[str] = None
         self.site_name: str = "BIZNO"
-        self.total_cnt: int = 0  
-        self.total_pages: int = 0  
-        self.current_cnt: int = 0  
-        self.before_pro_value: float = 0.0  
-        self.file_driver: Optional[FileUtils] = None  
-        self.excel_driver: Optional[ExcelUtils] = None  
+        self.total_cnt: int = 0
+        self.current_cnt: int = 0
+        self.before_pro_value: float = 0.0
+        self.file_driver: Optional[FileUtils] = None
+        self.excel_driver: Optional[ExcelUtils] = None
         self.api_client: Optional[APIClient] = None
-        self.saved_ids: Set[str] = set()  
+
+        self._cookie_ready: bool = False
+        self._cache: dict[str, str] = {}
+
+        # === 신규 === 대량 휴식/세션 운영 파라미터
+        self._rest_every_n: int = 30
+        self._rest_range_sec = (30.0, 60.0)
+
+        self._long_rest_every_n: int = 200
+        self._long_rest_range_sec = (120.0, 240.0)
+
+        self._super_rest_every_n: int = 1000
+        self._super_rest_range_sec = (600.0, 1200.0)
+
+        self._cookie_refresh_every_n: int = 500  # 쿠키 재발급 주기(권장)
+
+        # === 신규 === 간단 차단 감지 키워드(사이트가 바뀌어도 크게 무리 없는 수준)
+        self._block_keywords = [
+            "접근이 차단",
+            "차단",
+            "비정상적인 접근",
+            "잠시 후 다시",
+            "Too Many Requests",
+            "Request blocked",
+            "Access Denied",
+            "Forbidden",
+        ]
 
     # 초기화
-    def init(self) -> bool:  
+    def init(self) -> bool:
         self.driver_set()
         self.log_signal_func(f"선택 항목 : {self.columns}")
+        self.log_signal_func("✅ init 완료")
         return True
 
     # 프로그램 실행
-    def main(self) -> bool:  
+    def main(self) -> bool:
         try:
-
             self.log_signal_func(f"크롤링 시작. 전체 수 {len(self.excel_data_list)}")
+
             self.csv_filename = self.file_driver.get_csv_filename(self.site_name)
             df = pd.DataFrame(columns=self.columns)
             df.to_csv(self.csv_filename, index=False, encoding="utf-8-sig")
+            self.log_signal_func(f"✅ CSV 생성: {self.csv_filename}")
+
+            self.total_cnt = len(self.excel_data_list)
+
+            # 쿠키 1회 세팅
+            self.log_signal_func("쿠키 세팅을 진행합니다. (1회)")
+            self.ensure_cookie()
 
             for index, item in enumerate(self.excel_data_list, start=1):
                 if not self.running:
-                    self.log_signal_func("크롤링이 중지되었습니다.")
-                    break
+                    self.log_signal_func("⛔ running=False 감지. main 루프 종료")
+                    return True
 
-                if index > 1:
-                    break
+                # === 신규 === 주기적 쿠키 재발급 (세션/쿠키 기반 차단 대비)
+                if self._cookie_refresh_every_n > 0 and (index % self._cookie_refresh_every_n == 0):
+                    self.log_signal_func(f"🔁 쿠키 재발급 타이밍 도달 ({index}건). 쿠키 재세팅 진행")
+                    if not self.refresh_cookie():
+                        self.log_signal_func("⛔ 쿠키 재발급 중단 감지. main 루프 종료")
+                        return True
 
-                place_info = self.fetch_search_results(item['업체'])
-                self.log_signal_func(f"place_info : {place_info}")
+                # 진행 로그
+                try:
+                    q_name = (item.get("검색회사명") or "").strip()
+                    q_owner = (item.get("검색대표자명") or "").strip()
+                    q_addr = (item.get("검색회사주소") or "").strip()
+                except Exception:
+                    q_name, q_owner, q_addr = "", "", ""
+                self.log_signal_func(f"==================== [{index}/{self.total_cnt}] 처리 시작 ====================")
+                self.log_signal_func(f"입력값: 검색회사명='{q_name}', 검색대표자명='{q_owner}', 검색회사주소='{q_addr}'")
 
-                for idx in place_info:
-                    self.fetch_article_detail(idx)
+                # 검색 전 텀
+                sleep1 = random.uniform(3.0, 6.0)
+                self.log_signal_func(f"검색 전 잠시 쉽니다. ({sleep1:.2f}s)")
+                if not self.sleep_s(sleep1):
+                    self.log_signal_func("⛔ sleep 중단 감지. main 루프 종료")
+                    return True
 
+                self.log_signal_func("🔎 검색 결과 조회 시작")
+                self.fetch_search_results(item)
+                self.log_signal_func(f"item1 : {item}")
+
+                if item.get("article"):
+                    self.log_signal_func(f"✅ 검색 매칭 성공. article={item.get('article')}")
+
+                    # 상세 전 텀
+                    sleep2 = random.uniform(4.0, 8.0)
+                    self.log_signal_func(f"상세 조회 전 잠시 쉽니다. ({sleep2:.2f}s)")
+                    if not self.sleep_s(sleep2):
+                        self.log_signal_func("⛔ sleep 중단 감지. main 루프 종료")
+                        return True
+
+                    self.log_signal_func("📄 상세 조회 시작")
+                    self.fetch_article_detail(item)
+                    self.log_signal_func("📄 상세 조회 완료")
+                else:
+                    self.log_signal_func("⚠️ 검색 매칭 실패. article 없음")
+
+                self.log_signal_func(f"item2 : {item}")
+
+                pro_value: float = (index / self.total_cnt) * 1000000
+                pct = (index / self.total_cnt) * 100.0 if self.total_cnt else 0.0
+                self.log_signal_func(f"진행률: {pct:.2f}% ({index}/{self.total_cnt})")
+                self.progress_signal.emit(self.before_pro_value, pro_value)
+                self.before_pro_value = pro_value
+
+                self.log_signal_func("💾 CSV 저장(append) 시작")
+                self.excel_driver.append_to_csv(self.csv_filename, [item], self.columns)
+                self.log_signal_func("💾 CSV 저장(append) 완료")
+
+                # === 신규 === 대량 요청 방지 휴식(패턴 분산)
+                if self._rest_every_n > 0 and (index % self._rest_every_n == 0):
+                    sleep_t = random.uniform(self._rest_range_sec[0], self._rest_range_sec[1])
+                    self.log_signal_func(f"🕒 대량 요청 방지 휴식 ({self._rest_every_n}건마다): {sleep_t:.1f}s")
+                    if not self.sleep_s(sleep_t):
+                        self.log_signal_func("⛔ 휴식 중단 감지. main 루프 종료")
+                        return True
+
+                if self._long_rest_every_n > 0 and (index % self._long_rest_every_n == 0):
+                    sleep_t = random.uniform(self._long_rest_range_sec[0], self._long_rest_range_sec[1])
+                    self.log_signal_func(f"🕒 긴 휴식 ({self._long_rest_every_n}건마다): {sleep_t:.1f}s")
+                    if not self.sleep_s(sleep_t):
+                        self.log_signal_func("⛔ 긴 휴식 중단 감지. main 루프 종료")
+                        return True
+
+                if self._super_rest_every_n > 0 and (index % self._super_rest_every_n == 0):
+                    sleep_t = random.uniform(self._super_rest_range_sec[0], self._super_rest_range_sec[1])
+                    self.log_signal_func(f"🕒 초긴 휴식 ({self._super_rest_every_n}건마다): {sleep_t:.1f}s")
+                    if not self.sleep_s(sleep_t):
+                        self.log_signal_func("⛔ 초긴 휴식 중단 감지. main 루프 종료")
+                        return True
+
+                self.log_signal_func(f"==================== [{index}/{self.total_cnt}] 처리 완료 ====================")
 
         except Exception as e:
             self.log_signal_func(f"크롤링 에러: {e}")
 
+        self.log_signal_func("✅ main 종료")
         return True
 
-
     # 드라이버 세팅
-    def driver_set(self) -> None:  
+    def driver_set(self) -> None:
         self.log_signal_func("드라이버 세팅 ========================================")
 
-        # 엑셀 객체 초기화
         self.excel_driver = ExcelUtils(self.log_signal_func)
-
-        # 파일 객체 초기화
         self.file_driver = FileUtils(self.log_signal_func)
-
-        # api
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
         self.selenium_driver = SeleniumUtils(headless=False)
         self.selenium_driver.set_capture_options(enabled=True, block_images=False)
 
         self.driver = self.selenium_driver.start_driver(1200)
-
-
+        self.log_signal_func("✅ 드라이버 세팅 완료")
 
     def cleanup(self) -> None:
+        self.log_signal_func("🧹 cleanup 시작")
+
+        try:
+            if self.csv_filename and os.path.exists(self.csv_filename):
+                self.log_signal_func(f"🧾 CSV 존재 확인: {self.csv_filename}")
+                if self.excel_driver:
+                    self.log_signal_func("🧾 CSV -> 엑셀 변환 시작")
+                    self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
+                    self.log_signal_func("✅ [엑셀 변환] 성공")
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
+
         try:
             if self.api_client:
+                self.log_signal_func("🔌 api_client.close 시작")
                 self.api_client.close()
+                self.log_signal_func("🔌 api_client.close 완료")
         except Exception as e:
             self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
 
         try:
             if self.file_driver:
+                self.log_signal_func("🔌 file_driver.close 시작")
                 self.file_driver.close()
+                self.log_signal_func("🔌 file_driver.close 완료")
         except Exception as e:
             self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
 
         try:
             if self.excel_driver:
+                self.log_signal_func("🔌 excel_driver.close 시작")
                 self.excel_driver.close()
+                self.log_signal_func("🔌 excel_driver.close 완료")
         except Exception as e:
             self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
 
+        self.log_signal_func("🧹 cleanup 완료")
+
     # 정지
     def stop(self) -> None:
-        if self.excel_driver and self.csv_filename:
-            self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
-
+        self.log_signal_func("✅ stop 시작")
         self.running = False
+        self.log_signal_func("⛔ running=False 설정 완료. 2초 후 cleanup 진행")
+        time.sleep(2)
         self.cleanup()
-
+        self.log_signal_func("✅ stop 완료")
 
     # 마무리
-    def destroy(self) -> None:  
-        if self.excel_driver and self.csv_filename:
-            self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
+    def destroy(self) -> None:
+        self.log_signal_func("✅ destroy 시작")
         self.progress_signal.emit(self.before_pro_value, 1000000)
-        self.log_signal_func("=============== 크롤링 종료중...")
-        self.cleanup()
-        time.sleep(1)
-        self.log_signal_func("=============== 크롤링 종료")
+        self.log_signal_func("✅ destroy")
+        time.sleep(2)
         self.progress_end_signal.emit()
+        self.log_signal_func("✅ progress_end_signal emit 완료")
 
+    # =========================
+    # helpers
+    # =========================
+    def safe_text(self, el, sep: str = " ", strip: bool = True) -> str:
+        try:
+            return el.get_text(sep, strip=strip) if el else ""
+        except Exception:
+            return ""
 
-    def fetch_search_results(self, keyword: str) -> list[str]:
-        """
-        bizno 검색 결과에서 article id 목록을 추출
-        예: /article/2230853329 -> 2230853329
-        """
+    # === 신규 === 차단 의심 감지
+    def is_blocked_html(self, html: str) -> bool:
+        try:
+            if not html:
+                return True
+            # 너무 짧은 HTML은 차단/에러 페이지일 확률이 높음
+            if len(html) < 1200:
+                return True
+            low = html.lower()
+            for k in self._block_keywords:
+                if k.lower() in low:
+                    return True
+        except Exception:
+            return False
+        return False
 
-        url = f"https://bizno.net/?area=&query={quote(keyword)}"
+    # === 신규 === 차단 의심 시 백오프 + 쿠키 재발급(1회)
+    def backoff_and_refresh_if_blocked(self, url: str, html: str) -> bool:
+        if not self.is_blocked_html(html):
+            return True
+
+        self.log_signal_func(f"⚠️ 차단/제한 의심 페이지 감지: {url}")
+        # 1) 짧은 휴식 -> 재시도 대비
+        sleep_t = random.uniform(20.0, 40.0)
+        self.log_signal_func(f"🕒 차단 의심 백오프 휴식: {sleep_t:.1f}s")
+        if not self.sleep_s(sleep_t):
+            return False
+
+        # 2) 쿠키 재발급
+        self.log_signal_func("🔁 차단 의심으로 쿠키 재발급 시도")
+        if not self.refresh_cookie():
+            return False
+
+        return True
+
+    def ensure_cookie(self) -> None:
+        if self._cookie_ready:
+            self.log_signal_func("✅ 쿠키 이미 세팅됨 (skip)")
+            return
+
+        self.log_signal_func("🌐 쿠키 세팅을 위해 메인 페이지 접속: https://bizno.net/")
+        self.driver.get("https://bizno.net/")
+
+        self.log_signal_func("쿠키 대기 전 잠시 쉽니다. (2.00s)")
+        if not self.sleep_s(2.0):
+            self.log_signal_func("⛔ cookie sleep 중단 감지")
+            return
+
+        cnt = 0
+        for c in self.driver.get_cookies():
+            name = c.get("name")
+            value = c.get("value")
+            if name and value:
+                self.api_client.cookie_set(name, value)
+                cnt += 1
+
+        self._cookie_ready = True
+        self.log_signal_func(f"✅ 쿠키 세팅 완료 (count={cnt})")
+
+    # === 신규 === 쿠키 재발급 (가능한 최소 변경)
+    def refresh_cookie(self) -> bool:
+        try:
+            # cookie ready 플래그만 내려서 재수집
+            self._cookie_ready = False
+            self.ensure_cookie()
+            # ensure_cookie 내부에서 sleep_s 사용하므로, running 상태를 여기서도 존중
+            if not self.running:
+                return False
+        except Exception as e:
+            self.log_signal_func(f"❌ refresh_cookie 실패: {e}")
+            return False
+        return True
+
+    def get_html(self, url: str, headers: dict) -> str:
+        # 요청 수 줄이기(간단 캐시)
+        if url in self._cache:
+            self.log_signal_func(f"🧠 cache hit: {url}")
+            return self._cache[url]
+
+        self.log_signal_func(f"🌐 GET: {url}")
+
+        # === 신규 === 차단 감지/백오프를 위해 2회까지 시도
+        html = ""
+        for attempt in range(1, 3):
+            html = self.api_client.get(url, headers=headers)
+
+            # 차단 의심이면: 백오프 + 쿠키재발급 후 1회 더 재시도
+            if self.is_blocked_html(html):
+                self.log_signal_func(f"⚠️ 차단 의심 응답(attempt={attempt}). 길이={len(html) if html else 0}")
+                ok = self.backoff_and_refresh_if_blocked(url, html)
+                if not ok:
+                    return html
+                # attempt=1이면 한 번 더 시도, attempt=2이면 그대로 반환
+                continue
+
+            break
+
+        # 차단 의심은 캐시에 넣지 않기
+        if not self.is_blocked_html(html):
+            if len(self._cache) < 2000:
+                self._cache[url] = html
+                self.log_signal_func(f"🧠 cache save: {url} (size={len(self._cache)})")
+
+        return html
+
+    # =========================
+    # bizno: search
+    # =========================
+    def fetch_search_results(self, item: dict) -> None:
+        url = f"https://bizno.net/?area=&query={quote(item['검색회사명'])}"
+        self.log_signal_func(f"[search] url={url}")
 
         headers = {
             "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -162,28 +382,39 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
         }
 
-        res = requests.get(url, headers=headers, timeout=20)
-        res.raise_for_status()
+        html = self.get_html(url, headers=headers)
+        soup = BeautifulSoup(html, "html.parser")
 
-        soup = BeautifulSoup(res.text, "html.parser")
+        owner = item["검색대표자명"].strip()
+        addr7 = item["검색회사주소"].replace(" ", "").strip()[:7]
 
-        article_ids = []
+        self.log_signal_func(f"[search] 매칭 기준: 대표자명='{owner}', 주소앞7='{addr7}'")
 
-        for a in soup.select('a[href^="/article/"]'):
-            href = a.get("href", "")
-            article_id = href.replace("/article/", "").strip()
+        item["article"] = ""
 
-            if article_id.isdigit():
-                article_ids.append(article_id)
+        hit = 0
+        for d in soup.select(".details"):
+            hit += 1
+            if self.safe_text(d.select_one("h5"), strip=True) != owner:
+                continue
 
-        # 중복 제거
-        article_ids = list(dict.fromkeys(article_ids))
+            if self.safe_text(d.select_one("p"), sep=" ", strip=True).replace(" ", "")[:7] != addr7:
+                continue
 
-        return article_ids
+            href = d.select_one('a[href^="/article/"]')["href"]
+            item["article"] = href.split("/article/")[1]
+            item["회사명"] = self.safe_text(d.select_one("h4"), strip=True)
+            self.log_signal_func(f"[search] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'")
+            return
 
+        self.log_signal_func(f"[search] 결과 스캔 완료. details_count={hit}, match=0")
 
-    def fetch_article_detail(self, article_id: str):
-        url = f"https://bizno.net/article/{article_id}"
+    # =========================
+    # bizno: detail
+    # =========================
+    def fetch_article_detail(self, item: dict) -> None:
+        url = f"https://bizno.net/article/{item['article']}"
+        self.log_signal_func(f"[detail] url={url}")
 
         headers = {
             "authority": "bizno.net",
@@ -205,24 +436,26 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
         }
 
-        html = requests.get(url, headers=headers, timeout=20).text
+        html = self.get_html(url, headers=headers)
         soup = BeautifulSoup(html, "html.parser")
 
         table = soup.select_one("table.table_guide01")
+        item["url"] = url
 
-        data = {}
+        if not table:
+            self.log_signal_func("[detail] ⚠️ table.table_guide01 없음")
+            return
 
+        row_cnt = 0
         for tr in table.select("tr"):
             th = tr.find("th")
             td = tr.find("td")
 
-            if not th or not td:
-                continue
-
-            key = th.get_text(strip=True)
-            val = td.get_text("\n", strip=True)
+            key = self.safe_text(th, strip=True)
+            val = self.safe_text(td, sep="\n", strip=True)
 
             if key:
-                data[key] = val
+                item[key] = val
+                row_cnt += 1
 
-        return data
+        self.log_signal_func(f"[detail] ✅ 테이블 파싱 완료. row_count={row_cnt}")
