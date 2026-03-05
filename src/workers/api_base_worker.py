@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Optional, Sequence
 
 from PySide6.QtCore import QThread, Signal
-
+import time
 
 class BaseApiWorker(QThread):
     # =========================
@@ -123,6 +123,15 @@ class BaseApiWorker(QThread):
 
     def set_region(self, region: Any) -> None:
         self.region = region
+
+
+    def sleep_s(self, seconds: float) -> bool:
+        end = time.time() + float(seconds)
+        while time.time() < end:
+            if not self.running:
+                return False
+            time.sleep(0.05)
+        return True
 
     # =========================
     # hooks (override required)

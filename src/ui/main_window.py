@@ -529,9 +529,6 @@ class MainWindow(QWidget):
             self.on_demand_worker.start()
 
         else:
-            self.collect_button.setText("시작")
-            self.collect_button.setStyleSheet(main_style(self.color))
-            self.collect_button.repaint()
             self.add_log("중지")
             self.stop()
 
@@ -770,49 +767,34 @@ class MainWindow(QWidget):
         try:
             if self.on_demand_worker is not None:
                 self.on_demand_worker.stop()
+                self.on_demand_worker.quit()
 
-                q = getattr(self.on_demand_worker, "quit", None)
-                if callable(q):
-                    q()
-
-                w = getattr(self.on_demand_worker, "wait", None)
-                ok = w(8000) if callable(w) else True
-
-                is_running = getattr(self.on_demand_worker, "isRunning", None)
-                if callable(is_running) and is_running():
-                    ok = False
-
+                # QThread.wait(): True=종료됨, False=timeout
+                ok = self.on_demand_worker.wait(3000)
                 if not ok:
                     self.add_log("[경고] on_demand_worker가 아직 종료되지 않았습니다. (wait timeout)")
                     return False
 
                 self.on_demand_worker = None
-        except Exception:
+        except Exception as e:
+            self.add_log(f"[오류] on_demand_worker 정리 실패: {e}")
             return False
 
         # 2) progress_worker 정지
         try:
             if self.progress_worker is not None:
                 self.progress_worker.stop()
+                self.progress_worker.quit()
 
-                q = getattr(self.progress_worker, "quit", None)
-                if callable(q):
-                    q()
-
-                w = getattr(self.progress_worker, "wait", None)
-                ok = w(3000) if callable(w) else True
-
-                is_running = getattr(self.progress_worker, "isRunning", None)
-                if callable(is_running) and is_running():
-                    ok = False
-
+                ok = self.progress_worker.wait(3000)
                 if not ok:
                     self.add_log("[경고] progress_worker가 아직 종료되지 않았습니다. (wait timeout)")
                     return False
 
                 self.progress_worker = None
                 self.task_queue = None
-        except Exception:
+        except Exception as e:
+            self.add_log(f"[오류] progress_worker 정리 실패: {e}")
             return False
 
         return True

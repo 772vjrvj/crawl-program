@@ -13,12 +13,11 @@ from typing import Optional
 import pyaudiowpatch as pyaudio
 import pyautogui
 import pyperclip
-import whisper
 
+from src.core.services.ai_whisper import get_model  # ✅ 추가 (함수명은 행님 ai_whisper.py에 맞춰)
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.workers.api_base_worker import BaseApiWorker
-from src.core.services.ai_whisper import get_model  # ✅ 추가 (함수명은 행님 ai_whisper.py에 맞춰)
 
 
 class ApiNaverShopTotalSetWorker(BaseApiWorker):
@@ -78,24 +77,22 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         self.cleanup()
         self.log_signal_func("✅ 일시 중단 자원 정리 완료")
 
-
-    def destroy(self) -> None:
-        # 혹시 stop 안 타고 바로 destroy 올 수도 있으므로
-        self.cleanup()
-        self.progress_signal.emit(self.before_pro_value, 1000000)
-        self.log_signal_func("✅ 작업을 안전하게 종료했습니다.")
-        time.sleep(0.2)
-        self.progress_end_signal.emit()
-
-
     def cleanup(self) -> None:
+
+        # === 신규 === 브라우저 종료
+        try:
+            pyautogui.hotkey('alt', 'f4')
+            time.sleep(1)
+            self.log_signal_func("✅ [브라우저] 종료")
+        except Exception:
+            pass
 
         # 1. CSV → Excel 변환
         try:
             if self.csv_filename and os.path.exists(self.csv_filename):
                 if self.excel_driver:
                     self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
-                    self.log_signal_func(f"[cleanup] 엑셀 변환 성공")
+                    self.log_signal_func(f"✅ [엑셀 변환] 성공")
         except Exception as e:
             self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
 
@@ -106,7 +103,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         try:
             if os.path.exists("captcha_audio_final.wav"):
                 os.remove("captcha_audio_final.wav")
-                self.log_signal_func(f"[캡차 음성파일] 삭제")
+                self.log_signal_func(f"✅ [캡차 음성파일] 삭제")
         except Exception:
             pass
 
@@ -114,7 +111,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         try:
             if self.file_driver and hasattr(self.file_driver, "close"):
                 self.file_driver.close()
-                self.log_signal_func(f"[파일] 해재")
+                self.log_signal_func(f"✅ [파일] 해재")
         except Exception as e:
             self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
         finally:
@@ -124,12 +121,10 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         try:
             if self.excel_driver and hasattr(self.excel_driver, "close"):
                 self.excel_driver.close()
-                self.log_signal_func(f"[엑셀] 해재")
         except Exception as e:
             self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
         finally:
             self.excel_driver = None
-
 
 
     # =========================================================
@@ -169,13 +164,13 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                 # --- [NEW] 10페이지 묶음 시작 시 브라우저 새로 실행 ---
                 self.log_signal_func(f"🌐 새 브라우저 세션을 시작합니다. (Chunk 시작)")
                 pyautogui.hotkey('win', 'r')
-                time.sleep(0.5)
+                if not self.sleep_s(0.5): return True
                 pyautogui.write('chrome')
                 pyautogui.press('enter')
-                time.sleep(3) # 브라우저 로딩 대기
+                if not self.sleep_s(3): return True  # 브라우저 로딩 대기
 
-                current_chunk = all_pages[i : i + chunk_size]
-                chunk_items_queue = [] # 10페이지 분량의 아이템을 담을 리스트
+                current_chunk = all_pages[i: i + chunk_size]
+                chunk_items_queue = []  # 10페이지 분량의 아이템을 담을 리스트
 
                 # --- [STEP 1] 리스트 수집 구간 (10페이지) ---
                 self.log_signal_func(f"📂 [{kw}] {current_chunk[0]}p ~ {current_chunk[-1]}p 리스트 확보 중...")
@@ -193,22 +188,22 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                     for retry in range(1, 4):
                         if not self.running: break
                         pyautogui.hotkey('ctrl', 'l')
-                        time.sleep(random.uniform(0.2, 0.5))
+                        if not self.sleep_s(random.uniform(0.2, 0.5)): return True
                         pyperclip.copy(target_url)
                         pyautogui.hotkey('ctrl', 'v')
                         pyautogui.press('enter')
-                        time.sleep(random.uniform(4.0, 5.5))
+                        if not self.sleep_s(random.uniform(4.0, 5.5)): return True
 
                         if self.handle_captcha_with_retry() == 0:
                             self.log_signal_func("❌ 캡차 해결 실패: 작업을 중단하고 브라우저를 닫습니다.")
-                            pyautogui.hotkey('alt', 'f4') # 캡차 실패 시에도 브라우저 닫기
+                            pyautogui.hotkey('alt', 'f4')  # 캡차 실패 시에도 브라우저 닫기
                             return True
 
                         pyautogui.hotkey('ctrl', 'u')
-                        time.sleep(random.uniform(3, 4))
+                        if not self.sleep_s(random.uniform(3, 4)): return True
                         pyautogui.hotkey('ctrl', 'a')
                         pyautogui.hotkey('ctrl', 'c')
-                        time.sleep(1.5)
+                        if not self.sleep_s(1.5): return True
                         pyautogui.hotkey('ctrl', 'w')
 
                         extracted = self.extract_items_from_html(pyperclip.paste())
@@ -219,7 +214,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                             self.log_signal_func(f"📄 {page}페이지 수집 완료: 상품 {len(extracted)}개 확보")
                             break
                         else:
-                            time.sleep(random.uniform(2.0, 3.5))
+                            if not self.sleep_s(random.uniform(2.0, 3.5)): return True
 
                     self.current_cnt += 1
 
@@ -238,17 +233,20 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                         if pc_url:
                             self.log_signal_func(f"🔗 [{kw}] {p_num}p - {idx+1}/{len(chunk_items_queue)} 상세 이동")
                             pyautogui.hotkey('ctrl', 'l'); pyperclip.copy(pc_url); pyautogui.hotkey('ctrl', 'v'); pyautogui.press('enter')
-                            time.sleep(random.uniform(3.5, 5.0))
+                            if not self.sleep_s(random.uniform(3.5, 5.0)): return True
 
                             pyautogui.scroll(random.randint(-600, -300))
-                            time.sleep(random.uniform(0.5, 1.0))
+                            if not self.sleep_s(random.uniform(0.5, 1.0)): return True
                             pyautogui.scroll(random.randint(300, 600))
 
                             if self.handle_captcha_with_retry() == 2:
                                 pyautogui.hotkey('ctrl', 'l'); pyperclip.copy(pc_url); pyautogui.hotkey('ctrl', 'v'); pyautogui.press('enter')
-                                time.sleep(random.uniform(3.0, 4.5))
+                                if not self.sleep_s(random.uniform(3.0, 4.5)): return True
 
-                            pyautogui.hotkey('ctrl', 'a'); time.sleep(random.uniform(0.8, 1.2)); pyautogui.hotkey('ctrl', 'c'); time.sleep(0.6)
+                            pyautogui.hotkey('ctrl', 'a')
+                            if not self.sleep_s(random.uniform(0.8, 1.2)): return True
+                            pyautogui.hotkey('ctrl', 'c')
+                            if not self.sleep_s(0.6): return True
 
                             detail_text = pyperclip.paste()
                             total_visit = "0"
@@ -296,13 +294,12 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                                     self.excel_driver.append_to_csv(self.csv_filename, [rs], self.columns)
 
                             self.log_signal_func(f"📦 [수집 완료] {kw} - {p_num}p | {item.get('mallName')} | 방문자: {total_visit}")
-                            time.sleep(random.uniform(1.0, 2.5))
-
+                            if not self.sleep_s(random.uniform(1.0, 2.5)): return True
 
                 # --- [STEP 3] 10페이지 묶음 종료 후 브라우저 닫기 및 진행률 업데이트 ---
                 self.log_signal_func(f"🧹 묶음 작업 완료. 브라우저를 정리합니다.")
-                pyautogui.hotkey('alt', 'f4') # 현재 브라우저 종료
-                time.sleep(2) # 안정성을 위한 대기
+                pyautogui.hotkey('alt', 'f4')  # 현재 브라우저 종료
+                if not self.sleep_s(2): return True  # 안정성을 위한 대기
 
                 pro_value = (self.current_cnt / self.total_cnt) * 1000000
                 self.progress_signal.emit(self.before_pro_value, pro_value)
@@ -340,7 +337,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
             frames = []
             for _ in range(0, int(rate / 1024 * duration)):
-                if not self.running: # 정지 버튼 누르면 녹음 즉시 중단
+                if not self.running:  # 정지 버튼 누르면 녹음 즉시 중단
                     break
                 frames.append(stream.read(1024, exception_on_overflow=False))
 
@@ -371,13 +368,13 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
             if attempt > 1:
                 pyautogui.press('tab')
-                time.sleep(0.5)
+                if not self.sleep_s(0.5): return 0
 
             pyperclip.copy("")
             pyautogui.hotkey('ctrl', 'a')
-            time.sleep(random.uniform(0.6, 0.9))
+            if not self.sleep_s(random.uniform(0.6, 0.9)): return 0
             pyautogui.hotkey('ctrl', 'c')
-            time.sleep(random.uniform(0.5, 0.8))
+            if not self.sleep_s(random.uniform(0.5, 0.8)): return 0
 
             page_content = pyperclip.paste()
             target_text = "보안 확인을 완료해 주세요"
@@ -394,12 +391,12 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             if attempt == 1:
                 for _ in range(5):
                     pyautogui.press('tab')
-                    time.sleep(random.uniform(0.1, 0.2))
+                    if not self.sleep_s(random.uniform(0.1, 0.2)): return 0
                 pyautogui.press('enter')
             else:
                 pyautogui.press('enter')
 
-            time.sleep(2)
+            if not self.sleep_s(2): return 0
 
             filename = "captcha_audio_final.wav"
             if self.record_audio(filename, duration=17):
@@ -417,10 +414,10 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                 # 입력창 포커스 이동 (시도 횟수에 따른 분기)
                 if attempt == 1:
                     pyautogui.press('tab')
-                    time.sleep(0.5)
+                    if not self.sleep_s(0.5): return 0
                 else:
                     pyautogui.hotkey('shift', 'tab')
-                    time.sleep(0.5)
+                    if not self.sleep_s(0.5): return 0
 
                 # 코드 타이핑
                 pyautogui.write(code, interval=random.uniform(0.1, 0.2))
@@ -432,7 +429,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                 pyautogui.press('enter')
 
                 self.log_signal_func("⏳ 결과 검증 대기 중...")
-                time.sleep(random.uniform(5.0, 6.0))
+                if not self.sleep_s(random.uniform(5.0, 6.0)): return 0
 
         return 0
 

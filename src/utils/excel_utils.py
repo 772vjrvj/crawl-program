@@ -244,4 +244,4 @@ class ExcelUtils:
 
     def close(self):
         if self.log_func:
-            self.log_func("[ExcelUtils] close 호출 (정리할 자원 없음)")
+            self.log_func("✅ [엑셀] 해재")
