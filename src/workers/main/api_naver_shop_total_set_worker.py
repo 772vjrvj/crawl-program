@@ -18,6 +18,7 @@ import whisper
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.workers.api_base_worker import BaseApiWorker
+from src.core.services.ai_whisper import get_model  # ✅ 추가 (함수명은 행님 ai_whisper.py에 맞춰)
 
 
 class ApiNaverShopTotalSetWorker(BaseApiWorker):
@@ -60,9 +61,8 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             self.file_driver = FileUtils(self.log_signal_func)
 
             if self.model is None:
-                self.log_signal_func("🤖 Whisper AI 모델 로딩 중...")
-                self.model = whisper.load_model("small")
-                self.log_signal_func("✅ Whisper AI 로드 완료")
+                self.model = get_model()
+                self.log_signal_func("✅ Whisper AI (service) 연결 완료")
 
             return True
         except Exception as e:
@@ -99,15 +99,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         except Exception as e:
             self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
 
-        # 2. Whisper 모델 해제
-        try:
-            if self.model is not None:
-                del self.model
-                self.log_signal_func(f"[Whisper 모델] 해제")
-        except Exception:
-            pass
-        finally:
-            self.model = None
+        # 2. Whisper 모델 해제 하지 않음
 
         # 3. 캡차 음성파일 삭제
         try:

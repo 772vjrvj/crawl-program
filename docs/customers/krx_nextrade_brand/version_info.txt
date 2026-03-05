@@ -16,14 +16,14 @@ VSVersionInfo(
         StringTable(
           '040904B0',
           [
-            StringStruct('CompanyName', 'ByeWhale'),
-            StringStruct('FileDescription', 'Crawl Program'),
-            StringStruct('FileVersion', '1.0.0'),
-            StringStruct('InternalName', 'CrawlProgram'),
-            StringStruct('LegalCopyright', '© 2026 ByeWhale'),
-            StringStruct('OriginalFilename', 'CrawlProgram.exe'),
-            StringStruct('ProductName', 'CrawlProgram'),
-            StringStruct('ProductVersion', '1.0.0')
+            StringStruct('CompanyName', 'GB7'),
+            StringStruct('FileDescription', 'KRX NEXTRADE'),
+            StringStruct('FileVersion', '5.0.0'),
+            StringStruct('InternalName', 'KRX NEXTRADE'),
+            StringStruct('LegalCopyright', '© 2026 GB7'),
+            StringStruct('OriginalFilename', 'KRX NEXTRADE.exe'),
+            StringStruct('ProductName', 'KRX NEXTRADE'),
+            StringStruct('ProductVersion', '5.0.0')
           ]
         )
       ]

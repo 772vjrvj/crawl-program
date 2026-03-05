@@ -21,13 +21,7 @@ from src.app_manager import AppManager
 from src.core.global_state import GlobalState
 from src.utils.app_config_loader import AppConfigLoader
 from src.utils.config import set_app_server_config
-
-
-
-def _get_base_path() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent
-    return Path(__file__).resolve().parent
+from src.core.services.service_loader import load_services
 
 
 def _setup_ffmpeg_path(base_path: Path):
@@ -191,7 +185,6 @@ def main() -> int:
 
     app = QApplication(sys.argv)
 
-    base = _get_base_path()
     try:
         runtime_json = _read_runtime_app_json(base)
         allow_multi = _get_allow_multi_instance(runtime_json)
@@ -215,6 +208,18 @@ def main() -> int:
 
     try:
         _bootstrap_runtime_config(state)
+
+        site_configs = state.get(GlobalState.SITE_CONFIGS) or []
+
+        services = set()
+        for conf in site_configs:
+            for svc in (conf.get("services") or []):
+                s = str(svc).strip()
+                if s:
+                    services.add(s)
+
+        load_services(services)
+
     except Exception as e:
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Critical)

@@ -541,7 +541,11 @@ class MainWindow(QWidget):
             self.collect_button.setText("시작")
             self.collect_button.repaint()
 
-        self.cleanup_for_nav()
+        if self.on_demand_worker is not None:
+            self.on_demand_worker.stop()
+
+        if self.progress_worker is not None:
+            self.progress_worker.stop()
 
         # 확인 버튼을 누를 때 발생하는 UI 스레드 충돌을 방지하기 위함입니다.
         if show_popup:
@@ -751,11 +755,42 @@ class MainWindow(QWidget):
 
 
     def cleanup_for_nav(self) -> None:
+        self.add_log("정리 중입니다. 최대 10초까지 소요될 수 있습니다. 잠시만 기다려주세요.")
         # 1) 크롤링 워커 정지
         try:
             if self.on_demand_worker is not None:
                 self.on_demand_worker.stop()
-                self.on_demand_worker.wait(3000)
+
+                # quit()이 있는 QThread 계열이면 같이 호출 (없으면 무시)
+                try:
+                    q = getattr(self.on_demand_worker, "quit", None)
+                    if callable(q):
+                        q()
+                except Exception:
+                    pass
+
+                # ✅ wait 결과 확인
+                try:
+                    w = getattr(self.on_demand_worker, "wait", None)
+                    if callable(w):
+                        ok = w(8000)  # 3초는 짧습니다. 엑셀 저장/정리면 8초 정도는 필요
+                    else:
+                        ok = True
+                except Exception:
+                    ok = False
+
+                # ✅ 아직 살아있으면 참조 끊지 말고 경고만 남김
+                try:
+                    is_running = getattr(self.on_demand_worker, "isRunning", None)
+                    if callable(is_running) and is_running():
+                        ok = False
+                except Exception:
+                    pass
+
+                if not ok:
+                    self.add_log("[경고] on_demand_worker가 아직 종료되지 않았습니다. (wait timeout)")
+                    return  # ❗ 여기서 끊어야 QThread 파괴로 인한 크래시를 막음
+
                 self.on_demand_worker = None
         except Exception:
             pass
@@ -764,6 +799,34 @@ class MainWindow(QWidget):
         try:
             if self.progress_worker is not None:
                 self.progress_worker.stop()
+
+                try:
+                    q = getattr(self.progress_worker, "quit", None)
+                    if callable(q):
+                        q()
+                except Exception:
+                    pass
+
+                try:
+                    w = getattr(self.progress_worker, "wait", None)
+                    if callable(w):
+                        ok = w(3000)
+                    else:
+                        ok = True
+                except Exception:
+                    ok = False
+
+                try:
+                    is_running = getattr(self.progress_worker, "isRunning", None)
+                    if callable(is_running) and is_running():
+                        ok = False
+                except Exception:
+                    pass
+
+                if not ok:
+                    self.add_log("[경고] progress_worker가 아직 종료되지 않았습니다. (wait timeout)")
+                    return
+
                 self.progress_worker = None
                 self.task_queue = None
         except Exception:

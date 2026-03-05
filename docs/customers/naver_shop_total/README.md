@@ -7,7 +7,7 @@ pyinstaller .\main.py `
 --noconfirm `
 --clean `
 --console `
---name "CrawlProgram" `
+--name "네이버 스토어" `
 --icon ".\resources\icons\crawling.ico" `
 --version-file ".\docs\customers\naver_shop_total\version_info.txt" `
 --distpath ".\dist" `

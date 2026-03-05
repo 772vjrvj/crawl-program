@@ -16,13 +16,13 @@ VSVersionInfo(
         StringTable(
           '040904B0',
           [
-            StringStruct('CompanyName', 'GB7'),
-            StringStruct('FileDescription', '네이버 스토어'),
+            StringStruct('CompanyName', 'ByeWhale'),
+            StringStruct('FileDescription', 'Crawl Program'),
             StringStruct('FileVersion', '1.0.0'),
-            StringStruct('InternalName', 'GB7'),
-            StringStruct('LegalCopyright', '© 2026 GB7'),
-            StringStruct('OriginalFilename', '네이버 스토어.exe'),
-            StringStruct('ProductName', 'GB7'),
+            StringStruct('InternalName', 'CrawlProgram'),
+            StringStruct('LegalCopyright', '© 2026 ByeWhale'),
+            StringStruct('OriginalFilename', 'CrawlProgram.exe'),
+            StringStruct('ProductName', 'CrawlProgram'),
             StringStruct('ProductVersion', '1.0.0')
           ]
         )
