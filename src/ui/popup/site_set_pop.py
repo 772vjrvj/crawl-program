@@ -35,7 +35,7 @@ class SiteSetPop(QDialog):
         self.setWindowTitle("사이트 선택")
         self.resize(700, 450)
         self.setMinimumWidth(700)
-        self.setStyleSheet("background-color: white;")
+        self.setStyleSheet("background-color: white; color: #111;")
 
         self.checkbox_map: Dict[str, QCheckBox] = {}
         self.all_checkbox: Optional[QCheckBox] = None
@@ -80,6 +80,7 @@ class SiteSetPop(QDialog):
             """
             font-size: 18px;
             font-weight: bold;
+            color: #111;
             """
         )
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)

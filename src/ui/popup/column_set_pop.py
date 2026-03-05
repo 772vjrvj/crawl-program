@@ -50,7 +50,7 @@ class ColumnSetPop(QDialog):
         self.setWindowTitle("컬럼 선택")
         self.resize(600, 450)
         self.setMinimumWidth(700)
-        self.setStyleSheet("background-color: white;")
+        self.setStyleSheet("background-color: white; color: #111;")
 
         self.init_ui(parent)
 
@@ -63,6 +63,7 @@ class ColumnSetPop(QDialog):
         title_label.setStyleSheet("""
             font-size: 18px;
             font-weight: bold;
+            color: #111;
         """)
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)

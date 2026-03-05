@@ -42,7 +42,7 @@ class ExcelSetPop(QDialog):
 
         self.setWindowTitle("엑셀 파일 드래그 앤 드롭")
         self.resize(800, 600)
-        self.setStyleSheet("background-color: white;")
+        self.setStyleSheet("background-color: white; color: #111;")
 
         self.data_list: List[Dict[str, Any]] = []
         self.user: Optional[UserCred] = None
@@ -150,7 +150,7 @@ class ExcelSetPop(QDialog):
 
     def _set_success_hint(self, file_count: int, row_count: int, col_count: int) -> None:
         self.drag_drop_label.setText(f"총 {file_count}개 파일, {row_count}행 {col_count}열 로드 완료")
-        self.drag_drop_label.setStyleSheet("background-color: lightgreen;")
+        self.drag_drop_label.setStyleSheet("background-color: lightgreen; color: #111;")
 
     def _set_error_hint(self, msg: str) -> None:
         self.drag_drop_label.setStyleSheet("")  # 기존 성공 배경 제거

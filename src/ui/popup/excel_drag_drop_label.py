@@ -21,7 +21,7 @@ class ExcelDragDropLabel(QLabel):
         self.setAcceptDrops(True)
         self._set_hint("엑셀 파일을 여기에 드래그하세요.")
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setStyleSheet("border: 2px dashed #aaaaaa; padding: 10px; font-size: 14px;")
+        self.setStyleSheet("border: 2px dashed #aaaaaa; padding: 10px; font-size: 14px; background:white; color:#111;")
         self.setFixedHeight(100)
 
     def _set_hint(self, text: str) -> None:

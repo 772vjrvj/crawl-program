@@ -37,7 +37,7 @@ class RegionSetPop(QDialog):
         self.setWindowTitle("지역 선택")
         self.resize(800, 600)
         self.setMinimumSize(800, 600)
-        self.setStyleSheet("background-color: white;")
+        self.setStyleSheet("background-color: white; color: #111;")
 
         self.selected_regions: List[_Region] = selected_regions or []
 
@@ -71,7 +71,7 @@ class RegionSetPop(QDialog):
 
         info_label = QLabel("지역을 선택하세요", self)
         info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        info_label.setStyleSheet("font-size: 16px; font-weight: bold; padding: 8px;")
+        info_label.setStyleSheet("font-size: 16px; font-weight: bold; padding: 8px; color: #111;")
         layout.addWidget(info_label)
 
         layout.addWidget(self.select_all_checkbox)
@@ -298,6 +298,7 @@ class RegionSetPop(QDialog):
             QTreeView {
                 font-size: 14px;
                 padding: 4px 12px;
+                color: #111;
                 selection-color: black;
             }
             QTreeView::item {

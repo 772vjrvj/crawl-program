@@ -99,7 +99,8 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         except Exception as e:
             self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
 
-        # 2. Whisper 모델 해제 하지 않음
+        # 2. Whisper 모델 해제
+        self.model = None
 
         # 3. 캡차 음성파일 삭제
         try:
@@ -291,6 +292,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                                 chunk_results.append(rs)
 
                                 if site_total_cnt >= int(total_visit):
+                                    if not self.running: break
                                     self.excel_driver.append_to_csv(self.csv_filename, [rs], self.columns)
 
                             self.log_signal_func(f"📦 [수집 완료] {kw} - {p_num}p | {item.get('mallName')} | 방문자: {total_visit}")

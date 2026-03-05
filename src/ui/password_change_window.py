@@ -18,7 +18,7 @@ class PasswordChangeWindow(QDialog):
 
         self.setWindowTitle("비밀번호 변경")
         self.setGeometry(100, 100, 500, 300)
-        self.setStyleSheet("background-color: #ffffff;")
+        self.setStyleSheet("background-color: #ffffff; color: #111;")
 
         # 메인 레이아웃
         layout = QVBoxLayout(self)

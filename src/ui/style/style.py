@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QLineEdit, QPushButton
 
 LOG_STYLE = """
     background-color: #f9f9f9;
+    color: #111111;
     border: 1px solid #ccc;
     padding: 5px;
 """
@@ -25,10 +26,10 @@ HEADER_TEXT_STYLE = """
 # styles
 # =========================
 def main_style(color: str) -> str:
-    # 활성 스타일 (배경 없음, 테두리/폰트만)
     return f"""
         border-radius: 10px;
         border: 2px solid {color};
+        background-color: #ffffff;
         padding: 10px;
         font-weight: 490;
         font-size: 15px;
@@ -40,7 +41,8 @@ def input_style(color: str) -> str:
         QLineEdit {{
             border-radius: 10px;
             border: 2px solid {color};
-            padding: 0px 12px;          /* ✅ 세로 padding 제거, 좌우만 */
+            background-color: #ffffff;
+            padding: 0px 12px;
             font-size: 15px;
             color: #333333;
         }}

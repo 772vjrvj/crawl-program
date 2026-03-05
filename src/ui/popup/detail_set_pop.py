@@ -43,7 +43,7 @@ class DetailSetPop(QDialog):
 
         self.setWindowTitle(title)
         self.resize(700, 520)
-        self.setStyleSheet("background-color: white;")
+        self.setStyleSheet("background-color: white; color: #111;")
 
         self.checkbox_map: Dict[Tuple[str, str], QCheckBox] = {}
         self.all_checkbox: Optional[QCheckBox] = None
@@ -93,7 +93,7 @@ class DetailSetPop(QDialog):
         layout.setSpacing(10)
 
         title_label = QLabel(self.windowTitle())
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #111;")
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         layout.addWidget(title_label)
@@ -151,7 +151,7 @@ class DetailSetPop(QDialog):
 
     def _make_section_label(self, text: str) -> QLabel:
         lb = QLabel(text)
-        lb.setStyleSheet("font-size: 15px; font-weight: bold; margin-top: 6px;")
+        lb.setStyleSheet("font-size: 15px; font-weight: bold; margin-top: 6px; color: #111;")
         return lb
 
     def _make_key(self, sec_id: str, code: Any) -> Tuple[str, str]:

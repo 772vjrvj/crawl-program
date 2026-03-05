@@ -22,6 +22,7 @@ class ClosingPop(QDialog):
         }
         QLabel {
             font-size: 14px;
+            color: #111111;
         }
         """)
 

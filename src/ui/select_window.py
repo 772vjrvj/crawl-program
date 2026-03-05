@@ -82,7 +82,7 @@ class SelectWindow(QWidget):
         self.resize(self.fixed_w, self.fixed_h)
         self.setMinimumHeight(self.fixed_h)
         self.setMinimumWidth(self.fixed_w)
-        self.setStyleSheet("background-color: #ffffff;")
+        self.setStyleSheet("background-color: #ffffff; color: #111;")
 
         # 3) 메인 수직 레이아웃 구성
         layout = QVBoxLayout(self)

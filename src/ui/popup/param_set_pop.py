@@ -171,7 +171,7 @@ class ParamSetPop(QDialog):
         self.setWindowTitle("설정")
         self.resize(400, 100)  # 초기 크기 (자동 확장 허용)
         self.setMinimumWidth(400)
-        self.setStyleSheet("background-color: white;")
+        self.setStyleSheet("QDialog { background: white; color: #111; } QLabel { color: #111; }")
         self.setWindowIcon(self._make_window_icon())
 
         popup_layout = QVBoxLayout(self)

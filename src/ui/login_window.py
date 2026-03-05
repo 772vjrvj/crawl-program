@@ -33,7 +33,7 @@ class LoginWindow(QWidget):
         self.setWindowTitle("로그인")
         self.setWindowIcon(self._make_window_icon())
         self.resize(500, 300)
-        self.setStyleSheet("background-color: #ffffff;")
+        self.setStyleSheet("background-color: #ffffff; color: #111;")
 
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
