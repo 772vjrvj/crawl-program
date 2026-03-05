@@ -79,16 +79,16 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
     def destroy(self) -> None:
         self.progress_signal.emit(self.before_pro_value, 1000000)
-        self.log_signal_func("=============== 크롤링 종료중...")
-        self.cleanup()
-        time.sleep(1)
-        self.log_signal_func("=============== 크롤링 종료")
+        self.log_signal_func("✅ destroy")
+        time.sleep(2.5)
         self.progress_end_signal.emit()
 
 
     def stop(self) -> None:
+        self.log_signal_func("✅ stop 시작")
         self.running = False
         self.cleanup()
+        self.log_signal_func("✅ stop 완료")
 
 
     def cleanup(self) -> None:

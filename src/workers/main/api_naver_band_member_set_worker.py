@@ -30,7 +30,6 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
         self.site_login_url: str = "https://auth.band.us/login_page?next_url=https%3A%2F%2Fwww.band.us%2F"
         self.site_url: str = "https://www.band.us/band"
 
-        # === 신규 === stop 안정성(Event)
         self._stop_event = threading.Event()
 
         self.csv_filename: Optional[str] = None
@@ -47,8 +46,9 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
 
         # ✅ Band Web 번들에 박혀있는 APP_KEY (= akey 기본값)
         self.band_app_key: str = "bbc59b0b5f7a1c6efe950f6236ccda35"
+        self.before_pro_value: float = 0.0
 
-    # =========================================================
+        # =========================================================
     # lifecycle
     # =========================================================
     def init(self) -> bool:
@@ -120,17 +120,17 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
 
 
     def stop(self) -> None:
+        self.log_signal_func("✅ stop 시작")
         self.running = False
-        self._stop_event.set()
+        self._stop_event.set() #Selenium + 사용자 대기 + 여러 단계 로직
         self.cleanup()
+        self.log_signal_func("✅ stop 완료")
 
 
     def destroy(self) -> None:
-        self.cleanup()
-        self.progress_signal.emit(0.0, 1000000)
-        self.log_signal_func("크롤링 종료중...")
+        self.progress_signal.emit(self.before_pro_value, 1000000)
+        self.log_signal_func("✅ destroy")
         time.sleep(2.5)
-        self.log_signal_func("크롤링 종료")
         self.progress_end_signal.emit()
 
     # =========================================================

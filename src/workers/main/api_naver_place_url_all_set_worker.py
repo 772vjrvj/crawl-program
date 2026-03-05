@@ -41,7 +41,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         self.api_client: Optional[APIClient] = None
         self.saved_ids: Set[str] = set()  
         self.image_size: int = 1000  
-        self.zip: bool = True  
+        self.zip: bool = True
 
     # 초기화
     def init(self) -> bool:  
@@ -151,6 +151,15 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
 
 
     def cleanup(self) -> None:
+
+        try:
+            if self.csv_filename and os.path.exists(self.csv_filename):
+                if self.excel_driver:
+                    self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
+                    self.log_signal_func(f"✅ [엑셀 변환] 성공")
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
+
         try:
             if self.api_client:
                 self.api_client.close()
@@ -171,23 +180,17 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
 
     # 정지
     def stop(self) -> None:
+        self.log_signal_func("✅ stop 시작")
         self.running = False
-
-        if self.excel_driver and self.csv_filename:
-            self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
-
         self.cleanup()
+        self.log_signal_func("✅ stop 완료")
 
 
     # 마무리
-    def destroy(self) -> None:  
-        if self.excel_driver and self.csv_filename:
-            self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
+    def destroy(self) -> None:
         self.progress_signal.emit(self.before_pro_value, 1000000)
-        self.log_signal_func("=============== 크롤링 종료중...")
-        self.cleanup()
-        time.sleep(1)
-        self.log_signal_func("=============== 크롤링 종료")
+        self.log_signal_func("✅ destroy")
+        time.sleep(2.5)
         self.progress_end_signal.emit()
 
 

@@ -30,7 +30,6 @@ class BaseApiWorker(QThread):
         self.columns: list[str] = []
         self.sites: list[str] = []
         self.setting: Optional[Any] = None
-
         self.running: bool = True
 
     # =========================
