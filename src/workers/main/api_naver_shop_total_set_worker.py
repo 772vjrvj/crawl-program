@@ -152,14 +152,14 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         self.excel_driver.init_csv(self.csv_filename, self.columns)
 
         for kw in keywords:
-            if not self.running: break
+            if not self.running: return True
 
             # 페이지 번호를 10개씩 묶어서 처리
             all_pages = list(range(start_p, end_p + 1))
             chunk_size = 10
 
             for i in range(0, len(all_pages), chunk_size):
-                if not self.running: break
+                if not self.running: return True
 
                 # --- [NEW] 10페이지 묶음 시작 시 브라우저 새로 실행 ---
                 self.log_signal_func(f"🌐 새 브라우저 세션을 시작합니다. (Chunk 시작)")
@@ -176,7 +176,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                 self.log_signal_func(f"📂 [{kw}] {current_chunk[0]}p ~ {current_chunk[-1]}p 리스트 확보 중...")
 
                 for page in current_chunk:
-                    if not self.running: break
+                    if not self.running: return True
 
                     target_url = (
                         f"https://msearch.shopping.naver.com/search/all?"
@@ -186,7 +186,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                     )
 
                     for retry in range(1, 4):
-                        if not self.running: break
+                        if not self.running: return True
                         pyautogui.hotkey('ctrl', 'l')
                         if not self.sleep_s(random.uniform(0.2, 0.5)): return True
                         pyperclip.copy(target_url)
@@ -224,7 +224,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                     chunk_results = []
 
                     for idx, item_data in enumerate(chunk_items_queue):
-                        if not self.running: break
+                        if not self.running: return True
 
                         item = item_data.get("item", {})
                         pc_url = item.get("mallPcUrl")
@@ -290,7 +290,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                                 chunk_results.append(rs)
 
                                 if site_total_cnt >= int(total_visit):
-                                    if not self.running: break
+                                    if not self.running: return True
                                     self.excel_driver.append_to_csv(self.csv_filename, [rs], self.columns)
 
                             self.log_signal_func(f"📦 [수집 완료] {kw} - {p_num}p | {item.get('mallName')} | 방문자: {total_visit}")
@@ -319,6 +319,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
             if not default_speakers["isLoopbackDevice"]:
                 for loopback in p.get_loopback_device_info_generator():
+                    if not self.running: return False
                     if default_speakers["name"] in loopback["name"]:
                         default_speakers = loopback
                         break
@@ -337,8 +338,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
             frames = []
             for _ in range(0, int(rate / 1024 * duration)):
-                if not self.running:  # 정지 버튼 누르면 녹음 즉시 중단
-                    break
+                if not self.running: return False
                 frames.append(stream.read(1024, exception_on_overflow=False))
 
             stream.stop_stream()
@@ -361,8 +361,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
     def handle_captcha_with_retry(self):
         max_tries = 5
         for attempt in range(1, max_tries + 1):
-            if not self.running:
-                return 0
+            if not self.running: return 0
 
             self.log_signal_func(f"🔍 [시도 {attempt}/{max_tries}] 화면 상태 체크 중...")
 

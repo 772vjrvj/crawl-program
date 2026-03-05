@@ -77,10 +77,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
             pattern: Pattern[str] = re.compile(r"/(\d+)(?=[/?#]|$)")  
 
             for index, url in enumerate(self.url_list, start=1):
-                if not self.running:
-                    self.log_signal_func("크롤링이 중지되었습니다.")
-                    break
-
+                if not self.running: return True
                 match = pattern.search(url)
                 if match:
                     place_id = match.group(1)
@@ -174,10 +171,11 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
 
     # 정지
     def stop(self) -> None:
+        self.running = False
+
         if self.excel_driver and self.csv_filename:
             self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
 
-        self.running = False
         self.cleanup()
 
 
@@ -191,101 +189,6 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         time.sleep(1)
         self.log_signal_func("=============== 크롤링 종료")
         self.progress_end_signal.emit()
-
-
-    # 전체 갯수 조회
-    def total_cnt_cal(self) -> Optional[List[str]]:  
-        try:
-            if not self.keyword_list:
-                self.log_signal_func("⚠️ keyword_list가 비어있습니다.")
-                return []
-
-            page_all: int = 0  
-            result_ids: List[str] = []  
-
-            for index, keyword in enumerate(self.keyword_list, start=1):
-                if not self.running:  # 실행 상태 확인
-                    self.log_signal_func("크롤링이 중지되었습니다.")
-                    break
-
-                page: int = 1  
-                while True:
-                    if not self.running:
-                        self.log_signal_func("크롤링이 중지되었습니다.")
-                        break
-                    time.sleep(random.uniform(1, 2))
-
-                    self.log_signal_func(f"전체 {index}/{len(self.keyword_list)}, keyword: {keyword}, page: {page}")
-
-                    result = self.fetch_search_results(keyword, page)  # type: ignore[attr-defined]  
-                    if not result:
-                        break
-
-                    # result가 List[str]라고 가정 (원본 코드 유지)
-                    result_ids.extend(result)
-
-                    page += 1
-                    page_all += 1
-
-            all_ids_list: List[str] = list(dict.fromkeys(result_ids))  
-            self.log_signal_func(f"전체 : {all_ids_list}")
-            self.total_cnt = len(all_ids_list)
-            self.total_pages = page_all
-            return all_ids_list
-
-        except Exception as e:
-            self.log_signal_func(f"Error calculating total count: {e}")
-            return None
-        # api
-        self.api_client = APIClient(use_cache=False, log_func =self.log_signal_func)
-
-    # 마무리
-    def destroy(self):
-        self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
-        self.progress_signal.emit(self.before_pro_value, 1000000)
-        self.log_signal_func("=============== 크롤링 종료중...")
-        time.sleep(5)
-        self.log_signal_func("=============== 크롤링 종료")
-        if self.running:
-            self.progress_end_signal.emit()
-
-    # 전체 갯수 조회
-    def total_cnt_cal(self):
-        try:
-            page_all = 0
-            result_ids = []
-
-            for index, keyword in enumerate(self.keyword_list, start=1):
-                if not self.running:  # 실행 상태 확인
-                    self.log_signal_func("크롤링이 중지되었습니다.")
-                    break
-
-                page = 1
-                while True:
-                    if not self.running:
-                        self.log_signal_func("크롤링이 중지되었습니다.")
-                        break
-                    time.sleep(random.uniform(1, 2))
-
-                    self.log_signal_func(f"전체 {index}/{len(self.keyword_list)}, keyword: {keyword}, page: {page}")
-
-                    result = self.fetch_search_results(keyword, page)
-                    if not result:
-                        break
-                    result_ids.extend(result)
-
-                    page += 1
-                    page_all += 1
-
-            all_ids_list = list(dict.fromkeys(result_ids))
-            self.log_signal_func(f"전체 : {all_ids_list}")
-            self.total_cnt = len(all_ids_list)
-            self.total_pages = page_all
-            return all_ids_list
-
-        except Exception as e:
-            self.log_signal_func(f"Error calculating total count: {e}")
-            return None
 
 
     # 플레이스 목록
@@ -344,6 +247,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
 
             out: List[str] = []  
             for item in items:
+                if not self.running: return out
                 if isinstance(item, dict):
                     pid = item.get("id")
                     if pid:
@@ -393,9 +297,9 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
             "query": "query getPhotoViewerItems($input: PhotoViewerInput) {\n  photoViewer(input: $input) {\n    cursors { id startIndex hasNext lastCursor __typename }\n    photos { viewId originalUrl originalDate width height title text desc link date photoType mediaType option { channelName dateString playCount likeCount __typename } to relation logId author { id nickname from imageUrl objectId url borderImageUrl __typename } votedKeywords { code iconUrl iconCode name __typename } visitCount originType isFollowing businessName rating externalLink { title url __typename } sourceTitle moment { channelId contentId momentId gdid blogRelation statAllowYn category docNo __typename } video { videoId videoUrl trailerUrl __typename } music { artists title __typename } clip { serviceType createdAt __typename } __typename }\n    __typename\n  }\n}"
         }]
 
-
     # 이미지 다운로드
-    def fetch_place_image(self, place_id: str, name: str) -> List[str]:  
+    def fetch_place_image(self, place_id: str, name: str) -> List[str]:
+        image_url_list: List[str] = []
         url: str = "https://api.place.naver.com/place/graphql"  
         headers: Dict[str, str] = {  
             "accept": "*/*",
@@ -407,9 +311,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
 
         parts_all: List[Dict[str, Any]] = []  
         for si, lc in [(None, None), (40, "41"), (60, "61"), (80, "81"), (100, "101")]:
-            if not self.api_client:
-                self.log_signal_func("[에러] api_client가 초기화되지 않았습니다.")
-                return []
+            if not self.running: return image_url_list
 
             parts: Any = self.api_client.post(url=url, headers=headers, json=self.build_payload(place_id, si, lc))
             self.log_signal_func(f"이미지 다운로드 {place_id} {si} 호출")
@@ -422,6 +324,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         # photos 모으기
         photos: List[Dict[str, Any]] = []  
         for part in parts_all:
+            if not self.running: return image_url_list
             data = part.get("data")
             if not isinstance(data, dict):
                 continue
@@ -432,9 +335,9 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                     photos.extend([x for x in ph if isinstance(x, dict)])
 
         # URL 문자열 리스트
-        image_url_list: List[str] = []  
         seen: Set[str] = set()  
         for p in photos:
+            if not self.running: return image_url_list
             u = p.get("originalUrl")
             if u and isinstance(u, str) and u not in seen:
                 seen.add(u)
@@ -457,6 +360,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         total: int = 0  
 
         for idx, img_url in enumerate(image_url_list, 1):
+            if not self.running: return image_url_list
             path: str = urlparse(img_url).path  
             ext: str = os.path.splitext(path)[1].lower()  
             if not ext or len(ext) > 5:
