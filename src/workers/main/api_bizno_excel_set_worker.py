@@ -66,6 +66,12 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "Request blocked",
             "Access Denied",
             "Forbidden",
+
+            "현재 접속인원이 많아 접속이 지연되고 있습니다",
+            "접속대기중",
+            "접속 대기중",
+            "stand-by state",
+            "Please try again. (1)",
         ]
 
     # 초기화
@@ -287,14 +293,19 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         try:
             if not html:
                 return True
-            if len(html) < 1200:
-                return True
+
             low = html.lower()
+
             for k in self._block_keywords:
                 if k.lower() in low:
                     return True
+
+            if len(html) < 1200:
+                return True
+
         except Exception:
             return False
+
         return False
 
     # === 신규 === 차단 누적 쿨다운 시간 계산
