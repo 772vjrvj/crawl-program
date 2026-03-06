@@ -385,6 +385,10 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         html = self.get_html(url, headers=headers)
         soup = BeautifulSoup(html, "html.parser")
 
+        if not html:
+            self.log_signal_func("⚠️ HTML 없음")
+            return
+
         owner = item["검색대표자명"].strip()
         addr7 = item["검색회사주소"].replace(" ", "").strip()[:7]
 
@@ -401,7 +405,11 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             if self.safe_text(d.select_one("p"), sep=" ", strip=True).replace(" ", "")[:7] != addr7:
                 continue
 
-            href = d.select_one('a[href^="/article/"]')["href"]
+            a_tag = d.select_one('a[href^="/article/"]')
+            if not a_tag:
+                continue
+            href = a_tag["href"]
+
             item["article"] = href.split("/article/")[1]
             item["회사명"] = self.safe_text(d.select_one("h4"), strip=True)
             self.log_signal_func(f"[search] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'")
@@ -438,6 +446,10 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
         html = self.get_html(url, headers=headers)
         soup = BeautifulSoup(html, "html.parser")
+
+        if not html:
+            self.log_signal_func("⚠️ HTML 없음")
+            return
 
         table = soup.select_one("table.table_guide01")
         item["url"] = url

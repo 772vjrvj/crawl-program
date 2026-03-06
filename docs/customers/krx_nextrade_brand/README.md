@@ -23,7 +23,7 @@ KRX 데이터
 
 사이트 :
 https://data.krx.co.kr
-
+https://data.krx.co.kr/contents/MDC/MDI/outerLoader/index.cmd?screenId=MDCEASY016&locale=ko_KR&kosdaqGlobalYn=1
 실제 데이터 API :
 
 POST
