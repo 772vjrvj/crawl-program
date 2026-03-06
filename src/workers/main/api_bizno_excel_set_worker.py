@@ -48,6 +48,14 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
         self._cookie_refresh_every_n: int = 500  # 쿠키 재발급 주기(권장)
 
+        # === 신규 === 선제 장기 휴식 (150건마다 5분)
+        self._preemptive_rest_every_n: int = 150
+        self._preemptive_rest_sec: int = 300
+
+        # === 신규 === 차단 누적 쿨다운 (5분 -> 10분 -> 15분)
+        self._block_hit_count: int = 0
+        self._block_cooldown_steps_sec = [300, 600, 900]
+
         # === 신규 === 간단 차단 감지 키워드(사이트가 바뀌어도 크게 무리 없는 수준)
         self._block_keywords = [
             "접근이 차단",
@@ -144,6 +152,16 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 self.excel_driver.append_to_csv(self.csv_filename, [item], self.columns)
                 self.log_signal_func("💾 CSV 저장(append) 완료")
 
+                # === 신규 === 선제 장기 휴식 (150건마다 5분)
+                if self._preemptive_rest_every_n > 0 and (index % self._preemptive_rest_every_n == 0):
+                    self.log_signal_func(
+                        f"🕒 선제 장기 휴식 ({self._preemptive_rest_every_n}건마다): "
+                        f"{self._preemptive_rest_sec // 60}분"
+                    )
+                    if not self.sleep_s(self._preemptive_rest_sec):
+                        self.log_signal_func("⛔ 선제 장기 휴식 중단 감지. main 루프 종료")
+                        return True
+
                 # === 신규 === 대량 요청 방지 휴식(패턴 분산)
                 if self._rest_every_n > 0 and (index % self._rest_every_n == 0):
                     sleep_t = random.uniform(self._rest_range_sec[0], self._rest_range_sec[1])
@@ -180,7 +198,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
-        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func, timeout=(10, 30))
 
         self.selenium_driver = SeleniumUtils(headless=False)
         self.selenium_driver.set_capture_options(enabled=True, block_images=False)
@@ -259,7 +277,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         try:
             if not html:
                 return True
-            # 너무 짧은 HTML은 차단/에러 페이지일 확률이 높음
             if len(html) < 1200:
                 return True
             low = html.lower()
@@ -270,19 +287,28 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             return False
         return False
 
-    # === 신규 === 차단 의심 시 백오프 + 쿠키 재발급(1회)
+    # === 신규 === 차단 누적 쿨다운 시간 계산
+    def get_block_cooldown_sec(self) -> int:
+        idx = min(max(self._block_hit_count - 1, 0), len(self._block_cooldown_steps_sec) - 1)
+        return self._block_cooldown_steps_sec[idx]
+
+    # === 신규 === 차단 의심 시 쿨다운 + 쿠키 재발급
     def backoff_and_refresh_if_blocked(self, url: str, html: str) -> bool:
         if not self.is_blocked_html(html):
             return True
 
+        self._block_hit_count += 1
+        cooldown_sec = self.get_block_cooldown_sec()
+
         self.log_signal_func(f"⚠️ 차단/제한 의심 페이지 감지: {url}")
-        # 1) 짧은 휴식 -> 재시도 대비
-        sleep_t = random.uniform(20.0, 40.0)
-        self.log_signal_func(f"🕒 차단 의심 백오프 휴식: {sleep_t:.1f}s")
-        if not self.sleep_s(sleep_t):
+        self.log_signal_func(
+            f"🕒 차단 의심 쿨다운: {cooldown_sec // 60}분 "
+            f"(누적 {self._block_hit_count}회)"
+        )
+
+        if not self.sleep_s(cooldown_sec):
             return False
 
-        # 2) 쿠키 재발급
         self.log_signal_func("🔁 차단 의심으로 쿠키 재발급 시도")
         if not self.refresh_cookie():
             return False
@@ -316,10 +342,8 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     # === 신규 === 쿠키 재발급 (가능한 최소 변경)
     def refresh_cookie(self) -> bool:
         try:
-            # cookie ready 플래그만 내려서 재수집
             self._cookie_ready = False
             self.ensure_cookie()
-            # ensure_cookie 내부에서 sleep_s 사용하므로, running 상태를 여기서도 존중
             if not self.running:
                 return False
         except Exception as e:
@@ -340,24 +364,25 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         for attempt in range(1, 3):
             html = self.api_client.get(url, headers=headers)
 
-            # 차단 의심이면: 백오프 + 쿠키재발급 후 1회 더 재시도
             if self.is_blocked_html(html):
                 self.log_signal_func(f"⚠️ 차단 의심 응답(attempt={attempt}). 길이={len(html) if html else 0}")
                 ok = self.backoff_and_refresh_if_blocked(url, html)
                 if not ok:
-                    return html
-                # attempt=1이면 한 번 더 시도, attempt=2이면 그대로 반환
+                    return html or ""
                 continue
 
+            # === 신규 === 성공 응답이면 차단 누적 카운트 리셋
+            if self._block_hit_count > 0:
+                self.log_signal_func("✅ 정상 응답 확인. 차단 누적 카운트 초기화")
+                self._block_hit_count = 0
             break
 
-        # 차단 의심은 캐시에 넣지 않기
         if not self.is_blocked_html(html):
             if len(self._cache) < 2000:
                 self._cache[url] = html
                 self.log_signal_func(f"🧠 cache save: {url} (size={len(self._cache)})")
 
-        return html
+        return html or ""
 
     # =========================
     # bizno: search
@@ -383,11 +408,11 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         }
 
         html = self.get_html(url, headers=headers)
-        soup = BeautifulSoup(html, "html.parser")
-
         if not html:
-            self.log_signal_func("⚠️ HTML 없음")
+            self.log_signal_func("[search] ⚠️ HTML 없음")
             return
+
+        soup = BeautifulSoup(html, "html.parser")
 
         owner = item["검색대표자명"].strip()
         addr7 = item["검색회사주소"].replace(" ", "").strip()[:7]
@@ -445,11 +470,11 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         }
 
         html = self.get_html(url, headers=headers)
-        soup = BeautifulSoup(html, "html.parser")
-
         if not html:
-            self.log_signal_func("⚠️ HTML 없음")
+            self.log_signal_func("[detail] ⚠️ HTML 없음")
             return
+
+        soup = BeautifulSoup(html, "html.parser")
 
         table = soup.select_one("table.table_guide01")
         item["url"] = url

@@ -3,8 +3,8 @@
 from __future__ import annotations  # 파일 최상단
 
 import logging
-from typing import Any, Dict, List, Optional
-from typing import Callable, Union, Literal
+from typing import Any, Dict, List, Optional, Tuple
+from typing import Callable, Union, Literal, cast
 
 import requests
 
@@ -13,7 +13,6 @@ try:
 except Exception:
     requests_cache = None  # 캐시 옵션 쓸 때만 필요
 
-from typing import cast
 from bs4 import UnicodeDammit
 from requests.adapters import HTTPAdapter
 from requests.exceptions import (
@@ -23,6 +22,7 @@ from requests.exceptions import (
 from urllib3.util.retry import Retry
 
 
+TimeoutType = Union[int, float, Tuple[int, int], Tuple[float, float]]
 JsonType = Union[Dict[str, Any], List[Any]]
 ApiResult = Union[JsonType, str, bytes, None]
 HttpMethod = Literal["GET", "POST", "PATCH", "DELETE"]
@@ -31,7 +31,7 @@ HttpMethod = Literal["GET", "POST", "PATCH", "DELETE"]
 class APIClient:
     def __init__(
             self,
-            timeout: int = 30,
+            timeout: TimeoutType = 30,
             verify: bool = True,
             retries: int = 3,
             backoff: float = 0.3,
@@ -42,8 +42,11 @@ class APIClient:
     ):
         """
         encoding: 기본 강제 인코딩 (예: "euc-kr"). None이면 자동 추론 사용
+        timeout:
+            - 30
+            - (10, 30)  # connect timeout, read timeout
         """
-        self.timeout: int = int(timeout)
+        self.timeout: TimeoutType = timeout
         self.verify: bool = bool(verify)
         self.log_func: Optional[Callable[[str], None]] = log_func
         self.default_encoding: Optional[str] = encoding  # None → 자동 추론
@@ -121,8 +124,17 @@ class APIClient:
             params: Optional[Dict[str, Any]] = None,
             encoding: Optional[str] = None,
             return_bytes: bool = False,
+            timeout: Optional[TimeoutType] = None,
     ) -> ApiResult:
-        return self._request("GET", url, headers=headers, params=params, encoding=encoding, return_bytes=return_bytes)
+        return self._request(
+            "GET",
+            url,
+            headers=headers,
+            params=params,
+            encoding=encoding,
+            return_bytes=return_bytes,
+            timeout=timeout,
+        )
 
     def post(
             self,
@@ -132,8 +144,18 @@ class APIClient:
             json: Optional[Any] = None,
             encoding: Optional[str] = None,
             return_bytes: bool = False,
+            timeout: Optional[TimeoutType] = None,
     ) -> ApiResult:
-        return self._request("POST", url, headers=headers, data=data, json=json, encoding=encoding, return_bytes=return_bytes)
+        return self._request(
+            "POST",
+            url,
+            headers=headers,
+            data=data,
+            json=json,
+            encoding=encoding,
+            return_bytes=return_bytes,
+            timeout=timeout,
+        )
 
     def patch(
             self,
@@ -143,8 +165,18 @@ class APIClient:
             json: Optional[Any] = None,
             encoding: Optional[str] = None,
             return_bytes: bool = False,
+            timeout: Optional[TimeoutType] = None,
     ) -> ApiResult:
-        return self._request("PATCH", url, headers=headers, data=data, json=json, encoding=encoding, return_bytes=return_bytes)
+        return self._request(
+            "PATCH",
+            url,
+            headers=headers,
+            data=data,
+            json=json,
+            encoding=encoding,
+            return_bytes=return_bytes,
+            timeout=timeout,
+        )
 
     def delete(
             self,
@@ -153,8 +185,17 @@ class APIClient:
             params: Optional[Dict[str, Any]] = None,
             encoding: Optional[str] = None,
             return_bytes: bool = False,
+            timeout: Optional[TimeoutType] = None,
     ) -> ApiResult:
-        return self._request("DELETE", url, headers=headers, params=params, encoding=encoding, return_bytes=return_bytes)
+        return self._request(
+            "DELETE",
+            url,
+            headers=headers,
+            params=params,
+            encoding=encoding,
+            return_bytes=return_bytes,
+            timeout=timeout,
+        )
 
     # =========================
     # cookie helpers
@@ -167,6 +208,7 @@ class APIClient:
         # c: selenium driver.get_cookies()의 원소(dict)
         if not c:
             return
+
         name = c.get("name")
         value = c.get("value")
         if not name or value is None:
@@ -224,6 +266,7 @@ class APIClient:
     # =========================
     def _to_text(self, res: requests.Response, force_encoding: Optional[str]) -> str:
         raw = res.content  # bytes
+
         if force_encoding:
             try:
                 return raw.decode(force_encoding, errors="replace")
@@ -255,7 +298,10 @@ class APIClient:
             json: Optional[Any] = None,
             encoding: Optional[str] = None,
             return_bytes: bool = False,
+            timeout: Optional[TimeoutType] = None,
     ) -> ApiResult:
+        req_timeout = timeout if timeout is not None else self.timeout
+
         try:
             res = self.session.request(
                 method=method,
@@ -264,7 +310,7 @@ class APIClient:
                 params=params,
                 data=data,
                 json=json,
-                timeout=self.timeout,
+                timeout=req_timeout,
                 verify=self.verify,
             )
             res.raise_for_status()
@@ -298,23 +344,22 @@ class APIClient:
                 force = encoding if encoding is not None else self.default_encoding
                 return self._to_text(res, force_encoding=force)
 
-        except Timeout:
-            self._log("⏰ 요청 시간이 초과되었습니다.")
-        except TooManyRedirects:
-            self._log("🔁 리다이렉션이 너무 많습니다.")
-        except ConnectionError:
-            self._log("🌐 네트워크 연결 오류입니다.")
+        except Timeout as e:
+            self._log(f"⏰ 요청 시간이 초과되었습니다. {e}")
+        except TooManyRedirects as e:
+            self._log(f"🔁 리다이렉션이 너무 많습니다. {e}")
+        except ConnectionError as e:
+            self._log(f"🌐 네트워크 연결 오류입니다. {e}")
         except HTTPError as e:
             self._log(f"📛 HTTP 오류 발생: {e}")
-        except URLRequired:
-            self._log("❗ 유효한 URL이 필요합니다.")
+        except URLRequired as e:
+            self._log(f"❗ 유효한 URL이 필요합니다. {e}")
         except RequestException as e:
             self._log(f"🚨 요청 실패: {e}")
         except Exception as e:
             self._log(f"❗ 예기치 못한 오류: {e}")
 
         return None
-
 
     # =========================
     # lifecycle
