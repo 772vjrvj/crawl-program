@@ -272,7 +272,17 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         except Exception:
             return ""
 
-    # === 신규 === 차단 의심 감지
+    def normalize_search_company_name(self, name: str) -> str:
+        if not name:
+            return ""
+
+        value = str(name).strip()
+        value = value.replace("(주)", "")
+        value = value.replace("주식회사", "")
+        value = value.strip()
+        return value
+
+    # 차단 의심 감지
     def is_blocked_html(self, html: str) -> bool:
         try:
             if not html:
@@ -388,7 +398,11 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     # bizno: search
     # =========================
     def fetch_search_results(self, item: dict) -> None:
-        url = f"https://bizno.net/?area=&query={quote(item['검색회사명'])}"
+        raw_company_name = (item.get("검색회사명") or "").strip()
+        filtered_company_name = self.normalize_search_company_name(raw_company_name)
+        item["검색필터회사명"] = filtered_company_name
+
+        url = f"https://bizno.net/?area=&query={quote(filtered_company_name)}"
         self.log_signal_func(f"[search] url={url}")
 
         headers = {
@@ -414,10 +428,11 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
         soup = BeautifulSoup(html, "html.parser")
 
-        owner = item["검색대표자명"].strip()
-        addr7 = item["검색회사주소"].replace(" ", "").strip()[:7]
+        owner = (item.get("검색대표자명") or "").strip()
 
-        self.log_signal_func(f"[search] 매칭 기준: 대표자명='{owner}', 주소앞7='{addr7}'")
+        self.log_signal_func(
+            f"[search] 매칭 기준: 대표자명='{owner}', 검색필터회사명='{filtered_company_name}'"
+        )
 
         item["article"] = ""
 
@@ -427,9 +442,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             if self.safe_text(d.select_one("h5"), strip=True) != owner:
                 continue
 
-            if self.safe_text(d.select_one("p"), sep=" ", strip=True).replace(" ", "")[:7] != addr7:
-                continue
-
             a_tag = d.select_one('a[href^="/article/"]')
             if not a_tag:
                 continue
@@ -437,10 +449,14 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
             item["article"] = href.split("/article/")[1]
             item["회사명"] = self.safe_text(d.select_one("h4"), strip=True)
-            self.log_signal_func(f"[search] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'")
+            self.log_signal_func(
+                f"[search] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
+            )
             return
 
         self.log_signal_func(f"[search] 결과 스캔 완료. details_count={hit}, match=0")
+
+
 
     # =========================
     # bizno: detail
