@@ -54,7 +54,9 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
         # === 신규 === 차단 누적 쿨다운 (5분 -> 10분 -> 15분)
         self._block_hit_count: int = 0
-        self._block_cooldown_steps_sec = [300, 600, 900]
+        self._block_cooldown_step_sec: int = 300   # 5분
+        self._block_cooldown_max_sec: int = 7200   # 120분
+        self._block_total_wait_sec: int = 0        # 누적 대기시간 로그용
 
         # === 신규 === 간단 차단 감지 키워드(사이트가 바뀌어도 크게 무리 없는 수준)
         self._block_keywords = [
@@ -310,8 +312,15 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
     # === 신규 === 차단 누적 쿨다운 시간 계산
     def get_block_cooldown_sec(self) -> int:
-        idx = min(max(self._block_hit_count - 1, 0), len(self._block_cooldown_steps_sec) - 1)
-        return self._block_cooldown_steps_sec[idx]
+        cooldown = self._block_hit_count * self._block_cooldown_step_sec
+
+        if cooldown < self._block_cooldown_step_sec:
+            cooldown = self._block_cooldown_step_sec
+
+        if cooldown > self._block_cooldown_max_sec:
+            cooldown = self._block_cooldown_max_sec
+
+        return cooldown
 
     # === 신규 === 차단 의심 시 쿨다운 + 쿠키 재발급
     def backoff_and_refresh_if_blocked(self, url: str, html: str) -> bool:
@@ -319,22 +328,31 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             return True
 
         self._block_hit_count += 1
+
         cooldown_sec = self.get_block_cooldown_sec()
+        self._block_total_wait_sec += cooldown_sec
+
+        cooldown_min = cooldown_sec // 60
+        total_wait_min = self._block_total_wait_sec // 60
 
         self.log_signal_func(f"⚠️ 차단/제한 의심 페이지 감지: {url}")
+
         self.log_signal_func(
-            f"🕒 차단 의심 쿨다운: {cooldown_sec // 60}분 "
-            f"(누적 {self._block_hit_count}회)"
+            f"🕒 차단 의심 쿨다운: {cooldown_min}분 "
+            f"(누적 차단 {self._block_hit_count}회, 총 대기 {total_wait_min}분)"
         )
 
         if not self.sleep_s(cooldown_sec):
+            self.log_signal_func("⛔ 차단 쿨다운 중단 감지")
             return False
 
         self.log_signal_func("🔁 차단 의심으로 쿠키 재발급 시도")
+
         if not self.refresh_cookie():
             return False
 
         return True
+
 
     def ensure_cookie(self) -> None:
         if self._cookie_ready:
@@ -373,37 +391,85 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         return True
 
     def get_html(self, url: str, headers: dict) -> str:
-        # 요청 수 줄이기(간단 캐시)
+
         if url in self._cache:
             self.log_signal_func(f"🧠 cache hit: {url}")
             return self._cache[url]
 
         self.log_signal_func(f"🌐 GET: {url}")
 
-        # === 신규 === 차단 감지/백오프를 위해 2회까지 시도
-        html = ""
-        for attempt in range(1, 3):
-            html = self.api_client.get(url, headers=headers)
+        attempt = 0
 
-            if self.is_blocked_html(html):
-                self.log_signal_func(f"⚠️ 차단 의심 응답(attempt={attempt}). 길이={len(html) if html else 0}")
-                ok = self.backoff_and_refresh_if_blocked(url, html)
-                if not ok:
-                    return html or ""
+        while self.running:
+
+            attempt += 1
+
+            try:
+                html = self.api_client.get(url, headers=headers)
+            except Exception as e:
+
+                self.log_signal_func(f"❌ GET 예외(attempt={attempt}): {e}")
+
+                self._block_hit_count += 1
+                cooldown_sec = self.get_block_cooldown_sec()
+                self._block_total_wait_sec += cooldown_sec
+
+                cooldown_min = cooldown_sec // 60
+                total_wait_min = self._block_total_wait_sec // 60
+
+                self.log_signal_func(
+                    f"🕒 요청 예외 대기: {cooldown_min}분 "
+                    f"(누적 차단 {self._block_hit_count}회, 총 대기 {total_wait_min}분)"
+                )
+
+                if not self.sleep_s(cooldown_sec):
+                    return ""
+
+                if not self.refresh_cookie():
+                    return ""
+
                 continue
 
-            # === 신규 === 성공 응답이면 차단 누적 카운트 리셋
+            if self.is_blocked_html(html):
+
+                self.log_signal_func(
+                    f"⚠️ 차단 의심 응답(attempt={attempt}). "
+                    f"길이={len(html) if html else 0}"
+                )
+
+                ok = self.backoff_and_refresh_if_blocked(url, html)
+
+                if not ok:
+                    return ""
+
+                continue
+
+            # 정상 응답
+
             if self._block_hit_count > 0:
-                self.log_signal_func("✅ 정상 응답 확인. 차단 누적 카운트 초기화")
+
+                total_wait_min = self._block_total_wait_sec // 60
+
+                self.log_signal_func(
+                    f"✅ 정상 응답 확인. 차단 카운트 초기화 "
+                    f"(차단 {self._block_hit_count}회, 총 대기 {total_wait_min}분)"
+                )
+
                 self._block_hit_count = 0
-            break
+                self._block_total_wait_sec = 0
 
-        if not self.is_blocked_html(html):
             if len(self._cache) < 2000:
-                self._cache[url] = html
-                self.log_signal_func(f"🧠 cache save: {url} (size={len(self._cache)})")
 
-        return html or ""
+                self._cache[url] = html
+
+                self.log_signal_func(
+                    f"🧠 cache save: {url} (size={len(self._cache)})"
+                )
+
+            return html or ""
+
+        self.log_signal_func("⛔ running=False 감지로 get_html 종료")
+        return ""
 
     # =========================
     # bizno: search

@@ -1,4 +1,4 @@
-# main.py
+# krx_data_set.py
 from __future__ import annotations
 
 import json  # === 신규 ===
@@ -77,7 +77,7 @@ def show_already_running_alert(existing_app: Optional[QApplication] = None) -> N
 def _get_base_path() -> Path:
     """
     - 개발: 프로젝트 기준
-    - 빌드(frozen): exe 위치 기준. 개발 main.py 기준
+    - 빌드(frozen): exe 위치 기준. 개발 krx_data_set.py 기준
     """
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
