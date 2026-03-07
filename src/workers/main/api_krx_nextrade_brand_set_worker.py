@@ -28,7 +28,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
-        self.api_client: APIClient = APIClient(use_cache=False, log_func=self.log_signal_func)
+        self.api_client: Optional[APIClient] = None
 
         self.output_xlsx_auto: str = "krx_nextrade.xlsx"
         self.output_xlsx: str = self.output_xlsx_auto
@@ -120,6 +120,8 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
+        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+
 
         # === 신규 === 시작 시 최근 1일치 데이터 캐시
         self.load_last_krx_snapshot()

@@ -17,13 +17,13 @@ VSVersionInfo(
           '040904B0',
           [
             StringStruct('CompanyName', 'GB7'),
-            StringStruct('FileDescription', 'KRX NEXTRADE'),
-            StringStruct('FileVersion', '6.0.0'),
-            StringStruct('InternalName', 'KRX NEXTRADE'),
+            StringStruct('FileDescription', 'LULULEMON'),
+            StringStruct('FileVersion', '1.0.0'),
+            StringStruct('InternalName', 'LULULEMON'),
             StringStruct('LegalCopyright', '© 2026 GB7'),
-            StringStruct('OriginalFilename', 'KRX NEXTRADE.exe'),
-            StringStruct('ProductName', 'KRX NEXTRADE'),
-            StringStruct('ProductVersion', '6.0.0')
+            StringStruct('OriginalFilename', 'LULULEMON.exe'),
+            StringStruct('ProductName', 'LULULEMON'),
+            StringStruct('ProductVersion', '1.0.0')
           ]
         )
       ]
