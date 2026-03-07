@@ -18,12 +18,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'GB7'),
             StringStruct('FileDescription', 'LULULEMON'),
-            StringStruct('FileVersion', '1.0.0'),
+            StringStruct('FileVersion', '3.0.0'),
             StringStruct('InternalName', 'LULULEMON'),
             StringStruct('LegalCopyright', '© 2026 GB7'),
             StringStruct('OriginalFilename', 'LULULEMON.exe'),
             StringStruct('ProductName', 'LULULEMON'),
-            StringStruct('ProductVersion', '1.0.0')
+            StringStruct('ProductVersion', '3.0.0')
           ]
         )
       ]
