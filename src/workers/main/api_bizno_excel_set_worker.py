@@ -5,7 +5,6 @@ import time
 from typing import List, Optional
 from urllib.parse import quote
 
-import pandas as pd
 from bs4 import BeautifulSoup
 
 from src.utils.api_utils import APIClient
@@ -36,9 +35,12 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self._cookie_ready: bool = False
         self._cache: dict[str, str] = {}
 
-        # === 신규 === 대량 휴식/세션 운영 파라미터
+        # 저장 하위 폴더
+        self.out_dir: str = "output_bizno"
+
+        # 대량 휴식/세션 운영 파라미터
         self._rest_every_n: int = 30
-        self._rest_range_sec = (30.0, 60.0)
+        self._rest_range_sec = (60.0, 120.0)
 
         self._long_rest_every_n: int = 200
         self._long_rest_range_sec = (120.0, 240.0)
@@ -68,7 +70,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "Request blocked",
             "Access Denied",
             "Forbidden",
-
             "현재 접속인원이 많아 접속이 지연되고 있습니다",
             "접속대기중",
             "접속 대기중",
@@ -88,9 +89,19 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         try:
             self.log_signal_func(f"크롤링 시작. 전체 수 {len(self.excel_data_list)}")
 
-            self.csv_filename = self.file_driver.get_csv_filename(self.site_name)
-            df = pd.DataFrame(columns=self.columns)
-            df.to_csv(self.csv_filename, index=False, encoding="utf-8-sig")
+            folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+
+            self.csv_filename = os.path.basename(
+                self.file_driver.get_csv_filename(self.site_name)
+            )
+
+            self.excel_driver.init_csv(
+                self.csv_filename,
+                self.columns,
+                folder_path=folder_path,
+                sub_dir=self.out_dir
+            )
+
             self.log_signal_func(f"✅ CSV 생성: {self.csv_filename}")
 
             self.total_cnt = len(self.excel_data_list)
@@ -145,6 +156,14 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     self.log_signal_func("📄 상세 조회 시작")
                     self.fetch_article_detail(item)
                     self.log_signal_func("📄 상세 조회 완료")
+
+                    # 상세 후 텀
+                    sleep3 = random.uniform(5.0, 10.0)
+                    self.log_signal_func(f"상세 조회 후 잠시 쉽니다. ({sleep3:.2f}s)")
+                    if not self.sleep_s(sleep3):
+                        self.log_signal_func("⛔ sleep 중단 감지. main 루프 종료")
+                        return True
+
                 else:
                     self.log_signal_func("⚠️ 검색 매칭 실패. article 없음")
 
@@ -157,7 +176,13 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 self.before_pro_value = pro_value
 
                 self.log_signal_func("💾 CSV 저장(append) 시작")
-                self.excel_driver.append_to_csv(self.csv_filename, [item], self.columns)
+                self.excel_driver.append_to_csv(
+                    self.csv_filename,
+                    [item],
+                    self.columns,
+                    folder_path=folder_path,
+                    sub_dir=self.out_dir
+                )
                 self.log_signal_func("💾 CSV 저장(append) 완료")
 
                 # === 신규 === 선제 장기 휴식 (150건마다 5분)
@@ -217,13 +242,17 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     def cleanup(self) -> None:
         self.log_signal_func("🧹 cleanup 시작")
 
+        folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+
         try:
-            if self.csv_filename and os.path.exists(self.csv_filename):
-                self.log_signal_func(f"🧾 CSV 존재 확인: {self.csv_filename}")
-                if self.excel_driver:
-                    self.log_signal_func("🧾 CSV -> 엑셀 변환 시작")
-                    self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
-                    self.log_signal_func("✅ [엑셀 변환] 성공")
+            if self.csv_filename and self.excel_driver:
+                self.log_signal_func(f"🧾 CSV -> 엑셀 변환 시작: {self.csv_filename}")
+                self.excel_driver.convert_csv_to_excel_and_delete(
+                    self.csv_filename,
+                    folder_path=folder_path,
+                    sub_dir=self.out_dir
+                )
+                self.log_signal_func("✅ [엑셀 변환] 성공")
         except Exception as e:
             self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
 
@@ -353,7 +382,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
         return True
 
-
     def ensure_cookie(self) -> None:
         if self._cookie_ready:
             self.log_signal_func("✅ 쿠키 이미 세팅됨 (skip)")
@@ -391,7 +419,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         return True
 
     def get_html(self, url: str, headers: dict) -> str:
-
         if url in self._cache:
             self.log_signal_func(f"🧠 cache hit: {url}")
             return self._cache[url]
@@ -401,13 +428,11 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         attempt = 0
 
         while self.running:
-
             attempt += 1
 
             try:
                 html = self.api_client.get(url, headers=headers)
             except Exception as e:
-
                 self.log_signal_func(f"❌ GET 예외(attempt={attempt}): {e}")
 
                 self._block_hit_count += 1
@@ -431,7 +456,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 continue
 
             if self.is_blocked_html(html):
-
                 self.log_signal_func(
                     f"⚠️ 차단 의심 응답(attempt={attempt}). "
                     f"길이={len(html) if html else 0}"
@@ -445,9 +469,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 continue
 
             # 정상 응답
-
             if self._block_hit_count > 0:
-
                 total_wait_min = self._block_total_wait_sec // 60
 
                 self.log_signal_func(
@@ -459,7 +481,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 self._block_total_wait_sec = 0
 
             if len(self._cache) < 2000:
-
                 self._cache[url] = html
 
                 self.log_signal_func(
@@ -532,8 +553,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             return
 
         self.log_signal_func(f"[search] 결과 스캔 완료. details_count={hit}, match=0")
-
-
 
     # =========================
     # bizno: detail
