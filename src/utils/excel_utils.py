@@ -12,7 +12,7 @@ class ExcelUtils:
         self.log_func = log_func
 
     # =========================
-    # === 신규 === 경로 유틸
+    # 경로 유틸
     # =========================
     def get_default_output_dir(self):
         return os.path.join(os.path.expanduser("~"), "Documents")
@@ -32,14 +32,19 @@ class ExcelUtils:
 
         return output_dir
 
-    def build_file_path(self, filename, folder_path=None):
+    def build_file_path(self, filename, folder_path=None, sub_dir=None):
         output_dir = self.resolve_output_dir(folder_path)
 
-        base_name = os.path.basename(str(filename or "").strip())
-        if not base_name:
+        if sub_dir:
+            output_dir = os.path.join(output_dir, sub_dir)
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        filename = str(filename or "").strip()
+        if not filename:
             raise ValueError("filename 이 비어 있습니다.")
 
-        full_path = os.path.join(output_dir, base_name)
+        full_path = os.path.join(output_dir, filename)
 
         if self.log_func:
             self.log_func(f"[EXCEL] 저장 파일 경로: {full_path}")
@@ -167,24 +172,26 @@ class ExcelUtils:
         rows = [self.obj_to_row(o, cols) for o in obj_list]
         return pd.DataFrame(rows, columns=cols)
 
-    def save_obj_list_to_excel(self, filename, obj_list, columns=None, sheet_name="Sheet1", folder_path=None):
-        """
-        obj_list(객체/딕셔너리 리스트)를 엑셀 파일에 저장합니다.
-        - 파일이 존재하면 같은 시트에 이어쓰기
-        - 파일이 없거나 시트가 없으면 시트를 새로 만들고 header 포함 저장
-        - columns 지정 시 해당 컬럼 순서/이름으로 저장
-        - URL 포함된 값은 하이퍼링크로 변환
-        """
-        if not obj_list:
-            return
+    def save_obj_list_to_excel(
+            self,
+            filename,
+            obj_list,
+            columns=None,
+            sheet_name="Sheet1",
+            folder_path=None,
+            sub_dir=None
+    ):
 
-        filename = self.build_file_path(filename, folder_path)
+        if not obj_list:
+            return None
+
+        filename = self.build_file_path(filename, folder_path, sub_dir)
 
         df = self.obj_list_to_dataframe(obj_list, columns=columns)
         if df is None or df.empty:
             if self.log_func:
                 self.log_func("⚠️ 저장할 데이터가 없습니다.")
-            return
+            return None
 
         if os.path.exists(filename):
             with pd.ExcelWriter(filename, engine="openpyxl", mode="a", if_sheet_exists="overlay") as writer:
@@ -214,6 +221,8 @@ class ExcelUtils:
         obj_list.clear()
         if self.log_func:
             self.log_func("excel(객체 리스트) 저장완료 (URL 하이퍼링크 처리)")
+
+        return filename
 
     def append_rows_text_excel(self, filename, rows, columns, sheet_name="Sheet1", folder_path=None):
         if not rows:

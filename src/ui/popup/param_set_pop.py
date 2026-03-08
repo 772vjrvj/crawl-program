@@ -105,7 +105,7 @@ class ParamSetPop(QDialog):
         return """
             border-radius: 10%;
             border: 2px solid #888888;
-            padding: 10px;
+            padding: 8px;
             font-size: 14px;
             color: #333333;
         """
