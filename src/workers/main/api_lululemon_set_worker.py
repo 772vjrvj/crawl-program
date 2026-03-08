@@ -23,6 +23,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
+        self.folder_path = None
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
         self.api_client: Optional[APIClient] = None
@@ -41,9 +42,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
 
         self.columns: List[str] = ["컬러", "사이즈", "옵션가", "재고수량", "관리코드", "사용여부"]
 
-        base_dir = self.get_base_dir()
-        self.out_dir: str = os.path.join(base_dir, "output_lululemon")
-        os.makedirs(self.out_dir, exist_ok=True)
+        self.out_dir: str = "output_lululemon"
 
         self._size_rank: Dict[str, int] = {}
 
@@ -54,10 +53,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
-
-        self.out_dir = os.path.join(self.get_base_dir(), "output_lululemon")
-        os.makedirs(self.out_dir, exist_ok=True)
-
+        self.folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
         self.log_signal.emit(f"[DEBUG] cwd = {os.getcwd()}")
         self.log_signal.emit(f"[DEBUG] base_dir = {self.get_base_dir()}")
         self.log_signal.emit(f"[DEBUG] out_dir = {self.out_dir}")
@@ -116,26 +112,25 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                 time.sleep(random.uniform(1, 2))
                 continue
 
-            filename = f"{self.safe_filename(product_name)}_{self.now_stamp()}.xls"
-            fullpath = os.path.join(self.out_dir, filename)
-
-            self.log_signal.emit(f"[DEBUG] 저장 시도 경로: {fullpath}")
+            filename = f"{self.safe_filename(product_name)}_{self.now_stamp()}.xlsx"
 
             try:
-                self.excel_driver.save_obj_list_to_excel(
-                    filename=fullpath,
+                saved_path = self.excel_driver.save_obj_list_to_excel(
+                    filename=filename,
                     obj_list=options,
                     columns=self.columns,
-                    sheet_name="Sheet1"
+                    sheet_name="Sheet1",
+                    folder_path=self.folder_path,
+                    sub_dir=self.out_dir
                 )
 
-                if os.path.exists(fullpath):
-                    self.log_signal.emit(f"({num}/{self.total_cnt}) 저장완료: {fullpath}")
+                if saved_path and os.path.exists(saved_path):
+                    self.log_signal.emit(f"({num}/{self.total_cnt}) 저장완료: {saved_path}")
                 else:
-                    self.log_signal.emit(f"[저장실패] 파일이 생성되지 않음: {fullpath}")
+                    self.log_signal.emit(f"[저장실패] 파일이 생성되지 않음: {saved_path}")
 
             except Exception as e:
-                self.log_signal.emit(f"[저장실패] {fullpath} / {e}")
+                self.log_signal.emit(f"[저장실패]  {e}")
 
             self.update_progress()
             time.sleep(random.uniform(2, 4))

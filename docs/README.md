@@ -150,3 +150,15 @@ data/current.json을 새 버전으로 갱신
 오래된 버전 정리(최신 2개만 유지)
 
 새 버전 실행
+
+
+
+-Inno Setup Compiler 6.7.1 추가
+
+
+[Files]
+Source: "C:\Users\772vj\Desktop\거래중\KRX NEXTRADE_V600\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "C:\Users\772vj\Desktop\거래중\KRX NEXTRADE_V600\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\772vj\Desktop\거래중\KRX NEXTRADE_V600\runtime\*"; DestDir: "{app}\runtime"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+수정필요
