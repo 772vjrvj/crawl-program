@@ -122,8 +122,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
         self.file_driver = FileUtils(self.log_signal_func)
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
-
-        # === 신규 === 시작 시 최근 1일치 데이터 캐시
+        # 시작 시 최근 1일치 데이터 캐시
         self.load_last_krx_snapshot()
 
         return True
@@ -159,6 +158,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
         except Exception as e:
             self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
 
+
     def main(self) -> bool:
         try:
             fr_date: str = self.get_setting_value(self.setting, "fr_date")
@@ -174,10 +174,11 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
             auto_yn: bool = str(self.get_setting_value(self.setting, "auto_yn")).lower() in ("1", "true", "y")
             auto_time: str = str(self.get_setting_value(self.setting, "auto_time"))
+            folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
 
             if auto_yn:
                 self.output_xlsx = self.output_xlsx_auto
-                self.auto_loop(auto_time, min_rate1, min_sum_won1, min_rate2, min_sum_won2)
+                self.auto_loop(auto_time, min_rate1, min_sum_won1, min_rate2, min_sum_won2, folder_path)
 
             else:
                 self.output_xlsx = f"krx_nextrade_{fr_date}_{to_date}.xlsx"
@@ -220,7 +221,8 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                         filename=self.output_xlsx,
                         rows=all_rows_c1,
                         columns=self.columns,
-                        sheet_name=self.sheet_cond1
+                        sheet_name=self.sheet_cond1,
+                        folder_path=folder_path
                     )
 
                 if all_rows_c2:
@@ -228,7 +230,8 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                         filename=self.output_xlsx,
                         rows=all_rows_c2,
                         columns=self.columns,
-                        sheet_name=self.sheet_cond2
+                        sheet_name=self.sheet_cond2,
+                        folder_path=folder_path
                     )
 
             return True
@@ -246,7 +249,8 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
             min_rate1: float,
             min_sum_won1: int,
             min_rate2: float,
-            min_sum_won2: int
+            min_sum_won2: int,
+            folder_path: str
     ) -> None:
         hour, minute = self.parse_auto_hour(auto_time)
 
@@ -268,7 +272,8 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                                 filename=self.output_xlsx,
                                 rows=rows_c1,
                                 columns=self.columns,
-                                sheet_name=self.sheet_cond1
+                                sheet_name=self.sheet_cond1,
+                                folder_path=folder_path
                             )
 
                         if rows_c2:
@@ -276,7 +281,8 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                                 filename=self.output_xlsx,
                                 rows=rows_c2,
                                 columns=self.columns,
-                                sheet_name=self.sheet_cond2
+                                sheet_name=self.sheet_cond2,
+                                folder_path=folder_path
                             )
 
                         self.last_auto_date = today

@@ -35,15 +35,14 @@ class _SelectOpt(TypedDict, total=False):
 class _SettingItem(TypedDict, total=False):
     code: str
     name: str
-    type: str  # input|select|button|check|file
+    type: str  # input|select|button|check|file|folder
     value: Any
 
     options: List[_SelectOpt]  # for select
-    placeholder: str           # for file
-    button_text: str           # for file
-    dialog_title: str          # for file
+    placeholder: str           # for file/folder
+    button_text: str           # for file/folder
+    dialog_title: str          # for file/folder
     filter: str                # for file
-    start_dir: str             # for file
 
 
 @dataclass(frozen=True)
@@ -150,6 +149,18 @@ class ParamSetPop(QDialog):
             }
         """
 
+    # === 신규 === 기본 시작 경로: 문서 폴더
+    def _get_default_start_dir(self) -> str:
+        documents_dir = os.path.join(os.path.expanduser("~"), "Documents")
+        if os.path.isdir(documents_dir):
+            return documents_dir
+
+        home_dir = os.path.expanduser("~")
+        if os.path.isdir(home_dir):
+            return home_dir
+
+        return os.getcwd()
+
     def _center_window(self) -> None:
         frame = self.frameGeometry()
         screen = self.screen()
@@ -159,8 +170,8 @@ class ParamSetPop(QDialog):
         center = screen.availableGeometry().center()
         frame.moveCenter(center)
 
-        # === 신규 === 중앙에서 위로 200px 이동 (기존 유지)
-        frame.moveTop(frame.top() - 200)
+        #  중앙에서 위로 350px 이동 (기존 유지)
+        frame.moveTop(frame.top() - 350)
 
         self.move(frame.topLeft())
 
@@ -276,6 +287,29 @@ class ParamSetPop(QDialog):
                 btn.clicked.connect(lambda _checked=False, c=code, it=item: self.on_file_pick_clicked(c, it))
                 item_layout.addWidget(btn)
 
+            elif item_type == "folder":
+                le = QLineEdit(self)
+
+                # === 신규 === value가 비어 있으면 문서 폴더를 기본값으로 표시
+                folder_value = str(item.get("value", "") or "").strip()
+                if not folder_value:
+                    folder_value = self._get_default_start_dir()
+
+                le.setText(folder_value)
+                le.setPlaceholderText(str(item.get("placeholder", "폴더를 선택하세요") or "폴더를 선택하세요"))
+                le.setFixedHeight(40)
+                le.setStyleSheet(self._line_edit_style())
+                self.input_fields[code] = le
+                item_layout.addWidget(le)
+
+                btn_text = str(item.get("button_text", "폴더 선택") or "폴더 선택")
+                btn = QPushButton(btn_text, self)
+                btn.setFixedHeight(40)
+                btn.setStyleSheet(self._button_style())
+                btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn.clicked.connect(lambda _checked=False, c=code, it=item: self.on_folder_pick_clicked(c, it))
+                item_layout.addWidget(btn)
+
             popup_layout.addLayout(item_layout)
 
         # 버튼 레이아웃
@@ -350,7 +384,7 @@ class ParamSetPop(QDialog):
         spec = _FilePickSpec(
             dialog_title=str(item.get("dialog_title", "파일 선택") or "파일 선택"),
             file_filter=str(item.get("filter", "All Files (*);;PNG (*.png);;JPG (*.jpg *.jpeg);;WEBP (*.webp)") or ""),
-            start_dir=str(item.get("start_dir", os.getcwd()) or os.getcwd()),
+            start_dir=self._get_default_start_dir(),
         )
 
         path, _ = QFileDialog.getOpenFileName(self, spec.dialog_title, spec.start_dir, spec.file_filter)
@@ -359,6 +393,23 @@ class ParamSetPop(QDialog):
 
         w.setText(path)
         self._emit_log(f"[{code}] 파일 선택: {path}")
+
+    @Slot(str, object)
+    def on_folder_pick_clicked(self, code: str, item: _SettingItem) -> None:
+        w = self.input_fields.get(code)
+        if not isinstance(w, QLineEdit):
+            self._emit_log(f"[{code}] 폴더 경로 입력 필드를 찾을 수 없습니다.")
+            return
+
+        dialog_title = str(item.get("dialog_title", "폴더 선택") or "폴더 선택")
+        start_dir = self._get_default_start_dir()
+
+        path = QFileDialog.getExistingDirectory(self, dialog_title, start_dir)
+        if not path:
+            return
+
+        w.setText(path)
+        self._emit_log(f"[{code}] 폴더 선택: {path}")
 
     @Slot()
     def on_confirm(self) -> None:
@@ -380,7 +431,7 @@ class ParamSetPop(QDialog):
                 text = widget.text()
 
                 # === 신규 === file 타입은 무조건 문자열로 저장
-                if item_type == "file":
+                if item_type in ("file", "folder"):
                     item["value"] = text
                 else:
                     # 기존 로직 유지: int 변환 시도 후 실패하면 문자열
