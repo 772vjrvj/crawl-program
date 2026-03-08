@@ -1,4 +1,6 @@
 # src/workers/main/api_naver_place_url_all_set_worker.py
+from __future__ import annotations
+
 import json
 import os
 import random
@@ -6,8 +8,7 @@ import re
 import requests
 import shutil
 import time
-from typing import Any, Dict, List, Optional, Union
-from typing import Set, Pattern  
+from typing import Any, Dict, List, Optional, Union, Set, Pattern
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -21,37 +22,43 @@ from src.workers.api_base_worker import BaseApiWorker
 
 class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
 
-    LIMIT_IMAGE_SIZE: int = 1000  
+    LIMIT_IMAGE_SIZE: int = 1000
 
     # 초기화
-    def __init__(self) -> None:  
+    def __init__(self) -> None:
         super().__init__()
 
-        self.url_list: Optional[List[str]] = None  
-        self.columns: Optional[List[str]] = None  
-        self.csv_filename: Optional[str] = None  
-        self.keyword_list: Optional[List[str]] = None  
-        self.site_name: str = "네이버 플레이스 URL"  
-        self.total_cnt: int = 0  
-        self.total_pages: int = 0  
-        self.current_cnt: int = 0  
-        self.before_pro_value: float = 0.0  
-        self.file_driver: Optional[FileUtils] = None  
-        self.excel_driver: Optional[ExcelUtils] = None  
+        self.url_list: Optional[List[str]] = None
+        self.columns: Optional[List[str]] = None
+        self.csv_filename: Optional[str] = None
+        self.keyword_list: Optional[List[str]] = None
+        self.site_name: str = "네이버 플레이스 URL"
+        self.total_cnt: int = 0
+        self.total_pages: int = 0
+        self.current_cnt: int = 0
+        self.before_pro_value: float = 0.0
+        self.file_driver: Optional[FileUtils] = None
+        self.excel_driver: Optional[ExcelUtils] = None
         self.api_client: Optional[APIClient] = None
-        self.saved_ids: Set[str] = set()  
-        self.image_size: int = 1000  
+        self.saved_ids: Set[str] = set()
+        self.image_size: int = 1000
         self.zip: bool = True
 
+        # === 신규 ===
+        self.folder_path: str = ""
+        self.out_dir: str = "output_naver_place_url"
+
     # 초기화
-    def init(self) -> bool:  
+    def init(self) -> bool:
         self.data_set()
         self.driver_set()
         self.log_signal_func(f"선택 항목 : {self.columns}")
+        self.log_signal_func(f"[DEBUG] folder_path = {self.folder_path}")
+        self.log_signal_func(f"[DEBUG] out_dir = {self.out_dir}")
         return True
 
     # 프로그램 실행
-    def main(self) -> bool:  
+    def main(self) -> bool:
         try:
             if not self.url_list:
                 self.log_signal_func("⚠️ URL 목록이 비어있습니다.")
@@ -61,49 +68,65 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                 self.log_signal_func("⚠️ columns가 비어있습니다.")
                 return True
 
-            # driver_set에서 생성되지만, 타입 안정성을 위해 가드
             if not self.file_driver or not self.excel_driver:
                 self.log_signal_func("⚠️ 드라이버가 초기화되지 않았습니다. (file_driver/excel_driver)")
                 return True
 
             self.log_signal_func(f"크롤링 시작. 전체 {len(self.url_list)}개 URL")
 
-            self.csv_filename = self.file_driver.get_csv_filename(self.site_name)
+            # === 신규 ===
+            self.csv_filename = self.get_csv_filename()
 
-            df = pd.DataFrame(columns=self.columns)
-            df.to_csv(self.csv_filename, index=False, encoding="utf-8-sig")
+            self.excel_driver.init_csv(
+                filename=self.csv_filename,
+                columns=self.columns,
+                folder_path=self.folder_path,
+                sub_dir=self.out_dir
+            )
 
-            results: List[Dict[str, Any]] = []  
-            pattern: Pattern[str] = re.compile(r"/(\d+)(?=[/?#]|$)")  
+            results: List[Dict[str, Any]] = []
+            pattern: Pattern[str] = re.compile(r"/(\d+)(?=[/?#]|$)")
 
             for index, url in enumerate(self.url_list, start=1):
-                if not self.running: return True
+                if not self.running:
+                    return True
+
                 match = pattern.search(url)
                 if match:
                     place_id = match.group(1)
 
-                    place_info = self.fetch_place_info(place_id)  # type: ignore[attr-defined]  
+                    place_info = self.fetch_place_info(place_id)
                     if not place_info:
                         self.log_signal_func(f"⚠️ ID {place_id}의 상세 정보를 가져오지 못했습니다.")
                         continue
 
-                    # place_info가 dict라고 가정 (기존 코드 유지)
                     self.log_signal_func(
                         f"진행 : {index} / {len(self.url_list)}, 아이디: {place_id}, 이름: {place_info['이름']}"
                     )
                     results.append(place_info)
 
-                    pro_value: float = (index / len(self.url_list)) * 1000000  
+                    pro_value: float = (index / len(self.url_list)) * 1000000
                     self.progress_signal.emit(self.before_pro_value, pro_value)
                     self.before_pro_value = pro_value
 
                     if index % 5 == 0:
-                        self.excel_driver.append_to_csv(self.csv_filename, results, self.columns)
-                        # 기존 동작 유지: 중간 저장 후에도 results를 누적하는 방식 (원본대로)
+                        self.excel_driver.append_to_csv(
+                            filename=self.csv_filename,
+                            data_list=results,
+                            columns=self.columns,
+                            folder_path=self.folder_path,
+                            sub_dir=self.out_dir
+                        )
 
-            self.excel_driver.append_to_csv(self.csv_filename, results, self.columns)
-            pro_value = 1000000.0  
+            self.excel_driver.append_to_csv(
+                filename=self.csv_filename,
+                data_list=results,
+                columns=self.columns,
+                folder_path=self.folder_path,
+                sub_dir=self.out_dir
+            )
 
+            pro_value = 1000000.0
             self.progress_signal.emit(self.before_pro_value, pro_value)
             self.before_pro_value = pro_value
 
@@ -113,50 +136,60 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         return True
 
     # 데이터 세팅
-    def data_set(self) -> None:  
-        value: Any = self.get_setting_value(self.setting, "image_size")  
+    def data_set(self) -> None:
+        value: Any = self.get_setting_value(self.setting, "image_size")
 
-        # 숫자인지 확인 (int 변환 시도)
         try:
-            num: int = int(value)  
+            num: int = int(value)
         except (TypeError, ValueError):
             raise ValueError(f"image_size 값이 올바르지 않습니다: {value}")
 
-        # 범위 확인
         if not (1 <= num <= self.LIMIT_IMAGE_SIZE):
             raise ValueError(f"image_size는 1 ~ {self.LIMIT_IMAGE_SIZE} 사이여야 합니다 (현재 값: {num})")
 
         self.image_size = num
-        self.zip = bool(self.get_setting_value(self.setting, "zip"))  
+        self.zip = bool(self.get_setting_value(self.setting, "zip"))
+
+        # === 신규 ===
+        self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
 
         self.url_list = [
             str(row[k]).strip()
-            for row in self.excel_data_list  # type: ignore[attr-defined]  
+            for row in self.excel_data_list
             for k in row.keys()
             if k.lower() == "url" and row.get(k) and str(row[k]).strip()
         ]
 
     # 드라이버 세팅
-    def driver_set(self) -> None:  
+    def driver_set(self) -> None:
         self.log_signal_func("드라이버 세팅 ========================================")
 
-        # 엑셀 객체 초기화
         self.excel_driver = ExcelUtils(self.log_signal_func)
-
-        # 파일 객체 초기화
         self.file_driver = FileUtils(self.log_signal_func)
-
-        # api
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
+    # === 신규 ===
+    def safe_filename(self, name: str) -> str:
+        name = re.sub(r'[\\/:*?"<>|]+', "_", str(name or "").strip())
+        return (name or "output")[:120]
+
+    # === 신규 ===
+    def now_stamp(self) -> str:
+        return time.strftime("%Y%m%d_%H%M%S")
+
+    # === 신규 ===
+    def get_csv_filename(self) -> str:
+        return f"{self.safe_filename(self.site_name)}_{self.now_stamp()}.csv"
 
     def cleanup(self) -> None:
-
         try:
-            if self.csv_filename and os.path.exists(self.csv_filename):
-                if self.excel_driver:
-                    self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
-                    self.log_signal_func(f"✅ [엑셀 변환] 성공")
+            if self.csv_filename and self.excel_driver:
+                self.excel_driver.convert_csv_to_excel_and_delete(
+                    csv_filename=self.csv_filename,
+                    folder_path=self.folder_path,
+                    sub_dir=self.out_dir
+                )
+                self.log_signal_func("✅ [엑셀 변환] 성공")
         except Exception as e:
             self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
 
@@ -186,7 +219,6 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
 
-
     # 마무리
     def destroy(self) -> None:
         self.progress_signal.emit(self.before_pro_value, 1000000)
@@ -194,12 +226,11 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         time.sleep(2.5)
         self.progress_end_signal.emit()
 
-
     # 플레이스 목록
-    def fetch_search_results(self, keyword: str, page: int) -> List[str]:  
-        url: str = "https://pcmap-api.place.naver.com/graphql"  
+    def fetch_search_results(self, keyword: str, page: int) -> List[str]:
+        url: str = "https://pcmap-api.place.naver.com/graphql"
 
-        headers: Dict[str, str] = {  
+        headers: Dict[str, str] = {
             "method": "POST",
             "accept-encoding": "gzip, deflate, br, zstd",
             "accept-language": "ko",
@@ -208,7 +239,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
         }
 
-        payload: List[Dict[str, Any]] = [{  
+        payload: List[Dict[str, Any]] = [{
             "operationName": "getPlacesList",
             "variables": {
                 "useReverseGeocode": True,
@@ -241,7 +272,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                 self.log_signal_func("[에러] api_client가 초기화되지 않았습니다.")
                 return []
 
-            res: Any = self.api_client.post(url=url, headers=headers, json=payload)  
+            res: Any = self.api_client.post(url=url, headers=headers, json=payload)
             if not isinstance(res, list) or not res or not isinstance(res[0], dict):
                 return []
 
@@ -249,9 +280,10 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
             if not isinstance(items, list):
                 return []
 
-            out: List[str] = []  
+            out: List[str] = []
             for item in items:
-                if not self.running: return out
+                if not self.running:
+                    return out
                 if isinstance(item, dict):
                     pid = item.get("id")
                     if pid:
@@ -263,15 +295,15 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
             return []
 
     # 숫자 체크
-    def clean_number(self, value: Any) -> Union[str, float]:  
+    def clean_number(self, value: Any) -> Union[str, float]:
         try:
-            num: float = float(value)  
+            num: float = float(value)
             return "" if num == 0 else num
         except (ValueError, TypeError):
             return ""
 
-    def build_payload(self, place_id: str, si: Optional[int] = None, lc: Optional[Union[int, str]] = None) -> List[Dict[str, Any]]:  
-        cursors: List[Dict[str, Any]] = [  
+    def build_payload(self, place_id: str, si: Optional[int] = None, lc: Optional[Union[int, str]] = None) -> List[Dict[str, Any]]:
+        cursors: List[Dict[str, Any]] = [
             {"id": "biz"}, {"id": "clip"}, {"id": "cp0"},
             {"id": "aiView"}, {"id": "visitorReview"},
             {"id": "imgSas"}, {"id": "cp"}
@@ -282,7 +314,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                     c["startIndex"] = si
                     if lc is not None:
                         c["lastCursor"] = str(lc)
-                        c["hasNext"] = True   # ✅ 이거 넣는 게 안정적
+                        c["hasNext"] = True
                     break
 
         return [{
@@ -304,8 +336,8 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
     # 이미지 다운로드
     def fetch_place_image(self, place_id: str, name: str) -> List[str]:
         image_url_list: List[str] = []
-        url: str = "https://api.place.naver.com/place/graphql"  
-        headers: Dict[str, str] = {  
+        url: str = "https://api.place.naver.com/place/graphql"
+        headers: Dict[str, str] = {
             "accept": "*/*",
             "accept-language": "ko",
             "content-type": "application/json",
@@ -313,9 +345,10 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
         }
 
-        parts_all: List[Dict[str, Any]] = []  
+        parts_all: List[Dict[str, Any]] = []
         for si, lc in [(None, None), (40, "41"), (60, "61"), (80, "81"), (100, "101")]:
-            if not self.running: return image_url_list
+            if not self.running:
+                return image_url_list
 
             parts: Any = self.api_client.post(url=url, headers=headers, json=self.build_payload(place_id, si, lc))
             self.log_signal_func(f"이미지 다운로드 {place_id} {si} 호출")
@@ -325,10 +358,10 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
 
             time.sleep(random.uniform(.5, 1))
 
-        # photos 모으기
-        photos: List[Dict[str, Any]] = []  
+        photos: List[Dict[str, Any]] = []
         for part in parts_all:
-            if not self.running: return image_url_list
+            if not self.running:
+                return image_url_list
             data = part.get("data")
             if not isinstance(data, dict):
                 continue
@@ -338,46 +371,51 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                 if isinstance(ph, list):
                     photos.extend([x for x in ph if isinstance(x, dict)])
 
-        # URL 문자열 리스트
-        seen: Set[str] = set()  
+        seen: Set[str] = set()
         for p in photos:
-            if not self.running: return image_url_list
+            if not self.running:
+                return image_url_list
             u = p.get("originalUrl")
             if u and isinstance(u, str) and u not in seen:
                 seen.add(u)
                 image_url_list.append(u)
 
         # 저장 폴더
-        safe_name: str = re.sub(r'[\\/:*?"<>|]+', "_", str(name))  
-        folder_name: str = f"{safe_name}({place_id})"  
-        folder: str = os.path.join("images", folder_name)  
+        safe_name: str = re.sub(r'[\\/:*?"<>|]+', "_", str(name))
+        folder_name: str = f"{safe_name}({place_id})"
+
+        # 엑셀 저장 폴더 기준으로 images 폴더 생성
+        base_dir = self.excel_driver.resolve_output_dir(self.folder_path)
+        image_root = os.path.join(base_dir, self.out_dir, "images")
+
+        os.makedirs(image_root, exist_ok=True)
+
+        folder: str = os.path.join(image_root, folder_name)
         os.makedirs(folder, exist_ok=True)
 
-        # 용량 제한
-        limit_mb: int = int(getattr(self, "image_size", self.image_size))  
+        limit_mb: int = int(getattr(self, "image_size", self.image_size))
         if limit_mb < 1 or limit_mb > self.LIMIT_IMAGE_SIZE:
             raise ValueError(f"image_size는 1 ~ {self.LIMIT_IMAGE_SIZE} 사이여야 합니다.")
-        limit_bytes: int = limit_mb * 1024 * 1024  
+        limit_bytes: int = limit_mb * 1024 * 1024
 
-        # 다운로드
-        ua: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"  
-        total: int = 0  
+        ua: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        total: int = 0
 
         for idx, img_url in enumerate(image_url_list, 1):
-            if not self.running: return image_url_list
-            path: str = urlparse(img_url).path  
-            ext: str = os.path.splitext(path)[1].lower()  
+            if not self.running:
+                return image_url_list
+            path: str = urlparse(img_url).path
+            ext: str = os.path.splitext(path)[1].lower()
             if not ext or len(ext) > 5:
                 ext = ".jpg"
-            fname: str = f"{folder_name}_{idx}{ext}"  
-            fpath: str = os.path.join(folder, fname)  
+            fname: str = f"{folder_name}_{idx}{ext}"
+            fpath: str = os.path.join(folder, fname)
 
-            # 기존 로직 유지: Content-Length가 없으면 cl은 str/None → 체크에 쓰이므로 Optional[int]로 변환
             with requests.get(img_url, stream=True, headers={"user-agent": ua}, timeout=20) as r:
                 r.raise_for_status()
 
                 cl_hdr = r.headers.get("Content-Length")
-                content_len: Optional[int] = None  
+                content_len: Optional[int] = None
                 if cl_hdr:
                     try:
                         content_len = int(cl_hdr)
@@ -385,9 +423,9 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                         content_len = None
 
                 if content_len is not None and (total + content_len > limit_bytes):
-                    break  # 이 파일부터 한도 초과 → 저장 안 하고 종료
+                    break
 
-                written: int = 0  
+                written: int = 0
                 with open(fpath, "wb") as f:
                     for chunk in r.iter_content(8192):
                         if not chunk:
@@ -398,7 +436,6 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                                 os.remove(fpath)
                             except Exception:
                                 pass
-                            # 한도 도달 → 압축만 진행하고 반환 (원본 주석 유지 의미)
                             written = 0
                             break
                         f.write(chunk)
@@ -408,11 +445,10 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
             if total >= limit_bytes:
                 break
 
-        # 마지막: ZIP 압축 (images/{safe_name}({place_id}).zip)
         if self.zip:
-            base: str = os.path.join("images", folder_name)  
+            base = os.path.join(image_root, folder_name)
             try:
-                zip_path: str = shutil.make_archive(base, "zip", root_dir="images", base_dir=folder_name)  
+                zip_path = shutil.make_archive(base, "zip", root_dir=image_root, base_dir=folder_name)
                 self.log_signal_func(f"압축 완료: {zip_path}")
             except Exception as e:
                 self.log_signal_func(f"압축 실패: {e}")
@@ -420,48 +456,48 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         return image_url_list
 
     # 상세조회
-    def fetch_place_info(self, place_id: str) -> Optional[Dict[str, Any]]:  
-        url: str = f"https://m.place.naver.com/place/{place_id}"  
+    def fetch_place_info(self, place_id: str) -> Optional[Dict[str, Any]]:
+        url: str = f"https://m.place.naver.com/place/{place_id}"
         try:
             headers: Dict[str, str] = {
-                'authority': 'm.place.naver.com',
-                'method': 'GET',
-                'scheme': 'https',
-                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                'accept-encoding': 'gzip, deflate',
-                'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-                'priority': 'u=0, i',
-                'sec-ch-ua': '"Not/A)Brand";v="99", "Google Chrome";v="127", "Chromium";v="127"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"Windows"',
-                'sec-fetch-dest': 'document',
-                'sec-fetch-mode': 'navigate',
-                'sec-fetch-site': 'none',
-                'referer': f"{url}",
-                'sec-fetch-user': '?1',
-                'upgrade-insecure-requests': '1',
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36'
+                "authority": "m.place.naver.com",
+                "method": "GET",
+                "scheme": "https",
+                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                "accept-encoding": "gzip, deflate",
+                "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+                "priority": "u=0, i",
+                "sec-ch-ua": '"Not/A)Brand";v="99", "Google Chrome";v="127", "Chromium";v="127"',
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua-platform": '"Windows"',
+                "sec-fetch-dest": "document",
+                "sec-fetch-mode": "navigate",
+                "sec-fetch-site": "none",
+                "referer": f"{url}",
+                "sec-fetch-user": "?1",
+                "upgrade-insecure-requests": "1",
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
             }
 
-            response: Any = self.api_client.get(url=url, headers=headers)  
+            response: Any = self.api_client.get(url=url, headers=headers)
             if not response:
                 self.log_signal_func(f"⚠️ Place ID {place_id} 응답 없음.")
                 return None
 
-            soup = BeautifulSoup(response, 'html.parser')
-            script_tag = soup.find('script', string=re.compile('window.__APOLLO_STATE__'))
+            soup = BeautifulSoup(response, "html.parser")
+            script_tag = soup.find("script", string=re.compile("window.__APOLLO_STATE__"))
 
             if not script_tag or not script_tag.string:
                 self.log_signal_func(f"⚠️ Place ID {place_id}의 스크립트 태그 없음 또는 비어 있음.")
                 return None
 
-            match = re.search(r'window\.__APOLLO_STATE__\s*=\s*(\{.*\});', script_tag.string)
+            match = re.search(r"window\.__APOLLO_STATE__\s*=\s*(\{.*\});", script_tag.string)
             if not match:
                 self.log_signal_func(f"⚠️ Place ID {place_id}의 JSON 파싱 실패.")
                 return None
 
             try:
-                data: Any = json.loads(match.group(1))  
+                data: Any = json.loads(match.group(1))
             except Exception as e:
                 self.log_signal_func(f"⚠️ Place ID {place_id} JSON decode 실패: {e}")
                 return None
@@ -470,23 +506,21 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                 self.log_signal_func(f"⚠️ Place ID {place_id} data가 dict가 아님: {type(data)}")
                 return None
 
-            # 기본 정보 추출
-            base: Any = data.get(f"PlaceDetailBase:{place_id}", {})  
+            base: Any = data.get(f"PlaceDetailBase:{place_id}", {})
             if not isinstance(base, dict):
                 base = {}
 
-            name: str = str(base.get("name", "") or "")  
-            road: str = str(base.get("road", "") or "")  
-            address: str = str(base.get("address", "") or "")  
-            roadAddress: str = str(base.get("roadAddress", "") or "")  
-            category: str = str(base.get("category", "") or "")  
-            conveniences_raw: Any = base.get("conveniences", [])  
-            conveniences: List[str] = [str(x) for x in conveniences_raw] if isinstance(conveniences_raw, list) else []  
-            phone: str = str(base.get("phone", "") or "")  
-            virtualPhone: str = str(base.get("virtualPhone", "") or "")  
+            name: str = str(base.get("name", "") or "")
+            road: str = str(base.get("road", "") or "")
+            address: str = str(base.get("address", "") or "")
+            roadAddress: str = str(base.get("roadAddress", "") or "")
+            category: str = str(base.get("category", "") or "")
+            conveniences_raw: Any = base.get("conveniences", [])
+            conveniences: List[str] = [str(x) for x in conveniences_raw] if isinstance(conveniences_raw, list) else []
+            phone: str = str(base.get("phone", "") or "")
+            virtualPhone: str = str(base.get("virtualPhone", "") or "")
 
-            # 방문자 리뷰 정보
-            review_stats: Any = data.get(f"VisitorReviewStatsResult:{place_id}", {})  
+            review_stats: Any = data.get(f"VisitorReviewStatsResult:{place_id}", {})
             if not isinstance(review_stats, dict):
                 review_stats = {}
 
@@ -497,43 +531,41 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
             if not isinstance(analysis, dict):
                 analysis = {}
 
-            visitorReviewsScore: Union[str, float] = self.clean_number(review.get("avgRating", ""))  
-            visitorReviewsTotal: Union[str, float] = self.clean_number(review.get("totalCount", ""))  
+            visitorReviewsScore: Union[str, float] = self.clean_number(review.get("avgRating", ""))
+            visitorReviewsTotal: Union[str, float] = self.clean_number(review.get("totalCount", ""))
 
             voted_keyword: Any = analysis.get("votedKeyword") or {}
             if not isinstance(voted_keyword, dict):
                 voted_keyword = {}
-            fsasReviewsTotal: Union[str, float] = self.clean_number(voted_keyword.get("userCount", ""))  
+            fsasReviewsTotal: Union[str, float] = self.clean_number(voted_keyword.get("userCount", ""))
 
-            # 영업시간 정보
-            root_query: Any = data.get("ROOT_QUERY", {})  
+            root_query: Any = data.get("ROOT_QUERY", {})
             if not isinstance(root_query, dict):
                 root_query = {}
 
-            place_detail_key: str = f'placeDetail({{"input":{{"deviceType":"pc","id":"{place_id}","isNx":false}}}})'  
+            place_detail_key: str = f'placeDetail({{"input":{{"deviceType":"pc","id":"{place_id}","isNx":false}}}})'
 
             if place_detail_key not in root_query:
                 place_detail_key = f'placeDetail({{"input":{{"checkRedirect":true,"deviceType":"pc","id":"{place_id}","isNx":false}}}})'
 
-            place_detail_obj: Any = root_query.get(place_detail_key, {})  
+            place_detail_obj: Any = root_query.get(place_detail_key, {})
             if not isinstance(place_detail_obj, dict):
                 place_detail_obj = {}
 
-            business_hours: Any = place_detail_obj.get("businessHours({\"source\":[\"tpirates\",\"shopWindow\"]})", [])  
+            business_hours: Any = place_detail_obj.get("businessHours({\"source\":[\"tpirates\",\"shopWindow\"]})", [])
             if not business_hours:
                 business_hours = place_detail_obj.get("businessHours({\"source\":[\"tpirates\",\"jto\",\"shopWindow\"]})", [])
 
-            new_business_hours_json: Any = place_detail_obj.get("newBusinessHours", [])  
+            new_business_hours_json: Any = place_detail_obj.get("newBusinessHours", [])
             if not new_business_hours_json:
                 new_business_hours_json = place_detail_obj.get("newBusinessHours({\"format\":\"restaurant\"})", [])
 
-            # 사이트 URL 정보
-            urls: List[str] = []  
-            shop_window: Any = place_detail_obj.get("shopWindow", {})  
+            urls: List[str] = []
+            shop_window: Any = place_detail_obj.get("shopWindow", {})
             if not isinstance(shop_window, dict):
                 shop_window = {}
 
-            homepages: Any = shop_window.get("homepages", "")  
+            homepages: Any = shop_window.get("homepages", "")
             if isinstance(homepages, dict):
                 etc_list = homepages.get("etc", [])
                 if isinstance(etc_list, list):
@@ -547,14 +579,13 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                     if repr_url:
                         urls.append(str(repr_url))
 
-            # 카테고리 분리
-            category_list: List[str] = category.split(',') if category else ["", ""]  
-            main_category: str = category_list[0] if len(category_list) > 0 else ""  
-            sub_category: str = category_list[1] if len(category_list) > 1 else ""  
+            category_list: List[str] = category.split(",") if category else ["", ""]
+            main_category: str = category_list[0] if len(category_list) > 0 else ""
+            sub_category: str = category_list[1] if len(category_list) > 1 else ""
 
-            image_url_list: List[str] = self.fetch_place_image(place_id, name)  
+            image_url_list: List[str] = self.fetch_place_image(place_id, name)
 
-            result: Dict[str, Any] = {  
+            result: Dict[str, Any] = {
                 "아이디": place_id,
                 "이름": name,
                 "이미지": image_url_list,
@@ -570,7 +601,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                 "카테고리": category,
                 "URL": url,
                 "지도": f"https://map.naver.com/p/entry/place/{place_id}",
-                "편의시설": ', '.join(conveniences) if conveniences else '',
+                "편의시설": ", ".join(conveniences) if conveniences else "",
                 "가상번호": virtualPhone,
                 "전화번호": phone,
                 "사이트": urls,
@@ -587,45 +618,45 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         return None
 
     # 영업시간 함수1
-    def format_business_hours(self, business_hours: Any) -> str:  
-        formatted_hours: List[str] = []  
+    def format_business_hours(self, business_hours: Any) -> str:
+        formatted_hours: List[str] = []
         try:
             if business_hours and isinstance(business_hours, list):
                 for hour in business_hours:
                     if not isinstance(hour, dict):
                         continue
-                    day = hour.get('day', '') or ''
-                    start_time = hour.get('startTime', '') or ''
-                    end_time = hour.get('endTime', '') or ''
+                    day = hour.get("day", "") or ""
+                    start_time = hour.get("startTime", "") or ""
+                    end_time = hour.get("endTime", "") or ""
                     if day and start_time and end_time:
                         formatted_hours.append(f"{day} {start_time} - {end_time}")
         except Exception as e:
             self.log_signal_func(f"Unexpected error: {e}")
             return ""
-        return '\n'.join(formatted_hours).strip() if formatted_hours else ""
+        return "\n".join(formatted_hours).strip() if formatted_hours else ""
 
     # 영업시간 함수2
-    def format_new_business_hours(self, new_business_hours: Any) -> str:  
-        formatted_hours: List[str] = []  
+    def format_new_business_hours(self, new_business_hours: Any) -> str:
+        formatted_hours: List[str] = []
         try:
             if new_business_hours and isinstance(new_business_hours, list):
                 for item in new_business_hours:
                     if not isinstance(item, dict):
                         continue
 
-                    status_description = item.get('businessStatusDescription', {}) or {}
+                    status_description = item.get("businessStatusDescription", {}) or {}
                     if not isinstance(status_description, dict):
                         status_description = {}
 
-                    status = status_description.get('status', '') or ''
-                    description = status_description.get('description', '') or ''
+                    status = status_description.get("status", "") or ""
+                    description = status_description.get("description", "") or ""
 
                     if status:
                         formatted_hours.append(status)
                     if description:
                         formatted_hours.append(description)
 
-                    bh_list = item.get('businessHours', []) or []
+                    bh_list = item.get("businessHours", []) or []
                     if not isinstance(bh_list, list):
                         bh_list = []
 
@@ -633,15 +664,15 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                         if not isinstance(info, dict):
                             continue
 
-                        day = info.get('day', '') or ''
-                        business_hours_obj = info.get('businessHours', {}) or {}
+                        day = info.get("day", "") or ""
+                        business_hours_obj = info.get("businessHours", {}) or {}
                         if not isinstance(business_hours_obj, dict):
                             business_hours_obj = {}
 
-                        start_time = business_hours_obj.get('start', '') or ''
-                        end_time = business_hours_obj.get('end', '') or ''
+                        start_time = business_hours_obj.get("start", "") or ""
+                        end_time = business_hours_obj.get("end", "") or ""
 
-                        break_hours = info.get('breakHours', []) or []
+                        break_hours = info.get("breakHours", []) or []
                         if not isinstance(break_hours, list):
                             break_hours = []
                         break_times = [
@@ -649,16 +680,18 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                             for bh in break_hours
                             if isinstance(bh, dict)
                         ]
-                        break_times_str = (', '.join(break_times) + ' 브레이크타임') if break_times else ''
+                        break_times_str = (", ".join(break_times) + " 브레이크타임") if break_times else ""
 
-                        last_order_times = info.get('lastOrderTimes', []) or []
+                        last_order_times = info.get("lastOrderTimes", []) or []
                         if not isinstance(last_order_times, list):
                             last_order_times = []
                         last_order_times_str = (
-                                ', '.join([f"{(lo.get('type', '') or '')}: {(lo.get('time', '') or '')}"
-                                           for lo in last_order_times if isinstance(lo, dict)])
-                                + ' 라스트오더'
-                        ) if last_order_times else ''
+                                ", ".join([
+                                    f"{(lo.get('type', '') or '')}: {(lo.get('time', '') or '')}"
+                                    for lo in last_order_times
+                                    if isinstance(lo, dict)
+                                ]) + " 라스트오더"
+                        ) if last_order_times else ""
 
                         if day:
                             formatted_hours.append(day)
@@ -670,8 +703,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                             formatted_hours.append(last_order_times_str)
 
         except Exception as e:
-            self.log_signal_func(f"영업시간 에러: {e}", "ERROR")
+            self.log_signal_func(f"영업시간 에러: {e}")
             return ""
 
-        return '\n'.join(formatted_hours).strip() if formatted_hours else ""
-
+        return "\n".join(formatted_hours).strip() if formatted_hours else ""

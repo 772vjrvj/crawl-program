@@ -63,6 +63,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         # === 신규 === 간단 차단 감지 키워드(사이트가 바뀌어도 크게 무리 없는 수준)
         self._block_keywords = [
             "접근이 차단",
+            "차단",
             "비정상적인 접근",
             "잠시 후 다시",
             "Too Many Requests",
@@ -128,11 +129,8 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     q_addr = (item.get("검색회사주소") or "").strip()
                 except Exception:
                     q_name, q_owner, q_addr = "", "", ""
-
                 self.log_signal_func(f"==================== [{index}/{self.total_cnt}] 처리 시작 ====================")
-                self.log_signal_func(
-                    f"입력값: 검색회사명='{q_name}', 검색대표자명='{q_owner}', 검색회사주소='{q_addr}'"
-                )
+                self.log_signal_func(f"입력값: 검색회사명='{q_name}', 검색대표자명='{q_owner}', 검색회사주소='{q_addr}'")
 
                 # 검색 전 텀
                 sleep1 = random.uniform(3.0, 6.0)
@@ -165,6 +163,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     if not self.sleep_s(sleep3):
                         self.log_signal_func("⛔ sleep 중단 감지. main 루프 종료")
                         return True
+
                 else:
                     self.log_signal_func("⚠️ 검색 매칭 실패. article 없음")
 
@@ -234,11 +233,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.file_driver = FileUtils(self.log_signal_func)
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func, timeout=(10, 30))
 
-        # === 신규 === 셀레니움 로그도 UI로 전달
-        self.selenium_driver = SeleniumUtils(
-            headless=False,
-            log_func=self.log_signal_func
-        )
+        self.selenium_driver = SeleniumUtils(headless=False)
         self.selenium_driver.set_capture_options(enabled=True, block_images=False)
 
         self.driver = self.selenium_driver.start_driver(1200)
@@ -260,15 +255,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 self.log_signal_func("✅ [엑셀 변환] 성공")
         except Exception as e:
             self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
-
-        # === 신규 === selenium 종료
-        try:
-            if self.selenium_driver:
-                self.log_signal_func("🔌 selenium_driver.quit 시작")
-                self.selenium_driver.quit()
-                self.log_signal_func("🔌 selenium_driver.quit 완료")
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] selenium_driver.quit 실패: {e}")
 
         try:
             if self.api_client:
@@ -379,6 +365,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         total_wait_min = self._block_total_wait_sec // 60
 
         self.log_signal_func(f"⚠️ 차단/제한 의심 페이지 감지: {url}")
+
         self.log_signal_func(
             f"🕒 차단 의심 쿨다운: {cooldown_min}분 "
             f"(누적 차단 {self._block_hit_count}회, 총 대기 {total_wait_min}분)"
@@ -408,17 +395,13 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             self.log_signal_func("⛔ cookie sleep 중단 감지")
             return
 
-        # requests용 쿠키 저장은 이제 사실상 필수는 아니지만, 기존 구조 유지
         cnt = 0
-        try:
-            for c in self.driver.get_cookies():
-                name = c.get("name")
-                value = c.get("value")
-                if name and value and self.api_client:
-                    self.api_client.cookie_set(name, value)
-                    cnt += 1
-        except Exception as e:
-            self.log_signal_func(f"⚠️ 쿠키 복사 중 예외: {e}")
+        for c in self.driver.get_cookies():
+            name = c.get("name")
+            value = c.get("value")
+            if name and value:
+                self.api_client.cookie_set(name, value)
+                cnt += 1
 
         self._cookie_ready = True
         self.log_signal_func(f"✅ 쿠키 세팅 완료 (count={cnt})")
@@ -440,7 +423,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             self.log_signal_func(f"🧠 cache hit: {url}")
             return self._cache[url]
 
-        self.log_signal_func(f"🌐 SELENIUM GET: {url}")
+        self.log_signal_func(f"🌐 GET: {url}")
 
         attempt = 0
 
@@ -448,19 +431,9 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             attempt += 1
 
             try:
-                # === 신규 === requests 대신 selenium으로 직접 접속
-                self.driver.get(url)
-
-                # === 신규 === 페이지 안정화 대기
-                wait_sec = random.uniform(2.0, 4.0)
-                self.log_signal_func(f"페이지 로딩 후 대기 ({wait_sec:.2f}s)")
-                if not self.sleep_s(wait_sec):
-                    return ""
-
-                html = self.driver.page_source or ""
-
+                html = self.api_client.get(url, headers=headers)
             except Exception as e:
-                self.log_signal_func(f"❌ SELENIUM GET 예외(attempt={attempt}): {e}")
+                self.log_signal_func(f"❌ GET 예외(attempt={attempt}): {e}")
 
                 self._block_hit_count += 1
                 cooldown_sec = self.get_block_cooldown_sec()
@@ -489,6 +462,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 )
 
                 ok = self.backoff_and_refresh_if_blocked(url, html)
+
                 if not ok:
                     return ""
 
@@ -497,16 +471,21 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             # 정상 응답
             if self._block_hit_count > 0:
                 total_wait_min = self._block_total_wait_sec // 60
+
                 self.log_signal_func(
                     f"✅ 정상 응답 확인. 차단 카운트 초기화 "
                     f"(차단 {self._block_hit_count}회, 총 대기 {total_wait_min}분)"
                 )
+
                 self._block_hit_count = 0
                 self._block_total_wait_sec = 0
 
             if len(self._cache) < 2000:
                 self._cache[url] = html
-                self.log_signal_func(f"🧠 cache save: {url} (size={len(self._cache)})")
+
+                self.log_signal_func(
+                    f"🧠 cache save: {url} (size={len(self._cache)})"
+                )
 
             return html or ""
 
@@ -564,10 +543,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             a_tag = d.select_one('a[href^="/article/"]')
             if not a_tag:
                 continue
-
-            href = a_tag.get("href") or ""
-            if not href:
-                continue
+            href = a_tag["href"]
 
             item["article"] = href.split("/article/")[1]
             item["회사명"] = self.safe_text(d.select_one("h4"), strip=True)
