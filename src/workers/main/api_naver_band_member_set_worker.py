@@ -8,10 +8,11 @@ import os
 import re
 import threading
 import time
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional
 
 import requests
 from bs4 import BeautifulSoup
+from selenium.webdriver.remote.webdriver import WebDriver
 
 from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
@@ -19,7 +20,6 @@ from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
 from src.utils.time_utils import ms_to_yyyy_mm_dd
 from src.workers.api_base_worker import BaseApiWorker
-from selenium.webdriver.remote.webdriver import WebDriver
 
 
 class ApiNaverBandMemberSetWorker(BaseApiWorker):
@@ -47,6 +47,8 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
         # ✅ Band Web 번들에 박혀있는 APP_KEY (= akey 기본값)
         self.band_app_key: str = "bbc59b0b5f7a1c6efe950f6236ccda35"
         self.before_pro_value: float = 0.0
+
+        self.out_dir: str = "output_band_member"
 
         # =========================================================
     # lifecycle
@@ -143,8 +145,17 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
             self.log_signal_func("❌ 초기화 실패(driver_set 누락)")
             return False
 
-        self.csv_filename = self.file_driver.get_csv_filename(self.site_name)
-        self.excel_driver.init_csv(self.csv_filename, self.columns)
+        folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+
+        self.csv_filename = os.path.basename(
+            self.file_driver.get_csv_filename(self.site_name)
+        )
+        self.excel_driver.init_csv(
+            self.csv_filename,
+            self.columns,
+            folder_path=folder_path,
+            sub_dir=self.out_dir
+        )
 
         band_id = self.get_setting_value(self.setting, "band_id")
         if not band_id:
@@ -152,17 +163,14 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
             return False
         band_id_str = str(band_id)
 
-        # 1) 로그인(유저 OK 대기) + 멤버 페이지 이동
         self.wait_for_user_confirmation(band_id_str)
         if self._stop_event.is_set():
             return False
 
         time.sleep(1)
 
-        # 2) 밴드명(옵션)
         self._extract_band_name_from_page(band_id_str)
 
-        # 3) Selenium 쿠키 확보 (secretKey 필요)
         cookie_jar = self._get_cookiejar_from_selenium()
         if not cookie_jar.get_dict():
             self.log_signal_func("❌ 쿠키 확보 실패(빈 쿠키 jar)")
@@ -174,10 +182,8 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
             self._debug_dump_cookies(cookie_jar)
             return False
 
-        # ✅ akey는 고정 APP_KEY 사용
         akey = self.band_app_key
 
-        # 4) requests 세션 구성 + API 호출
         sess = requests.Session()
         sess.cookies.update(cookie_jar)
 
@@ -195,7 +201,12 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
         members = self._extract_members(data)
         self._save_members(members)
 
-        self.excel_driver.convert_csv_to_excel_and_delete(self.csv_filename)
+        self.excel_driver.convert_csv_to_excel_and_delete(
+            self.csv_filename,
+            folder_path=folder_path,
+            sub_dir=self.out_dir
+        )
+
         self.log_signal_func("✅ 완료")
         return True
 
@@ -480,4 +491,12 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
         ]
 
         if rows:
-            self.excel_driver.append_to_csv(self.csv_filename, rows, self.columns)
+            folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+
+            self.excel_driver.append_to_csv(
+                self.csv_filename,
+                rows,
+                self.columns,
+                folder_path=folder_path,
+                sub_dir=self.out_dir
+            )

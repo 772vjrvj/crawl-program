@@ -112,7 +112,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
         state = GlobalState()
         self.session: Session = state.get("session")
 
-        self.out_dir: str = "output_krxnextrade"
+        self.out_dir: str = "output_krx_nextrade"
 
 
     # =========================

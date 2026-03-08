@@ -44,6 +44,8 @@ class ExcelUtils:
         if not filename:
             raise ValueError("filename 이 비어 있습니다.")
 
+        filename = os.path.basename(filename)
+
         full_path = os.path.join(output_dir, filename)
 
         if self.log_func:
@@ -51,31 +53,31 @@ class ExcelUtils:
 
         return full_path
 
-    def init_csv(self, filename, columns, folder_path=None):
-        filename = self.build_file_path(filename, folder_path)
+    def init_csv(self, filename, columns, folder_path=None, sub_dir=None):
+        filename = self.build_file_path(filename, folder_path, sub_dir)
 
         df = pd.DataFrame(columns=columns)
         df.to_csv(filename, index=False, encoding="utf-8-sig")
         if self.log_func:
             self.log_func(f"CSV 초기화 완료: {filename}")
 
-    def append_to_csv(self, filename, data_list, columns, folder_path=None):
+    def append_to_csv(self, filename, data_list, columns, folder_path=None, sub_dir=None):
         if not data_list:
             return
 
-        filename = self.build_file_path(filename, folder_path)
+        filename = self.build_file_path(filename, folder_path, sub_dir)
 
         df = pd.DataFrame(data_list, columns=columns)
-        df.to_csv(filename, mode='a', header=False, index=False, encoding="utf-8-sig")
+        df.to_csv(filename, mode="a", header=False, index=False, encoding="utf-8-sig")
         data_list.clear()
         if self.log_func:
             self.log_func("csv 저장완료")
 
-    def append_to_excel(self, filename, data_list, columns, sheet_name="Sheet1", folder_path=None):
+    def append_to_excel(self, filename, data_list, columns, sheet_name="Sheet1", folder_path=None, sub_dir=None):
         if not data_list:
             return
 
-        filename = self.build_file_path(filename, folder_path)
+        filename = self.build_file_path(filename, folder_path, sub_dir)
 
         df = pd.DataFrame(data_list, columns=columns)
 
@@ -91,12 +93,8 @@ class ExcelUtils:
         if self.log_func:
             self.log_func("excel 저장완료")
 
-    def convert_csv_to_excel_and_delete(self, csv_filename, sheet_name="Sheet1", folder_path=None):
-        """
-        CSV 파일을 엑셀 파일로 변환 후 CSV 삭제.
-        numeric_columns: 숫자로 변환하고 싶은 컬럼 이름 리스트
-        """
-        csv_filename = self.build_file_path(csv_filename, folder_path)
+    def convert_csv_to_excel_and_delete(self, csv_filename, sheet_name="Sheet1", folder_path=None, sub_dir=None):
+        csv_filename = self.build_file_path(csv_filename, folder_path, sub_dir)
 
         if not os.path.exists(csv_filename):
             if self.log_func:
@@ -111,7 +109,6 @@ class ExcelUtils:
                     self.log_func(f"⚠️ CSV에 데이터가 없습니다: {csv_filename}")
                 return
 
-            # === 모든 컬럼을 문자열(str)로 강제 ===
             for col in df.columns:
                 df[col] = df[col].apply(
                     lambda v: "" if pd.isna(v) else str(v).strip()
@@ -144,11 +141,6 @@ class ExcelUtils:
         return {c: getattr(o, c, None) for c in cols}
 
     def obj_list_to_dataframe(self, obj_list, columns=None):
-        """
-        obj_list 를 pandas.DataFrame 으로 변환
-        - obj_list 가 dict 리스트면 그대로 사용
-        - 일반 객체 리스트면 __dict__ 또는 지정 columns 기준으로 추출
-        """
         if not obj_list:
             return None
 
@@ -224,7 +216,6 @@ class ExcelUtils:
 
         return filename
 
-
     def append_rows_text_excel(
             self,
             filename,
@@ -280,11 +271,11 @@ class ExcelUtils:
         if self.log_func:
             self.log_func(f"[EXCEL] 저장 완료 ({sheet_name}) (추가 {saved}건)")
 
-    def append_row_to_csv(self, csv_filename, item, columns, folder_path=None):
+    def append_row_to_csv(self, csv_filename, item, columns, folder_path=None, sub_dir=None):
         if not columns:
             return
 
-        csv_filename = self.build_file_path(csv_filename, folder_path)
+        csv_filename = self.build_file_path(csv_filename, folder_path, sub_dir)
 
         row = {}
         for c in columns:
