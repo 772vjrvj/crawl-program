@@ -112,6 +112,9 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
         state = GlobalState()
         self.session: Session = state.get("session")
 
+        self.out_dir: str = "output_krxnextrade"
+
+
     # =========================
     # init / main
     # =========================
@@ -222,7 +225,8 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                         rows=all_rows_c1,
                         columns=self.columns,
                         sheet_name=self.sheet_cond1,
-                        folder_path=folder_path
+                        folder_path=folder_path,
+                        sub_dir=self.out_dir
                     )
 
                 if all_rows_c2:
@@ -231,9 +235,9 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                         rows=all_rows_c2,
                         columns=self.columns,
                         sheet_name=self.sheet_cond2,
-                        folder_path=folder_path
+                        folder_path=folder_path,
+                        sub_dir=self.out_dir
                     )
-
             return True
 
         except Exception as e:
@@ -273,7 +277,8 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                                 rows=rows_c1,
                                 columns=self.columns,
                                 sheet_name=self.sheet_cond1,
-                                folder_path=folder_path
+                                folder_path=folder_path,
+                                sub_dir=self.out_dir
                             )
 
                         if rows_c2:
@@ -282,7 +287,8 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                                 rows=rows_c2,
                                 columns=self.columns,
                                 sheet_name=self.sheet_cond2,
-                                folder_path=folder_path
+                                folder_path=folder_path,
+                                sub_dir=self.out_dir
                             )
 
                         self.last_auto_date = today

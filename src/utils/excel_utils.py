@@ -224,13 +224,22 @@ class ExcelUtils:
 
         return filename
 
-    def append_rows_text_excel(self, filename, rows, columns, sheet_name="Sheet1", folder_path=None):
+
+    def append_rows_text_excel(
+            self,
+            filename,
+            rows,
+            columns,
+            sheet_name="Sheet1",
+            folder_path=None,
+            sub_dir=None
+    ):
         if not rows:
             if self.log_func:
                 self.log_func("[EXCEL] 저장할 데이터 없음")
             return
 
-        filename = self.build_file_path(filename, folder_path)
+        filename = self.build_file_path(filename, folder_path, sub_dir)
 
         if os.path.exists(filename):
             wb = load_workbook(filename)

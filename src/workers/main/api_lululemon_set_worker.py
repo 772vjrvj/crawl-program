@@ -54,7 +54,6 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         self.file_driver = FileUtils(self.log_signal_func)
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
         self.folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
-        self.log_signal.emit(f"[DEBUG] cwd = {os.getcwd()}")
         self.log_signal.emit(f"[DEBUG] base_dir = {self.get_base_dir()}")
         self.log_signal.emit(f"[DEBUG] out_dir = {self.out_dir}")
         return True
