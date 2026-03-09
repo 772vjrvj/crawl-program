@@ -83,7 +83,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         ]
 
         # 현재 채널 유지 -> 실패 시 다음 채널로 회전
-        self._request_modes: List[str] = ["selenium", "api", "proxy"]
+        self._request_modes: List[str] = ["selenium", "api1", "api2"]
         self._request_mode_index: int = 0
 
         state = GlobalState()
@@ -131,7 +131,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     return True
 
                 # 500건마다 선제 채널 변경
-                if index > 1 and ((index - 1) % self._rotate_every_n == 0):
+                if self._rotate_every_n > 0 and index > 1 and ((index - 1) % self._rotate_every_n == 0):
                     prev_mode = self.get_current_request_mode()
                     next_mode = self.rotate_request_mode()
                     self.log_signal_func(
@@ -150,6 +150,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 # selenium 채널에서만 주기적 쿠키 재발급
                 if (
                         self.get_current_request_mode() == "selenium"
+                        and self._cookie_refresh_every_n > 0
                         and (index % self._cookie_refresh_every_n == 0)
                 ):
                     self.log_signal_func(f"🔁 쿠키 재발급 타이밍 도달 ({index}건). 쿠키 재세팅 진행")
@@ -688,7 +689,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 self.log_signal_func(f"[search][selenium] 결과 스캔 완료. details_count={hit}, match=0")
                 return
 
-            if mode == "api":
+            if mode == "api1":
                 resp = self.request_bizno_search_api(filtered_company_name, owner)
                 res = self._loads_if_needed(resp.text)
 
@@ -708,10 +709,8 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 self.log_signal_func(f"[search][api] ⚠️ 매칭 없음: {res.get('message')}")
                 return
 
-            if mode == "proxy":
-                self.log_signal_func("[search][proxy] 요청 시작")
-                self.log_signal_func("[search][proxy] ❌ 미구현 -> 다음 채널로 회전")
-                self.handle_mode_fail("search proxy not implemented")
+            if mode == "api2":
+                self.log_signal_func("[api2] ❌ 미구현 -> 다음 채널로 회전")
                 return
 
             self.log_signal_func(f"[search] ❌ 알 수 없는 mode: {mode}")
@@ -788,7 +787,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 self.log_signal_func(f"[detail][selenium] ✅ 테이블 파싱 완료. row_count={row_cnt}")
                 return
 
-            if mode == "api":
+            if mode == "api1":
                 resp = self.request_bizno_detail_api(article)
                 res = self._loads_if_needed(resp.text)
 
@@ -813,10 +812,8 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 self.log_signal_func(f"[detail][api] ⚠️ 상세 데이터 없음: {res.get('message')}")
                 return
 
-            if mode == "proxy":
-                self.log_signal_func("[detail][proxy] 요청 시작")
-                self.log_signal_func("[detail][proxy] ❌ 미구현 -> 다음 채널로 회전")
-                self.handle_mode_fail("detail proxy not implemented")
+            if mode == "api2":
+                self.log_signal_func("[detail][api2] ❌ 미구현 -> 다음 채널로 회전")
                 return
 
             self.log_signal_func(f"[detail] ❌ 알 수 없는 mode: {mode}")
