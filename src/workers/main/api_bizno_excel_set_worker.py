@@ -54,7 +54,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self._preemptive_rest_every_n: int = 150
         self._preemptive_rest_sec: int = 300
 
-        # === 신규 === 차단 누적 쿨다운 (5분 -> 10분 -> 15분)
+        # === 신규 === 차단 누적 쿨다운 (5분 -> 10분 -> 20분)
         self._block_hit_count: int = 0
         self._block_cooldown_step_sec: int = 300   # 5분
         self._block_cooldown_max_sec: int = 7200   # 120분
@@ -234,7 +234,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.file_driver = FileUtils(self.log_signal_func)
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func, timeout=(10, 30))
 
-        # === 신규 === 셀레니움 로그도 UI로 전달
+        # 셀레니움 로그도 UI로 전달
         self.selenium_driver = SeleniumUtils(
             headless=False,
             log_func=self.log_signal_func
@@ -243,6 +243,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
         self.driver = self.selenium_driver.start_driver(1200)
         self.log_signal_func("✅ 드라이버 세팅 완료")
+
 
     def cleanup(self) -> None:
         self.log_signal_func("🧹 cleanup 시작")
@@ -343,29 +344,60 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
             for k in self._block_keywords:
                 if k.lower() in low:
+                    # 실제 차단 키워드 로그
+                    self.log_signal_func(f"🚫 차단 키워드 감지: {k}")
                     return True
 
             if len(html) < 1200:
+                # HTML 길이 기반 차단 로그
+                self.log_signal_func(f"🚫 차단 의심 (HTML 길이 짧음): {len(html)}")
                 return True
 
         except Exception:
             return False
 
+
         return False
-
-    # === 신규 === 차단 누적 쿨다운 시간 계산
+    # 차단 누적 쿨다운 시간 계산
     def get_block_cooldown_sec(self) -> int:
-        cooldown = self._block_hit_count * self._block_cooldown_step_sec
+        if self._block_hit_count <= 1:
+            return 300   # 5분
+        if self._block_hit_count == 2:
+            return 600   # 10분
+        return 1200      # 20분
 
-        if cooldown < self._block_cooldown_step_sec:
-            cooldown = self._block_cooldown_step_sec
+    # === 신규 === 브라우저 재시작
+    def restart_browser(self) -> bool:
+        try:
+            self.log_signal_func("🔄 차단 후 브라우저 재시작 시작")
 
-        if cooldown > self._block_cooldown_max_sec:
-            cooldown = self._block_cooldown_max_sec
+            try:
+                if self.selenium_driver:
+                    self.log_signal_func("🔌 기존 selenium_driver.quit 시작")
+                    self.selenium_driver.quit()
+                    self.log_signal_func("🔌 기존 selenium_driver.quit 완료")
+            except Exception as e:
+                self.log_signal_func(f"⚠️ 기존 selenium_driver.quit 실패: {e}")
 
-        return cooldown
+            self.driver = None
+            self.selenium_driver = None
+            self._cookie_ready = False
 
-    # === 신규 === 차단 의심 시 쿨다운 + 쿠키 재발급
+            self.selenium_driver = SeleniumUtils(
+                headless=False,
+                log_func=self.log_signal_func
+            )
+            self.selenium_driver.set_capture_options(enabled=True, block_images=False)
+
+            self.driver = self.selenium_driver.start_driver(1200)
+            self.log_signal_func("✅ 차단 후 브라우저 재시작 완료")
+            return True
+
+        except Exception as e:
+            self.log_signal_func(f"❌ restart_browser 실패: {e}")
+            return False
+
+    # === 신규 === 차단 의심 시 브라우저 종료 + 대기 + 재시작 + 쿠키 재발급
     def backoff_and_refresh_if_blocked(self, url: str, html: str) -> bool:
         if not self.is_blocked_html(html):
             return True
@@ -384,8 +416,24 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             f"(누적 차단 {self._block_hit_count}회, 총 대기 {total_wait_min}분)"
         )
 
+        try:
+            if self.selenium_driver:
+                self.log_signal_func("🛑 차단 감지로 브라우저 종료 시작")
+                self.selenium_driver.quit()
+                self.log_signal_func("🛑 차단 감지로 브라우저 종료 완료")
+        except Exception as e:
+            self.log_signal_func(f"⚠️ 차단 후 브라우저 종료 실패: {e}")
+
+        self.driver = None
+        self.selenium_driver = None
+        self._cookie_ready = False
+
         if not self.sleep_s(cooldown_sec):
             self.log_signal_func("⛔ 차단 쿨다운 중단 감지")
+            return False
+
+        self.log_signal_func("🔄 차단 대기 후 브라우저 재시작 시도")
+        if not self.restart_browser():
             return False
 
         self.log_signal_func("🔁 차단 의심으로 쿠키 재발급 시도")
