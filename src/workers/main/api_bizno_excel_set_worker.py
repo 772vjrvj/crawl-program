@@ -2,17 +2,19 @@
 import os
 import random
 import time
-from typing import List, Optional
+from typing import Any, Dict,List, Optional
 from urllib.parse import quote
 
 from bs4 import BeautifulSoup
-
+import json
+from src.core.global_state import GlobalState
+from requests import Session, Response
 from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
 from src.workers.api_base_worker import BaseApiWorker
-
+from src.utils.config import server_url
 
 class ApiBiznoExcelSetWorker(BaseApiWorker):
 
@@ -50,17 +52,17 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
         self._cookie_refresh_every_n: int = 500  # 쿠키 재발급 주기(권장)
 
-        # === 신규 === 선제 장기 휴식 (150건마다 5분)
+        # 선제 장기 휴식 (150건마다 5분)
         self._preemptive_rest_every_n: int = 150
         self._preemptive_rest_sec: int = 300
 
-        # === 신규 === 차단 누적 쿨다운 (5분 -> 10분 -> 20분)
+        # 차단 누적 쿨다운 (5분 -> 10분 -> 20분)
         self._block_hit_count: int = 0
         self._block_cooldown_step_sec: int = 300   # 5분
         self._block_cooldown_max_sec: int = 7200   # 120분
         self._block_total_wait_sec: int = 0        # 누적 대기시간 로그용
 
-        # === 신규 === 간단 차단 감지 키워드(사이트가 바뀌어도 크게 무리 없는 수준)
+        # 간단 차단 감지 키워드(사이트가 바뀌어도 크게 무리 없는 수준)
         self._block_keywords = [
             "접근이 차단",
             "비정상적인 접근",
@@ -75,6 +77,17 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "stand-by state",
             "Please try again. (1)",
         ]
+
+        # 순환형 요청 채널
+        self._request_modes: List[str] = ["api", "selenium"]
+        self._request_mode_index: int = 0
+
+        state = GlobalState()
+        self.session: Session = state.get("session")
+
+
+        self.bizno_search_url: str = f"{server_url}/bizno/search"
+        self.bizno_detail_url: str = f"{server_url}/bizno/detail"
 
     # 초기화
     def init(self) -> bool:
@@ -315,6 +328,22 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.progress_end_signal.emit()
         self.log_signal_func("✅ progress_end_signal emit 완료")
 
+
+    def get_current_request_mode(self) -> str:
+        try:
+            return self._request_modes[self._request_mode_index]
+        except Exception:
+            return "selenium"
+
+
+    def rotate_request_mode(self) -> str:
+        self._request_mode_index = (self._request_mode_index + 1) % len(self._request_modes)
+        next_mode = self.get_current_request_mode()
+        self.log_signal_func(f"🔁 요청 채널 변경: {next_mode}")
+        return next_mode
+
+
+
     # =========================
     # helpers
     # =========================
@@ -483,83 +512,155 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             return False
         return True
 
+
     def get_html(self, url: str, headers: dict) -> str:
+        # 저장해둔 HTML을 그대로 재사용
         if url in self._cache:
             self.log_signal_func(f"🧠 cache hit: {url}")
             return self._cache[url]
 
-        self.log_signal_func(f"🌐 SELENIUM GET: {url}")
-
         attempt = 0
+        max_attempts = 12  # 무한루프 방지
 
-        while self.running:
+        while self.running and attempt < max_attempts:
             attempt += 1
+            mode = self.get_current_request_mode()
+
+            self.log_signal_func(f"🌐 GET 시도 (attempt={attempt}, mode={mode}): {url}")
+
+            html = ""
+            ok = False
 
             try:
-                # === 신규 === requests 대신 selenium으로 직접 접속
-                self.driver.get(url)
+                if mode == "selenium":
+                    html = self.get_html_by_selenium(url, headers)
+                elif mode == "api":
+                    html = self.get_html_by_api(url, headers)
+                elif mode == "proxy":
+                    html = self.get_html_by_proxy(url, headers)
+                else:
+                    self.log_signal_func(f"⚠️ 알 수 없는 mode: {mode}")
+                    html = ""
 
-                # === 신규 === 페이지 안정화 대기
-                wait_sec = random.uniform(2.0, 4.0)
-                self.log_signal_func(f"페이지 로딩 후 대기 ({wait_sec:.2f}s)")
-                if not self.sleep_s(wait_sec):
-                    return ""
-
-                html = self.driver.page_source or ""
+                if html and not self.is_blocked_html(html):
+                    ok = True
 
             except Exception as e:
-                self.log_signal_func(f"❌ SELENIUM GET 예외(attempt={attempt}): {e}")
+                self.log_signal_func(f"❌ GET 예외 (mode={mode}, attempt={attempt}): {e}")
+                ok = False
 
-                self._block_hit_count += 1
-                cooldown_sec = self.get_block_cooldown_sec()
-                self._block_total_wait_sec += cooldown_sec
+            if ok:
+                self.log_signal_func(f"✅ 응답 성공 (mode={mode}, attempt={attempt})")
 
-                cooldown_min = cooldown_sec // 60
-                total_wait_min = self._block_total_wait_sec // 60
+                if len(self._cache) < 2000:
+                    self._cache[url] = html
+                    self.log_signal_func(f"🧠 cache save: {url} (size={len(self._cache)})")
 
-                self.log_signal_func(
-                    f"🕒 요청 예외 대기: {cooldown_min}분 "
-                    f"(누적 차단 {self._block_hit_count}회, 총 대기 {total_wait_min}분)"
-                )
+                return html or ""
 
-                if not self.sleep_s(cooldown_sec):
-                    return ""
+            self.log_signal_func(f"⚠️ 응답 실패/차단 (mode={mode}, attempt={attempt})")
 
-                if not self.refresh_cookie():
-                    return ""
+            # 다음 채널로 회전
+            self.rotate_request_mode()
 
-                continue
+            # 너무 빠른 연속 요청 방지
+            sleep_t = random.uniform(2.0, 5.0)
+            self.log_signal_func(f"🕒 채널 전환 후 대기: {sleep_t:.2f}s")
+            if not self.sleep_s(sleep_t):
+                return ""
 
-            if self.is_blocked_html(html):
-                self.log_signal_func(
-                    f"⚠️ 차단 의심 응답(attempt={attempt}). "
-                    f"길이={len(html) if html else 0}"
-                )
-
-                ok = self.backoff_and_refresh_if_blocked(url, html)
-                if not ok:
-                    return ""
-
-                continue
-
-            # 정상 응답
-            if self._block_hit_count > 0:
-                total_wait_min = self._block_total_wait_sec // 60
-                self.log_signal_func(
-                    f"✅ 정상 응답 확인. 차단 카운트 초기화 "
-                    f"(차단 {self._block_hit_count}회, 총 대기 {total_wait_min}분)"
-                )
-                self._block_hit_count = 0
-                self._block_total_wait_sec = 0
-
-            if len(self._cache) < 2000:
-                self._cache[url] = html
-                self.log_signal_func(f"🧠 cache save: {url} (size={len(self._cache)})")
-
-            return html or ""
-
-        self.log_signal_func("⛔ running=False 감지로 get_html 종료")
+        self.log_signal_func("⛔ get_html 최대 재시도 초과 또는 running=False")
         return ""
+
+
+    def get_html_by_selenium(self, url: str, headers: dict) -> str:
+        self.driver.get(url)
+        wait_sec = random.uniform(3.0, 5.0)
+        self.log_signal_func(f"[selenium] 페이지 로딩 후 대기 ({wait_sec:.2f}s)")
+        if not self.sleep_s(wait_sec):
+            return ""
+
+        return self.driver.page_source or ""
+
+
+    def request_bizno_search_api(self, company_name: str, owner_name: str) -> Response:
+        self.log_signal_func(f"[api-search] 요청 시작: company_name={company_name}, owner_name={owner_name}")
+
+        # 예시: APIClient 내부에 get_json 같은 함수가 있다고 가정
+        # 없으면 requests로 직접 호출해도 됩니다.
+        payload: Dict[str, Any] = {
+            "companyName": company_name,
+            "ownerName": owner_name,
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        resp = self.session.get(
+            self.bizno_search_url,
+            params=payload,
+            headers=headers,
+            timeout=15,
+        )
+
+        return resp
+
+
+    def request_bizno_detail_api(self, article: str) -> Response:
+        self.log_signal_func(f"[api-detail] 요청 시작: article={article}")
+
+        payload: Dict[str, Any] = {
+            "article": article,
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        resp = self.session.get(
+            self.bizno_detail_url,
+            params=payload,
+            headers=headers,
+            timeout=15,
+        )
+
+        return resp
+
+
+    def get_html_by_api(self, url: str, headers: dict) -> str:
+        self.log_signal_func(f"[api] 요청 시작: {url}")
+
+        # === 여기에 나중에 직접 구현 ===
+        # 예시:
+        # response = self.api_client.post("/crawl/html", json={"url": url, "headers": headers})
+        # return response.get("html", "")
+
+        raise NotImplementedError("API 서버 연동 로직을 여기에 구현하세요.")
+
+    def get_html_by_proxy(self, url: str, headers: dict) -> str:
+        self.log_signal_func(f"[proxy] 요청 시작: {url}")
+
+        # === 여기에 나중에 직접 구현 ===
+        # 예시:
+        # response = self.api_client.post("/proxy/fetch", json={"url": url, "headers": headers})
+        # return response.get("html", "")
+
+        raise NotImplementedError("프록시 서버 연동 로직을 여기에 구현하세요.")
+
+
+    def _loads_if_needed(self, value: Any) -> Dict[str, Any]:
+        text = value.decode("utf-8", errors="ignore") if isinstance(value, bytes) else str(value).strip()
+
+        if not text:
+            return {}
+
+        try:
+            return json.loads(text)
+        except Exception:
+            self.log_signal_func(f"[JSON 파싱 실패] 앞부분: {text[:200]}")
+            return {}
+
 
     # =========================
     # bizno: search
@@ -567,11 +668,43 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     def fetch_search_results(self, item: dict) -> None:
         raw_company_name = (item.get("검색회사명") or "").strip()
         filtered_company_name = self.normalize_search_company_name(raw_company_name)
+        owner = (item.get("검색대표자명") or "").strip()
+    
         item["검색필터회사명"] = filtered_company_name
+        item["article"] = ""
+    
+        mode = self.get_current_request_mode()
+        self.log_signal_func(
+            f"[search] mode={mode}, company='{filtered_company_name}', owner='{owner}'"
+        )
+    
+        if mode == "api":
+            try:
+                resp = self.request_bizno_search_api(filtered_company_name, owner)
+                self.log_signal_func(f"[api-search] 응답: {resp}")
+                res = self._loads_if_needed(resp.text)
+    
+                if res.get("success") and res.get("article"):
+                    item["article"] = str(res.get("article") or "").strip()
+                    item["회사명"] = str(res.get("회사명") or "").strip()
+                    self.log_signal_func(
+                        f"[search][api] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
+                    )
+                else:
+                    self.log_signal_func(f"[search][api] ⚠️ match 없음: {res.get('message')}")
+                return
+    
+            except Exception as e:
+                self.log_signal_func(f"[search][api] ❌ 예외: {e}")
+                self.rotate_request_mode()
 
+        if mode == "proxy":
+            # 준비중
+            return
+    
         url = f"https://bizno.net/?area=&query={quote(filtered_company_name)}"
         self.log_signal_func(f"[search] url={url}")
-
+    
         headers = {
             "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
             "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
@@ -587,50 +720,85 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "upgrade-insecure-requests": "1",
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
         }
-
+    
         html = self.get_html(url, headers=headers)
         if not html:
             self.log_signal_func("[search] ⚠️ HTML 없음")
             return
-
+    
         soup = BeautifulSoup(html, "html.parser")
-
-        owner = (item.get("검색대표자명") or "").strip()
-
+    
         self.log_signal_func(
             f"[search] 매칭 기준: 대표자명='{owner}', 검색필터회사명='{filtered_company_name}'"
         )
-
-        item["article"] = ""
-
+    
         hit = 0
         for d in soup.select(".details"):
             hit += 1
             if self.safe_text(d.select_one("h5"), strip=True) != owner:
                 continue
-
+    
             a_tag = d.select_one('a[href^="/article/"]')
             if not a_tag:
                 continue
-
+    
             href = a_tag.get("href") or ""
             if not href:
                 continue
-
+    
             item["article"] = href.split("/article/")[1]
             item["회사명"] = self.safe_text(d.select_one("h4"), strip=True)
             self.log_signal_func(
                 f"[search] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
             )
             return
-
+    
         self.log_signal_func(f"[search] 결과 스캔 완료. details_count={hit}, match=0")
 
     # =========================
     # bizno: detail
     # =========================
     def fetch_article_detail(self, item: dict) -> None:
-        url = f"https://bizno.net/article/{item['article']}"
+        article = str(item.get("article") or "").strip()
+        if not article:
+            self.log_signal_func("[detail] ⚠️ article 없음")
+            return
+
+        mode = self.get_current_request_mode()
+        self.log_signal_func(f"[detail] mode={mode}, article={article}")
+
+        if mode == "api":
+            try:
+                resp = self.request_bizno_detail_api(article)
+                self.log_signal_func(f"[api-detail] 응답: {resp}")
+                res = self._loads_if_needed(resp.text)
+
+                if res.get("success"):
+                    item["url"] = str(res.get("url") or "")
+                    data = res.get("data") or {}
+
+                    if isinstance(data, dict):
+                        row_cnt = 0
+                        for key, val in data.items():
+                            if key:
+                                item[str(key)] = str(val or "")
+                                row_cnt += 1
+                        self.log_signal_func(f"[detail][api] ✅ 테이블 반영 완료. row_count={row_cnt}")
+                        return
+
+                self.log_signal_func(f"[detail][api] ⚠️ 상세 실패: {res.get('message')}")
+                self.rotate_request_mode()
+
+            except Exception as e:
+                self.log_signal_func(f"[detail][api] ❌ 예외: {e}")
+                self.rotate_request_mode()
+
+
+        if mode == "proxy":
+            return
+
+
+        url = f"https://bizno.net/article/{article}"
         self.log_signal_func(f"[detail] url={url}")
 
         headers = {
