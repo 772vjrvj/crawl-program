@@ -114,7 +114,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     self.log_signal_func("⛔ running=False 감지. main 루프 종료")
                     return True
 
-                # === 신규 === 주기적 쿠키 재발급 (세션/쿠키 기반 차단 대비)
+                # 주기적 쿠키 재발급 (세션/쿠키 기반 차단 대비)
                 if self._cookie_refresh_every_n > 0 and (index % self._cookie_refresh_every_n == 0):
                     self.log_signal_func(f"🔁 쿠키 재발급 타이밍 도달 ({index}건). 쿠키 재세팅 진행")
                     if not self.refresh_cookie():
@@ -186,7 +186,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 )
                 self.log_signal_func("💾 CSV 저장(append) 완료")
 
-                # === 신규 === 선제 장기 휴식 (150건마다 5분)
+                # 선제 장기 휴식 (150건마다 5분)
                 if self._preemptive_rest_every_n > 0 and (index % self._preemptive_rest_every_n == 0):
                     self.log_signal_func(
                         f"🕒 선제 장기 휴식 ({self._preemptive_rest_every_n}건마다): "
@@ -196,7 +196,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                         self.log_signal_func("⛔ 선제 장기 휴식 중단 감지. main 루프 종료")
                         return True
 
-                # === 신규 === 대량 요청 방지 휴식(패턴 분산)
+                # 대량 요청 방지 휴식(패턴 분산)
                 if self._rest_every_n > 0 and (index % self._rest_every_n == 0):
                     sleep_t = random.uniform(self._rest_range_sec[0], self._rest_range_sec[1])
                     self.log_signal_func(f"🕒 대량 요청 방지 휴식 ({self._rest_every_n}건마다): {sleep_t:.1f}s")
