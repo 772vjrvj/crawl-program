@@ -452,8 +452,10 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
         page: int = 1
         total_cnt: int = 0
 
+        self.log_signal_func(f"📌 NXT 조회 시작 - 날짜: {ymd}")
         while True:
             if not self.running:
+                self.log_signal_func("⛔ NXT 조회 중단 - running=False")
                 return result
 
             payload: Dict[str, Any] = {
@@ -468,28 +470,63 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                 "searchKeyword": "",
             }
 
-            resp = self.api_client.post(self.nx_url, headers=self.nx_headers, data=payload)
-            time.sleep(random.uniform(1, 2))
+            try:
+                self.log_signal_func(f"📄 NXT 요청 시작 - page={page}")
 
-            data: Dict[str, Any] = json.loads(resp)
-            items: List[Dict[str, Any]] = data.get("brdinfoTimeList", [])
+                resp = self.api_client.post(
+                    self.nx_url,
+                    headers=self.nx_headers,
+                    data=payload
+                )
 
-            if not items:
+                time.sleep(random.uniform(1, 2))
+
+                if not resp:
+                    self.log_signal_func(f"⚠️ NXT 응답 없음 - page={page}")
+                    break
+
+                self.log_signal_func(f"✅ NXT 응답 수신 - page={page}, resp_len={len(resp)}")
+
+                data: Dict[str, Any] = json.loads(resp)
+                items: List[Dict[str, Any]] = data.get("brdinfoTimeList", [])
+
+                if total_cnt == 0:
+                    try:
+                        total_cnt = int(data.get("totalCnt", 0))
+                    except Exception:
+                        total_cnt = 0
+
+                    self.log_signal_func(f"📊 NXT totalCnt={total_cnt}")
+
+                self.log_signal_func(
+                    f"📦 NXT 데이터 확인 - page={page}, items={len(items)}, 누적={len(result)}"
+                )
+
+                if not items:
+                    self.log_signal_func(f"📭 NXT 데이터 없음 - page={page}, 조회 종료")
+                    break
+
+                result.extend(items)
+
+                self.log_signal_func(
+                    f"📝 NXT 누적 적재 완료 - page={page}, current_items={len(items)}, total_loaded={len(result)}"
+                )
+
+                if total_cnt and len(result) >= total_cnt:
+                    self.log_signal_func(
+                        f"✅ NXT 전체 수집 완료 - totalCnt={total_cnt}, loaded={len(result)}"
+                    )
+                    break
+
+                page += 1
+
+            except Exception as e:
+                self.log_signal_func(
+                    f"❌ NXT 조회 오류 - page={page}, error={(e and e.args[0]) if (e and e.args) else str(e)}"
+                )
                 break
 
-            if total_cnt == 0:
-                try:
-                    total_cnt = int(data.get("totalCnt", 0))
-                except Exception:
-                    total_cnt = 0
-
-            result.extend(items)
-
-            if total_cnt and len(result) >= total_cnt:
-                break
-
-            page += 1
-
+        self.log_signal_func(f"🏁 NXT 조회 종료 - 날짜: {ymd}, 최종건수={len(result)}")
         return result
 
     # =========================
@@ -740,8 +777,8 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
             "TDD_HGPRC": self.to_int_text(row.get("고가", "0")),
             "TDD_LWPRC": self.to_int_text(row.get("저가", "0")),
             "ACC_TRDVOL": self.to_int_text(row.get("거래량", "0")),
-            "ACC_TRDVAL": self.to_int_text(row.get("거래대금", "0")),
-            "MKTCAP": market_cap,
+            "ACC_TRDVAL": self.to_int_text(row.get("거래대금", "0")) * 1000000,
+            "MKTCAP": market_cap * 100000000,
             "LIST_SHRS": list_shrs,
             "MKT_ID": market_info["MKT_ID"],
             "CRAWL_TYPE": "NAVER",
