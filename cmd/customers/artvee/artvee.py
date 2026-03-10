@@ -518,6 +518,7 @@ def main()->None:
                 continue
             if startPage != "" and startPage != pageInfo:
                 continue
+            # filename = f"{pageInfo}_{artistNum}_{pieceNumInfo}_{nameInfo}_{pieceInfo}_{idInfo}"
             filename = f"{nameInfo}_{pieceInfo}_{idInfo}"
             try:
                 imageInfo = requests.get(imageUrl,headers=headers,timeout=30)
@@ -527,6 +528,7 @@ def main()->None:
                 time.sleep(5)
                 continue
             if imageInfo.status_code == 200:
+                # namePath = f"{imagePath}/{pageInfo}_{nameInfo}"
                 namePath = f"{imagePath}/{nameInfo}"
                 if os.path.exists(namePath) == False:
                     os.makedirs(namePath)
@@ -704,6 +706,7 @@ def sub_main()->None:
             imageIs = df_excel.at[idx,"이미지 저장여부"]
             if downloadCheck =="2" and imageIs != "X":
                 continue
+            # filename = f"{pageInfo}_{artistNum}_{pieceNumInfo}_{nameInfo}_{pieceInfo}_{idInfo}"
             filename = f"{nameInfo}_{pieceInfo}_{idInfo}"
             try:
                 imageInfo = requests.get(imageUrl,headers=headers,timeout=30)
@@ -713,6 +716,7 @@ def sub_main()->None:
                 time.sleep(5)
                 continue
             if imageInfo.status_code == 200:
+                # namePath = f"{imagePath}/{pageInfo}_{nameInfo}"
                 namePath = f"{imagePath}/{nameInfo}"
                 if os.path.exists(namePath) == False:
                     os.makedirs(namePath)
