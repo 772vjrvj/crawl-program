@@ -100,17 +100,24 @@ class ARTVEE:
             url:str = f"{self.baseUrl}artists/page/{i}/"
             res:requests.Response = self.sess.get(url,headers=self.headers)
             time.sleep(random.uniform(0.3, 0.5))
+
+            # 비정상 응답이면 종료
+            if res.status_code != 200:
+                print(f"artists 목록 페이지 응답코드 비정상 : {url} / status={res.status_code}")
+                break
+
             i += 1
-            if res.status_code == 200:
-                soup = BeautifulSoup(res.content,"html.parser")
-                allArtist = soup.find_all("div",class_="wrapp-catti")
-                if len(allArtist) ==0:
-                    break
-                for artistInfo in allArtist:
-                    artistUrl = artistInfo.find("a")["href"]
-                    artistcount = artistInfo.find("mark", class_="count").text.strip()
-                    artistsUrlList.append({"artistUrl":artistUrl,"artistcount":artistcount,"page":(i-1),"totalCount":totalCount})
-                    totalCount+=1
+
+            soup = BeautifulSoup(res.content,"html.parser")
+            allArtist = soup.find_all("div",class_="wrapp-catti")
+            if len(allArtist) ==0:
+                break
+            for artistInfo in allArtist:
+                artistUrl = artistInfo.find("a")["href"]
+                artistcount = artistInfo.find("mark", class_="count").text.strip()
+                artistsUrlList.append({"artistUrl":artistUrl,"artistcount":artistcount,"page":(i-1),"totalCount":totalCount})
+                totalCount+=1
+
         return artistsUrlList
 
     def getExcelArtistsUrlList(self, file_path) -> list[dict]:
@@ -447,6 +454,10 @@ def main()->None:
     currentPath = os.getcwd().replace("\\","/")
     excelCheck = input("전체 엑셀 추출 하시겠습니까? 1.예 2. 아니오 : ").strip()
     downloadCheck = input("1. 이미지 다운로드 / 2. 다운안된 이미지 재 다운로드 : ")
+
+    startPage = ""
+    selectArtistName = ""
+
     if downloadCheck == "1":
         startPage = input("추출 페이지를 입력해주세요 (엔터시 처음부터): ").strip()
         selectArtistName:str = input("추출 작가명을 입력해주세요 (엔터시 처음부터): ").strip()
@@ -500,8 +511,8 @@ def main()->None:
             df_data = df_info[1].reset_index(drop=True)
             totalImageInfoList+=df_info[2]
             beforePage = artistPage
-        if (df["작품명"].tolist()) != 0:
-            with pd.ExcelWriter(f"{currentPath}/result/excel/artvee_{excelIndex}.xlsx",engine='openpyxl') as writer: #xlsxwriter
+        if len(df["작품명"].tolist()) != 0:
+            with pd.ExcelWriter(f"{currentPath}/result/excel/artvee_{excelIndex}.xlsx",engine='openpyxl') as writer:
                 df.to_excel(writer,sheet_name="1",index=False)
                 df_data.to_excel(writer,sheet_name="2",index=False)
         print("전체 엑셀 추출 완료")
@@ -692,7 +703,7 @@ def sub_main()->None:
             df_data = df_info[1].reset_index(drop=True)
             totalImageInfoList+=df_info[2]
             beforePage = artistPage
-        if (df["작품명"].tolist()) != 0:
+        if len(df["작품명"].tolist()) != 0:
 
             with pd.ExcelWriter(f"{currentPath}/result/excel/artvee_artist_{excelIndex}.xlsx",engine='openpyxl') as writer: #xlsxwriter
                 df.to_excel(writer,sheet_name="1",index=False)
@@ -808,7 +819,7 @@ def collection_main(category, excelCheck, downloadCheck) -> None:
         df = df_info[0].reset_index(drop=True)
         df_data = df_info[1].reset_index(drop=True)
         totalImageInfoList+=df_info[2]
-        if (df["작품명"].tolist()) != 0:
+        if len(df["작품명"].tolist()) != 0:
             with pd.ExcelWriter(f"{currentPath}/result/excel/collection/artvee_{category}.xlsx",engine='openpyxl') as writer: #xlsxwriter
                 df.to_excel(writer,sheet_name="1",index=False)
                 df_data.to_excel(writer,sheet_name="2",index=False)
