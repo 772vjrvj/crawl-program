@@ -289,25 +289,45 @@ class ARTVEE:
         i = 1
         totalCount = 1
         totalImageInfoList:list[dict] = []
+
+        artistName = ""
+        country = ""
+        artistDescription = ""
+        total = ""
+
         while 1:
             url = f"{artistUrl}page/{i}?&per_page=70"
+
             try:
-                # === 신규 === 쿠키 유지(sess)로 요청 (requests.get -> self.sess.get)
-                res = self.sess.get(url,headers=self.headers,timeout=30)
-            except:
+                # 쿠키 유지(sess)로 요청 (requests.get -> self.sess.get)
+                res = self.sess.get(url, headers=self.headers, timeout=30)
+            except Exception as e:
+                print(f"요청 예외 발생 : {url}")
+                print(f"예외타입 : {type(e).__name__}")
+                print(f"예외내용 : {e}")
+                traceback.print_exc()
                 time.sleep(10)
-                print(f"사이트 오류로 인한 넘김 : {url}")
-                i+=1
+                i += 1
                 continue
+
             if res.status_code != 200:
+                print(f"작가 페이지 응답코드 비정상 : {url}")
+                print(f"status_code : {res.status_code}")
+                print(f"response_url : {res.url}")
+                try:
+                    print(f"response_text 앞부분 : {res.text[:500]}")
+                except Exception as e:
+                    print(f"response_text 출력 실패 : {e}")
                 break
+
             time.sleep(random.uniform(0.45, 0.55))
             soup = BeautifulSoup(res.content,"html.parser")
             if soup.find("div",class_="entry-content") != None or str(soup).find("Sorry, we can't seem to find the page you're looking for") != -1:
+                print(f"작가 페이지 없음 또는 비정상 페이지 : {url}")
                 break
             i += 1
 
-            # === 신규 === NoneType 방어 (특정 작가 페이지에서 요소 누락되는 케이스)
+            # NoneType 방어 (특정 작가 페이지에서 요소 누락되는 케이스)
             artistName = safe_find_text(soup, "h1", class_="entry-title", default="작가명 없음")
 
             abdate_txt = safe_find_text(soup, "div", class_="abdate", default="")
