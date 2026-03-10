@@ -18,12 +18,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'GB7'),
             StringStruct('FileDescription', 'ARTVEE'),
-            StringStruct('FileVersion', '1.0.0'),
+            StringStruct('FileVersion', '2.0.1'),
             StringStruct('InternalName', 'ARTVEE'),
             StringStruct('LegalCopyright', '© 2026 GB7'),
             StringStruct('OriginalFilename', 'ARTVEE.exe'),
             StringStruct('ProductName', 'ARTVEE'),
-            StringStruct('ProductVersion', '1.0.0')
+            StringStruct('ProductVersion', '2.0.1')
           ]
         )
       ]
