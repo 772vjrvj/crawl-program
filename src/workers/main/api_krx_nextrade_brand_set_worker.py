@@ -114,6 +114,8 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
         self.out_dir: str = "output_krx_nextrade"
 
+        self.no_stock_keywords: List[str] = []
+
 
     # =========================
     # init / main
@@ -178,6 +180,17 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
             auto_yn: bool = str(self.get_setting_value(self.setting, "auto_yn")).lower() in ("1", "true", "y")
             auto_time: str = str(self.get_setting_value(self.setting, "auto_time"))
             folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+
+            no_stock_raw: str = str(self.get_setting_value(self.setting, "no_stock") or "").strip()
+            self.no_stock_keywords = [
+                keyword.strip()
+                for keyword in no_stock_raw.split(",")
+                if keyword and keyword.strip()
+            ]
+
+            self.log_signal_func(
+                f"[FILTER] 종목 제거 키워드: {', '.join(self.no_stock_keywords) if self.no_stock_keywords else '(없음)'}"
+            )
 
             if auto_yn:
                 self.output_xlsx = self.output_xlsx_auto
@@ -375,6 +388,11 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
             if m.get("등락률") is None:
                 continue
 
+            stock_name: str = str(m.get("종목명", "")).strip()
+            if stock_name and self.is_excluded_stock(stock_name):
+                continue
+
+
             trade_won: int = m.get("거래대금합계_원", 0)
             rate_val: float = m.get("등락률", 0)
 
@@ -394,6 +412,18 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                 rows_c2.append(mapped)
 
         return rows_c1, rows_c2
+
+    def is_excluded_stock(self, stock_name: str) -> bool:
+        name = str(stock_name or "").strip()
+        if not name:
+            return False
+
+        for keyword in self.no_stock_keywords:
+            if keyword and keyword in name:
+                return True
+
+        return False
+
 
     # =========================
     # fetch

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, TypedDict, Union, cast
 
@@ -150,7 +151,12 @@ class ParamSetPop(QDialog):
         """
 
     # === 신규 === 기본 시작 경로: 문서 폴더
-    def _get_default_start_dir(self) -> str:
+    def _get_default_start_dir(self, item: Optional[_SettingItem] = None) -> str:
+        path_type = str((item or {}).get("path_type", "doc") or "doc").strip().lower()
+
+        if path_type == "main":
+            return self._get_main_start_dir()
+
         documents_dir = os.path.join(os.path.expanduser("~"), "Documents")
         if os.path.isdir(documents_dir):
             return documents_dir
@@ -160,6 +166,24 @@ class ParamSetPop(QDialog):
             return home_dir
 
         return os.getcwd()
+
+    # === 신규 === 프로그램 실행 경로
+    def _get_main_start_dir(self) -> str:
+        if getattr(sys, "frozen", False):
+            exe_dir = os.path.dirname(sys.executable)
+            if os.path.isdir(exe_dir):
+                return exe_dir
+
+        argv0 = os.path.dirname(os.path.abspath(sys.argv[0]))
+        if os.path.isdir(argv0):
+            return argv0
+
+        cwd = os.getcwd()
+        if os.path.isdir(cwd):
+            return cwd
+
+        return os.path.expanduser("~")
+
 
     def _center_window(self) -> None:
         frame = self.frameGeometry()
@@ -171,7 +195,7 @@ class ParamSetPop(QDialog):
         frame.moveCenter(center)
 
         #  중앙에서 위로 350px 이동 (기존 유지)
-        frame.moveTop(frame.top() - 350)
+        frame.moveTop(frame.top() - 400)
 
         self.move(frame.topLeft())
 
@@ -290,10 +314,10 @@ class ParamSetPop(QDialog):
             elif item_type == "folder":
                 le = QLineEdit(self)
 
-                # === 신규 === value가 비어 있으면 문서 폴더를 기본값으로 표시
+                # === 신규 === value가 비어 있으면 path_type 기준 기본 경로 표시
                 folder_value = str(item.get("value", "") or "").strip()
                 if not folder_value:
-                    folder_value = self._get_default_start_dir()
+                    folder_value = self._get_default_start_dir(item)  # === 신규 ===
 
                 le.setText(folder_value)
                 le.setPlaceholderText(str(item.get("placeholder", "폴더를 선택하세요") or "폴더를 선택하세요"))
@@ -384,7 +408,7 @@ class ParamSetPop(QDialog):
         spec = _FilePickSpec(
             dialog_title=str(item.get("dialog_title", "파일 선택") or "파일 선택"),
             file_filter=str(item.get("filter", "All Files (*);;PNG (*.png);;JPG (*.jpg *.jpeg);;WEBP (*.webp)") or ""),
-            start_dir=self._get_default_start_dir(),
+            start_dir=self._get_default_start_dir(item)
         )
 
         path, _ = QFileDialog.getOpenFileName(self, spec.dialog_title, spec.start_dir, spec.file_filter)
@@ -402,7 +426,7 @@ class ParamSetPop(QDialog):
             return
 
         dialog_title = str(item.get("dialog_title", "폴더 선택") or "폴더 선택")
-        start_dir = self._get_default_start_dir()
+        start_dir = self._get_default_start_dir(item)
 
         path = QFileDialog.getExistingDirectory(self, dialog_title, start_dir)
         if not path:

@@ -18,12 +18,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'GB7'),
             StringStruct('FileDescription', 'KRX NEXTRADE'),
-            StringStruct('FileVersion', '6.0.0'),
+            StringStruct('FileVersion', '6.1.1'),
             StringStruct('InternalName', 'KRX NEXTRADE'),
             StringStruct('LegalCopyright', '© 2026 GB7'),
             StringStruct('OriginalFilename', 'KRX NEXTRADE.exe'),
             StringStruct('ProductName', 'KRX NEXTRADE'),
-            StringStruct('ProductVersion', '6.0.0')
+            StringStruct('ProductVersion', '6.1.1')
           ]
         )
       ]
