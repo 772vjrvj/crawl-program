@@ -315,8 +315,9 @@ class ARTVEE:
                 continue
 
             if res.status_code == 404:
-                print(f"작가 마지막 페이지 도달, 다음 작가로 이동 : {url}")
+                # print(f"작가 마지막 페이지 도달, 다음 작가로 이동 : {url}")
                 break
+
             if res.status_code != 200:
                 print(f"작가 페이지 응답코드 비정상 : {url} / status={res.status_code}")
                 break
