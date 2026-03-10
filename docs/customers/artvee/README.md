@@ -41,6 +41,47 @@ https://artvee.com/c/abstract/
 
 
 
+
+■ 특이사항
+
+추출 페이지를 입력해주세요
+추출 작가명을 입력해주세요
+이 값들은 크롤링 대상 작가를 지정하는 값이 아닙니다.
+아래처럼 이미 엑셀에 들어있는 행을 필터링하는 용도입니다.
+
+
+1. artvee 다운 / 2. 엑셀 번역 : / 3. artvee artist 다운 : / 4. collection by category 선택 : / 5. 이미지 수 확인1
+   전체 엑셀 추출 하시겠습니까? 1.예 2. 아니오 : 1
+1. 이미지 다운로드 / 2. 다운안된 이미지 재 다운로드 : 1
+   추출 페이지를 입력해주세요 (엔터시 처음부터): 1
+   추출 작가명을 입력해주세요 (엔터시 처음부터): Alphonse Mucha
+
+이게 신규 작가
+
+
+
+
+
+■ 특이사항
+
+518명 전체 작가를 순서대로 엑셀에 수집하고 있습니다.
+
+전체 작가 목록 확인
+
+전체 작가 엑셀 추출 시작
+
+Alphonse Mucha, Henri Matisse, Van Gogh ... 순서대로 돌음
+
+selectArtistName = Paul Fischer
+
+startPage = 1
+
+이 조건은 이미 엑셀에 다 모아놓은 뒤
+그중에서 이미지 저장할 때만 걸러줍니다.
+
+
+
+
 python -m PyInstaller --clean --noconfirm --onefile `
 --icon=resources\icons\crawling.ico `
 --hidden-import=deep_translator `

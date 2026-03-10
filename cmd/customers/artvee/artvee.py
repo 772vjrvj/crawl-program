@@ -307,24 +307,18 @@ class ARTVEE:
 
             try:
                 # 쿠키 유지(sess)로 요청 (requests.get -> self.sess.get)
-                res = self.sess.get(url, headers=self.headers, timeout=30)
-            except Exception as e:
-                print(f"요청 예외 발생 : {url}")
-                print(f"예외타입 : {type(e).__name__}")
-                print(f"예외내용 : {e}")
-                traceback.print_exc()
+                res = self.sess.get(url,headers=self.headers,timeout=30)
+            except:
                 time.sleep(10)
-                i += 1
+                print(f"사이트 오류로 인한 넘김 : {url}")
+                i+=1
                 continue
 
+            if res.status_code == 404:
+                print(f"작가 마지막 페이지 도달, 다음 작가로 이동 : {url}")
+                break
             if res.status_code != 200:
-                print(f"작가 페이지 응답코드 비정상 : {url}")
-                print(f"status_code : {res.status_code}")
-                print(f"response_url : {res.url}")
-                try:
-                    print(f"response_text 앞부분 : {res.text[:500]}")
-                except Exception as e:
-                    print(f"response_text 출력 실패 : {e}")
+                print(f"작가 페이지 응답코드 비정상 : {url} / status={res.status_code}")
                 break
 
             time.sleep(random.uniform(0.45, 0.55))
