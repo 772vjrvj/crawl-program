@@ -549,6 +549,8 @@ def main()->None:
                 continue
             if startPage != "" and startPage != pageInfo:
                 continue
+
+            # 번호 제거 2026-03-11
             # filename = f"{pageInfo}_{artistNum}_{pieceNumInfo}_{nameInfo}_{pieceInfo}_{idInfo}"
             filename = f"{nameInfo}_{pieceInfo}_{idInfo}"
             try:
