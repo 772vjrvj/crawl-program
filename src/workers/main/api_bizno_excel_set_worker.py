@@ -34,7 +34,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.before_pro_value: float = 0.0
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
-        self.api_client: Optional[APIClient] = None
 
         self._cookie_ready: bool = False
 
@@ -270,7 +269,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
-        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func, timeout=(10, 30))
 
         self.selenium_driver = SeleniumUtils(
             headless=False,
@@ -305,14 +303,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 self.log_signal_func("🔌 selenium_driver.quit 완료")
         except Exception as e:
             self.log_signal_func(f"[cleanup] selenium_driver.quit 실패: {e}")
-
-        try:
-            if self.api_client:
-                self.log_signal_func("🔌 api_client.close 시작")
-                self.api_client.close()
-                self.log_signal_func("🔌 api_client.close 완료")
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
 
         try:
             if self.file_driver:
@@ -500,20 +490,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         if not self.sleep_s(2.0):
             self.log_signal_func("⛔ cookie sleep 중단 감지")
             return
-
-        cnt = 0
-        try:
-            for c in self.driver.get_cookies():
-                name = c.get("name")
-                value = c.get("value")
-                if name and value and self.api_client:
-                    self.api_client.cookie_set(name, value)
-                    cnt += 1
-        except Exception as e:
-            self.log_signal_func(f"⚠️ 쿠키 복사 중 예외: {e}")
-
-        self._cookie_ready = True
-        self.log_signal_func(f"✅ 쿠키 세팅 완료 (count={cnt})")
 
     def refresh_cookie(self) -> bool:
         try:

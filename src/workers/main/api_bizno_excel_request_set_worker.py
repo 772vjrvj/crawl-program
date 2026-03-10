@@ -245,38 +245,50 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
 
         try:
-            if self.csv_filename and self.excel_driver:
-                self.log_signal_func(f"🧾 CSV -> 엑셀 변환 시작: {self.csv_filename}")
-                self.excel_driver.convert_csv_to_excel_and_delete(
-                    self.csv_filename,
-                    folder_path=folder_path,
-                    sub_dir=self.out_dir
-                )
-                self.log_signal_func("✅ [엑셀 변환] 성공")
+            self.log_signal_func(f"🧾 CSV -> 엑셀 변환 시작: {self.csv_filename}")
+            self.excel_driver.convert_csv_to_excel_and_delete(
+                self.csv_filename,
+                folder_path=folder_path,
+                sub_dir=self.out_dir
+            )
+            self.log_signal_func("✅ [엑셀 변환] 성공")
         except Exception as e:
             self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
 
         try:
-            if self.api_client:
-                self.log_signal_func("🔌 api_client.close 시작")
-                self.api_client.close()
-                self.log_signal_func("🔌 api_client.close 완료")
+            self.log_signal_func("🔌 driver.quit 시작")
+            self.driver.quit()
+            self.driver = None
+            self.log_signal_func("🔌 driver.quit 완료")
         except Exception as e:
             self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
 
         try:
-            if self.file_driver:
-                self.log_signal_func("🔌 file_driver.close 시작")
-                self.file_driver.close()
-                self.log_signal_func("🔌 file_driver.close 완료")
+            self.log_signal_func("🔌 selenium_driver.quit 시작")
+            self.selenium_driver.quit()
+            self.selenium_driver = None
+            self.log_signal_func("🔌 selenium_driver.quit 완료")
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
+
+        try:
+            self.log_signal_func("🔌 api_client.close 시작")
+            self.api_client.close()
+            self.log_signal_func("🔌 api_client.close 완료")
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
+
+        try:
+            self.log_signal_func("🔌 file_driver.close 시작")
+            self.file_driver.close()
+            self.log_signal_func("🔌 file_driver.close 완료")
         except Exception as e:
             self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
 
         try:
-            if self.excel_driver:
-                self.log_signal_func("🔌 excel_driver.close 시작")
-                self.excel_driver.close()
-                self.log_signal_func("🔌 excel_driver.close 완료")
+            self.log_signal_func("🔌 excel_driver.close 시작")
+            self.excel_driver.close()
+            self.log_signal_func("🔌 excel_driver.close 완료")
         except Exception as e:
             self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
 

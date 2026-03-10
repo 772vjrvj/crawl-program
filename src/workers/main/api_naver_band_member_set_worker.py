@@ -39,7 +39,6 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
 
         self.excel_driver: Optional[ExcelUtils] = None
         self.file_driver: Optional[FileUtils] = None
-        self.api_client: Optional[APIClient] = None
 
         self.band_name: str = ""
         self._driver_closed: bool = False
@@ -63,7 +62,6 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
 
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
-        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
         # ✅ 로그인만 사용 (후킹/캡처 옵션 제거)
         self.selenium_driver = SeleniumUtils(
@@ -96,13 +94,6 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
             self.selenium_driver = None
 
         # 2) api/file/excel (각각 독립적으로 닫기)
-        try:
-            if self.api_client:
-                self.api_client.close()
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
-        finally:
-            self.api_client = None
 
         try:
             if self.file_driver:
@@ -141,15 +132,9 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
     def main(self) -> bool:
         self.log_signal_func("크롤링 시작합니다.")
 
-        if not self.file_driver or not self.excel_driver or not self.selenium_driver or not self.driver:
-            self.log_signal_func("❌ 초기화 실패(driver_set 누락)")
-            return False
-
         folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
 
-        self.csv_filename = os.path.basename(
-            self.file_driver.get_csv_filename(self.site_name)
-        )
+        self.csv_filename = os.path.basename(self.file_driver.get_csv_filename(self.site_name))
         self.excel_driver.init_csv(
             self.csv_filename,
             self.columns,
@@ -164,8 +149,6 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
         band_id_str = str(band_id)
 
         self.wait_for_user_confirmation(band_id_str)
-        if self._stop_event.is_set():
-            return False
 
         time.sleep(1)
 
@@ -214,11 +197,7 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
     # login (simple)
     # =========================================================
     def wait_for_user_confirmation(self, band_id: str) -> None:
-        if not self.driver:
-            return
-
         self.driver.get(self.site_login_url)
-
         event = threading.Event()
         self.msg_signal_func("로그인 완료 후 OK를 눌러주세요", "info", event)
         event.wait()
@@ -286,8 +265,6 @@ class ApiNaverBandMemberSetWorker(BaseApiWorker):
         ]
 
         for u in scan_urls:
-            if self._stop_event.is_set():
-                break
 
             try:
                 self.driver.get(u)
