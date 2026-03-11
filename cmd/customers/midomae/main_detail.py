@@ -13,10 +13,10 @@ from bs4 import BeautifulSoup
 BASE_URL = "https://midomae.com"
 
 # 사이트 카테고리 코드
-CATEGORY_CODE = "271"
+CATEGORY_CODE = "166"
 
 # 상품 이미지 저장용 카테고리
-PRODUCT_CATEGORY = "mensclothing"
+PRODUCT_CATEGORY = "kidsclothing"
 
 INPUT_CSV = f"midomae_{CATEGORY_CODE}_recent_list.csv"
 DETAIL_OUTPUT_CSV = f"midomae_{CATEGORY_CODE}_recent_detail.csv"
@@ -25,10 +25,10 @@ OPTION_OUTPUT_CSV = f"midomae_{CATEGORY_CODE}_option.csv"
 IMAGE_PATH_PREFIX = f"lucidshop/{PRODUCT_CATEGORY}"
 IMAGE_SAVE_DIR = os.path.join("data", "item", "lucidshop", PRODUCT_CATEGORY)
 
-COOKIE_STRING = ""
+COOKIE_STRING = "al=KR; _fwb=110jaNMQZPiTnwRkaotg716.1773038464433; SITE_STAT_SID=2026031169b04d25039185.63326282; SITE_BEGIN_SID_m2026030548f0e1733e859=2026031169b04d2d0f51a4.68252818; SITE_SHOP_PROD_VIEW_SID_m2026030548f0e1733e859_s2026031011b358b27d4a6=2026031169b04d34e050c5.27466795; _dd_s=isExpired=1&aid=857f6956-1d72-4f12-945c-78f19aa3f563; IMWEBVSSID=46imsqu29ujukjrepm893pib843iq0b0tlu44fgg3ugqts8fvj3ei48ap6rqs7rd52996t3h3k2h1051n95v1gglvoe6r00qc4e0dl0; ISDID=69b16f598fa33; ilc=cjXwjGgi%2FGToTJgkEfR8wI0FkvpE6LwOkiE%2BK0ZuZuY%3D; ial=9e2d9efd2a99902dcce754e7a9333051960d937af2bc1eef5d8dabb0648658a2; _imweb_login_state=Y; alarm_cnt_member=1; __bs_imweb=%7B%22deviceId%22%3A%22019cd153ee14793484733dd57391ff6b%22%2C%22deviceIdCreatedAt%22%3A%222025-02-15T18%3A30%3A00%22%2C%22siteCode%22%3A%22S202512165282acc7684d6%22%2C%22unitCode%22%3A%22u20251216d69091d26aac8%22%2C%22platform%22%3A%22DESKTOP%22%2C%22browserSessionId%22%3A%22019cdd1b1b337808b8d6d489801b564a%22%2C%22sdkJwt%22%3A%22eyJhbGciOiJFUzI1NiIsImtpZCI6bnVsbH0.eyJzdWIiOiJtMjAyNjAzMDU0OGYwZTE3MzNlODU5Iiwic2l0ZUNvZGUiOiJTMjAyNTEyMTY1MjgyYWNjNzY4NGQ2IiwidW5pdENvZGUiOiJ1MjAyNTEyMTZkNjkwOTFkMjZhYWM4IiwiY2hlY2tPZmZpY2UiOmZhbHNlLCJpYXQiOjE3NzMyMzYxMzUsImV4cCI6MTc3MzIzNjczNX0.14FXibnIYywoYNFd-Y1IfTsqB4Cfkkv0zgFueUC0KCE%22%2C%22referrer%22%3A%22https%3A%2F%2Fmidomae.com%2F166%22%2C%22initialReferrer%22%3A%22https%3A%2F%2Fmidomae.com%2Flogin%3Fback_url%3DLzE2Ng%253D%253D%22%2C%22initialReferrerDomain%22%3A%22midomae.com%22%2C%22utmSource%22%3Anull%2C%22utmMedium%22%3Anull%2C%22utmCampaign%22%3Anull%2C%22utmTerm%22%3Anull%2C%22utmContent%22%3Anull%2C%22utmLandingUrl%22%3Anull%2C%22utmUpdatedTime%22%3Anull%2C%22updatedAt%22%3A%222026-03-11T13%3A36%3A36.190Z%22%2C%22commonSessionId%22%3A%22sc_019cdd1b1b35769fb5864b54632182df%22%2C%22commonSessionUpdatedAt%22%3A%222026-03-11T13%3A36%3A35.701Z%22%2C%22customSessionId%22%3A%22cs_019cdd1b1b35769fb5864b55b8891575%22%2C%22customSessionUpdatedAt%22%3A%222026-03-11T13%3A36%3A35.702Z%22%2C%22browser_session_id%22%3A%22019cdd1b1b337808b8d6d489801b564a%22%2C%22sdk_jwt%22%3A%22eyJhbGciOiJFUzI1NiIsImtpZCI6bnVsbH0.eyJzdWIiOiJtMjAyNjAzMDU0OGYwZTE3MzNlODU5Iiwic2l0ZUNvZGUiOiJTMjAyNTEyMTY1MjgyYWNjNzY4NGQ2IiwidW5pdENvZGUiOiJ1MjAyNTEyMTZkNjkwOTFkMjZhYWM4IiwiY2hlY2tPZmZpY2UiOmZhbHNlLCJpYXQiOjE3NzMyMzYxMzUsImV4cCI6MTc3MzIzNjczNX0.14FXibnIYywoYNFd-Y1IfTsqB4Cfkkv0zgFueUC0KCE%22%2C%22initial_referrer%22%3A%22https%3A%2F%2Fmidomae.com%2Flogin%3Fback_url%3DLzE2Ng%253D%253D%22%2C%22initial_referrer_domain%22%3A%22midomae.com%22%2C%22utm_source%22%3Anull%2C%22utm_medium%22%3Anull%2C%22utm_campaign%22%3Anull%2C%22utm_term%22%3Anull%2C%22utm_content%22%3Anull%2C%22utm_landing_url%22%3Anull%2C%22utm_updated_time%22%3Anull%2C%22updated_at%22%3A%222026-03-11T13%3A36%3A36.190Z%22%2C%22common_session_id%22%3A%22sc_019cdd1b1b35769fb5864b54632182df%22%2C%22common_session_updated_at%22%3A%222026-03-11T13%3A36%3A35.701Z%22%2C%22custom_session_id%22%3A%22cs_019cdd1b1b35769fb5864b55b8891575%22%2C%22custom_session_updated_at%22%3A%222026-03-11T13%3A36%3A35.702Z%22%7D"
 
 OPTION_NAME = "사이즈"
-OPTION_ITEMS = ["S", "M", "L", "XL", "XXL"]
+OPTION_ITEMS = ["1", "2", "3", "4", "5"]
 OPTION_PRICE = "0"
 STOCK_QTY = "9999"
 NOTICE_QTY = "100"
