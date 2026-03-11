@@ -173,6 +173,9 @@ class LoginWindow(QWidget):
         state = GlobalState()
         state.set(GlobalState.SESSION, session)
 
+        user_id = self.id_input.text().strip()
+        state.set(GlobalState.USER_ID, user_id)
+
         if self.auto_login_checkbox.isChecked():
             username = self.id_input.text()
             password = self.password_input.text()

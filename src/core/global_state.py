@@ -19,6 +19,8 @@ class GlobalState:
     APP_CONFIG: ClassVar[str] = "app_config"
     SITE_CONFIGS: ClassVar[str] = "site_configs"
 
+    USER_ID: ClassVar[str] = "user_id"
+
     _instance: ClassVar[Optional["GlobalState"]] = None
 
     _data: Dict[str, Any]
@@ -50,6 +52,7 @@ class GlobalState:
                 self.SITES: [],
                 self.APP_CONFIG: {},
                 self.SITE_CONFIGS: [],
+                self.USER_ID: "",
             }
             self._initialized = True
 

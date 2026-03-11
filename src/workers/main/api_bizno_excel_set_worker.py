@@ -82,18 +82,31 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         ]
 
         # 현재 채널 유지 -> 실패 시 다음 채널로 회전
-        self._request_modes: List[str] = ["selenium", "api1", "api2"]
+        self._request_modes: List[str] = ["selenium", "main_server"]
         self._request_mode_index: int = 0
 
+        # === 신규 ===
+        self._api_server_mode_map: Dict[str, Dict[str, str]] = {}
+
+
         state = GlobalState()
+        self.api_user_id: str = state.get("user_id")
         self.session: Session = state.get("session")
 
         self.bizno_search_url: str = f"{server_url}/bizno/search"
         self.bizno_detail_url: str = f"{server_url}/bizno/detail"
 
+        # === 신규 ===
+        self.api_key_active_list_url: str = f"{server_url}/internal/api-key-info/active-list"
+
     # 초기화
     def init(self) -> bool:
         self.driver_set()
+
+        # === 신규 ===
+        self.load_active_api_server_modes()
+        self.log_signal_func(f"요청 채널 목록 : {self._request_modes}")
+
         self.log_signal_func(f"선택 항목 : {self.columns}")
         self.log_signal_func("✅ init 완료")
         return True
@@ -353,6 +366,84 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.log_signal_func(f"🔁 요청 채널 변경: {prev_mode} -> {next_mode}")
         return next_mode
 
+    # === 신규 ===
+    def get_request_user_id(self) -> str:
+        try:
+            user_id = str(self.get_setting_value(self.setting, "user_id") or "").strip()
+            if user_id:
+                return user_id
+        except Exception:
+            pass
+        return self.api_user_id
+
+    # === 신규 ===
+    def is_dynamic_api_server_mode(self, mode: str) -> bool:
+        return str(mode or "").startswith("api_server::")
+
+    # === 신규 ===
+    def get_api_server_info_by_mode(self, mode: str) -> Dict[str, str]:
+        return self._api_server_mode_map.get(mode, {})
+
+    # === 신규 ===
+    def load_active_api_server_modes(self) -> None:
+        self.log_signal_func(f"[active-list] 요청 시작: {self.api_key_active_list_url}")
+
+        try:
+            headers = {
+                "Accept": "application/json",
+            }
+
+            resp = self.session.get(
+                self.api_key_active_list_url,
+                headers=headers,
+                timeout=15,
+            )
+
+            res = self._loads_if_needed(resp.text)
+
+            if self.is_api_error_response(res):
+                self.log_signal_func(f"[active-list] ❌ 서버 에러: {res.get('message')}")
+                return
+
+            if not res.get("success"):
+                self.log_signal_func(f"[active-list] ❌ 조회 실패: {res.get('message')}")
+                return
+
+            server_list = res.get("list") or []
+            added_count = 0
+
+            for row in server_list:
+                server_id = str(row.get("serverId") or "").strip()
+                server_base_url = str(row.get("serverUrl") or "").strip().rstrip("/")
+                server_api_key = str(row.get("serverApiKey") or "").strip()
+
+                if not server_id or not server_base_url or not server_api_key:
+                    self.log_signal_func(
+                        f"[active-list] ⚠️ 서버 정보 누락으로 skip: "
+                        f"serverId={server_id}, serverUrl={server_base_url}"
+                    )
+                    continue
+
+                mode_name = f"api_server::{server_id}"
+
+                self._api_server_mode_map[mode_name] = {
+                    "serverId": server_id,
+                    "serverUrl": server_base_url,
+                    "serverApiKey": server_api_key,
+                }
+
+                if mode_name not in self._request_modes:
+                    self._request_modes.append(mode_name)
+                    added_count += 1
+
+            self.log_signal_func(
+                f"[active-list] ✅ 동적 API 서버 모드 추가 완료. "
+                f"추가건수={added_count}, 전체모드={len(self._request_modes)}"
+            )
+
+        except Exception as e:
+            self.log_signal_func(f"[active-list] ❌ 예외: {e}")
+
     # =========================
     # helpers
     # =========================
@@ -512,39 +603,76 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             return ""
         return self.driver.page_source or ""
 
-    def request_bizno_search_api(self, company_name: str, owner_name: str) -> Response:
-        self.log_signal_func(f"[api-search] 요청 시작: company_name={company_name}, owner_name={owner_name}")
+    def request_bizno_search_api(
+            self,
+            company_name: str,
+            owner_name: str,
+            base_url: Optional[str] = None,
+            api_key: Optional[str] = None,
+            user_id: Optional[str] = None
+    ) -> Response:
+        target_url = f"{str(base_url or '').rstrip('/')}/bizno/search" if base_url else self.bizno_search_url
+
+        self.log_signal_func(
+            f"[api-search] 요청 시작: url={target_url}, company_name={company_name}, owner_name={owner_name}"
+        )
 
         payload: Dict[str, Any] = {
             "companyName": company_name,
             "ownerName": owner_name,
         }
+
+        # === 신규 ===
+        if user_id:
+            payload["userId"] = user_id
+
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
 
+        # === 신규 ===
+        if api_key:
+            headers["X-API-KEY"] = api_key
+
         resp = self.session.get(
-            self.bizno_search_url,
+            target_url,
             params=payload,
             headers=headers,
             timeout=15,
         )
         return resp
 
-    def request_bizno_detail_api(self, article: str) -> Response:
-        self.log_signal_func(f"[api-detail] 요청 시작: article={article}")
+    def request_bizno_detail_api(
+            self,
+            article: str,
+            base_url: Optional[str] = None,
+            api_key: Optional[str] = None,
+            user_id: Optional[str] = None
+    ) -> Response:
+        target_url = f"{str(base_url or '').rstrip('/')}/bizno/detail" if base_url else self.bizno_detail_url
+
+        self.log_signal_func(f"[api-detail] 요청 시작: url={target_url}, article={article}")
 
         payload: Dict[str, Any] = {
             "article": article,
         }
+
+        # === 신규 ===
+        if user_id:
+            payload["userId"] = user_id
+
         headers = {
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
 
+        # === 신규 ===
+        if api_key:
+            headers["X-API-KEY"] = api_key
+
         resp = self.session.get(
-            self.bizno_detail_url,
+            target_url,
             params=payload,
             headers=headers,
             timeout=15,
@@ -665,7 +793,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 self.log_signal_func(f"[search][selenium] 결과 스캔 완료. details_count={hit}, match=0")
                 return
 
-            if mode == "api1":
+            if mode == "main_server":
                 resp = self.request_bizno_search_api(filtered_company_name, owner)
                 res = self._loads_if_needed(resp.text)
 
@@ -683,6 +811,46 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     return
 
                 self.log_signal_func(f"[search][api] ⚠️ 매칭 없음: {res.get('message')}")
+                return
+
+            # === 신규 ===
+            if self.is_dynamic_api_server_mode(mode):
+                server_info = self.get_api_server_info_by_mode(mode)
+                server_id = str(server_info.get("serverId") or "").strip()
+                server_base_url = str(server_info.get("serverUrl") or "").strip()
+                server_api_key = str(server_info.get("serverApiKey") or "").strip()
+                user_id = self.get_request_user_id()
+
+                if not server_base_url or not server_api_key:
+                    self.log_signal_func(f"[search][{mode}] ❌ 서버 정보 없음")
+                    self.handle_mode_fail(f"search dynamic api server info missing: {mode}")
+                    return
+
+                resp = self.request_bizno_search_api(
+                    filtered_company_name,
+                    owner,
+                    base_url=server_base_url,
+                    api_key=server_api_key,
+                    user_id=user_id
+                )
+                res = self._loads_if_needed(resp.text)
+
+                if self.is_api_error_response(res):
+                    self.log_signal_func(
+                        f"[search][{server_id}] ❌ 서버 에러: {res.get('message')}"
+                    )
+                    self.handle_mode_fail(f"search dynamic api error [{server_id}]: {res.get('message')}")
+                    return
+
+                if res.get("success") and res.get("article"):
+                    item["article"] = str(res.get("article") or "").strip()
+                    item["회사명"] = str(res.get("회사명") or "").strip()
+                    self.log_signal_func(
+                        f"[search][{server_id}] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
+                    )
+                    return
+
+                self.log_signal_func(f"[search][{server_id}] ⚠️ 매칭 없음: {res.get('message')}")
                 return
 
             if mode == "api2":
@@ -763,7 +931,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 self.log_signal_func(f"[detail][selenium] ✅ 테이블 파싱 완료. row_count={row_cnt}")
                 return
 
-            if mode == "api1":
+            if mode == "main_server":
                 resp = self.request_bizno_detail_api(article)
                 res = self._loads_if_needed(resp.text)
 
@@ -786,6 +954,50 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     return
 
                 self.log_signal_func(f"[detail][api] ⚠️ 상세 데이터 없음: {res.get('message')}")
+                return
+
+            # === 신규 ===
+            if self.is_dynamic_api_server_mode(mode):
+                server_info = self.get_api_server_info_by_mode(mode)
+                server_id = str(server_info.get("serverId") or "").strip()
+                server_base_url = str(server_info.get("serverUrl") or "").strip()
+                server_api_key = str(server_info.get("serverApiKey") or "").strip()
+                user_id = self.get_request_user_id()
+
+                if not server_base_url or not server_api_key:
+                    self.log_signal_func(f"[detail][{mode}] ❌ 서버 정보 없음")
+                    self.handle_mode_fail(f"detail dynamic api server info missing: {mode}")
+                    return
+
+                resp = self.request_bizno_detail_api(
+                    article,
+                    base_url=server_base_url,
+                    api_key=server_api_key,
+                    user_id=user_id
+                )
+                res = self._loads_if_needed(resp.text)
+
+                if self.is_api_error_response(res):
+                    self.log_signal_func(
+                        f"[detail][{server_id}] ❌ 서버 에러: {res.get('message')}"
+                    )
+                    self.handle_mode_fail(f"detail dynamic api error [{server_id}]: {res.get('message')}")
+                    return
+
+                if res.get("success"):
+                    item["url"] = str(res.get("url") or "")
+                    data = res.get("data") or {}
+
+                    row_cnt = 0
+                    for key, val in data.items():
+                        if key:
+                            item[str(key)] = str(val or "")
+                            row_cnt += 1
+
+                    self.log_signal_func(f"[detail][{server_id}] ✅ 테이블 반영 완료. row_count={row_cnt}")
+                    return
+
+                self.log_signal_func(f"[detail][{server_id}] ⚠️ 상세 데이터 없음: {res.get('message')}")
                 return
 
             if mode == "api2":
