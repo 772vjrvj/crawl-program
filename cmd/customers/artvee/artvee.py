@@ -522,6 +522,10 @@ def main()->None:
         try:
             df_excel = pd.read_excel(f"{excelPath}/{fileInfo}",sheet_name="1")
             df_excel_data = pd.read_excel(f"{excelPath}/{fileInfo}",sheet_name="2")
+            # === 신규 === FutureWarning 방지용 dtype 보정
+            if "이미지 저장여부" in df_excel.columns:
+                df_excel["이미지 저장여부"] = df_excel["이미지 저장여부"].astype("object")
+                df_excel["이미지 저장여부"] = df_excel["이미지 저장여부"].where(pd.notna(df_excel["이미지 저장여부"]), "")
         except:
             print(f"{excelPath}/{fileInfo}는 엑셀 파일이 아닙니다.")
             continue
@@ -717,6 +721,10 @@ def sub_main()->None:
         try:
             df_excel = pd.read_excel(f"{excelPath}/{fileInfo}",sheet_name="1")
             df_excel_data = pd.read_excel(f"{excelPath}/{fileInfo}",sheet_name="2")
+            # === 신규 === FutureWarning 방지용 dtype 보정
+            if "이미지 저장여부" in df_excel.columns:
+                df_excel["이미지 저장여부"] = df_excel["이미지 저장여부"].astype("object")
+                df_excel["이미지 저장여부"] = df_excel["이미지 저장여부"].where(pd.notna(df_excel["이미지 저장여부"]), "")
         except:
             print(f"{excelPath}/{fileInfo}는 엑셀 파일이 아닙니다.")
             continue

@@ -82,6 +82,22 @@ startPage = 1
 
 
 
+
+■ 특이사항
+
+전체 엑셀 추출 하시겠습니까?
+
+“지금 사이트를 다시 돌면서 작품 정보 엑셀을 새로 만들겠습니까?”
+
+1. 예
+   → 엑셀 새로 생성 + 이후 이미지 다운로드
+
+2. 아니오
+   → 기존 엑셀 재사용 + 이미지 다운로드만 진행
+
+
+
+
 python -m PyInstaller --clean --noconfirm --onefile `
 --icon=resources\icons\crawling.ico `
 --hidden-import=deep_translator `
