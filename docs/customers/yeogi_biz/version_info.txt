@@ -17,13 +17,13 @@ VSVersionInfo(
           '040904B0',
           [
             StringStruct('CompanyName', 'GB7'),
-            StringStruct('FileDescription', 'LULULEMON'),
-            StringStruct('FileVersion', '3.0.1'),
-            StringStruct('InternalName', 'LULULEMON'),
+            StringStruct('FileDescription', 'BIZNO'),
+            StringStruct('FileVersion', '1.0.0'),
+            StringStruct('InternalName', 'BIZNO'),
             StringStruct('LegalCopyright', '© 2026 GB7'),
-            StringStruct('OriginalFilename', 'LULULEMON.exe'),
-            StringStruct('ProductName', 'LULULEMON'),
-            StringStruct('ProductVersion', '3.0.1')
+            StringStruct('OriginalFilename', 'BIZNO.exe'),
+            StringStruct('ProductName', 'BIZNO'),
+            StringStruct('ProductVersion', '1.0.0')
           ]
         )
       ]

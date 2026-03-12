@@ -100,7 +100,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             self.current_cnt += 1
             self.log_signal.emit(f"[{num}/{self.total_cnt}] 처리 시작: {url}")
 
-            options, product_name = self.product_api_data(url)
+            options, h1_product_name = self.product_api_data(url)
 
             if options:
                 self.log_signal.emit(f"[옵션 미리보기] 총 {len(options)}건 / 첫번째 옵션: {options[0]}")
@@ -111,7 +111,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                 time.sleep(random.uniform(1, 2))
                 continue
 
-            filename = f"{self.safe_filename(product_name)}_{self.now_stamp()}.xlsx"
+            filename = f"{self.safe_filename(h1_product_name)}_{self.now_stamp()}.xlsx"
 
             try:
                 saved_path = self.excel_driver.save_obj_list_to_excel(
@@ -147,6 +147,9 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             soup = self.fetch_product_soup(url)
             next_data = self.extract_next_data(soup)
 
+            h1_tag = soup.find("h1")
+            h1_product_name = h1_tag.get_text(" ", strip=True) if h1_tag else ""
+
             size_order = self.extract_all_size_order_from_next_data(next_data)
             self._size_rank = self.build_size_rank(size_order)
 
@@ -155,7 +158,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                 self.log_signal.emit(f"[SKIP] variants 없음: {url}")
                 return [], "product"
 
-            product_name = self.extract_product_name(variants, next_data)
+            # product_name = self.extract_product_name(variants, next_data)
 
             rows = []
             for v in variants:
@@ -165,7 +168,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
 
             if not rows:
                 self.log_signal.emit(f"[SKIP] 정규화된 옵션 rows 없음: {url}")
-                return [], product_name
+                return [], h1_product_name
 
             min_price = self.find_min_price(rows)
             self.sort_rows_by_color_and_size(rows)
@@ -185,7 +188,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                     "사용여부": "Y",
                 })
 
-            return out, product_name
+            return out, h1_product_name
 
         except Exception as e:
             self.log_signal.emit(f"[SKIP] 처리 실패: {url} / {e}")

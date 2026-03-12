@@ -32,8 +32,25 @@
     # 추후 로컬 서버, proxy 서버를 추가할 예정이다.
 
 
-■ 실행
-프로그램 실행 로그인
+■ 사용법
+
+    ■ KECA
+    1. BIZNO.exe 실행
+    2. bizno1 / 1234 , bizno2 /1234 로 로그인
+    3. 사이트에 KECA에 들어가서 시작
+    4. 통합자료관 > 업체 현황에서   등록업체 지역선택: 후 검색 하거나 또는
+      전체 검색이면 아무것도 안하고 > 확인 알림창에서 ok 클릭
+    5. output_keca_ecic 에 엑셀 저장됨
+
+    ■ BIZNO
+    6. BIZNO 에 들어가서 "엑셀세팅" 버튼 클릭. KECA에서 받은 엑셀 드래그 앤 드랍
+    7. "시작" 버튼 클릭
+    8. output_bizno 에 저장됨
+
+    특이사항 있으면 말씀해주세요.
+
+    작업하실때는 한 1000~2000개 정도 나눠서 작업하시기를 추천드립니다.
+
 
 ■ worker 경로 "worker_class": "src.workers.main.api_keca_ecic_request_set_worker:ApiKecaEcicExcelSetWorker",
 

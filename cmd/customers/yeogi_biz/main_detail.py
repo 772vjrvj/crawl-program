@@ -1,0 +1,184 @@
+# -*- coding: utf-8 -*-
+import os
+import time
+import random
+from datetime import datetime
+from typing import Dict, Any, List, Optional
+
+import pandas as pd
+import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+
+# =========================
+# 설정
+# =========================
+INPUT_CSV  = "yeogi_places_20260312_195058.csv"
+OUT_PREFIX = "yeogi_place_contract"
+
+BASE = "https://www.yeogi.com"
+URL_TPL = BASE + "/api/gateway/web-product-api/places/{id}/metas/contract"
+
+MAX_WORKERS = 16          # PC/네트워크 상황에 맞게 8~32 조절
+TIMEOUT_SEC = 10
+MAX_RETRY = 4
+SLEEP_BETWEEN_RETRY_BASE = 0.6  # 재시도 백오프 베이스
+
+
+# =========================
+# 헤더 (필요한 것만)
+# =========================
+def build_headers() -> Dict[str, str]:
+    return {
+        "user-agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/143.0.0.0 Safari/537.36"
+        ),
+        "accept": "application/json, text/plain, */*",
+
+        # 여기 값은 만료될 수 있음. 막히면 최신 쿠키로 갱신해서 넣어야 함.
+        "cookie": "__cf_bm=px11zByBo8IcaRNlNOQ777Qre6XxHnYGkXvshuqWZb8-1765938523-1.0.1.1-HIPIo9eVf_ASwOV100y5zj0Y0UV2yNRvg6nwFb52.zOw8av8bUm4CNs7QVMUwW9kInD5uvu7EOwhNV1K2zGyzJBrFgTpZtrF_IGyJdCq5vI",
+    }
+
+
+# =========================
+# 로깅
+# =========================
+def log(msg: str):
+    ts = datetime.now().strftime("%H:%M:%S")
+    print(f"[{ts}] {msg}")
+
+
+# =========================
+# 요청 + 재시도
+# =========================
+def fetch_contract(place_id: int, headers: Dict[str, str]) -> Dict[str, Any]:
+    """
+    성공: {"id":..., ...body fields...}
+    실패: {"id":..., "_error": "...", "_status": ..., "_url": ...}
+    """
+    url = URL_TPL.format(id=place_id)
+    last_err: Optional[str] = None
+    last_status: Optional[int] = None
+
+    # Session을 쓰면 keep-alive로 조금 더 안정적
+    session = requests.Session()
+
+    for attempt in range(1, MAX_RETRY + 1):
+        try:
+            res = session.get(url, headers=headers, timeout=TIMEOUT_SEC)
+            last_status = res.status_code
+
+            if res.status_code == 200:
+                data = res.json()
+                body = data.get("body", {}) or {}
+
+                # id 컬럼 포함 + body 펼치기
+                out = {"id": place_id}
+                if isinstance(body, dict):
+                    out.update(body)
+                else:
+                    out["body_raw"] = str(body)
+                return out
+
+            # 흔한 제한/오류는 재시도
+            if res.status_code in (403, 429, 500, 502, 503, 504):
+                last_err = f"HTTP {res.status_code}"
+                sleep_s = (SLEEP_BETWEEN_RETRY_BASE * attempt) + random.random() * 0.3
+                time.sleep(sleep_s)
+                continue
+
+            # 그 외는 즉시 실패 처리
+            return {
+                "id": place_id,
+                "_error": f"HTTP {res.status_code}",
+                "_status": res.status_code,
+                "_url": url,
+            }
+
+        except Exception as e:
+            last_err = str(e)
+            sleep_s = (SLEEP_BETWEEN_RETRY_BASE * attempt) + random.random() * 0.3
+            time.sleep(sleep_s)
+
+    return {
+        "id": place_id,
+        "_error": last_err or "unknown error",
+        "_status": last_status,
+        "_url": url,
+    }
+
+
+# =========================
+# 메인
+# =========================
+def main():
+    if not os.path.exists(INPUT_CSV):
+        raise FileNotFoundError(f"입력 파일을 찾을 수 없음: {INPUT_CSV}")
+
+    df = pd.read_csv(INPUT_CSV, encoding="utf-8-sig")
+    if "id" not in df.columns:
+        raise ValueError("입력 CSV에 'id' 컬럼이 없습니다.")
+
+    # id 중복 제거 + 정리
+    ids = (
+        df["id"]
+        .dropna()
+        .astype("int64", errors="ignore")
+        .astype(int)
+        .drop_duplicates()
+        .tolist()
+    )
+
+    total = len(ids)
+    log(f"입력 id 로드 완료: total_unique_ids={total}")
+
+    headers = build_headers()
+    results: List[Dict[str, Any]] = []
+
+    ok = 0
+    fail = 0
+
+    # 멀티쓰레드 수집
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
+        future_map = {ex.submit(fetch_contract, pid, headers): pid for pid in ids}
+
+        done_cnt = 0
+        for fut in as_completed(future_map):
+            pid = future_map[fut]
+            done_cnt += 1
+
+            try:
+                row = fut.result()
+            except Exception as e:
+                row = {"id": pid, "_error": str(e), "_status": None, "_url": URL_TPL.format(id=pid)}
+
+            results.append(row)
+
+            if "_error" in row:
+                fail += 1
+                log(f"[{done_cnt}/{total}] FAIL id={pid} err={row.get('_error')}")
+            else:
+                ok += 1
+                # 너무 시끄러우면 아래 로그를 주석 처리
+                log(f"[{done_cnt}/{total}] OK   id={pid} companyName={row.get('companyName')}")
+
+    out_df = pd.DataFrame(results)
+
+    # 컬럼 정렬: id 먼저, 에러/상태/url는 뒤로
+    cols = list(out_df.columns)
+    front = ["id"]
+    tail = [c for c in ["_error", "_status", "_url"] if c in cols]
+    middle = [c for c in cols if c not in set(front + tail)]
+    out_df = out_df[front + middle + tail]
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_path = f"{OUT_PREFIX}_{ts}.csv"
+    out_df.to_csv(out_path, index=False, encoding="utf-8-sig")
+
+    log(f"완료: ok={ok}, fail={fail}, saved={out_path}")
+
+
+if __name__ == "__main__":
+    main()

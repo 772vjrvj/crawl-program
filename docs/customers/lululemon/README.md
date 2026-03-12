@@ -203,3 +203,32 @@ https://shop.lululemon.com/en-ca/p/womens-leggings/lululemon-Align-No-Line-High-
 https://shop.lululemon.com/en-ca/p/womens-leggings/lululemon-Align-No-Line-High-Rise-Pant-28/_/prod11900023?color=25461
 
 https://shop.lululemon.com/en-ca/p/womens-leggings/Align-No-Line-HR-Twist-Tight-25/_/prod20006792?color=0554
+
+
+
+
+
+
+
+
+
+
+
+
+pyinstaller .\main.py `
+--noconfirm `
+--clean `
+--windowed `
+--name "LULULEMON" `
+--icon ".\resources\icons\crawling.ico" `
+--version-file ".\docs\customers\lululemon\version_info.txt" `
+--distpath ".\dist" `
+--hidden-import "src.workers.main.api_lululemon_set_worker" `
+--hidden-import "pandas" `
+--hidden-import "openpyxl" `
+--exclude-module tkinter `
+--exclude-module _tkinter `
+--exclude-module tk `
+--exclude-module Tcl `
+--exclude-module tcl
+
