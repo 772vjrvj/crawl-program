@@ -14,7 +14,6 @@ from src.utils.api_utils import APIClient
 from src.utils.config import server_url
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
-from src.utils.selenium_utils import SeleniumUtils
 from src.workers.api_base_worker import BaseApiWorker
 
 
@@ -24,6 +23,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
+        self.api_client = None
         self.driver = None
         self.selenium_driver = None
         self.columns: Optional[List[str]] = None
@@ -83,16 +83,15 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         ]
 
         # 현재 채널 유지 -> 실패 시 다음 채널로 회전
-        self._request_modes: List[str] = ["selenium", "main_server"]
+        self._request_modes: List[str] = ["request", "main_server"]
         self._request_mode_index: int = 0
 
         # === 신규 ===
         self._api_server_mode_map: Dict[str, Dict[str, str]] = {}
 
-
         state = GlobalState()
         self.api_user_id: str = state.get("user_id")
-        self.session: Session = state.get("session")
+        self.session: Optional[Session] = state.get("session")
 
         self.bizno_search_url: str = f"{server_url}/bizno/search"
         self.bizno_detail_url: str = f"{server_url}/bizno/detail"
@@ -104,7 +103,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     def init(self) -> bool:
         self.driver_set()
 
-        # === 신규 ===
         self.load_active_api_server_modes()
         self.log_signal_func(f"요청 채널 목록 : {self._request_modes}")
 
@@ -134,10 +132,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
             self.total_cnt = len(self.excel_data_list)
 
-            # 쿠키 1회 세팅
-            self.log_signal_func("쿠키 세팅을 진행합니다. (1회)")
-            self.ensure_cookie()
-
             for index, item in enumerate(self.excel_data_list, start=1):
                 if not self.running:
                     self.log_signal_func("⛔ running=False 감지. main 루프 종료")
@@ -156,26 +150,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     self.log_signal_func(
                         f"🔄 {self._rotate_every_n}건 도달로 선제 채널 변경: {prev_mode} -> {next_mode}"
                     )
-
-                    if next_mode == "selenium":
-                        self.log_signal_func("🔁 selenium 채널 복귀로 브라우저/쿠키 재정비")
-                        if not self.restart_browser():
-                            self.log_signal_func("⛔ 브라우저 재시작 실패. main 루프 종료")
-                            return True
-                        if not self.refresh_cookie():
-                            self.log_signal_func("⛔ 쿠키 재발급 실패. main 루프 종료")
-                            return True
-
-                # selenium 채널에서만 주기적 쿠키 재발급
-                if (
-                        self.get_current_request_mode() == "selenium"
-                        and self._cookie_refresh_every_n > 0
-                        and (index % self._cookie_refresh_every_n == 0)
-                ):
-                    self.log_signal_func(f"🔁 쿠키 재발급 타이밍 도달 ({index}건). 쿠키 재세팅 진행")
-                    if not self.refresh_cookie():
-                        self.log_signal_func("⛔ 쿠키 재발급 중단 감지. main 루프 종료")
-                        return True
 
                 try:
                     q_name = (item.get("검색회사명") or "").strip()
@@ -286,17 +260,9 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     # 드라이버 세팅
     def driver_set(self) -> None:
         self.log_signal_func("드라이버 세팅 ========================================")
-
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
-
-        self.selenium_driver = SeleniumUtils(
-            headless=False,
-            log_func=self.log_signal_func
-        )
-        self.selenium_driver.set_capture_options(enabled=True, block_images=False)
-
-        self.driver = self.selenium_driver.start_driver(1200)
+        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func, timeout=(10, 30))
         self.log_signal_func("✅ 드라이버 세팅 완료")
 
     def cleanup(self) -> None:
@@ -317,12 +283,12 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
 
         try:
-            if self.selenium_driver:
-                self.log_signal_func("🔌 selenium_driver.quit 시작")
-                self.selenium_driver.quit()
-                self.log_signal_func("🔌 selenium_driver.quit 완료")
+            if self.api_client:
+                self.log_signal_func("🔌 api_client.close 시작")
+                self.api_client.close()
+                self.log_signal_func("🔌 api_client.close 완료")
         except Exception as e:
-            self.log_signal_func(f"[cleanup] selenium_driver.quit 실패: {e}")
+            self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
 
         try:
             if self.file_driver:
@@ -364,7 +330,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         try:
             return self._request_modes[self._request_mode_index]
         except Exception:
-            return "selenium"
+            return "request"
 
     def rotate_request_mode(self) -> str:
         prev_mode = self.get_current_request_mode()
@@ -373,7 +339,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.log_signal_func(f"🔁 요청 채널 변경: {prev_mode} -> {next_mode}")
         return next_mode
 
-    # === 신규 ===
     def get_request_user_id(self) -> str:
         try:
             user_id = str(self.get_setting_value(self.setting, "user_id") or "").strip()
@@ -383,17 +348,18 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             pass
         return self.api_user_id
 
-    # === 신규 ===
     def is_dynamic_api_server_mode(self, mode: str) -> bool:
         return str(mode or "").startswith("api_server::")
 
-    # === 신규 ===
     def get_api_server_info_by_mode(self, mode: str) -> Dict[str, str]:
         return self._api_server_mode_map.get(mode, {})
 
-    # === 신규 ===
     def load_active_api_server_modes(self) -> None:
         self.log_signal_func(f"[active-list] 요청 시작: {self.api_key_active_list_url}")
+
+        if not self.session:
+            self.log_signal_func("[active-list] ❌ session 없음")
+            return
 
         try:
             headers = {
@@ -498,36 +464,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             return 600
         return 1200
 
-    def restart_browser(self) -> bool:
-        try:
-            self.log_signal_func("🔄 차단 후 브라우저 재시작 시작")
-
-            try:
-                if self.selenium_driver:
-                    self.log_signal_func("🔌 기존 selenium_driver.quit 시작")
-                    self.selenium_driver.quit()
-                    self.log_signal_func("🔌 기존 selenium_driver.quit 완료")
-            except Exception as e:
-                self.log_signal_func(f"⚠️ 기존 selenium_driver.quit 실패: {e}")
-
-            self.driver = None
-            self.selenium_driver = None
-            self._cookie_ready = False
-
-            self.selenium_driver = SeleniumUtils(
-                headless=False,
-                log_func=self.log_signal_func
-            )
-            self.selenium_driver.set_capture_options(enabled=True, block_images=False)
-
-            self.driver = self.selenium_driver.start_driver(1200)
-            self.log_signal_func("✅ 차단 후 브라우저 재시작 완료")
-            return True
-
-        except Exception as e:
-            self.log_signal_func(f"❌ restart_browser 실패: {e}")
-            return False
-
     def backoff_and_refresh_if_blocked(self, url: str, html: str) -> bool:
         if not self.is_blocked_html(html):
             return True
@@ -562,53 +498,12 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             self.log_signal_func("⛔ 차단 쿨다운 중단 감지")
             return False
 
-        self.log_signal_func("🔄 차단 대기 후 브라우저 재시작 시도")
-        if not self.restart_browser():
-            return False
-
-        self.log_signal_func("🔁 차단 의심으로 쿠키 재발급 시도")
-        if not self.refresh_cookie():
-            return False
-
         return True
 
-    def ensure_cookie(self) -> None:
-        if self._cookie_ready:
-            self.log_signal_func("✅ 쿠키 이미 세팅됨 (skip)")
-            return
-
-        if not self.driver:
-            self.log_signal_func("⚠️ driver 없음. 쿠키 세팅 skip")
-            return
-
-        self.log_signal_func("🌐 쿠키 세팅을 위해 메인 페이지 접속: https://bizno.net/")
-        self.driver.get("https://bizno.net/")
-
-        self.log_signal_func("쿠키 대기 전 잠시 쉽니다. (2.00s)")
-        if not self.sleep_s(2.0):
-            self.log_signal_func("⛔ cookie sleep 중단 감지")
-            return
-
-    def refresh_cookie(self) -> bool:
-        try:
-            self._cookie_ready = False
-            self.ensure_cookie()
-            if not self.running:
-                return False
-        except Exception as e:
-            self.log_signal_func(f"❌ refresh_cookie 실패: {e}")
-            return False
-        return True
-
-    def get_html_by_selenium(self, url: str, headers: dict) -> str:
-        if not self.driver:
-            return ""
-        self.driver.get(url)
-        wait_sec = random.uniform(3.0, 5.0)
-        self.log_signal_func(f"[selenium] 페이지 로딩 후 대기 ({wait_sec:.2f}s)")
-        if not self.sleep_s(wait_sec):
-            return ""
-        return self.driver.page_source or ""
+    def get_html(self, url: str, headers: dict) -> str:
+        self.log_signal_func(f"🌐 GET: {url}")
+        html = self.api_client.get(url, headers=headers)
+        return html
 
     def request_bizno_search_api(
             self,
@@ -618,6 +513,9 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             api_key: Optional[str] = None,
             user_id: Optional[str] = None
     ) -> Response:
+        if not self.session:
+            raise RuntimeError("session 없음")
+
         target_url = f"{str(base_url or '').rstrip('/')}/bizno/search" if base_url else self.bizno_search_url
 
         self.log_signal_func(
@@ -657,6 +555,9 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             api_key: Optional[str] = None,
             user_id: Optional[str] = None
     ) -> Response:
+        if not self.session:
+            raise RuntimeError("session 없음")
+
         target_url = f"{str(base_url or '').rstrip('/')}/bizno/detail" if base_url else self.bizno_detail_url
 
         self.log_signal_func(f"[api-detail] 요청 시작: url={target_url}, article={article}")
@@ -665,7 +566,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "article": article,
         }
 
-        # === 신규 ===
         if user_id:
             payload["userId"] = user_id
 
@@ -674,7 +574,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "Accept": "application/json",
         }
 
-        # === 신규 ===
         if api_key:
             headers["X-API-KEY"] = api_key
 
@@ -718,17 +617,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         current_mode = self.get_current_request_mode()
         self.log_signal_func(f"⚠️ 현재 채널 실패: mode={current_mode}, reason={reason}")
 
-        next_mode = self.rotate_request_mode()
-
-        if next_mode == "selenium":
-            self.log_signal_func("🔁 다음 채널이 selenium 이므로 브라우저/쿠키 재정비 시도")
-            if not self.restart_browser():
-                self.log_signal_func("❌ 브라우저 재시작 실패")
-                return
-            if not self.refresh_cookie():
-                self.log_signal_func("❌ 쿠키 재발급 실패")
-                return
-
+        self.rotate_request_mode()
         self.sleep_after_mode_fail()
 
     # =========================
@@ -746,13 +635,14 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
         for attempt in range(max_try):
             mode = self.get_current_request_mode()
-            self.log_signal_func(f"[search] 시도 {attempt + 1}/{max_try}, mode={mode}, company='{filtered_company_name}', owner='{owner}'")
-
+            self.log_signal_func(
+                f"[search] 시도 {attempt + 1}/{max_try}, mode={mode}, company='{filtered_company_name}', owner='{owner}'"
+            )
 
             try:
-                if mode == "selenium":
+                if mode == "request":
                     url = f"https://bizno.net/?area=&query={quote(filtered_company_name)}"
-                    self.log_signal_func(f"[search][selenium] url={url}")
+                    self.log_signal_func(f"[search][request] url={url}")
 
                     headers = {
                         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -770,11 +660,11 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
                     }
 
-                    html = self.get_html_by_selenium(url, headers=headers)
+                    html = self.get_html(url, headers=headers)
                     if not html or self.is_blocked_html(html):
-                        self.log_signal_func("[search][selenium] ❌ 실패/차단")
-                        self.handle_mode_fail("search selenium fail/blocked")
-                        return
+                        self.log_signal_func("[search][request] ❌ 실패/차단")
+                        self.handle_mode_fail("search request fail/blocked")
+                        continue
 
                     soup = BeautifulSoup(html, "html.parser")
                     hit = 0
@@ -795,11 +685,11 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                         item["article"] = href.split("/article/")[1]
                         item["회사명"] = self.safe_text(d.select_one("h4"), strip=True)
                         self.log_signal_func(
-                            f"[search][selenium] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
+                            f"[search][request] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
                         )
                         return
 
-                    self.log_signal_func(f"[search][selenium] 결과 스캔 완료. details_count={hit}, match=0")
+                    self.log_signal_func(f"[search][request] 결과 스캔 완료. details_count={hit}, match=0")
                     return
 
                 if mode == "main_server":
@@ -809,7 +699,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     if self.is_api_error_response(res):
                         self.log_signal_func(f"[search][api] ❌ 서버 에러: {res.get('message')}")
                         self.handle_mode_fail(f"search api error: {res.get('message')}")
-                        return
+                        continue
 
                     if res.get("success") and res.get("article"):
                         item["article"] = str(res.get("article") or "").strip()
@@ -832,7 +722,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     if not server_base_url or not server_api_key:
                         self.log_signal_func(f"[search][{mode}] ❌ 서버 정보 없음")
                         self.handle_mode_fail(f"search dynamic api server info missing: {mode}")
-                        return
+                        continue
 
                     resp = self.request_bizno_search_api(
                         filtered_company_name,
@@ -848,7 +738,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                             f"[search][{server_id}] ❌ 서버 에러: {res.get('message')}"
                         )
                         self.handle_mode_fail(f"search dynamic api error [{server_id}]: {res.get('message')}")
-                        return
+                        continue
 
                     if res.get("success") and res.get("article"):
                         item["article"] = str(res.get("article") or "").strip()
@@ -861,12 +751,9 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     self.log_signal_func(f"[search][{server_id}] ⚠️ 매칭 없음: {res.get('message')}")
                     return
 
-                if mode == "api2":
-                    self.log_signal_func("[api2] ❌ 미구현 -> 다음 채널로 회전")
-                    return
-
                 self.log_signal_func(f"[search] ❌ 알 수 없는 mode: {mode}")
                 self.handle_mode_fail(f"unknown mode: {mode}")
+                continue
 
             except Exception as e:
                 self.log_signal_func(f"[search][{mode}] ❌ 예외: {e}")
@@ -874,7 +761,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 continue
 
         self.log_signal_func("[search] ❌ 모든 채널 시도했지만 실패")
-
 
     # =========================
     # bizno: detail
@@ -891,11 +777,10 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             mode = self.get_current_request_mode()
             self.log_signal_func(f"[detail] 시도 {attempt + 1}/{max_try}, mode={mode}, article={article}")
 
-
             try:
-                if mode == "selenium":
+                if mode == "request":
                     url = f"https://bizno.net/article/{article}"
-                    self.log_signal_func(f"[detail][selenium] article : {article}")
+                    self.log_signal_func(f"[detail][request] article : {article}")
 
                     headers = {
                         "authority": "bizno.net",
@@ -917,20 +802,20 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
                     }
 
-                    html = self.get_html_by_selenium(url, headers=headers)
+                    html = self.get_html(url, headers=headers)
                     if not html or self.is_blocked_html(html):
-                        self.log_signal_func("[detail][selenium] ❌ 실패/차단")
-                        self.handle_mode_fail("detail selenium fail/blocked")
-                        return
+                        self.log_signal_func("[detail][request] ❌ 실패/차단")
+                        self.handle_mode_fail("detail request fail/blocked")
+                        continue
 
                     soup = BeautifulSoup(html, "html.parser")
                     table = soup.select_one("table.table_guide01")
                     item["url"] = url
 
                     if not table:
-                        self.log_signal_func("[detail][selenium] ❌ table.table_guide01 없음")
-                        self.handle_mode_fail("detail selenium table missing")
-                        return
+                        self.log_signal_func("[detail][request] ❌ table.table_guide01 없음")
+                        self.handle_mode_fail("detail request table missing")
+                        continue
 
                     row_cnt = 0
                     for tr in table.select("tr"):
@@ -944,7 +829,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                             item[key] = val
                             row_cnt += 1
 
-                    self.log_signal_func(f"[detail][selenium] ✅ 테이블 파싱 완료. row_count={row_cnt}")
+                    self.log_signal_func(f"[detail][request] ✅ 테이블 파싱 완료. row_count={row_cnt}")
                     return
 
                 if mode == "main_server":
@@ -955,7 +840,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     if self.is_api_error_response(res):
                         self.log_signal_func(f"[detail][api] ❌ 서버 에러: {res.get('message')}")
                         self.handle_mode_fail(f"detail api error: {res.get('message')}")
-                        return
+                        continue
 
                     if res.get("success"):
                         item["url"] = str(res.get("url") or "")
@@ -984,7 +869,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     if not server_base_url or not server_api_key:
                         self.log_signal_func(f"[detail][{mode}] ❌ 서버 정보 없음")
                         self.handle_mode_fail(f"detail dynamic api server info missing: {mode}")
-                        return
+                        continue
 
                     resp = self.request_bizno_detail_api(
                         article,
@@ -999,7 +884,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                             f"[detail][{server_id}] ❌ 서버 에러: {res.get('message')}"
                         )
                         self.handle_mode_fail(f"detail dynamic api error [{server_id}]: {res.get('message')}")
-                        return
+                        continue
 
                     if res.get("success"):
                         item["url"] = str(res.get("url") or "")
@@ -1017,12 +902,9 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     self.log_signal_func(f"[detail][{server_id}] ⚠️ 상세 데이터 없음: {res.get('message')}")
                     return
 
-                if mode == "api2":
-                    self.log_signal_func("[detail][api2] ❌ 미구현 -> 다음 채널로 회전")
-                    return
-
                 self.log_signal_func(f"[detail] ❌ 알 수 없는 mode: {mode}")
                 self.handle_mode_fail(f"unknown mode: {mode}")
+                continue
 
             except Exception as e:
                 self.log_signal_func(f"[detail][{mode}] ❌ 예외: {e}")
