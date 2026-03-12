@@ -85,18 +85,12 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         # 현재 채널 유지 -> 실패 시 다음 채널로 회전
         self._request_modes: List[str] = ["request", "main_server"]
         self._request_mode_index: int = 0
-
-        # === 신규 ===
         self._api_server_mode_map: Dict[str, Dict[str, str]] = {}
-
         state = GlobalState()
         self.api_user_id: str = state.get("user_id")
         self.session: Optional[Session] = state.get("session")
-
         self.bizno_search_url: str = f"{server_url}/bizno/search"
         self.bizno_detail_url: str = f"{server_url}/bizno/detail"
-
-        # === 신규 ===
         self.api_key_active_list_url: str = f"{server_url}/internal/api-key-info/active-list"
 
     # 초기화
@@ -527,7 +521,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "ownerName": owner_name,
         }
 
-        # === 신규 ===
         if user_id:
             payload["userId"] = user_id
 
@@ -536,7 +529,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "Accept": "application/json",
         }
 
-        # === 신규 ===
         if api_key:
             headers["X-API-KEY"] = api_key
 
@@ -612,7 +604,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.log_signal_func(f"🕒 채널 전환 후 대기: {sleep_t:.2f}s")
         return self.sleep_s(sleep_t)
 
-    # === 신규 ===
     def handle_mode_fail(self, reason: str) -> None:
         current_mode = self.get_current_request_mode()
         self.log_signal_func(f"⚠️ 현재 채널 실패: mode={current_mode}, reason={reason}")
