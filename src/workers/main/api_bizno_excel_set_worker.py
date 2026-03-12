@@ -142,6 +142,12 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     self.log_signal_func("⛔ running=False 감지. main 루프 종료")
                     return True
 
+                # 테스트 서버 (test server)용: 2건째부터 매 건마다 요청 채널 순환
+                # if index > 1:
+                #     prev_mode = self.get_current_request_mode()
+                #     next_mode = self.rotate_request_mode()
+                #     self.log_signal_func(f"🧪 테스트용 채널 변경: {prev_mode} -> {next_mode}")
+
                 # 500건마다 선제 채널 변경
                 if self._rotate_every_n > 0 and index > 1 and ((index - 1) % self._rotate_every_n == 0):
                     prev_mode = self.get_current_request_mode()
@@ -396,7 +402,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             resp = self.session.get(
                 self.api_key_active_list_url,
                 headers=headers,
-                timeout=15,
+                timeout=(5, 30),  # connect 5초, read 30초
             )
 
             res = self._loads_if_needed(resp.text)
@@ -639,7 +645,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             target_url,
             params=payload,
             headers=headers,
-            timeout=15,
+            timeout=(5, 30),  # connect 5초, read 30초
         )
         return resp
 
@@ -675,7 +681,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             target_url,
             params=payload,
             headers=headers,
-            timeout=15,
+            timeout=(5, 30),  # connect 5초, read 30초
         )
         return resp
 
@@ -735,134 +741,139 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         item["검색필터회사명"] = filtered_company_name
         item["article"] = ""
 
-        mode = self.get_current_request_mode()
-        self.log_signal_func(
-            f"[search] 시작 mode={mode}, company='{filtered_company_name}', owner='{owner}'"
-        )
+        max_try = len(self._request_modes)
 
-        try:
-            if mode == "selenium":
-                url = f"https://bizno.net/?area=&query={quote(filtered_company_name)}"
-                self.log_signal_func(f"[search][selenium] url={url}")
+        for attempt in range(max_try):
+            mode = self.get_current_request_mode()
+            self.log_signal_func(f"[search] 시도 {attempt + 1}/{max_try}, mode={mode}, company='{filtered_company_name}', owner='{owner}'")
 
-                headers = {
-                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-                    "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-                    "cache-control": "no-cache",
-                    "pragma": "no-cache",
-                    "referer": "https://bizno.net/",
-                    "sec-ch-ua": '"Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145"',
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": '"Windows"',
-                    "sec-fetch-dest": "document",
-                    "sec-fetch-mode": "navigate",
-                    "sec-fetch-site": "same-origin",
-                    "upgrade-insecure-requests": "1",
-                    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
-                }
 
-                html = self.get_html_by_selenium(url, headers=headers)
-                if not html or self.is_blocked_html(html):
-                    self.log_signal_func("[search][selenium] ❌ 실패/차단")
-                    self.handle_mode_fail("search selenium fail/blocked")
+            try:
+                if mode == "selenium":
+                    url = f"https://bizno.net/?area=&query={quote(filtered_company_name)}"
+                    self.log_signal_func(f"[search][selenium] url={url}")
+
+                    headers = {
+                        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                        "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+                        "cache-control": "no-cache",
+                        "pragma": "no-cache",
+                        "referer": "https://bizno.net/",
+                        "sec-ch-ua": '"Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145"',
+                        "sec-ch-ua-mobile": "?0",
+                        "sec-ch-ua-platform": '"Windows"',
+                        "sec-fetch-dest": "document",
+                        "sec-fetch-mode": "navigate",
+                        "sec-fetch-site": "same-origin",
+                        "upgrade-insecure-requests": "1",
+                        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+                    }
+
+                    html = self.get_html_by_selenium(url, headers=headers)
+                    if not html or self.is_blocked_html(html):
+                        self.log_signal_func("[search][selenium] ❌ 실패/차단")
+                        self.handle_mode_fail("search selenium fail/blocked")
+                        return
+
+                    soup = BeautifulSoup(html, "html.parser")
+                    hit = 0
+
+                    for d in soup.select(".details"):
+                        hit += 1
+                        if self.safe_text(d.select_one("h5"), strip=True) != owner:
+                            continue
+
+                        a_tag = d.select_one('a[href^="/article/"]')
+                        if not a_tag:
+                            continue
+
+                        href = a_tag.get("href") or ""
+                        if not href:
+                            continue
+
+                        item["article"] = href.split("/article/")[1]
+                        item["회사명"] = self.safe_text(d.select_one("h4"), strip=True)
+                        self.log_signal_func(
+                            f"[search][selenium] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
+                        )
+                        return
+
+                    self.log_signal_func(f"[search][selenium] 결과 스캔 완료. details_count={hit}, match=0")
                     return
 
-                soup = BeautifulSoup(html, "html.parser")
-                hit = 0
+                if mode == "main_server":
+                    resp = self.request_bizno_search_api(filtered_company_name, owner)
+                    res = self._loads_if_needed(resp.text)
 
-                for d in soup.select(".details"):
-                    hit += 1
-                    if self.safe_text(d.select_one("h5"), strip=True) != owner:
-                        continue
+                    if self.is_api_error_response(res):
+                        self.log_signal_func(f"[search][api] ❌ 서버 에러: {res.get('message')}")
+                        self.handle_mode_fail(f"search api error: {res.get('message')}")
+                        return
 
-                    a_tag = d.select_one('a[href^="/article/"]')
-                    if not a_tag:
-                        continue
+                    if res.get("success") and res.get("article"):
+                        item["article"] = str(res.get("article") or "").strip()
+                        item["회사명"] = str(res.get("회사명") or "").strip()
+                        self.log_signal_func(
+                            f"[search][api] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
+                        )
+                        return
 
-                    href = a_tag.get("href") or ""
-                    if not href:
-                        continue
+                    self.log_signal_func(f"[search][api] ⚠️ 매칭 없음: {res.get('message')}")
+                    return
 
-                    item["article"] = href.split("/article/")[1]
-                    item["회사명"] = self.safe_text(d.select_one("h4"), strip=True)
-                    self.log_signal_func(
-                        f"[search][selenium] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
+                if self.is_dynamic_api_server_mode(mode):
+                    server_info = self.get_api_server_info_by_mode(mode)
+                    server_id = str(server_info.get("serverId") or "").strip()
+                    server_base_url = str(server_info.get("serverUrl") or "").strip()
+                    server_api_key = str(server_info.get("serverApiKey") or "").strip()
+                    user_id = self.get_request_user_id()
+
+                    if not server_base_url or not server_api_key:
+                        self.log_signal_func(f"[search][{mode}] ❌ 서버 정보 없음")
+                        self.handle_mode_fail(f"search dynamic api server info missing: {mode}")
+                        return
+
+                    resp = self.request_bizno_search_api(
+                        filtered_company_name,
+                        owner,
+                        base_url=server_base_url,
+                        api_key=server_api_key,
+                        user_id=user_id
                     )
+                    res = self._loads_if_needed(resp.text)
+
+                    if self.is_api_error_response(res):
+                        self.log_signal_func(
+                            f"[search][{server_id}] ❌ 서버 에러: {res.get('message')}"
+                        )
+                        self.handle_mode_fail(f"search dynamic api error [{server_id}]: {res.get('message')}")
+                        return
+
+                    if res.get("success") and res.get("article"):
+                        item["article"] = str(res.get("article") or "").strip()
+                        item["회사명"] = str(res.get("회사명") or "").strip()
+                        self.log_signal_func(
+                            f"[search][{server_id}] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
+                        )
+                        return
+
+                    self.log_signal_func(f"[search][{server_id}] ⚠️ 매칭 없음: {res.get('message')}")
                     return
 
-                self.log_signal_func(f"[search][selenium] 결과 스캔 완료. details_count={hit}, match=0")
-                return
-
-            if mode == "main_server":
-                resp = self.request_bizno_search_api(filtered_company_name, owner)
-                res = self._loads_if_needed(resp.text)
-
-                if self.is_api_error_response(res):
-                    self.log_signal_func(f"[search][api] ❌ 서버 에러: {res.get('message')}")
-                    self.handle_mode_fail(f"search api error: {res.get('message')}")
+                if mode == "api2":
+                    self.log_signal_func("[api2] ❌ 미구현 -> 다음 채널로 회전")
                     return
 
-                if res.get("success") and res.get("article"):
-                    item["article"] = str(res.get("article") or "").strip()
-                    item["회사명"] = str(res.get("회사명") or "").strip()
-                    self.log_signal_func(
-                        f"[search][api] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
-                    )
-                    return
+                self.log_signal_func(f"[search] ❌ 알 수 없는 mode: {mode}")
+                self.handle_mode_fail(f"unknown mode: {mode}")
 
-                self.log_signal_func(f"[search][api] ⚠️ 매칭 없음: {res.get('message')}")
-                return
+            except Exception as e:
+                self.log_signal_func(f"[search][{mode}] ❌ 예외: {e}")
+                self.handle_mode_fail(f"search exception: {e}")
+                continue
 
-            # === 신규 ===
-            if self.is_dynamic_api_server_mode(mode):
-                server_info = self.get_api_server_info_by_mode(mode)
-                server_id = str(server_info.get("serverId") or "").strip()
-                server_base_url = str(server_info.get("serverUrl") or "").strip()
-                server_api_key = str(server_info.get("serverApiKey") or "").strip()
-                user_id = self.get_request_user_id()
+        self.log_signal_func("[search] ❌ 모든 채널 시도했지만 실패")
 
-                if not server_base_url or not server_api_key:
-                    self.log_signal_func(f"[search][{mode}] ❌ 서버 정보 없음")
-                    self.handle_mode_fail(f"search dynamic api server info missing: {mode}")
-                    return
-
-                resp = self.request_bizno_search_api(
-                    filtered_company_name,
-                    owner,
-                    base_url=server_base_url,
-                    api_key=server_api_key,
-                    user_id=user_id
-                )
-                res = self._loads_if_needed(resp.text)
-
-                if self.is_api_error_response(res):
-                    self.log_signal_func(
-                        f"[search][{server_id}] ❌ 서버 에러: {res.get('message')}"
-                    )
-                    self.handle_mode_fail(f"search dynamic api error [{server_id}]: {res.get('message')}")
-                    return
-
-                if res.get("success") and res.get("article"):
-                    item["article"] = str(res.get("article") or "").strip()
-                    item["회사명"] = str(res.get("회사명") or "").strip()
-                    self.log_signal_func(
-                        f"[search][{server_id}] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
-                    )
-                    return
-
-                self.log_signal_func(f"[search][{server_id}] ⚠️ 매칭 없음: {res.get('message')}")
-                return
-
-            if mode == "api2":
-                self.log_signal_func("[api2] ❌ 미구현 -> 다음 채널로 회전")
-                return
-
-            self.log_signal_func(f"[search] ❌ 알 수 없는 mode: {mode}")
-            self.handle_mode_fail(f"unknown mode: {mode}")
-
-        except Exception as e:
-            self.log_signal_func(f"[search][{mode}] ❌ 예외: {e}")
-            self.handle_mode_fail(f"search exception: {e}")
 
     # =========================
     # bizno: detail
@@ -873,140 +884,148 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             self.log_signal_func("[detail] ⚠️ article 없음")
             return
 
-        mode = self.get_current_request_mode()
-        self.log_signal_func(f"[detail] 시작 mode={mode}, article={article}")
+        max_try = len(self._request_modes)
 
-        try:
-            if mode == "selenium":
-                url = f"https://bizno.net/article/{article}"
-                self.log_signal_func(f"[detail][selenium] url={url}")
+        for attempt in range(max_try):
+            mode = self.get_current_request_mode()
+            self.log_signal_func(f"[detail] 시도 {attempt + 1}/{max_try}, mode={mode}, article={article}")
 
-                headers = {
-                    "authority": "bizno.net",
-                    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-                    "accept-encoding": "gzip, deflate, br, zstd",
-                    "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-                    "cache-control": "no-cache",
-                    "pragma": "no-cache",
-                    "priority": "u=0, i",
-                    "referer": "https://bizno.net/",
-                    "sec-ch-ua": '"Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145"',
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": '"Windows"',
-                    "sec-fetch-dest": "document",
-                    "sec-fetch-mode": "navigate",
-                    "sec-fetch-site": "same-origin",
-                    "sec-fetch-user": "?1",
-                    "upgrade-insecure-requests": "1",
-                    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
-                }
 
-                html = self.get_html_by_selenium(url, headers=headers)
-                if not html or self.is_blocked_html(html):
-                    self.log_signal_func("[detail][selenium] ❌ 실패/차단")
-                    self.handle_mode_fail("detail selenium fail/blocked")
-                    return
+            try:
+                if mode == "selenium":
+                    url = f"https://bizno.net/article/{article}"
+                    self.log_signal_func(f"[detail][selenium] article : {article}")
 
-                soup = BeautifulSoup(html, "html.parser")
-                table = soup.select_one("table.table_guide01")
-                item["url"] = url
+                    headers = {
+                        "authority": "bizno.net",
+                        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                        "accept-encoding": "gzip, deflate, br, zstd",
+                        "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+                        "cache-control": "no-cache",
+                        "pragma": "no-cache",
+                        "priority": "u=0, i",
+                        "referer": "https://bizno.net/",
+                        "sec-ch-ua": '"Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145"',
+                        "sec-ch-ua-mobile": "?0",
+                        "sec-ch-ua-platform": '"Windows"',
+                        "sec-fetch-dest": "document",
+                        "sec-fetch-mode": "navigate",
+                        "sec-fetch-site": "same-origin",
+                        "sec-fetch-user": "?1",
+                        "upgrade-insecure-requests": "1",
+                        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+                    }
 
-                if not table:
-                    self.log_signal_func("[detail][selenium] ❌ table.table_guide01 없음")
-                    self.handle_mode_fail("detail selenium table missing")
-                    return
+                    html = self.get_html_by_selenium(url, headers=headers)
+                    if not html or self.is_blocked_html(html):
+                        self.log_signal_func("[detail][selenium] ❌ 실패/차단")
+                        self.handle_mode_fail("detail selenium fail/blocked")
+                        return
 
-                row_cnt = 0
-                for tr in table.select("tr"):
-                    th = tr.find("th")
-                    td = tr.find("td")
+                    soup = BeautifulSoup(html, "html.parser")
+                    table = soup.select_one("table.table_guide01")
+                    item["url"] = url
 
-                    key = self.safe_text(th, strip=True)
-                    val = self.safe_text(td, sep="\n", strip=True)
-
-                    if key:
-                        item[key] = val
-                        row_cnt += 1
-
-                self.log_signal_func(f"[detail][selenium] ✅ 테이블 파싱 완료. row_count={row_cnt}")
-                return
-
-            if mode == "main_server":
-                resp = self.request_bizno_detail_api(article)
-                res = self._loads_if_needed(resp.text)
-
-                if self.is_api_error_response(res):
-                    self.log_signal_func(f"[detail][api] ❌ 서버 에러: {res.get('message')}")
-                    self.handle_mode_fail(f"detail api error: {res.get('message')}")
-                    return
-
-                if res.get("success"):
-                    item["url"] = str(res.get("url") or "")
-                    data = res.get("data") or {}
+                    if not table:
+                        self.log_signal_func("[detail][selenium] ❌ table.table_guide01 없음")
+                        self.handle_mode_fail("detail selenium table missing")
+                        return
 
                     row_cnt = 0
-                    for key, val in data.items():
+                    for tr in table.select("tr"):
+                        th = tr.find("th")
+                        td = tr.find("td")
+
+                        key = self.safe_text(th, strip=True)
+                        val = self.safe_text(td, sep="\n", strip=True)
+
                         if key:
-                            item[str(key)] = str(val or "")
+                            item[key] = val
                             row_cnt += 1
 
-                    self.log_signal_func(f"[detail][api] ✅ 테이블 반영 완료. row_count={row_cnt}")
+                    self.log_signal_func(f"[detail][selenium] ✅ 테이블 파싱 완료. row_count={row_cnt}")
                     return
 
-                self.log_signal_func(f"[detail][api] ⚠️ 상세 데이터 없음: {res.get('message')}")
-                return
+                if mode == "main_server":
+                    self.log_signal_func(f"[detail][main_server] article : {article}")
+                    resp = self.request_bizno_detail_api(article)
+                    res = self._loads_if_needed(resp.text)
 
-            # === 신규 ===
-            if self.is_dynamic_api_server_mode(mode):
-                server_info = self.get_api_server_info_by_mode(mode)
-                server_id = str(server_info.get("serverId") or "").strip()
-                server_base_url = str(server_info.get("serverUrl") or "").strip()
-                server_api_key = str(server_info.get("serverApiKey") or "").strip()
-                user_id = self.get_request_user_id()
+                    if self.is_api_error_response(res):
+                        self.log_signal_func(f"[detail][api] ❌ 서버 에러: {res.get('message')}")
+                        self.handle_mode_fail(f"detail api error: {res.get('message')}")
+                        return
 
-                if not server_base_url or not server_api_key:
-                    self.log_signal_func(f"[detail][{mode}] ❌ 서버 정보 없음")
-                    self.handle_mode_fail(f"detail dynamic api server info missing: {mode}")
+                    if res.get("success"):
+                        item["url"] = str(res.get("url") or "")
+                        data = res.get("data") or {}
+
+                        row_cnt = 0
+                        for key, val in data.items():
+                            if key:
+                                item[str(key)] = str(val or "")
+                                row_cnt += 1
+
+                        self.log_signal_func(f"[detail][api] ✅ 테이블 반영 완료. row_count={row_cnt}")
+                        return
+
+                    self.log_signal_func(f"[detail][api] ⚠️ 상세 데이터 없음: {res.get('message')}")
                     return
 
-                resp = self.request_bizno_detail_api(
-                    article,
-                    base_url=server_base_url,
-                    api_key=server_api_key,
-                    user_id=user_id
-                )
-                res = self._loads_if_needed(resp.text)
+                if self.is_dynamic_api_server_mode(mode):
+                    self.log_signal_func(f"[detail][{mode}] article : {article}")
+                    server_info = self.get_api_server_info_by_mode(mode)
+                    server_id = str(server_info.get("serverId") or "").strip()
+                    server_base_url = str(server_info.get("serverUrl") or "").strip()
+                    server_api_key = str(server_info.get("serverApiKey") or "").strip()
+                    user_id = self.get_request_user_id()
 
-                if self.is_api_error_response(res):
-                    self.log_signal_func(
-                        f"[detail][{server_id}] ❌ 서버 에러: {res.get('message')}"
+                    if not server_base_url or not server_api_key:
+                        self.log_signal_func(f"[detail][{mode}] ❌ 서버 정보 없음")
+                        self.handle_mode_fail(f"detail dynamic api server info missing: {mode}")
+                        return
+
+                    resp = self.request_bizno_detail_api(
+                        article,
+                        base_url=server_base_url,
+                        api_key=server_api_key,
+                        user_id=user_id
                     )
-                    self.handle_mode_fail(f"detail dynamic api error [{server_id}]: {res.get('message')}")
+                    res = self._loads_if_needed(resp.text)
+
+                    if self.is_api_error_response(res):
+                        self.log_signal_func(
+                            f"[detail][{server_id}] ❌ 서버 에러: {res.get('message')}"
+                        )
+                        self.handle_mode_fail(f"detail dynamic api error [{server_id}]: {res.get('message')}")
+                        return
+
+                    if res.get("success"):
+                        item["url"] = str(res.get("url") or "")
+                        data = res.get("data") or {}
+
+                        row_cnt = 0
+                        for key, val in data.items():
+                            if key:
+                                item[str(key)] = str(val or "")
+                                row_cnt += 1
+
+                        self.log_signal_func(f"[detail][{server_id}] ✅ 테이블 반영 완료. row_count={row_cnt}")
+                        return
+
+                    self.log_signal_func(f"[detail][{server_id}] ⚠️ 상세 데이터 없음: {res.get('message')}")
                     return
 
-                if res.get("success"):
-                    item["url"] = str(res.get("url") or "")
-                    data = res.get("data") or {}
-
-                    row_cnt = 0
-                    for key, val in data.items():
-                        if key:
-                            item[str(key)] = str(val or "")
-                            row_cnt += 1
-
-                    self.log_signal_func(f"[detail][{server_id}] ✅ 테이블 반영 완료. row_count={row_cnt}")
+                if mode == "api2":
+                    self.log_signal_func("[detail][api2] ❌ 미구현 -> 다음 채널로 회전")
                     return
 
-                self.log_signal_func(f"[detail][{server_id}] ⚠️ 상세 데이터 없음: {res.get('message')}")
-                return
+                self.log_signal_func(f"[detail] ❌ 알 수 없는 mode: {mode}")
+                self.handle_mode_fail(f"unknown mode: {mode}")
 
-            if mode == "api2":
-                self.log_signal_func("[detail][api2] ❌ 미구현 -> 다음 채널로 회전")
-                return
+            except Exception as e:
+                self.log_signal_func(f"[detail][{mode}] ❌ 예외: {e}")
+                self.handle_mode_fail(f"detail exception: {e}")
+                continue
 
-            self.log_signal_func(f"[detail] ❌ 알 수 없는 mode: {mode}")
-            self.handle_mode_fail(f"unknown mode: {mode}")
-
-        except Exception as e:
-            self.log_signal_func(f"[detail][{mode}] ❌ 예외: {e}")
-            self.handle_mode_fail(f"detail exception: {e}")
+        self.log_signal_func(f"[detail] ❌ 모든 채널 시도했지만 실패. article={article}")
