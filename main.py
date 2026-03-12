@@ -1,228 +1,244 @@
-# -*- coding: utf-8 -*-
-import time
-import random
-from datetime import datetime
-from urllib.parse import quote
-import requests
-import pandas as pd
+# krx_data_set.py
+from __future__ import annotations
 
-# =========================
-# 설정
-# =========================
-KEYWORDS = [
-    "경기", "제주도", "서울", "인천", "대구", "대전", "충남", "경남",
-    "부산", "전북", "울산", "광주", "강원", "경북", "전남", "충북", "세종"
-]
-
-CATEGORY_MAP = {
-    1: "모텔",
-    2: "호텔·리조트",
-    3: "펜션",
-    15: "홈&빌라",
-    5: "캠핑",
-    18: "게하·한옥",
-}
-
-CHECK_IN = "2026-05-11"
-CHECK_OUT = "2026-05-12"
-LIMIT = 1000
-
-BASE = "https://www.yeogi.com"
-API_PATH = "/api/gateway/web-product-api/places/search"
+import json  # === 신규 ===
+import sys
+from pathlib import Path
+from typing import Optional
 
 
-# =========================
-# 유틸
-# =========================
-def build_referer(keyword_kr: str, category: int, page: int) -> str:
-    return (
-        f"{BASE}/domestic-accommodations"
-        f"?sortType=RECOMMEND"
-        f"&keyword={quote(keyword_kr)}"
-        f"&personal=2"
-        f"&checkIn={CHECK_IN}&checkOut={CHECK_OUT}"
-        f"&category={category}"
-        f"&page={page}"
-    )
+import os
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
 
 
-def build_api_url(keyword_kr: str, category: int, page: int) -> str:
-    return (
-        f"{BASE}{API_PATH}"
-        f"?category={category}"
-        f"&sortType=RECOMMEND"
-        f"&keyword={quote(keyword_kr)}"
-        f"&page={page}"
-        f"&personal=2"
-        f"&checkIn={CHECK_IN}&checkOut={CHECK_OUT}"
-        f"&limit={LIMIT}"
-    )
+from PySide6.QtCore import Qt, QLockFile, QDir  # === 신규 ===
+from PySide6.QtWidgets import QApplication, QMessageBox
+
+from src.app_manager import AppManager
+from src.core.global_state import GlobalState
+from src.utils.app_config_loader import AppConfigLoader
+from src.utils.config import set_app_server_config
+from src.core.services.service_loader import load_services
 
 
-def base_headers(referer: str) -> dict:
-    # "필요한 것만" 위주로 최소 구성
-    return {
-        "accept": "application/json, text/plain, */*",
-        "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-        "user-agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/143.0.0.0 Safari/537.36"
-        ),
-        "referer": referer,
+def _setup_ffmpeg_path(base_path: Path):
+    """
+    _internal/resources/bin 또는 resources/bin에 있는 ffmpeg를
+    시스템 PATH에 등록하여 Whisper가 인식하도록 합니다.
+    """
+    # PyInstaller 빌드 시 보통 base_path는 exe 위치입니다.
+    # 제공해주신 경로 구조에 맞춰 bin 폴더 위치를 잡습니다.
+    ffmpeg_bin = base_path / "_internal" / "resources" / "bin"
 
-        # yeogi에서 자주 쓰는 커스텀 헤더
-        "x-api-max-version": "2.0.0",
-        "x-channel": "YEOGI",
-        "x-device-id": "WEB",
-        "x-device-platform": "NEW_WEB",
+    # 만약 위 경로가 없다면 일반 resources/bin도 확인 (개발 환경 등)
+    if not ffmpeg_bin.exists():
+        ffmpeg_bin = base_path / "resources" / "bin"
 
-        # 사용자가 준 priority
-        "priority": "u=1, i",
-    }
+    if ffmpeg_bin.exists():
+        bin_str = str(ffmpeg_bin.resolve())
+        if bin_str not in os.environ["PATH"]:
+            os.environ["PATH"] = bin_str + os.pathsep + os.environ["PATH"]
 
 
-def safe_get(d: dict, *keys, default=None):
-    cur = d
-    for k in keys:
-        if not isinstance(cur, dict):
-            return default
-        if k not in cur:
-            return default
-        cur = cur[k]
-    return cur
+def show_already_running_alert(existing_app: Optional[QApplication] = None) -> None:
+    app_created = False
+    app = existing_app or QApplication.instance()
+    if app is None:
+        app = QApplication(sys.argv)
+        app_created = True
 
+    msg = QMessageBox()
+    msg.setIcon(QMessageBox.Warning)
+    msg.setWindowTitle("이미 실행 중")
+    msg.setText("프로그램이 이미 실행 중입니다.\n기존 실행 중인 창을 확인해 주세요.")
+    msg.setStandardButtons(QMessageBox.Ok)
+    msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+    msg.exec()
 
-def request_json(session: requests.Session, url: str, headers: dict, max_retry: int = 5) -> dict:
-    last_err = None
-    for attempt in range(1, max_retry + 1):
+    if app_created:
         try:
-            r = session.get(url, headers=headers, timeout=20)
-            if r.status_code == 200:
-                return r.json()
-
-            # 흔한 제한/오류 대응
-            if r.status_code in (429, 500, 502, 503, 504):
-                sleep_s = min(8, 1.2 * attempt) + random.random()
-                time.sleep(sleep_s)
-                continue
-
-            r.raise_for_status()
-
-        except Exception as e:
-            last_err = e
-            sleep_s = min(8, 1.2 * attempt) + random.random()
-            time.sleep(sleep_s)
-
-    raise RuntimeError(f"Request failed: {url} / last_err={str(last_err)}")
+            app.exit(0)
+        except Exception:
+            pass
 
 
-# =========================
-# 크롤러
-# =========================
-def warmup(session: requests.Session):
-    # 쿠키/세션 세팅용 워밍업 (필수 아닐 수 있으나 안전빵)
-    url = f"{BASE}/domestic-accommodations"
-    headers = {
-        "user-agent": base_headers(url)["user-agent"],
-        "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-    }
+# =========================================================
+# runtime path helpers
+# =========================================================
+def _get_base_path() -> Path:
+    """
+    - 개발: 프로젝트 기준
+    - 빌드(frozen): exe 위치 기준. 개발 krx_data_set.py 기준
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+# =========================================================
+# config helpers  # === 신규 ===
+# =========================================================
+def _read_runtime_app_json(base_path: Path) -> dict:
+    runtime_dir = base_path / "runtime"
+    app_json_path = runtime_dir / "app.json"
+
+    if not app_json_path.exists():
+        raise FileNotFoundError(f"runtime/app.json not found: {str(app_json_path)}")
+
     try:
-        session.get(url, headers=headers, timeout=20)
+        raw = app_json_path.read_text(encoding="utf-8")
+    except Exception:
+        raw = app_json_path.read_text(encoding="utf-8-sig")
+
+    try:
+        data = json.loads(raw)
+    except Exception as e:
+        raise ValueError(f"runtime/app.json JSON 파싱 실패: {str(e)}")
+
+    if not isinstance(data, dict):
+        raise ValueError("runtime/app.json 최상위 구조는 object(dict)여야 합니다.")
+    return data
+
+
+def _get_allow_multi_instance(runtime_json: dict) -> bool:
+    v = runtime_json.get("allow_multi_instance", False)
+    return bool(v)
+
+
+def _get_single_instance_key(runtime_json: dict) -> str:
+    v = runtime_json.get("instance_key", "my_pyside_app")
+    v = str(v).strip()
+    return v or "my_pyside_app"
+
+
+# =========================================================
+# single instance guard  # === 신규 ===
+# =========================================================
+_SINGLE_INSTANCE_LOCK: Optional[QLockFile] = None  # === 신규 ===
+
+
+def _acquire_single_instance_lock(app: QApplication, lock_key: str) -> bool:  # === 신규 ===
+    global _SINGLE_INSTANCE_LOCK
+
+    base_dir = Path(QDir.tempPath()) / lock_key
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    lock_path = base_dir / f"{lock_key}.lock"
+    lock = QLockFile(str(lock_path))
+    lock.setStaleLockTime(10_000)  # 10초
+
+    if not lock.tryLock(0):
+        show_already_running_alert(app)
+        return False
+
+    _SINGLE_INSTANCE_LOCK = lock
+    return True
+
+
+def _release_single_instance_lock() -> None:  # === 신규 ===
+    global _SINGLE_INSTANCE_LOCK
+    lock = _SINGLE_INSTANCE_LOCK
+    _SINGLE_INSTANCE_LOCK = None
+    if lock is None:
+        return
+    try:
+        lock.unlock()
     except Exception:
         pass
 
 
-def crawl_all() -> pd.DataFrame:
-    session = requests.Session()
-    warmup(session)
+def _bootstrap_runtime_config(state: GlobalState) -> None:
+    base = _get_base_path()
+    runtime_dir = base / "runtime"
+    app_json_path = runtime_dir / "app.json"
 
-    out_rows = []
-    total_cnt = 0          # 전체 누적 개수
-    req_cnt = 0            # === 신규 === API 요청 횟수
+    loader = AppConfigLoader(str(app_json_path))
 
-    for kw in KEYWORDS:
-        for cat, cat_kr in CATEGORY_MAP.items():
-            page = 1
-            seen_ids = set()
+    app_conf = loader.load_app_config()
+    set_app_server_config(app_conf.server_url, app_conf.server_name)
 
-            print(f"\n[START] keyword='{kw}' | category='{cat_kr}'")
+    site_configs = loader.get_enabled_site_configs(app_conf)
 
-            while True:
-                req_cnt += 1  # === 신규 ===
+    state.set(
+        GlobalState.APP_CONFIG,
+        {
+            "site_list_use": app_conf.site_list_use,
+            "runtime_dir": str(runtime_dir),
+        },
+    )
+    state.set(GlobalState.SITE_CONFIGS, site_configs)
 
-                referer = build_referer(kw, cat, page)
-                url = build_api_url(kw, cat, page)
-                headers = base_headers(referer)
-
-                print(f"[REQ #{req_cnt}] keyword='{kw}' | category='{cat_kr}' | page={page}")
-
-                data = request_json(session, url, headers)
-                body = safe_get(data, "body", default={}) or {}
-                items = safe_get(body, "items", default=[]) or []
-
-                if not items:
-                    print(f"[END PAGE] keyword='{kw}' | category='{cat_kr}' | page={page} -> items=0 (종료)")
-                    break
-
-                added_this_page = 0
-                for it in items:
-                    meta = safe_get(it, "meta", default={}) or {}
-                    braze = safe_get(it, "braze", default={}) or {}
-
-                    place_id = safe_get(meta, "id", default=None)
-                    name = safe_get(meta, "name", default=None)
-
-                    # 무한루프 방지: 같은 데이터만 반복되면 컷
-                    if place_id is not None and place_id in seen_ids:
-                        continue
-                    if place_id is not None:
-                        seen_ids.add(place_id)
-
-                    region = safe_get(braze, "region", default=None)
-                    city = safe_get(braze, "city", default=None)
-
-                    out_rows.append({
-                        "keyword": kw,
-                        "category": cat_kr,
-                        "id": place_id,
-                        "name": name,
-                        "region": region,
-                        "city": city,
-                    })
-                    added_this_page += 1
-
-                total_cnt += added_this_page
-
-                print(
-                    f"[PAGE DONE] keyword='{kw}' | category='{cat_kr}' | "
-                    f"page={page} | added={added_this_page} | total={total_cnt}"
-                )
-
-                # 페이지당 추가가 0이면(전부 중복) 종료
-                if added_this_page == 0:
-                    print(f"[STOP] keyword='{kw}' | category='{cat_kr}' | page={page} -> added=0 (중복만 발생)")
-                    break
-
-                time.sleep(0.25 + random.random() * 0.25)
-                page += 1
-
-            print(f"[FINISH] keyword='{kw}' | category='{cat_kr}' | 누적={total_cnt}")
-
-    df = pd.DataFrame(out_rows)
-    if not df.empty:
-        df = df.drop_duplicates(subset=["keyword", "category", "id"], keep="first").reset_index(drop=True)
-    return df
+    site_configs_by_key = {}
+    for d in (site_configs or []):
+        k = str(d.get("key") or "").strip()
+        if k:
+            site_configs_by_key[k] = d
+    state.set("site_configs_by_key", site_configs_by_key)
 
 
-def main():
-    df = crawl_all()
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_path = f"yeogi_places_{ts}.csv"
-    df.to_csv(out_path, index=False, encoding="utf-8-sig")
-    print(f"\n[OK] rows={len(df)} saved => {out_path}")
+def main() -> int:
+    base = _get_base_path()
+    _setup_ffmpeg_path(base)
+
+    app = QApplication(sys.argv)
+
+    try:
+        runtime_json = _read_runtime_app_json(base)
+        allow_multi = _get_allow_multi_instance(runtime_json)
+        lock_key = _get_single_instance_key(runtime_json)
+    except Exception as e:
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Critical)
+        msg.setWindowTitle("설정 로드 실패")
+        msg.setText(f"runtime/app.json을 읽는 중 오류가 발생했습니다.\n\n{str(e)}")
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+        msg.exec()
+        return 1
+
+    if not allow_multi:
+        if not _acquire_single_instance_lock(app, lock_key):
+            return 0
+
+    state = GlobalState()
+    state.initialize()
+
+    try:
+        _bootstrap_runtime_config(state)
+
+        site_configs = state.get(GlobalState.SITE_CONFIGS) or []
+
+        services = set()
+        for conf in site_configs:
+            for svc in (conf.get("services") or []):
+                s = str(svc).strip()
+                if s:
+                    services.add(s)
+
+        load_services(services)
+
+    except Exception as e:
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Critical)
+        msg.setWindowTitle("설정 로드 실패")
+        msg.setText(f"runtime 설정을 읽는 중 오류가 발생했습니다.\n\n{str(e)}")
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+        msg.exec()
+        _release_single_instance_lock()
+        return 1
+
+    manager = AppManager(app)
+    manager.start()
+
+    rc = app.exec()
+
+    _release_single_instance_lock()
+    return rc
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
