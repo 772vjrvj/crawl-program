@@ -13,8 +13,20 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # =========================
 # 설정
 # =========================
-INPUT_CSV  = "yeogi_places_20260312_195058.csv"
+INPUT_CSV  = "yeogi_places_20260312_204547.csv"
 OUT_PREFIX = "yeogi_place_contract"
+
+# === 신규 ===
+OUTPUT_COLUMN_MAP = {
+    "id": "아이디",
+    "companyName": "상호",
+    "ownerName": "대표자명",
+    "licenseNumber": "사업자번호",
+    "roadNameAddress": "주소",
+    "email": "이메일",
+    "tel": "전화번호",
+    "mailOrderRegNo": "통신판매업 신고번호",
+}
 
 BASE = "https://www.yeogi.com"
 URL_TPL = BASE + "/api/gateway/web-product-api/places/{id}/metas/contract"
@@ -166,16 +178,33 @@ def main():
 
     out_df = pd.DataFrame(results)
 
-    # 컬럼 정렬: id 먼저, 에러/상태/url는 뒤로
+    # === 신규 === 원하는 컬럼 순서 먼저 고정
+    preferred_front = [
+        "id",
+        "companyName",
+        "ownerName",
+        "licenseNumber",
+        "roadNameAddress",
+        "email",
+        "tel",
+        "mailOrderRegNo",
+    ]
+
+    # 컬럼 정렬: 지정 컬럼 먼저, 나머지는 중간, 에러/상태/url는 뒤로
     cols = list(out_df.columns)
-    front = ["id"]
+    front = [c for c in preferred_front if c in cols]
     tail = [c for c in ["_error", "_status", "_url"] if c in cols]
     middle = [c for c in cols if c not in set(front + tail)]
     out_df = out_df[front + middle + tail]
 
+    # === 신규 === 컬럼명 한글 변환
+    out_df = out_df.rename(columns=OUTPUT_COLUMN_MAP)
+
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_path = f"{OUT_PREFIX}_{ts}.csv"
-    out_df.to_csv(out_path, index=False, encoding="utf-8-sig")
+    out_path = f"{OUT_PREFIX}_{ts}.xlsx"
+
+    # === 신규 === CSV 대신 엑셀 저장
+    out_df.to_excel(out_path, index=False)
 
     log(f"완료: ok={ok}, fail={fail}, saved={out_path}")
 
