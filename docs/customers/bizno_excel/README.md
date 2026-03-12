@@ -32,6 +32,9 @@
     # 추후 로컬 서버, proxy 서버를 추가할 예정이다.
 
 
+■ 실행
+프로그램 실행 로그인
+
 ■ worker 경로 "worker_class": "src.workers.main.api_keca_ecic_request_set_worker:ApiKecaEcicExcelSetWorker",
 
 

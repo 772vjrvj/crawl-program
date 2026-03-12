@@ -6,7 +6,7 @@ import os
 import re
 from typing import Any, Callable, Dict, List, Mapping, Optional
 from urllib.parse import urlparse
-
+import sys
 import httpx
 
 from src.utils.time_utils import get_current_yyyymmddhhmmss
@@ -274,3 +274,21 @@ class FileUtils:
         if path.endswith(".gif"):
             return "gif"
         return "jpg"
+
+
+
+    def get_main_start_dir(self) -> str:
+        if getattr(sys, "frozen", False):
+            exe_dir = os.path.dirname(sys.executable)
+            if os.path.isdir(exe_dir):
+                return exe_dir
+
+        argv0 = os.path.dirname(os.path.abspath(sys.argv[0]))
+        if os.path.isdir(argv0):
+            return argv0
+
+        cwd = os.getcwd()
+        if os.path.isdir(cwd):
+            return cwd
+
+        return os.path.expanduser("~")

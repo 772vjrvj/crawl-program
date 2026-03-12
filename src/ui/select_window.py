@@ -1,5 +1,5 @@
 # src/ui/select_window.py
-from __future__ import annotations  # === 신규 ===
+from __future__ import annotations
 
 from functools import partial
 from typing import List, Optional, Any
@@ -13,7 +13,9 @@ from PySide6.QtWidgets import (
 from src.core.global_state import GlobalState                # 전역 상태 저장/조회
 from src.ui.style.style import create_common_button, main_style  # 공통 버튼/입력창 스타일
 from src.models.site import Site                                 # 사이트 정보 VO(레이블/키/컬러 등)
-
+from copy import deepcopy
+import os
+import sys
 
 class SelectWindow(QWidget):
     """
@@ -215,11 +217,13 @@ class SelectWindow(QWidget):
             self.show_message("접속실패", f"{site.label}은(는) 준비 중입니다.")
             return
 
+        resolved_setting = self._apply_setting_default_paths(site.setting)
+
         state = GlobalState()
         state.set(GlobalState.NAME, site.label)
         state.set(GlobalState.SITE, site.key)
         state.set(GlobalState.COLOR, site.color)
-        state.set(GlobalState.SETTING, site.setting)
+        state.set(GlobalState.SETTING, resolved_setting)
         state.set(GlobalState.SETTING_DETAIL, site.setting_detail)
         state.set(GlobalState.COLUMNS, site.columns)
         state.set(GlobalState.REGION, site.region)
@@ -233,3 +237,42 @@ class SelectWindow(QWidget):
         self.sites = list(sites)
         self.filtered_sites = list(sites)
         self._rebuild_buttons()
+
+
+    # 현재 프로그램 시작 경로 반환
+    def _get_main_start_dir(self) -> str:
+        if getattr(sys, "frozen", False):
+            exe_dir = os.path.dirname(sys.executable)
+            if os.path.isdir(exe_dir):
+                return exe_dir
+
+        argv0 = os.path.dirname(os.path.abspath(sys.argv[0]))
+        if os.path.isdir(argv0):
+            return argv0
+
+        cwd = os.getcwd()
+        if os.path.isdir(cwd):
+            return cwd
+
+        return os.path.expanduser("~")
+
+    # setting 내 path_type=main 인 항목에 실행 경로 주입
+    def _apply_setting_default_paths(self, settings: Any) -> Any:
+        copied = deepcopy(settings)
+
+        if not isinstance(copied, list):
+            return copied
+
+        main_start_dir = self._get_main_start_dir()
+
+        for item in copied:
+            if not isinstance(item, dict):
+                continue
+
+            code = str(item.get("code", "") or "").strip()
+            path_type = str(item.get("path_type", "") or "").strip().lower()
+
+            if code == "folder_path" and path_type == "main":
+                item["value"] = main_start_dir
+
+        return copied

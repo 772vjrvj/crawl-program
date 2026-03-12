@@ -34,6 +34,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.before_pro_value: float = 0.0
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
+        self.folder_path: str = ""
 
         self._cookie_ready: bool = False
 
@@ -116,7 +117,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         try:
             self.log_signal_func(f"크롤링 시작. 전체 수 {len(self.excel_data_list)}")
 
-            folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+            self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
 
             self.csv_filename = os.path.basename(
                 self.file_driver.get_csv_filename(self.site_name)
@@ -125,7 +126,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             self.excel_driver.init_csv(
                 self.csv_filename,
                 self.columns,
-                folder_path=folder_path,
+                folder_path=self.folder_path,
                 sub_dir=self.out_dir
             )
 
@@ -236,7 +237,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     self.csv_filename,
                     [item],
                     self.columns,
-                    folder_path=folder_path,
+                    folder_path=self.folder_path,
                     sub_dir=self.out_dir
                 )
                 self.log_signal_func("💾 CSV 저장(append) 완료")
@@ -301,14 +302,14 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     def cleanup(self) -> None:
         self.log_signal_func("🧹 cleanup 시작")
 
-        folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+        self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
 
         try:
             if self.csv_filename and self.excel_driver:
                 self.log_signal_func(f"🧾 CSV -> 엑셀 변환 시작: {self.csv_filename}")
                 self.excel_driver.convert_csv_to_excel_and_delete(
                     self.csv_filename,
-                    folder_path=folder_path,
+                    folder_path=self.folder_path,
                     sub_dir=self.out_dir
                 )
                 self.log_signal_func("✅ [엑셀 변환] 성공")
