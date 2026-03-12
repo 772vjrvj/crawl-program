@@ -17,12 +17,12 @@ VSVersionInfo(
           '040904B0',
           [
             StringStruct('CompanyName', 'GB7'),
-            StringStruct('FileDescription', 'BIZNO'),
+            StringStruct('FileDescription', 'KECA_ECIC'),
             StringStruct('FileVersion', '1.0.0'),
-            StringStruct('InternalName', 'BIZNO'),
+            StringStruct('InternalName', 'KECA_ECIC'),
             StringStruct('LegalCopyright', '© 2026 GB7'),
-            StringStruct('OriginalFilename', 'BIZNO.exe'),
-            StringStruct('ProductName', 'BIZNO'),
+            StringStruct('OriginalFilename', 'KECA_ECIC.exe'),
+            StringStruct('ProductName', 'KECA_ECIC'),
             StringStruct('ProductVersion', '1.0.0')
           ]
         )
