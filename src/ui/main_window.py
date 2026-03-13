@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMessageBox,
-    QTextEdit,
+    QPlainTextEdit,
     QProgressBar,
     QApplication
 )
@@ -128,7 +128,7 @@ class MainWindow(QWidget):
         self.excel_setting_button: Optional[QWidget] = None
 
         self.progress_bar: Optional[QProgressBar] = None
-        self.log_window: Optional[QTextEdit] = None
+        self.log_window: Optional[QPlainTextEdit] = None
         self.logout_worker: Optional[LogoutWorker] = None
 
         # 팝업
@@ -425,43 +425,44 @@ class MainWindow(QWidget):
             }
         """)
 
-        self.log_window = QTextEdit(self)
+        self.log_window = QPlainTextEdit(self)
 
         self.log_window.setObjectName("log_window")
 
         self.log_window.setReadOnly(True)
+        self.log_window.document().setMaximumBlockCount(2000)
 
         self.log_window.setStyleSheet(f"""
-        QTextEdit#log_window {{
+        QPlainTextEdit#log_window {{
             {LOG_STYLE}
         }}
         
-        QTextEdit#log_window QScrollBar:vertical {{
+        QPlainTextEdit#log_window QScrollBar:vertical {{
             width: 8px;
         }}
-        QTextEdit#log_window QScrollBar:horizontal {{
+        QPlainTextEdit#log_window QScrollBar:horizontal {{
             height: 8px;
         }}
         
-        QTextEdit#log_window QScrollBar::handle:vertical {{
+        QPlainTextEdit#log_window QScrollBar::handle:vertical {{
             min-height: 20px;
             background: rgba(120, 120, 120, 160);
             border-radius: 4px;
         }}
-        QTextEdit#log_window QScrollBar::handle:horizontal {{
+        QPlainTextEdit#log_window QScrollBar::handle:horizontal {{
             min-width: 20px;
             background: rgba(120, 120, 120, 160);
             border-radius: 4px;
         }}
         
-        QTextEdit#log_window QScrollBar::add-line,
-        QTextEdit#log_window QScrollBar::sub-line {{
+        QPlainTextEdit#log_window QScrollBar::add-line,
+        QPlainTextEdit#log_window QScrollBar::sub-line {{
             width: 0px;
             height: 0px;
         }}
         """)
 
-        self.log_window.setLineWrapMode(QTextEdit.NoWrap)
+        self.log_window.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.log_window.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.log_window.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
 
@@ -479,7 +480,7 @@ class MainWindow(QWidget):
             return
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_message = f"[{timestamp}] {message}"
-        self.log_window.append(log_message)
+        self.log_window.appendPlainText(log_message)
 
     # 프로그램 시작 중지
     def start_on_demand_worker(self) -> None:
@@ -751,9 +752,15 @@ class MainWindow(QWidget):
     # url list 업데이트
     def excel_data_set_list(self, excel_data_list: List[Any]) -> None:
         self.excel_data_list = excel_data_list
-        self.add_log(f"엑셀 데이터 갯수 : {len(self.excel_data_list)}")
-        for data in excel_data_list:
-            self.add_log(data)
+        total = len(self.excel_data_list)
+        self.add_log(f"엑셀 데이터 갯수 : {total}")
+
+        preview_count = min(10, total)   # === 신규 === 최대 10건만 미리보기
+        for i, data in enumerate(excel_data_list[:preview_count], start=1):
+            self.add_log(f"[미리보기 {i}/{preview_count}] {data}")
+
+        if total > preview_count:
+            self.add_log(f"... 외 {total - preview_count}건 생략")
 
     def update_user(self, user: Any) -> None:
         self.user = user
