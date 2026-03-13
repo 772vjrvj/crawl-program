@@ -73,7 +73,6 @@ def crawl_all_messages(chat_url: str) -> list[dict]:
     print(f"  첫 페이지: {len(first_list)}건 / id {first_id} ~ {last_id}")
 
     while int(first_id) > 1:
-        time.sleep(0.5)
         old_list = request_chat_read(chat_url, min_id=first_id)
 
         if not old_list:
@@ -198,7 +197,6 @@ def main() -> None:
         print(f"  저장 대상 메시지 수: {len(rows)}")
 
         all_rows.extend(rows)
-        time.sleep(0.7)
 
     save_csv(all_rows)
     save_excel(all_rows)

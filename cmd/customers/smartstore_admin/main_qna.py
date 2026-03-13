@@ -1,5 +1,8 @@
-import json
+import math
+import random
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
 import requests
@@ -7,15 +10,16 @@ import requests
 
 URL = "https://sell.smartstore.naver.com/api/v3/contents/comments/pages"
 
-COOKIE = """NAC=sTKYB8Q0oCuv; NNB=5JW4LAIBW6PGS; ASID=da9384ec0000019c9a7d0e5500000022; _fwb=45c3P102KEBT3izE67lKPr.1772118416325; _fbp=fb.1.1772118417182.532189996571638526; nstore_session=LKnBxxh1L2ipiCmyd3Difk2R; nstore_pagesession=jj5IAlqW5bXVpssLsGC-225598; nid_inf=1108943888; NID_AUT=5AGU4vGOG1BucmYTV/Ot0kxZfrlkbyeReiDUVFr+LTpxwFeGz7Ek3LnsOFlNBSx7; CBI_SES=BPH3JArZy1dvOpOm4G/0jcfKJ1F8TkTLbWp3n8Yj8LHsmEojJSWnouuyfhrN4fqx83LdlXPWVsI0rjEtNv8bZMV+PrTC+rLp8sBIR19aH8q+HhUlG9QBT60rgKTds1J74m2k0uzirqHEeDK/AzVz65dTZP0pdxMuWwQEK9W2zsOKLUyX7iBaleky1kAYOjGEk/tbrOCyF1wdL4LFmM6PBA1gu761+3Fmr/KY5zE6pM4b1q6fdMYesRH1t3Tl0V+nYBhKW82h/eAgY2nYqocwVSVDrdoQ+me/iJiZ7XRUYoAOgcMHT8xyqe+8yU7ujTAlck2SAuIEzJcnEVTdtSNTckse73xZHOBxZIMKF/dABuZvoZVm/iGnPbLqtnhtmxngMwsS14v7mKrFFJAyrTRsM681QFuqHxijZbzjJmaKsf7a/+/VNdzvyRohH8HV9cIM; NSI=2lK46D8m8rIQNLZPpu9G85CRbLY4pdrvqmRjXLdF; NACT=1; SRT30=1773342502; NID_SES=AAAB8Hyygcie9hVv9+KX10SGQcPoLzofZizxefUqagGmXf52nL1BWXWcdU8OcYKNmosGF3bvQfSDbBxr8UjUrnCEXJPGhiKq5a+E6LIQXQrTx6wYY+VpDQH7dJIOZrQVcIg9xUZiQgpevLFURfwxvYe34DhnjYQ2SYIc/T7p0KqNVXmscittvHB+3vLfWZN3LiiLMRG01HkI4zvWfCYgg8UjVy7ErlDlcQbe0WDEUUFo2QC/9b49Rmc2kAJFDd+ARUq2pr6FvJBuliEmtWcMdDanlBVAZTWv6wqdagojaPeSoGgqJDtXzvu7DaHToIBhSY5U9ik0lxat/wGED8QCyoV407eyJ9NcpGGIIml/kfZycNgB+8g5rTwzZm8QTjM9xDrORl+1WQsLcV0tJOUKkIb9EVAdlppSYD6wHqR7Z3Eunm3jwO2f00EZOKISsSG3XRgngcfXlaKvvheWcb32BkcExFaq9YKlIIGxoFYtPDUE4yZWQFa86znuomUwAF9g+lczwjbAvKthuwI84Fhchdx6M9y54spwDYy+OjFvXVUFJ2D8fNIbUQgOZTjsVHeTWh8UbmDrzWiy1ZtbrsyLUlPOmKzqLLwHny8izta4sYo+HlVMDPTOIdGXQ2kcHgefYROlrupLgD7JYdRniW1ik4iaYRs=; cto_bundle=rfg_7F9qSmJKeGVhNVY3S3J3bHVUcHNlJTJGalNQMjhnTXZEWVRQTTJHdFY0SEZibHRBSHI1VEwxVTV1UTF5ZzNIa1JBMk9MJTJCNWdVeE5TVXlwTGszUFBQYmlwcTIlMkJYcnV5S21DUUhVRFZLZjhZeVBldGJHN0cwWkRJUWt2WnNtd3Z6JTJCQ2JR; CBI_CHK="r5V0mf9uRUZHZ/vmLGy3ez7f4/k4aqWXL5o03eN68fqLRkfANj2mMKLuHew5Nt7kk+Us2vGKYu/1dgfESwLJyiS3ngXtYbQAOCAoOTU+nJ9PUJKwsH10WfMnZEJJRU5kP2M3DdMU8tsDp3AKjvaVpjfk1Q7Sx+bbHQJYWeHFd+0="; SRT5=1773344868; BUC=1xZxTND0-5vjHbNqEDlA7_sBtTqBXCfTTWv4gse0mbk="""
+COOKIE = """NAC=sTKYB8Q0oCuv; NNB=5JW4LAIBW6PGS; ASID=da9384ec0000019c9a7d0e5500000022; _fwb=45c3P102KEBT3izE67lKPr.1772118416325; _fbp=fb.1.1772118417182.532189996571638526; nstore_session=LKnBxxh1L2ipiCmyd3Difk2R; nstore_pagesession=jj5IAlqW5bXVpssLsGC-225598; cto_bundle=PP7e9l9qSmJKeGVhNVY3S3J3bHVUcHNlJTJGamRoOUljcVJXYmdpZUlMd2pZM0glMkI3a0lBc0IwUXFlYXV5bll1RERVeFYlMkJTa29pQlh4TlpJSCUyQms4dlVlb3hyRnBkTFZLZmRHM09BeHhEVlN3RWQlMkJOc2tucEdpTzZJNFo4Z0R2bExCYTNndW4; nid_inf=1114662082; NID_AUT=eWfKDXfxjNP0QeBSSWooOdSK8Oge1zEmloU+8ADX/rIMukDbYtkqmJpaFK5ojErK; page_uid=jkdA5lqps2y0BMWCuJo-366763; CBI_SES=6YmLVKT+AnMWKmZ6wWvlmQtgPfflEPlCrmmg8tpa1dMS3bQx7QgxNxaVBWtSwxgy2IjN5okTKbd3gfWDPN3rviNyIlWzgdOKF8cb5Q9pI2k8bIEnMRhZM/K++yL6M5qLvfbbRBdTeMXHbhR6Ahg9TnGx6O9lvCNrMz/42ueWuLyHypK5Ac1J0TwvrcgVb3GaYxzN9eQbeATT9v0lpyJ67uHZgjSEdqvVyyqk6CVyHcFYtA22Q/v2TVMRtYWRN6LBAQ48H2g/TVjcDifCPjfmViExp/0pMINfmegkOI5r0NNguC/rzRZpvpWMzqZrDTC4/o6EhPbVbs9fR3heDygQ5eYih7j26eq1cVsNNpW8+Caz4n4b/4g+Twhlrw/mXkhZmm87BjKnCFvxw1xj+2WLWdStu8gnjFrpW8FMZrVL/8K+X62yO4MtFvKcJQVOfJ+q; NSI=E3kTGUMGr3KiA5sk67DT8nbJ61v47hAefJJEOzPh; NACT=1; CBI_CHK="r5V0mf9uRUZHZ/vmLGy3ez7f4/k4aqWXL5o03eN68fqLRkfANj2mMKLuHew5Nt7kk+Us2vGKYu/1dgfESwLJyiS3ngXtYbQAOCAoOTU+nJ9PUJKwsH10WfMnZEJJRU5kLpbaesATR7cYxM2lVsLPwugT8hriDVmwh3R25YyPw5g="; NID_SES=AAAB446NyG/Y3UYEcSFa8597GZIBjdnxtgEYWm1cKc/WDA4W8LRhac1salxUq6OTlfP2eectO4rRgsOCRFIz3DENz8kEHJqFSiOJ7Bp1jfOHytTtfxKDrmoD1fdnhQOCfV/31gXgobiuTKB267Z0/6kqbephwGkrd71EQNmK6+2Ebg2M8KpQyS+XwkBJnko0sWSZO+28T0Ibc4Gp2qvUNhRSNsVyEoLJmn2kKsCpdXXnMsY7y402td/o0MD6HwsMRc3SjFSG6jXyZOUqIiJZhShtHqFv7ZKEoWY8sRArr4AoQPRN3UB8a6q8Z/fI1kyuTnD5Wy6q2Cv0glQ0XUocCWGxwv32nqcgy/zQpqUSA+TL7BlJZVMQ8ipofdr3q3HKg4poaPF+N4F8g9v6C4X/4PJ2s+aZHNtGnrjCoFqseF56EW5oLHizvNXdSug9RMJvJHKALf753A2U12Lv/Lk2qa9HLGtYmWuV4AB9wbEpEZYPDXIe+2G4ivDsVx0RHJ5gQvyQIuFepxZi0BkaP48BhgT3FOwXYJgJjcFUcwNf0f0WjGt94OGfJrSosYMyeu/vUWdQwxdjILW0qcoDNCitDCq73O5iUY/XLDlRbMA98XYZ+2iCzAe7Ep58JcgWJHzeFN0OfDl9S2aT0fmSVkSswLOwep0=; SRT30=1773420567; SRT5=1773420567; BUC=I2gDZJP3YA5qRMIzGThWxaB4kXISxKnNnBItoAtmNEA="""
 
-START_DATE = "2024-03-13T00:00:00.000+09:00"
+START_DATE = "2020-09-01T00:00:00.000+09:00"
 END_DATE = "2026-03-13T23:59:59.999+09:00"
 
 START_PAGE = 0
 SIZE = 300
 TOTAL_COUNT = 366
 RANGE = 5
+MAX_WORKERS = 6
 
 CSV_FILE = "smartstore_qna.csv"
 XLSX_FILE = "smartstore_qna.xlsx"
@@ -41,6 +45,16 @@ HEADERS = {
     "cookie": COOKIE,
 }
 
+_thread_local = threading.local()
+
+
+def get_session() -> requests.Session:
+    session = getattr(_thread_local, "session", None)
+    if session is None:
+        session = requests.Session()
+        _thread_local.session = session
+    return session
+
 
 def build_params(start_date: str, end_date: str, page: int, size: int, total_count: int) -> dict:
     return {
@@ -58,13 +72,17 @@ def build_params(start_date: str, end_date: str, page: int, size: int, total_cou
 
 
 def fetch_page(
-        session: requests.Session,
         start_date: str,
         end_date: str,
         page: int,
         size: int,
         total_count: int,
-) -> list[dict]:
+) -> tuple[int, list[dict]]:
+    session = get_session()
+
+    # 너무 동시에 몰리지 않게 약간만 랜덤 대기
+    time.sleep(random.uniform(0.2, 0.8))
+
     params = build_params(start_date, end_date, page, size, total_count)
     resp = session.get(URL, headers=HEADERS, params=params, timeout=30)
     resp.raise_for_status()
@@ -83,7 +101,8 @@ def fetch_page(
             "productName": item.get("productName"),
             "channelProductNo": item.get("channelProductNo"),
         })
-    return rows
+
+    return page, rows
 
 
 def collect_all(
@@ -93,22 +112,34 @@ def collect_all(
         size: int,
         total_count: int,
 ) -> list[dict]:
+    total_pages = math.ceil(total_count / size)
+    pages = list(range(start_page, start_page + total_pages))
+
+    page_result_map: dict[int, list[dict]] = {}
+    failed_pages: list[int] = []
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        future_map = {
+            executor.submit(fetch_page, start_date, end_date, page, size, total_count): page
+            for page in pages
+        }
+
+        for future in as_completed(future_map):
+            page = future_map[future]
+            try:
+                page_no, rows = future.result()
+                print(f"page={page_no} 수집건수={len(rows)}")
+                page_result_map[page_no] = rows
+            except Exception as e:
+                failed_pages.append(page)
+                print(f"page={page} 실패: {e}")
+
     all_rows = []
-    page = start_page
+    for page in sorted(page_result_map.keys()):
+        all_rows.extend(page_result_map[page])
 
-    with requests.Session() as session:
-        while True:
-            print(f"page={page} 요청중...")
-            rows = fetch_page(session, start_date, end_date, page, size, total_count)
-
-            if not rows:
-                print(f"page={page} rows 비어있음 -> 중지")
-                break
-
-            print(f"page={page} 수집건수={len(rows)}")
-            all_rows.extend(rows)
-            page += 1
-            time.sleep(2)
+    if failed_pages:
+        print(f"실패 페이지: {failed_pages}")
 
     return all_rows
 
@@ -138,7 +169,7 @@ def main() -> None:
     )
 
     print(f"총 수집건수: {len(all_rows)}")
-    print(json.dumps(all_rows, ensure_ascii=False, indent=2))
+    # print(all_rows)  # 필요하면 사용
 
     save_files(all_rows, CSV_FILE, XLSX_FILE)
     print(f"CSV 저장 완료: {CSV_FILE}")

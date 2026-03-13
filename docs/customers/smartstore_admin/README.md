@@ -34,6 +34,13 @@ https://smartstore.naver.com/laatove
 
 2년치면 2024년 3월 12일 부터 26년 3월 12일
 
+QNA 전부 6년치
+리뷰 전부 6년치
+어항 관련됫것만
+톡톡은 나중에
+
+
+
 # 사용법
 tablepet
 rkdtjddnjs!00
