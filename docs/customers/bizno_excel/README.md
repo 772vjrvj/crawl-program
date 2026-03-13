@@ -52,6 +52,24 @@
     작업하실때는 한 1000~2000개 정도 나눠서 작업하시기를 추천드립니다.
 
 
+
+직전 대화 내용 요약 :
+main서버, api서버1, api서버2, api서버3, api서버4
+프로그램은 main서버에서 로그인후 main서버에서 크롤링 한다.
+그후 main서버에서 요청하다가 봇감지에 걸려서 응답을 못받으면
+api서버1로 넘어가고 또 작업하다 에러나면 3으로 4로 넘어간다.
+
+
+
+
+
+
+
+
+
+
+
+
 ■ worker 경로 "worker_class": "src.workers.main.api_keca_ecic_request_set_worker:ApiKecaEcicExcelSetWorker",
 
 

@@ -13,12 +13,18 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # =========================
 # 설정
 # =========================
-INPUT_CSV  = "yeogi_places_20260312_204547.csv"
+INPUT_CSV = "yeogi_places_20260312_204547.csv"
 OUT_PREFIX = "yeogi_place_contract"
 
-# === 신규 ===
+# === 신규 === 원본 CSV + API 결과 컬럼 한글 매핑
 OUTPUT_COLUMN_MAP = {
+    # 원본 CSV 컬럼
     "id": "아이디",
+    "keyword": "키워드",
+    "category": "카테고리",
+    "region": "시도",
+    "city": "시군구",
+    "name": "이름",
     "companyName": "상호",
     "ownerName": "대표자명",
     "licenseNumber": "사업자번호",
@@ -31,14 +37,14 @@ OUTPUT_COLUMN_MAP = {
 BASE = "https://www.yeogi.com"
 URL_TPL = BASE + "/api/gateway/web-product-api/places/{id}/metas/contract"
 
-MAX_WORKERS = 16          # PC/네트워크 상황에 맞게 8~32 조절
+MAX_WORKERS = 16
 TIMEOUT_SEC = 10
 MAX_RETRY = 4
-SLEEP_BETWEEN_RETRY_BASE = 0.6  # 재시도 백오프 베이스
+SLEEP_BETWEEN_RETRY_BASE = 0.6
 
 
 # =========================
-# 헤더 (필요한 것만)
+# 헤더
 # =========================
 def build_headers() -> Dict[str, str]:
     return {
@@ -48,8 +54,7 @@ def build_headers() -> Dict[str, str]:
             "Chrome/143.0.0.0 Safari/537.36"
         ),
         "accept": "application/json, text/plain, */*",
-
-        # 여기 값은 만료될 수 있음. 막히면 최신 쿠키로 갱신해서 넣어야 함.
+        # 필요 시 최신 쿠키로 갱신
         "cookie": "__cf_bm=px11zByBo8IcaRNlNOQ777Qre6XxHnYGkXvshuqWZb8-1765938523-1.0.1.1-HIPIo9eVf_ASwOV100y5zj0Y0UV2yNRvg6nwFb52.zOw8av8bUm4CNs7QVMUwW9kInD5uvu7EOwhNV1K2zGyzJBrFgTpZtrF_IGyJdCq5vI",
     }
 
@@ -74,7 +79,6 @@ def fetch_contract(place_id: int, headers: Dict[str, str]) -> Dict[str, Any]:
     last_err: Optional[str] = None
     last_status: Optional[int] = None
 
-    # Session을 쓰면 keep-alive로 조금 더 안정적
     session = requests.Session()
 
     for attempt in range(1, MAX_RETRY + 1):
@@ -86,7 +90,6 @@ def fetch_contract(place_id: int, headers: Dict[str, str]) -> Dict[str, Any]:
                 data = res.json()
                 body = data.get("body", {}) or {}
 
-                # id 컬럼 포함 + body 펼치기
                 out = {"id": place_id}
                 if isinstance(body, dict):
                     out.update(body)
@@ -94,14 +97,12 @@ def fetch_contract(place_id: int, headers: Dict[str, str]) -> Dict[str, Any]:
                     out["body_raw"] = str(body)
                 return out
 
-            # 흔한 제한/오류는 재시도
             if res.status_code in (403, 429, 500, 502, 503, 504):
                 last_err = f"HTTP {res.status_code}"
                 sleep_s = (SLEEP_BETWEEN_RETRY_BASE * attempt) + random.random() * 0.3
                 time.sleep(sleep_s)
                 continue
 
-            # 그 외는 즉시 실패 처리
             return {
                 "id": place_id,
                 "_error": f"HTTP {res.status_code}",
@@ -129,22 +130,28 @@ def main():
     if not os.path.exists(INPUT_CSV):
         raise FileNotFoundError(f"입력 파일을 찾을 수 없음: {INPUT_CSV}")
 
-    df = pd.read_csv(INPUT_CSV, encoding="utf-8-sig")
-    if "id" not in df.columns:
-        raise ValueError("입력 CSV에 'id' 컬럼이 없습니다.")
+    src_df = pd.read_csv(INPUT_CSV, encoding="utf-8-sig")
 
-    # id 중복 제거 + 정리
-    ids = (
-        df["id"]
-        .dropna()
-        .astype("int64", errors="ignore")
-        .astype(int)
-        .drop_duplicates()
-        .tolist()
-    )
+    required_cols = ["keyword", "category", "id", "name", "region", "city"]
+    missing_cols = [c for c in required_cols if c not in src_df.columns]
+    if missing_cols:
+        raise ValueError(f"입력 CSV에 필요한 컬럼이 없습니다: {missing_cols}")
 
-    total = len(ids)
-    log(f"입력 id 로드 완료: total_unique_ids={total}")
+    # =========================
+    # 원본 데이터 정리
+    # =========================
+    work_df = src_df.copy()
+
+    # id 숫자 변환
+    work_df["id"] = pd.to_numeric(work_df["id"], errors="coerce")
+    work_df = work_df[work_df["id"].notna()].copy()
+    work_df["id"] = work_df["id"].astype(int)
+
+    total_rows = len(work_df)
+    ids = work_df["id"].drop_duplicates().tolist()
+    total_unique_ids = len(ids)
+
+    log(f"입력 행 로드 완료: total_rows={total_rows}, total_unique_ids={total_unique_ids}")
 
     headers = build_headers()
     results: List[Dict[str, Any]] = []
@@ -152,7 +159,9 @@ def main():
     ok = 0
     fail = 0
 
-    # 멀티쓰레드 수집
+    # =========================
+    # id 기준 API 호출
+    # =========================
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
         future_map = {ex.submit(fetch_contract, pid, headers): pid for pid in ids}
 
@@ -164,23 +173,41 @@ def main():
             try:
                 row = fut.result()
             except Exception as e:
-                row = {"id": pid, "_error": str(e), "_status": None, "_url": URL_TPL.format(id=pid)}
+                row = {
+                    "id": pid,
+                    "_error": str(e),
+                    "_status": None,
+                    "_url": URL_TPL.format(id=pid),
+                }
 
             results.append(row)
 
             if "_error" in row:
                 fail += 1
-                log(f"[{done_cnt}/{total}] FAIL id={pid} err={row.get('_error')}")
+                log(f"[{done_cnt}/{total_unique_ids}] FAIL id={pid} err={row.get('_error')}")
             else:
                 ok += 1
-                # 너무 시끄러우면 아래 로그를 주석 처리
-                log(f"[{done_cnt}/{total}] OK   id={pid} companyName={row.get('companyName')}")
+                log(f"[{done_cnt}/{total_unique_ids}] OK   id={pid} companyName={row.get('companyName')}")
 
-    out_df = pd.DataFrame(results)
+    # API 결과 df
+    api_df = pd.DataFrame(results)
 
-    # === 신규 === 원하는 컬럼 순서 먼저 고정
+    # =========================
+    # 원본 CSV + API 결과 merge
+    # =========================
+    out_df = work_df.merge(api_df, on="id", how="left")
+
+    # =========================
+    # 컬럼 순서 정리
+    # =========================
     preferred_front = [
+        # 원본 CSV
         "id",
+        "keyword",
+        "category",
+        "region",
+        "city",
+        "name",        # API 결과
         "companyName",
         "ownerName",
         "licenseNumber",
@@ -190,23 +217,23 @@ def main():
         "mailOrderRegNo",
     ]
 
-    # 컬럼 정렬: 지정 컬럼 먼저, 나머지는 중간, 에러/상태/url는 뒤로
     cols = list(out_df.columns)
     front = [c for c in preferred_front if c in cols]
     tail = [c for c in ["_error", "_status", "_url"] if c in cols]
     middle = [c for c in cols if c not in set(front + tail)]
     out_df = out_df[front + middle + tail]
 
-    # === 신규 === 컬럼명 한글 변환
+    # =========================
+    # 한글 컬럼명 변경
+    # =========================
     out_df = out_df.rename(columns=OUTPUT_COLUMN_MAP)
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     out_path = f"{OUT_PREFIX}_{ts}.xlsx"
 
-    # === 신규 === CSV 대신 엑셀 저장
     out_df.to_excel(out_path, index=False)
 
-    log(f"완료: ok={ok}, fail={fail}, saved={out_path}")
+    log(f"완료: ok={ok}, fail={fail}, total_rows={len(out_df)}, saved={out_path}")
 
 
 if __name__ == "__main__":
