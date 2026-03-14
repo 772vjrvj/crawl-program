@@ -1,12 +1,13 @@
 
 ■ 고객 : 대기업사원
 ■ 요청 사이트 : 크몽
-■ 크롤링 사이트 : https://comento.kr/job-questions?feed=recent
+■ 크롤링 사이트 : https://comento.kr/job-wiki
 ■ 내용
 
 직무소개 내요 크롤링
-https://comento.kr/job-questions?feed=recent
+https://comento.kr/job-wiki
 
+yohanflower1@gmail.com / kyh2050!
 
 ■ worker 경로 "worker_class": "src.workers.main.api_comento_job_set_worker:ApiComentoJobSetWorker",
 
@@ -16,11 +17,11 @@ pyinstaller .\main.py `
 --noconfirm `
 --clean `
 --windowed `
---name "COMENTO_QNA" `
+--name "COMENTO_JOB" `
 --icon ".\resources\icons\crawling.ico" `
---version-file ".\docs\customers\comento_qna\version_info.txt" `
+--version-file ".\docs\customers\comento_job\version_info.txt" `
 --distpath ".\dist" `
---hidden-import "src.workers.main.api_comento_qna_set_worker" `
+--hidden-import "src.workers.main.api_comento_job_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `
 --exclude-module tkinter `

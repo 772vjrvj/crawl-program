@@ -4,13 +4,13 @@ from __future__ import annotations  # === 신규 ===
 import json
 import os
 import re
+import sys
 from typing import Any, Callable, Dict, List, Mapping, Optional
 from urllib.parse import urlparse
-import sys
+
 import httpx
 
 from src.utils.time_utils import get_current_yyyymmddhhmmss
-
 
 LogFunc = Callable[[str], None]
 

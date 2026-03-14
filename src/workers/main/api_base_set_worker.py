@@ -71,20 +71,69 @@ class ApiBaseExcelSetWorker(BaseApiWorker):
 
     # 드라이버 세팅
     def driver_set(self) -> None:
+
+        self.excel_driver = ExcelUtils(self.log_signal_func)
+        self.file_driver = FileUtils(self.log_signal_func)
+        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+
+        self.selenium_driver = SeleniumUtils(
+            headless=False,
+            debug=True,
+            log_func=self.log_signal_func,
+        )
+        self.driver = self.selenium_driver.start_driver(1200)
+
         self.log_signal_func("✅ stop 완료")
 
     # 정지
+    def cleanup(self) -> None:
+        # 1) selenium 종료 (driver -> selenium_driver 순서 권장)
+        try:
+            if self.driver:
+                try:
+                    self.driver.quit()
+                except Exception:
+                    pass
+        finally:
+            self.driver = None  # 여기서 끊어줘야 이후 로직이 안정적
+
+        try:
+            if self.selenium_driver:
+                try:
+                    self.selenium_driver.quit()
+                except Exception:
+                    pass
+        finally:
+            self.selenium_driver = None
+
+        # 2) api/file/excel (각각 독립적으로 닫기)
+
+        try:
+            if self.file_driver:
+                self.file_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
+        finally:
+            self.file_driver = None
+
+        try:
+            if self.excel_driver:
+                self.excel_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
+        finally:
+            self.excel_driver = None
+
+
     def stop(self) -> None:
         self.log_signal_func("✅ stop 시작")
         self.running = False
-        time.sleep(2)
+        self.cleanup()
         self.log_signal_func("✅ stop 완료")
 
-    # 마무리
+
     def destroy(self) -> None:
-        self.log_signal_func("✅ destroy 시작")
         self.progress_signal.emit(self.before_pro_value, 1000000)
         self.log_signal_func("✅ destroy")
-        time.sleep(2)
+        time.sleep(2.5)
         self.progress_end_signal.emit()
-        self.log_signal_func("✅ progress_end_signal emit 완료")
