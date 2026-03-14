@@ -2,6 +2,7 @@
 import json
 import os
 import random
+import re
 import threading
 import time
 from typing import Any, Dict, List, Optional
@@ -109,8 +110,6 @@ class ApiDmandCommSetWorker(BaseApiWorker):
                 self.log_signal_func(
                     f"✅ 질문 처리 완료 / {idx}/{self.total_cnt} / 번호={qna_id} / 댓글수={len(comment_list)} / 생성행수={len(rows)}"
                 )
-
-                # time.sleep(random.uniform(0.2, 0.5))
 
             if rows_buffer:
                 self.flush_rows_buffer(rows_buffer)
@@ -240,7 +239,7 @@ class ApiDmandCommSetWorker(BaseApiWorker):
         rows: List[Dict[str, Any]] = []
 
         if not comment_list:
-            rows.append(base_row)
+            rows.append(self.sanitize_row_for_excel(base_row))
             return rows
 
         for comment in comment_list:
@@ -252,7 +251,7 @@ class ApiDmandCommSetWorker(BaseApiWorker):
                 row = dict(base_row)
                 row["댓글 내용"] = comment_desc
                 row["댓글 등록일"] = comment_created_time
-                rows.append(row)
+                rows.append(self.sanitize_row_for_excel(row))
                 continue
 
             for reply in reply_arr:
@@ -261,7 +260,7 @@ class ApiDmandCommSetWorker(BaseApiWorker):
                 row["댓글 등록일"] = comment_created_time
                 row["대댓글 내용"] = reply.get("description") or ""
                 row["대댓글 등록일"] = reply.get("created_time") or ""
-                rows.append(row)
+                rows.append(self.sanitize_row_for_excel(row))
 
         return rows
 
@@ -269,15 +268,33 @@ class ApiDmandCommSetWorker(BaseApiWorker):
         if not rows_buffer:
             return
 
+        clean_rows = [self.sanitize_row_for_excel(row) for row in rows_buffer]
+        save_count = len(clean_rows)
+
         self.excel_driver.append_to_csv(
             self.csv_filename,
-            rows_buffer,
+            clean_rows,
             self.columns,
             folder_path=self.folder_path,
             sub_dir=self.out_dir
         )
 
-        self.log_signal_func(f"✅ CSV 저장 완료 / 저장행수={len(rows_buffer)}")
+        self.log_signal_func(f"✅ CSV 저장 완료 / 저장행수={save_count}")
+
+    def sanitize_excel_value(self, value: Any) -> Any:
+        if value is None:
+            return ""
+
+        if not isinstance(value, str):
+            return value
+
+        return re.sub(r"[\x00-\x08\x0B-\x0C\x0E-\x1F]", "", value).strip()
+
+    def sanitize_row_for_excel(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        clean_row: Dict[str, Any] = {}
+        for k, v in row.items():
+            clean_row[k] = self.sanitize_excel_value(v)
+        return clean_row
 
     def category_to_kr(self, category: Any) -> str:
         category_str = str(category or "").strip().upper()
