@@ -110,7 +110,7 @@ class ApiDmandCommSetWorker(BaseApiWorker):
                     f"✅ 질문 처리 완료 / {idx}/{self.total_cnt} / 번호={qna_id} / 댓글수={len(comment_list)} / 생성행수={len(rows)}"
                 )
 
-                time.sleep(random.uniform(0.2, 0.5))
+                # time.sleep(random.uniform(0.2, 0.5))
 
             if rows_buffer:
                 self.flush_rows_buffer(rows_buffer)
