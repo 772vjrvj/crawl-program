@@ -9,6 +9,8 @@ https://comento.kr/job-wiki
 
 yohanflower1@gmail.com / kyh2050!
 
+생산직, 기술직, 기능직
+
 ■ worker 경로 "worker_class": "src.workers.main.api_comento_job_set_worker:ApiComentoJobSetWorker",
 
 
