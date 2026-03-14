@@ -5,6 +5,7 @@ import random
 import re
 import threading
 import time
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from src.utils.api_utils import APIClient
@@ -110,6 +111,8 @@ class ApiDmandCommSetWorker(BaseApiWorker):
                 self.log_signal_func(
                     f"✅ 질문 처리 완료 / {idx}/{self.total_cnt} / 번호={qna_id} / 댓글수={len(comment_list)} / 생성행수={len(rows)}"
                 )
+
+                time.sleep(random.uniform(0.2, 0.5))
 
             if rows_buffer:
                 self.flush_rows_buffer(rows_buffer)
@@ -229,7 +232,7 @@ class ApiDmandCommSetWorker(BaseApiWorker):
             "카테고리": self.category_to_kr(qna.get("category")),
             "질문 제목": qna.get("title") or "",
             "질문 내용": qna.get("description") or "",
-            "질문 등록일": qna.get("created_time") or "",
+            "질문 등록일": self.format_datetime_str(qna.get("created_time")),
             "댓글 내용": "",
             "댓글 등록일": "",
             "대댓글 내용": "",
@@ -244,7 +247,7 @@ class ApiDmandCommSetWorker(BaseApiWorker):
 
         for comment in comment_list:
             comment_desc = comment.get("description") or ""
-            comment_created_time = comment.get("created_time") or ""
+            comment_created_time = self.format_datetime_str(comment.get("created_time"))
             reply_arr = comment.get("reply_arr") or []
 
             if not reply_arr:
@@ -259,7 +262,7 @@ class ApiDmandCommSetWorker(BaseApiWorker):
                 row["댓글 내용"] = comment_desc
                 row["댓글 등록일"] = comment_created_time
                 row["대댓글 내용"] = reply.get("description") or ""
-                row["대댓글 등록일"] = reply.get("created_time") or ""
+                row["대댓글 등록일"] = self.format_datetime_str(reply.get("created_time"))
                 rows.append(self.sanitize_row_for_excel(row))
 
         return rows
@@ -295,6 +298,26 @@ class ApiDmandCommSetWorker(BaseApiWorker):
         for k, v in row.items():
             clean_row[k] = self.sanitize_excel_value(v)
         return clean_row
+
+    def format_datetime_str(self, value: Any) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+
+        try:
+            dt = datetime.fromisoformat(text)
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            pass
+
+        try:
+            if "." in text:
+                dt = datetime.strptime(text, "%Y-%m-%dT%H:%M:%S.%f")
+            else:
+                dt = datetime.strptime(text, "%Y-%m-%dT%H:%M:%S")
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            return text
 
     def category_to_kr(self, category: Any) -> str:
         category_str = str(category or "").strip().upper()
