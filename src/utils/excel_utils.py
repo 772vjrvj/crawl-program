@@ -1,10 +1,9 @@
-# /src/utils/excel_utils.py
-
 import pandas as pd
 import os
 from openpyxl import load_workbook, Workbook
 from openpyxl.utils import get_column_letter
 import csv
+import re
 
 
 class ExcelUtils:
@@ -93,13 +92,25 @@ class ExcelUtils:
         if self.log_func:
             self.log_func("excel 저장완료")
 
+    def _clean_excel_cell_value(self, value):
+        if pd.isna(value):
+            return ""
+
+        text = str(value).strip()
+
+        # 엑셀 저장 불가 제어문자 제거
+        # 허용: \t, \n, \r
+        text = re.sub(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]", "", text)
+
+        return text
+
     def convert_csv_to_excel_and_delete(self, csv_filename, sheet_name="Sheet1", folder_path=None, sub_dir=None, keep_csv=False):
         csv_filename = self.build_file_path(csv_filename, folder_path, sub_dir)
 
         if not os.path.exists(csv_filename):
             if self.log_func:
                 self.log_func(f"❌ CSV 파일이 존재하지 않습니다: {csv_filename}")
-            return
+            return False
 
         try:
             df = pd.read_csv(csv_filename, encoding="utf-8-sig", dtype=str)
@@ -107,12 +118,10 @@ class ExcelUtils:
             if df.empty:
                 if self.log_func:
                     self.log_func(f"⚠️ CSV에 데이터가 없습니다: {csv_filename}")
-                return
+                return False
 
             for col in df.columns:
-                df[col] = df[col].apply(
-                    lambda v: "" if pd.isna(v) else str(v).strip()
-                )
+                df[col] = df[col].apply(self._clean_excel_cell_value)
 
             excel_filename = os.path.splitext(csv_filename)[0] + ".xlsx"
 
@@ -123,7 +132,7 @@ class ExcelUtils:
                 for r in ws.iter_rows(min_row=2, max_row=len(df) + 1):
                     for cell in r:
                         if cell.value is not None:
-                            cell.value = str(cell.value)
+                            cell.value = self._clean_excel_cell_value(cell.value)
 
             if not keep_csv:
                 os.remove(csv_filename)
@@ -136,9 +145,11 @@ class ExcelUtils:
             if self.log_func:
                 self.log_func(f"✅ 엑셀 파일 저장 완료: {excel_filename}")
 
+            return True
         except Exception as e:
             if self.log_func:
                 self.log_func(f"❌ 변환 중 오류 발생: {e}")
+            return False
 
     def obj_to_row(self, o, cols):
         if isinstance(o, dict):
