@@ -5,7 +5,7 @@
   "server_name": "CrawlProgram",
   "allow_multi_instance": true,
   "instance_key": "my_pyside_app",
-  "site_list_use": ["COMENTO_QNA"],
+  "site_list_use": ["NAVER_BLOG_CONTENTS"],
   "site_list": [
     {
       "key": "NAVER_BAND_MEMBER",
@@ -46,6 +46,10 @@
     {
       "key": "DMAND_COMM",
       "config_path": "customers/dmand_comm/config.json"
+    },
+    {
+      "key": "NAVER_BLOG_CONTENTS",
+      "config_path": "customers/naver_blog_contents/config.json"
     }
   ]
 }

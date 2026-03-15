@@ -1,0 +1,2 @@
+naverblog1/1234
+navetblog2/1234

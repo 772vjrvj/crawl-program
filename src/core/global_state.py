@@ -20,6 +20,7 @@ class GlobalState:
     SITE_CONFIGS: ClassVar[str] = "site_configs"
 
     USER_ID: ClassVar[str] = "user_id"
+    WORKER_OBJ: ClassVar[str] = "worker_obj"
 
     _instance: ClassVar[Optional["GlobalState"]] = None
 
@@ -53,6 +54,7 @@ class GlobalState:
                 self.APP_CONFIG: {},
                 self.SITE_CONFIGS: [],
                 self.USER_ID: "",
+                self.WORKER_OBJ: {},
             }
             self._initialized = True
 

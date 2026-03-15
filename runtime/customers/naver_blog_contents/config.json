@@ -1,0 +1,36 @@
+{
+  "label": "네이버 블로그 글조회",
+  "key": "NAVER_BLOG_CONTENTS",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": false,
+  "worker_class": "src.workers.main.api_naver_blog_contents_set_worker:ApiNaverBlogContentsSetLoadWorker",
+  "setting": [
+      {"name": "블로그 URL", "code": "url",        "value": "", "type": "button"},
+      {"name": "게시판 선택", "code": "url_select", "value": "", "type": "select"},
+      {"name": "시작 페이지", "code": "st_page",    "value": "", "type": "input"},
+      {"name": "종료 페이지", "code": "ed_page",    "value": "", "type": "input"},
+      {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+        "button_text": "폴더 선택",
+        "dialog_title": "저장 폴더 선택",
+        "path_type": "main"
+      }
+  ],
+  "columns": [
+    {
+      "checked": true,
+      "code": "title",
+      "value": "제목"
+    },
+    {
+      "checked": true,
+      "code": "contents",
+      "value": "내용"
+    },
+    {
+      "checked": true,
+      "code": "url",
+      "value": "URL"
+    }
+  ]
+}
