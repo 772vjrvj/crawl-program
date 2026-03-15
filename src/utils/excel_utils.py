@@ -93,7 +93,7 @@ class ExcelUtils:
         if self.log_func:
             self.log_func("excel 저장완료")
 
-    def convert_csv_to_excel_and_delete(self, csv_filename, sheet_name="Sheet1", folder_path=None, sub_dir=None):
+    def convert_csv_to_excel_and_delete(self, csv_filename, sheet_name="Sheet1", folder_path=None, sub_dir=None, keep_csv=False):
         csv_filename = self.build_file_path(csv_filename, folder_path, sub_dir)
 
         if not os.path.exists(csv_filename):
@@ -125,11 +125,16 @@ class ExcelUtils:
                         if cell.value is not None:
                             cell.value = str(cell.value)
 
-            os.remove(csv_filename)
+            if not keep_csv:
+                os.remove(csv_filename)
+                if self.log_func:
+                    self.log_func(f"🗑️ CSV 파일 삭제 완료: {csv_filename}")
+            else:
+                if self.log_func:
+                    self.log_func(f"📄 CSV 파일 유지: {csv_filename}")
 
             if self.log_func:
                 self.log_func(f"✅ 엑셀 파일 저장 완료: {excel_filename}")
-                self.log_func(f"🗑️ CSV 파일 삭제 완료: {csv_filename}")
 
         except Exception as e:
             if self.log_func:
