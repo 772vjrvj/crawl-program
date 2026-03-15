@@ -1,0 +1,58 @@
+{
+  "label": "네이버 밴드 멤버",
+  "key": "NAVER_BAND_MEMBER",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": false,
+  "worker_class": "src.workers.main.api_naver_band_member_set_worker:ApiNaverBandMemberSetWorker",
+  "setting": [
+    {
+      "name": "밴드ID",
+      "code": "band_id",
+      "value": "",
+      "type": "input"
+    },
+    {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
+  ],
+  "columns": [
+    {
+      "checked": true,
+      "code": "band_name",
+      "value": "밴드명"
+    },
+    {
+      "checked": true,
+      "code": "user_no",
+      "value": "유저번호"
+    },
+    {
+      "checked": true,
+      "code": "role",
+      "value": "직책"
+    },
+    {
+      "checked": true,
+      "code": "created_at",
+      "value": "등록일"
+    },
+    {
+      "checked": true,
+      "code": "name",
+      "value": "이름"
+    },
+    {
+      "checked": true,
+      "code": "description",
+      "value": "설명"
+    },
+    {
+      "checked": true,
+      "code": "phone",
+      "value": "전화번호"
+    }
+  ]
+}

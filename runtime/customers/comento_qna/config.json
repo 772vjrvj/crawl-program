@@ -1,0 +1,34 @@
+{
+  "label": "COMENTO_QNA",
+  "key": "COMENTO_QNA",
+  "color": "#ccc",
+  "enabled": true,
+  "worker_class": "src.workers.main.api_comento_qna_set_worker:ApiComentoQnaSetWorker",
+  "setting": [
+    {
+      "name": "키워드(,콤마로 구분해서 적어주세요)",
+      "code": "keyword",
+      "value": "",
+      "type": "input"
+    },
+    {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
+  ],
+  "columns": [
+    {"code": "keyword",      "value": "키워드",   "checked": true},
+    {"code": "q_questionNo", "value": "질문 번호",   "checked": true},
+    {"code": "q_createdAt",  "value": "질문 등록일", "checked": true},
+    {"code": "q_content",    "value": "질문 내용",   "checked": true},
+    {"code": "q_category",   "value": "카테고리",   "checked": true},
+    {"code": "q_company",    "value": "회사",       "checked": true},
+    {"code": "m_canonical",  "value": "URL",        "checked": true},
+    {"code": "m_title",      "value": "질문 제목",   "checked": true},
+    {"code": "r_job",        "value": "직무",       "checked": true},
+    {"code": "a_no",         "value": "응답 번호",   "checked": true},
+    {"code": "a_createdAt",  "value": "응답 등록일", "checked": true},
+    {"code": "a_content",    "value": "응답 내용",   "checked": true}
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "label": "네이버 쇼핑 전체방문자",
+  "key": "NAVER_SHOP_TOTAL",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": false,
+  "worker_class": "src.workers.main.api_naver_shop_total_set_worker:ApiNaverShopTotalSetWorker",
+  "services": ["ai_whisper"],
+  "setting": [
+    {
+      "name": "키워드(,콤마로 구분해서 적어주세요)",
+      "code": "keyword",
+      "value": "",
+      "type": "input"
+    },
+    {
+      "name": "시작페이지",
+      "code": "start_page",
+      "value": "1",
+      "type": "input"
+    },
+    {
+      "name": "종료페이지",
+      "code": "end_page",
+      "value": "10",
+      "type": "input"
+    },
+    {
+      "name": "기준 방문자 수(같거나 작은 경우 추출)",
+      "code": "site_total_cnt",
+      "value": "500",
+      "type": "input"
+    },
+    {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
+  ],
+  "columns": [
+    { "checked": true, "code": "keyword", "value": "키워드" },
+    { "checked": true, "code": "collected_at", "value": "수집일시" },
+
+    { "checked": true, "code": "product_name", "value": "상품명" },
+    { "checked": true, "code": "category", "value": "카테고리" },
+    { "checked": true, "code": "product_no", "value": "상품번호" },
+
+    { "checked": true, "code": "list_price", "value": "원가" },
+    { "checked": true, "code": "low_price", "value": "최소가" },
+    { "checked": true, "code": "sale_price", "value": "판매가격" },
+    { "checked": true, "code": "delivery_fee", "value": "배송비" },
+    { "checked": true, "code": "discount_ratio", "value": "할인률" },
+
+    { "checked": true, "code": "brand", "value": "브랜드" },
+
+    { "checked": true, "code": "review_count", "value": "리뷰수" },
+    { "checked": true, "code": "purchase_count", "value": "구매건수" },
+    { "checked": true, "code": "wish_count", "value": "찜하기수" },
+
+    { "checked": true, "code": "store_name", "value": "스토어명" },
+    { "checked": true, "code": "mallProdMblUrl", "value": "스토어모바일주소" },
+    { "checked": true, "code": "mallProductUrl", "value": "스토어PC주소" },
+    { "checked": true, "code": "pc_url", "value": "PC주소" },
+
+    { "checked": true, "code": "total_visit_count", "value": "전체방문자수" },
+    { "checked": true, "code": "page", "value": "페이지" },
+    { "checked": true, "code": "no", "value": "번호" }
+  ]
+}

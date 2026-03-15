@@ -1,0 +1,31 @@
+{
+  "label": "주식 KRX NEXTRADE",
+  "key": "KRX_NEXTRADE",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": false,
+  "worker_class": "src.workers.main.api_krx_nextrade_brand_set_worker:ApiKrxNextradeSetLoadWorker",
+  "setting": [
+    {"name": "[조건1] 일 거래대금[억](콤마없이) 이상(▲)", "code": "price_sum1",    "value": "0", "type": "input"},
+    {"name": "[조건1] 일 등락률(%)(숫자) 이상(▲)", "code": "rate1","value": "0", "type": "input"},
+    {"name": "[조건2] 일 거래대금[억](콤마없이) 이상(▲)", "code": "price_sum2",    "value": "0", "type": "input"},
+    {"name": "[조건2] 일 등락률(%)(숫자) 이상(▲)", "code": "rate2","value": "0", "type": "input"},
+    {"name": "날짜(YYYYMMDD) 시작", "code": "fr_date","value": "20260101", "type": "input"},
+    {"name": "날짜(YYYYMMDD) 종료", "code": "to_date","value": "20260101", "type": "input"},
+    {"name": "자동 리포트 여부(날짜 작업할 땐 체크 해재 하세요)",            "code": "auto_yn","value": true, "type": "check"},
+    {"name": "자동 리포트 시간(기본 20시 [HHMM으로])",   "code": "auto_time","value": "2000", "type": "input"},
+    {"name": "종목 제거 키워드",   "code": "no_stock","value": "KODEX, TIGER, KB, RISE, ACE, KINDEX, SOL, KOSEF, PLUS, ARIRANG, HANARO", "type": "input"},
+    {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
+  ],
+  "columns": [
+    {"code": "date",  "value": "날짜",        "checked": true},
+    {"code": "rank",  "value": "순위",        "checked": true},
+    {"code": "name",  "value": "종목명",      "checked": true},
+    {"code": "sum",   "value": "거래대금합계", "checked": true},
+    {"code": "rate",  "value": "등락률",      "checked": true}
+  ]
+}

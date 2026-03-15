@@ -1,0 +1,35 @@
+{
+  "label": "DMAND_COMM",
+  "key": "DMAND_COMM",
+  "color": "#ccc",
+  "enabled": true,
+  "worker_class": "src.workers.main.api_dmand_comm_set_worker:ApiDmandCommSetWorker",
+  "setting": [
+    {
+      "name": "커뮤니티", "code": "community", "value": "커뮤니티", "type": "select",
+      "options": [
+       {"key": "전체", "value": "ALL"},
+       {"key": "자유", "value": "FREE"},
+       {"key": "취업·자격증", "value": "EMPLOYMENT"}
+     ]
+    },
+    {
+      "name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
+  ],
+  "columns": [
+    {"code": "id",            "value": "번호",   "checked": true},
+    {"code": "category",      "value": "카테고리",   "checked": true},
+    {"code": "q_title",         "value": "질문 제목",   "checked": true},
+    {"code": "q_description",     "value": "질문 내용",       "checked": true},
+    {"code": "q_created_time",  "value": "질문 등록일", "checked": true},
+
+    {"code": "r_description",     "value": "댓글 내용",       "checked": true},
+    {"code": "r_created_time",  "value": "댓글 등록일", "checked": true},
+    {"code": "rr_description",     "value": "대댓글 내용",       "checked": true},
+    {"code": "rr_created_time",  "value": "대댓글 등록일", "checked": true}
+  ]
+}

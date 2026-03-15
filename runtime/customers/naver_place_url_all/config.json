@@ -1,0 +1,49 @@
+{
+  "label": "네이버 플레이스 URL",
+  "key": "NAVER_PLACE_URL_ALL",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": true,
+  "worker_class": "src.workers.main.api_naver_place_url_all_set_worker:ApiNaverPlaceUrlAllSetWorker",
+  "setting": [
+    {
+      "name": "용량(MB) 1 ~ 1000사이 숫자를 입력하세요",
+      "code": "image_size",
+      "value": "1000",
+      "type": "input"
+    },
+    {
+      "name": "이미지 압축 여부",
+      "code": "zip",
+      "value": true,
+      "type": "check"
+    },
+    {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
+  ],
+  "columns": [
+    {"code": "url",             "value": "URL",            "checked": true},
+    {"code": "image",           "value": "이미지",          "checked": true},
+    {"code": "id",              "value": "아이디",          "checked": true},
+    {"code": "name",            "value": "이름",            "checked": true},
+    {"code": "addr_jibun",      "value": "주소(지번)",      "checked": true},
+    {"code": "addr_road",       "value": "주소(도로명)",    "checked": true},
+    {"code": "category_main",   "value": "대분류",          "checked": true},
+    {"code": "category_sub",    "value": "소분류",          "checked": true},
+    {"code": "rating",          "value": "별점",            "checked": true},
+    {"code": "review_visitors", "value": "방문자리뷰수",    "checked": true},
+    {"code": "review_blogs",    "value": "블로그리뷰수",    "checked": true},
+    {"code": "open_time1",      "value": "이용시간1",       "checked": true},
+    {"code": "open_time2",      "value": "이용시간2",       "checked": true},
+    {"code": "category",        "value": "카테고리",        "checked": true},
+    {"code": "map",             "value": "지도",            "checked": true},
+    {"code": "amenities",       "value": "편의시설",        "checked": true},
+    {"code": "virtual_phone",   "value": "가상번호",        "checked": true},
+    {"code": "phone",           "value": "전화번호",        "checked": true},
+    {"code": "site",            "value": "사이트",          "checked": true},
+    {"code": "region_info",     "value": "주소지정보",      "checked": true}
+  ]
+}

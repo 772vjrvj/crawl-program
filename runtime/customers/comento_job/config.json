@@ -1,0 +1,27 @@
+{
+  "label": "COMENTO_JOB",
+  "key": "COMENTO_JOB",
+  "color": "#ccc",
+  "enabled": true,
+  "worker_class": "src.workers.main.api_comento_job_set_worker:ApiComentoJobSetWorker",
+  "setting": [
+    {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 실행경로)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
+  ],
+  "columns": [
+    {"code": "id",            "value": "아이디",        "checked": true},
+    {"code": "writer",        "value": "작성자",        "checked": true},
+    {"code": "company",       "value": "회사명",        "checked": true},
+    {"code": "jobGroup",      "value": "직군",          "checked": true},
+    {"code": "job",           "value": "직무",          "checked": true},
+    {"code": "career",        "value": "경력",          "checked": true},
+    {"code": "description",   "value": "설명",          "checked": true},
+    {"code": "competency",    "value": "역량",          "checked": true},
+    {"code": "advantage",     "value": "장점",          "checked": true},
+    {"code": "disAdvantage",  "value": "단점",          "checked": true},
+    {"code": "updatedAt",     "value": "수정일시",      "checked": true}
+  ]
+}

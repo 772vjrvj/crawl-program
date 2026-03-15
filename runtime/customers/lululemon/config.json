@@ -1,0 +1,23 @@
+{
+  "label": "LULULEMON",
+  "key": "LULULEMON",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": true,
+  "worker_class": "src.workers.main.api_lululemon_set_worker:ApiLululemonSetLoadWorker",
+  "setting": [
+    {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
+  ],
+  "columns" : [
+    {"code": "color",      "value": "컬러",     "checked": true},
+    {"code": "size",       "value": "사이즈",   "checked": true},
+    {"code": "option_price","value": "옵션가",  "checked": true},
+    {"code": "stock_qty",  "value": "재고수량", "checked": true},
+    {"code": "manage_code","value": "관리코드", "checked": true},
+    {"code": "use_yn",     "value": "사용여부", "checked": true}
+  ]
+}

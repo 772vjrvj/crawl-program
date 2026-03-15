@@ -1,0 +1,51 @@
+{
+  "server_url": "http://vjrvj.cafe24.com",
+  "server_url_main": "http://vjrvj.cafe24.com",
+  "server_url_local": "http://localhost",
+  "server_name": "CrawlProgram",
+  "allow_multi_instance": true,
+  "instance_key": "my_pyside_app",
+  "site_list_use": ["COMENTO_QNA"],
+  "site_list": [
+    {
+      "key": "NAVER_BAND_MEMBER",
+      "config_path": "customers/naver_band_member/config.json"
+    },
+    {
+      "key": "NAVER_SHOP_TOTAL",
+      "config_path": "customers/naver_shop_total/config.json"
+    },
+    {
+      "key": "NAVER_PLACE_URL_ALL",
+      "config_path": "customers/naver_place_url_all/config.json"
+    },
+    {
+      "key": "KRX_NEXTRADE",
+      "config_path": "customers/krx_nextrade_brand/config.json"
+    },
+    {
+      "key": "BIZNO_EXCEL",
+      "config_path": "customers/bizno_excel/config.json"
+    },
+    {
+      "key": "LULULEMON",
+      "config_path": "customers/lululemon/config.json"
+    },
+    {
+      "key": "KECA_ECIC",
+      "config_path": "customers/keca_ecic/config.json"
+    },
+    {
+      "key": "COMENTO_JOB",
+      "config_path": "customers/comento_job/config.json"
+    },
+    {
+      "key": "COMENTO_QNA",
+      "config_path": "customers/comento_qna/config.json"
+    },
+    {
+      "key": "DMAND_COMM",
+      "config_path": "customers/dmand_comm/config.json"
+    }
+  ]
+}
