@@ -16,6 +16,9 @@
 
 각 저장
 
+■ worker 경로 "worker_class": "src.workers.main.api_kmong_set_worker:ApiKmongSetWorker",
+
+
 
 pyinstaller .\main.py `
 --noconfirm `

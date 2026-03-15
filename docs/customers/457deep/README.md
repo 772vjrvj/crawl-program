@@ -36,6 +36,9 @@ kyh2050!
 457deep2 / 1234
 
 
+■ worker 경로 "worker_class": "src.workers.main.api_457deep_set_worker:Api457DeepSetWorker",
+
+
 ■ 개별 빌드
 pyinstaller .\main.py `
 --noconfirm `

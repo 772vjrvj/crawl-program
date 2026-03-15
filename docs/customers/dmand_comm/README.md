@@ -23,9 +23,6 @@ https://gocho-back.com/v1/qnas/18186
 https://gocho-back.com/v1/qnas/18186/comments?size=6&qnaId=18186
 
 
-
-
-
 ■ worker 경로 "worker_class": "src.workers.main.api_comento_job_set_worker:ApiComentoJobSetWorker",
 
 
