@@ -383,13 +383,14 @@ class ApiComentoQnaSetWorker(BaseApiWorker):
             "answers": answers,
         }
 
-    def _detail_to_rows(self, detail: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _detail_to_rows(self, detail: Dict[str, Any], item: Dict[str, Any]) -> List[Dict[str, Any]]:
         question = detail.get("question") or {}
         meta = detail.get("meta") or {}
         route = detail.get("route") or {}
         answers = detail.get("answers") or []
 
         base_row = {
+            "키워드": item.get("keyword", ""),
             "질문 번호": question.get("questionNo", ""),
             "질문 등록일": question.get("createdAt", ""),
             "질문 내용": question.get("content", ""),
@@ -431,7 +432,7 @@ class ApiComentoQnaSetWorker(BaseApiWorker):
             try:
                 html = self._request_detail_page(item)
                 detail = self._parse_detail_page(html, item)
-                rows = self._detail_to_rows(detail)
+                rows = self._detail_to_rows(detail, item)
                 rows_buffer.extend(rows)
             except Exception as e:
                 self.log_signal_func(f"⚠️ 상세 실패 / request_no={item.get('request_no')} / {e}")
