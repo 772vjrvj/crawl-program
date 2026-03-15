@@ -1,0 +1,326 @@
+{
+  "label": "457DEEP",
+  "key": "457DEEP",
+  "color": "#ccc",
+  "enabled": true,
+  "worker_class": "src.workers.main.api_457deep_set_worker:Api457deepSetLoadWorker",
+  "setting": [
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
+  ],
+  "setting_detail": [
+    {
+      "row_type": "section",
+      "id": "pass_review",
+      "title": "합격후기",
+      "col_per_row": 5
+    },
+    {
+      "row_type": "item",
+      "parent_id": "pass_review",
+      "code": "success-story",
+      "value": "합격 후기",
+      "list_url": "https://457deep.com/community/success-story",
+      "detail_url": "https://457deep.com/community/success-story/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "pass_review",
+      "code": "resume-review",
+      "value": "필기 후기",
+      "list_url": "https://457deep.com/community/resume-review",
+      "detail_url": "https://457deep.com/community/resume-review/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "pass_review",
+      "code": "interview-review",
+      "value": "면접 후기",
+      "list_url": "https://457deep.com/community/interview-review",
+      "detail_url": "https://457deep.com/community/interview-review/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "pass_review",
+      "code": "request-board",
+      "value": "요청 게시판",
+      "list_url": "https://457deep.com/community/request-board",
+      "detail_url": "https://457deep.com/community/request-board/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "pass_review",
+      "code": "notice",
+      "value": "공지사항",
+      "list_url": "https://457deep.com/community/notice",
+      "detail_url": "https://457deep.com/community/notice/detail",
+      "checked": true
+    },
+    {
+      "row_type": "section",
+      "id": "essay",
+      "title": "자소서실전",
+      "col_per_row": 5
+    },
+    {
+      "row_type": "item",
+      "parent_id": "essay",
+      "code": "corporate-personal-statement",
+      "value": "기업 자소서 풀이",
+      "list_url": "https://457deep.com/essay/corporate-personal-statement",
+      "detail_url": "https://457deep.com/essay/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "essay",
+      "code": "personal-statement",
+      "value": "합격 자소서",
+      "list_url": "https://457deep.com/essay/personal-statement",
+      "detail_url": "https://457deep.com/essay/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "essay",
+      "code": "mid-statement",
+      "value": "강소기업 합격 자소서",
+      "list_url": "https://457deep.com/essay/mid-statement",
+      "detail_url": "https://457deep.com/essay/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "essay",
+      "code": "ncs",
+      "value": "NCS 강의",
+      "list_url": "https://457deep.com/essay/ncs",
+      "detail_url": "https://457deep.com/essay/detail",
+      "checked": true
+    },
+    {
+      "row_type": "section",
+      "id": "interview",
+      "title": "면접실전",
+      "col_per_row": 5
+    },
+    {
+      "row_type": "item",
+      "parent_id": "interview",
+      "code": "corporate",
+      "value": "사기업 면접",
+      "list_url": "https://457deep.com/interview/corporate",
+      "detail_url": "https://457deep.com/interview/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "interview",
+      "code": "public",
+      "value": "공공기관 면접",
+      "list_url": "https://457deep.com/interview/public",
+      "detail_url": "https://457deep.com/interview/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "interview",
+      "code": "specific",
+      "value": "기업 특화 면접",
+      "list_url": "https://457deep.com/interview/specific",
+      "detail_url": "https://457deep.com/interview/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "interview",
+      "code": "pt",
+      "value": "PT/토론 면접",
+      "list_url": "https://457deep.com/interview/pt",
+      "detail_url": "https://457deep.com/interview/detail",
+      "checked": true
+    },
+    {
+      "row_type": "section",
+      "id": "beginner",
+      "title": "취업입문",
+      "col_per_row": 5
+    },
+    {
+      "row_type": "item",
+      "parent_id": "beginner",
+      "code": "series",
+      "value": "취린이 시리즈",
+      "list_url": "https://457deep.com/beginner/series",
+      "detail_url": "https://457deep.com/beginner/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "beginner",
+      "code": "beginner-ps",
+      "value": "자소서 강의",
+      "list_url": "https://457deep.com/beginner/personal-statement",
+      "detail_url": "https://457deep.com/beginner/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "beginner",
+      "code": "beginner-interview",
+      "value": "면접 강의",
+      "list_url": "https://457deep.com/beginner/interview",
+      "detail_url": "https://457deep.com/beginner/detail",
+      "checked": true
+    },
+    {
+      "row_type": "section",
+      "id": "resources",
+      "title": "취업자료",
+      "col_per_row": 5
+    },
+    {
+      "row_type": "item",
+      "parent_id": "resources",
+      "code": "all",
+      "value": "전체",
+      "list_url": "https://457deep.com/resources/all",
+      "detail_url": "https://457deep.com/resources/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "resources",
+      "code": "corporate-analysis",
+      "value": "기업 분석",
+      "list_url": "https://457deep.com/resources/corporate-analysis",
+      "detail_url": "https://457deep.com/resources/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "resources",
+      "code": "job-analysis",
+      "value": "직무 분석",
+      "list_url": "https://457deep.com/resources/job-analysis",
+      "detail_url": "https://457deep.com/resources/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "resources",
+      "code": "other",
+      "value": "취업 TIP",
+      "list_url": "https://457deep.com/resources/other",
+      "detail_url": "https://457deep.com/resources/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "resources",
+      "code": "qna",
+      "value": "Q&A",
+      "list_url": "https://457deep.com/resources/qna",
+      "detail_url": "https://457deep.com/resources/detail",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "resources",
+      "code": "current-issues",
+      "value": "시사 이슈",
+      "list_url": "https://457deep.com/resources/current-issues",
+      "detail_url": "https://457deep.com/resources/detail",
+      "checked": true
+    }
+  ],
+  "columns": [
+    {
+      "code": "id",
+      "value": "아이디",
+      "checked": true
+    },
+    {
+      "code": "url",
+      "value": "URL",
+      "checked": true
+    },
+    {
+      "code": "createdAt",
+      "value": "등록일",
+      "checked": true
+    },
+    {
+      "code": "updatedAt",
+      "value": "수정일",
+      "checked": true
+    },
+    {
+      "code": "userId",
+      "value": "유저아이디",
+      "checked": true
+    },
+    {
+      "code": "userName",
+      "value": "유저명",
+      "checked": true
+    },
+    {
+      "code": "categoryTitle",
+      "value": "카테고리",
+      "checked": true
+    },
+    {
+      "code": "title",
+      "value": "제목",
+      "checked": true
+    },
+    {
+      "code": "content",
+      "value": "내용",
+      "checked": true
+    },
+    {
+      "code": "sequence",
+      "value": "순서",
+      "checked": true
+    },
+    {
+      "code": "likeCount",
+      "value": "좋아요",
+      "checked": true
+    },
+    {
+      "code": "commentCount",
+      "value": "댓글수",
+      "checked": true
+    },
+    {
+      "code": "viewCount",
+      "value": "조회수",
+      "checked": true
+    },
+    {
+      "code": "image",
+      "value": "이미지",
+      "checked": true
+    },
+    {
+      "code": "imagePath",
+      "value": "이미지 경로",
+      "checked": true
+    }
+  ]
+}

@@ -5,7 +5,7 @@
   "server_name": "CrawlProgram",
   "allow_multi_instance": true,
   "instance_key": "my_pyside_app",
-  "site_list_use": ["NAVER_BLOG_CONTENTS"],
+  "site_list_use": ["NAVER_BLOG_CONTENTS", "457DEEP", "KMONG", "COMENTO_JOB", "COMENTO_QNA", "DMAND_COMM"],
   "site_list": [
     {
       "key": "NAVER_BAND_MEMBER",
@@ -50,6 +50,14 @@
     {
       "key": "NAVER_BLOG_CONTENTS",
       "config_path": "customers/naver_blog_contents/config.json"
+    },
+    {
+      "key": "457DEEP",
+      "config_path": "customers/457deep/config.json"
+    },
+    {
+      "key": "KMONG",
+      "config_path": "customers/kmong/config.json"
     }
   ]
 }

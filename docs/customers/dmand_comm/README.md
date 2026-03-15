@@ -60,6 +60,9 @@ pyinstaller .\main.py `
 --hidden-import "src.workers.main.api_comento_job_set_worker" `
 --hidden-import "src.workers.main.api_comento_qna_set_worker" `
 --hidden-import "src.workers.main.api_dmand_comm_set_worker" `
+--hidden-import "src.workers.main.api_naver_blog_contents_set_worker" `
+--hidden-import "src.workers.main.api_457deep_set_worker" `
+--hidden-import "src.workers.main.api_kmong_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `
 --exclude-module tkinter `

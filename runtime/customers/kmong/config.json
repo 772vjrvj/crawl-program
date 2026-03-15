@@ -1,0 +1,27 @@
+{
+  "label": "KMONG",
+  "key": "KMONG",
+  "color": "#ccc",
+  "enabled": true,
+  "worker_class": "src.workers.main.api_kmong_set_worker:ApiKmongSetWorker",
+  "setting": [
+    {"name": "검색어", "code": "keyword", "value": "", "type": "input"},
+    {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
+  ],
+  "columns": [
+    {"checked": true, "code": "id",                "value": "아이디"},
+    {"checked": true, "code": "url",               "value": "URL"},
+    {"checked": true, "code": "nickName",          "value": "판매자"},
+    {"checked": true, "code": "title",             "value": "제목"},
+    {"checked": true, "code": "score",             "value": "평점"},
+    {"checked": true, "code": "commentCount",      "value": "댓글수"},
+    {"checked": true, "code": "contentJsonPath",   "value": "상세페이지 JSON 경로"},
+    {"checked": true, "code": "contentHtmlPath",   "value": "상세페이지 HTML 경로"},
+    {"checked": true, "code": "imagePath",         "value": "이미지 경로"},
+    {"checked": true, "code": "image",             "value": "이미지"}
+  ]
+}
