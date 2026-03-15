@@ -428,6 +428,11 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         value = value.strip()
         return value
 
+    def is_owner_match(self, input_owner: str, scraped_owner: str) -> bool:
+        input_owner = str(input_owner or "").strip()
+        scraped_owner = str(scraped_owner or "").replace("*", "").strip()
+        return bool(input_owner and scraped_owner and scraped_owner in input_owner)
+
     def is_blocked_html(self, html: str) -> bool:
         try:
             if not html:
@@ -634,7 +639,9 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
                     for d in soup.select(".details"):
                         hit += 1
-                        if self.safe_text(d.select_one("h5"), strip=True) != owner:
+
+                        biz_owner = self.safe_text(d.select_one("h5"), strip=True)
+                        if not self.is_owner_match(owner, biz_owner):
                             continue
 
                         a_tag = d.select_one('a[href^="/article/"]')

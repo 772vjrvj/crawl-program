@@ -34,11 +34,11 @@ pyinstaller .\main.py `
 --noconfirm `
 --clean `
 --windowed `
---name "COMENTO_JOB" `
+--name "DMAND_COMM" `
 --icon ".\resources\icons\crawling.ico" `
---version-file ".\docs\customers\comento_job\version_info.txt" `
+--version-file ".\docs\customers\dmand_comm\version_info.txt" `
 --distpath ".\dist" `
---hidden-import "src.workers.main.api_comento_job_set_worker" `
+--hidden-import "src.workers.main.api_dmand_comm_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `
 --exclude-module tkinter `
@@ -53,12 +53,13 @@ pyinstaller .\main.py `
 --noconfirm `
 --clean `
 --windowed `
---name "COMENTO_JOB" `
+--name "DMAND_COMM" `
 --icon ".\resources\icons\crawling.ico" `
---version-file ".\docs\customers\comento_job\version_info.txt" `
+--version-file ".\docs\customers\dmand_comm\version_info.txt" `
 --distpath ".\dist" `
 --hidden-import "src.workers.main.api_comento_job_set_worker" `
 --hidden-import "src.workers.main.api_comento_qna_set_worker" `
+--hidden-import "src.workers.main.api_dmand_comm_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `
 --exclude-module tkinter `
