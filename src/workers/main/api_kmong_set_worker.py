@@ -12,7 +12,7 @@ from src.utils.file_utils import FileUtils
 from src.workers.api_base_worker import BaseApiWorker
 
 
-class ApiKmongSetLoadWorker(BaseApiWorker):
+class ApiKmongSetWorker(BaseApiWorker):
     def __init__(self):
         super().__init__()
 
@@ -373,7 +373,12 @@ class ApiKmongSetLoadWorker(BaseApiWorker):
 
     def _ensure_output_dir(self, dir_name):
         base_dir = self.folder_path.strip() if self.folder_path else os.getcwd()
-        out_dir = os.path.join(base_dir, dir_name)
+
+        # output_kmong 하위로 통일
+        parent_dir = os.path.join(base_dir, self.out_dir)
+        os.makedirs(parent_dir, exist_ok=True)
+
+        out_dir = os.path.join(parent_dir, dir_name)
         os.makedirs(out_dir, exist_ok=True)
         return out_dir
 

@@ -36,8 +36,7 @@ class FileUtils:
         if self._http is None:
             self._http = httpx.Client(
                 follow_redirects=True,
-                timeout=timeout,
-                http2=True,
+                timeout=timeout
             )
         else:
             # timeout이 매 호출마다 다를 수 있어서 재생성할지/고정할지 선택인데
