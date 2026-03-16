@@ -6,44 +6,177 @@
   "popup": true,
   "worker_class": "src.workers.main.api_bizno_excel_set_worker:ApiBiznoExcelSetWorker",
   "setting": [
-    {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
       "button_text": "폴더 선택",
       "dialog_title": "저장 폴더 선택",
       "path_type": "main"
     }
   ],
   "columns": [
-    {"code": "no",          "value": "번호",              "checked": true},
-    {"code": "sc_kr_nm",    "value": "검색회사명",         "checked": true},
-    {"code": "sc_ft_kr_nm", "value": "검색필터회사명",      "checked": true},
-    {"code": "sc_ceo_nm",   "value": "검색대표자명",       "checked": true},
-    {"code": "sc_addr",     "value": "검색회사주소",       "checked": true},
-    {"code": "article",     "value": "article",          "checked": true},
-    {"code": "kr_nm",       "value": "회사명",            "checked": true},
-    {"code": "eng_nm",      "value": "회사명(영문)",       "checked": true},
-    {"code": "nts_ind",     "value": "국세청산업분류",     "checked": true},
-    {"code": "biz_type",    "value": "업 태",             "checked": true},
-    {"code": "biz_item",    "value": "종 목",             "checked": true},
-    {"code": "main_prod",   "value": "주요제품",          "checked": true},
-    {"code": "tel",         "value": "전화번호",          "checked": true},
-    {"code": "fax",         "value": "팩스번호",          "checked": true},
-    {"code": "corp_size",   "value": "기업규모",          "checked": true},
-    {"code": "tax_type",    "value": "과세유형",          "checked": true},
-    {"code": "hq_branch",   "value": "본사/지사",         "checked": true},
-    {"code": "corp_type",   "value": "법인형태",          "checked": true},
-    {"code": "reg_dt",      "value": "등록일",            "checked": true},
-    {"code": "homepage",    "value": "홈페이지",          "checked": true},
-    {"code": "ir_home",     "value": "IR홈페이지",        "checked": true},
-    {"code": "email",       "value": "회사이메일",        "checked": true},
-    {"code": "ceo_nm",      "value": "대표자명",          "checked": true},
-    {"code": "biz_status",  "value": "사업자 현재 상태",   "checked": true},
-    {"code": "biz_no",      "value": "사업자등록번호",     "checked": true},
-    {"code": "corp_no",     "value": "법인등록번호",       "checked": true},
-    {"code": "emp_cnt",     "value": "종업원수",          "checked": true},
-    {"code": "zip",         "value": "우편번호",          "checked": true},
-    {"code": "addr",        "value": "회사주소",          "checked": true},
-    {"code": "tax_office",  "value": "관할세무서",        "checked": true},
-    {"code": "close_mon",   "value": "결산월",            "checked": true},
-    {"code": "url",         "value": "url",             "checked": true}
+    {
+      "code": "no",
+      "value": "번호",
+      "checked": true
+    },
+    {
+      "code": "sc_kr_nm",
+      "value": "검색회사명",
+      "checked": false
+    },
+    {
+      "code": "sc_ft_kr_nm",
+      "value": "검색필터회사명",
+      "checked": false
+    },
+    {
+      "code": "sc_ceo_nm",
+      "value": "검색대표자명",
+      "checked": false
+    },
+    {
+      "code": "sc_addr",
+      "value": "검색회사주소",
+      "checked": false
+    },
+    {
+      "code": "article",
+      "value": "article",
+      "checked": false
+    },
+    {
+      "code": "kr_nm",
+      "value": "회사명",
+      "checked": true
+    },
+    {
+      "code": "eng_nm",
+      "value": "회사명(영문)",
+      "checked": false
+    },
+    {
+      "code": "nts_ind",
+      "value": "국세청산업분류",
+      "checked": false
+    },
+    {
+      "code": "biz_type",
+      "value": "업 태",
+      "checked": false
+    },
+    {
+      "code": "biz_item",
+      "value": "종 목",
+      "checked": false
+    },
+    {
+      "code": "main_prod",
+      "value": "주요제품",
+      "checked": false
+    },
+    {
+      "code": "tel",
+      "value": "전화번호",
+      "checked": true
+    },
+    {
+      "code": "fax",
+      "value": "팩스번호",
+      "checked": false
+    },
+    {
+      "code": "corp_size",
+      "value": "기업규모",
+      "checked": false
+    },
+    {
+      "code": "tax_type",
+      "value": "과세유형",
+      "checked": false
+    },
+    {
+      "code": "hq_branch",
+      "value": "본사/지사",
+      "checked": false
+    },
+    {
+      "code": "corp_type",
+      "value": "법인형태",
+      "checked": false
+    },
+    {
+      "code": "reg_dt",
+      "value": "등록일",
+      "checked": true
+    },
+    {
+      "code": "homepage",
+      "value": "홈페이지",
+      "checked": false
+    },
+    {
+      "code": "ir_home",
+      "value": "IR홈페이지",
+      "checked": false
+    },
+    {
+      "code": "email",
+      "value": "회사이메일",
+      "checked": false
+    },
+    {
+      "code": "ceo_nm",
+      "value": "대표자명",
+      "checked": false
+    },
+    {
+      "code": "biz_status",
+      "value": "사업자 현재 상태",
+      "checked": false
+    },
+    {
+      "code": "biz_no",
+      "value": "사업자등록번호",
+      "checked": true
+    },
+    {
+      "code": "corp_no",
+      "value": "법인등록번호",
+      "checked": false
+    },
+    {
+      "code": "emp_cnt",
+      "value": "종업원수",
+      "checked": false
+    },
+    {
+      "code": "zip",
+      "value": "우편번호",
+      "checked": false
+    },
+    {
+      "code": "addr",
+      "value": "회사주소",
+      "checked": false
+    },
+    {
+      "code": "tax_office",
+      "value": "관할세무서",
+      "checked": false
+    },
+    {
+      "code": "close_mon",
+      "value": "결산월",
+      "checked": false
+    },
+    {
+      "code": "url",
+      "value": "url",
+      "checked": false
+    }
   ]
 }

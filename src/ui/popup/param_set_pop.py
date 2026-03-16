@@ -1,6 +1,7 @@
 # src/ui/popup/param_set_pop.py
 from __future__ import annotations
 
+import json  # === 신규 ===
 import os
 import sys
 from dataclasses import dataclass
@@ -22,6 +23,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.core.global_state import GlobalState
 from src.ui.style.style import create_common_button
 
 
@@ -150,6 +152,129 @@ class ParamSetPop(QDialog):
             }
         """
 
+    # === 신규 === 현재 site의 config.json 경로 해석
+    def _resolve_site_config_path(self) -> Optional[str]:
+        try:
+            state = GlobalState()
+            app_config = state.get(GlobalState.APP_CONFIG) or {}
+            site = str(state.get(GlobalState.SITE) or "").strip()
+            runtime_dir = str(app_config.get("runtime_dir") or "").strip()
+
+            if not runtime_dir:
+                self._emit_log("[설정저장] runtime_dir 값이 없습니다.")
+                return None
+
+            if not site:
+                self._emit_log("[설정저장] site 값이 없습니다.")
+                return None
+
+            app_json_path = os.path.join(runtime_dir, "app.json")
+            if not os.path.exists(app_json_path):
+                self._emit_log(f"[설정저장] app.json 파일이 없습니다: {app_json_path}")
+                return None
+
+            try:
+                with open(app_json_path, "r", encoding="utf-8") as f:
+                    app_json = json.load(f)
+            except Exception as e:
+                self._emit_log(f"[설정저장] app.json 읽기 실패: {str(e)}")
+                return None
+
+            site_list = app_json.get("site_list") or []
+            if not isinstance(site_list, list):
+                self._emit_log("[설정저장] app.json의 site_list 형식이 올바르지 않습니다.")
+                return None
+
+            config_rel_path = ""
+            for site_item in site_list:
+                if not isinstance(site_item, dict):
+                    continue
+
+                key = str(site_item.get("key") or "").strip()
+                if key == site:
+                    config_rel_path = str(site_item.get("config_path") or "").strip()
+                    break
+
+            if not config_rel_path:
+                self._emit_log(f"[설정저장] site_list에서 '{site}' 설정을 찾지 못했습니다.")
+                return None
+
+            config_path = os.path.join(runtime_dir, *config_rel_path.split("/"))
+            config_path = os.path.normpath(config_path)
+
+            self._emit_log(f"[설정저장] config 경로 확인: {config_path}")
+            return config_path
+
+        except Exception as e:
+            self._emit_log(f"[설정저장] config 경로 해석 중 오류: {str(e)}")
+            return None
+
+    # === 신규 === runtime config.json의 setting.value 동기화
+    def _save_setting_to_runtime_config(self, setting: List[_SettingItem]) -> None:
+        try:
+            config_path = self._resolve_site_config_path()
+            if not config_path:
+                return
+
+            if not os.path.exists(config_path):
+                self._emit_log(f"[설정저장] config.json 파일이 없습니다: {config_path}")
+                return
+
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config_data = json.load(f)
+            except Exception as e:
+                self._emit_log(f"[설정저장] config.json 읽기 실패: {str(e)}")
+                return
+
+            config_setting = config_data.get("setting") or []
+            if not isinstance(config_setting, list):
+                self._emit_log("[설정저장] config.json의 setting 형식이 올바르지 않습니다.")
+                return
+
+            value_map_by_code: Dict[str, Any] = {}
+            for item in setting:
+                code = str(item.get("code", "") or "").strip()
+                if code:
+                    value_map_by_code[code] = item.get("value")
+
+            changed_count = 0
+
+            for cfg_item in config_setting:
+                if not isinstance(cfg_item, dict):
+                    continue
+
+                code = str(cfg_item.get("code", "") or "").strip()
+                if not code:
+                    continue
+
+                if code not in value_map_by_code:
+                    continue
+
+                old_value = cfg_item.get("value")
+                new_value = value_map_by_code.get(code)
+
+                if old_value != new_value:
+                    cfg_item["value"] = new_value
+                    changed_count += 1
+                else:
+                    cfg_item["value"] = new_value
+
+            try:
+                with open(config_path, "w", encoding="utf-8") as f:
+                    json.dump(config_data, f, ensure_ascii=False, indent=2)
+                    f.write("\n")
+            except Exception as e:
+                self._emit_log(f"[설정저장] config.json 저장 실패: {str(e)}")
+                return
+
+            self._emit_log(
+                f"[설정저장] 저장 완료 / 변경건수={changed_count} / path={config_path}"
+            )
+
+        except Exception as e:
+            self._emit_log(f"[설정저장] 처리 중 오류: {str(e)}")
+
     # === 신규 === 기본 시작 경로: 문서 폴더
     def _get_default_start_dir(self, item: Optional[_SettingItem] = None) -> str:
         path_type = str((item or {}).get("path_type", "doc") or "doc").strip().lower()
@@ -183,7 +308,6 @@ class ParamSetPop(QDialog):
             return cwd
 
         return os.path.expanduser("~")
-
 
     def _center_window(self) -> None:
         frame = self.frameGeometry()
@@ -396,7 +520,7 @@ class ParamSetPop(QDialog):
                 self._emit_log(f"[{select_code}] select 위젯이 없습니다.")
 
         except Exception as e:
-            self._emit_log(f"[{code}] 실행 중 오류: {e}")
+            self._emit_log(f"[{code}] 실행 중 오류: {str(e)}")
 
     @Slot(str, object)
     def on_file_pick_clicked(self, code: str, item: _SettingItem) -> None:
@@ -472,5 +596,6 @@ class ParamSetPop(QDialog):
             elif isinstance(widget, QCheckBox):
                 item["value"] = widget.isChecked()
 
+        self._save_setting_to_runtime_config(setting)
         self._emit_log(f"setting : {setting}")
         self.accept()

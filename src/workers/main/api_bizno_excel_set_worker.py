@@ -72,7 +72,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         ]
 
         # 현재 채널 유지 -> 실패 시 다음 채널로 회전
-        self._request_modes: List[str] = ["main_server", "request"]
+        self._request_modes: List[str] = ["request", "main_server"]
         self._request_mode_index: int = 0
 
         state = GlobalState()
