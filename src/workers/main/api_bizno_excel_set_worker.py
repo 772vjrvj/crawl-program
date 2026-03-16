@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 from datetime import datetime
 from uuid import uuid4
+
 from bs4 import BeautifulSoup
 from requests import Response, Session
 
@@ -51,8 +52,8 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self._preemptive_rest_every_n: int = 150
         self._preemptive_rest_sec: int = 300
 
-        # 500건마다 실패 기다리지 않고 채널 선회
-        self._rotate_every_n: int = 500
+        # 2000건마다 실패 기다리지 않고 채널 선회
+        self._rotate_every_n: int = 2000
 
         # 간단 차단 감지 키워드
         self._block_keywords = [
@@ -71,15 +72,14 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         ]
 
         # 현재 채널 유지 -> 실패 시 다음 채널로 회전
-        self._request_modes: List[str] = ["request", "main_server"]
+        self._request_modes: List[str] = ["main_server", "request"]
         self._request_mode_index: int = 0
-        self._api_server_mode_map: Dict[str, Dict[str, str]] = {}
+
         state = GlobalState()
         self.api_user_id: str = state.get("user_id")
         self.session: Optional[Session] = state.get("session")
         self.bizno_search_url: str = f"{server_url}/bizno/search"
         self.bizno_detail_url: str = f"{server_url}/bizno/detail"
-        self.api_key_active_list_url: str = f"{server_url}/internal/api-key-info/active-list"
 
         # trace context
         self.program_trace_id: str = ""
@@ -90,15 +90,12 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.job_name: str = ""
         self.item_key: str = ""
 
-
     # 초기화
     def init(self) -> bool:
         self.driver_set()
         self.init_trace_context()
 
-        self.load_active_api_server_modes()
         self.log_signal_func(f"요청 채널 목록 : {self._request_modes}")
-
         self.log_signal_func(f"선택 항목 : {self.columns}")
         self.log_signal_func("✅ init 완료")
         return True
@@ -130,13 +127,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     self.log_signal_func("⛔ running=False 감지. main 루프 종료")
                     return True
 
-                # 테스트 서버 (test server)용: 2건째부터 매 건마다 요청 채널 순환
-                # if index > 1:
-                #     prev_mode = self.get_current_request_mode()
-                #     next_mode = self.rotate_request_mode()
-                #     self.log_signal_func(f"🧪 테스트용 채널 변경: {prev_mode} -> {next_mode}")
-
-                # 500건마다 선제 채널 변경
+                # 2000 건마다 선제 채널 변경
                 if index > 1 and ((index - 1) % self._rotate_every_n == 0):
                     prev_mode = self.get_current_request_mode()
                     next_mode = self.rotate_request_mode()
@@ -338,77 +329,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         )
         return next_mode
 
-    def is_dynamic_api_server_mode(self, mode: str) -> bool:
-        return str(mode or "").startswith("api_server::")
-
-    def get_api_server_info_by_mode(self, mode: str) -> Dict[str, str]:
-        return self._api_server_mode_map.get(mode, {})
-
-
-    # api 목록 조회
-    def load_active_api_server_modes(self) -> None:
-        self.log_signal_func(f"[active-list] 요청 시작: {self.api_key_active_list_url}")
-
-        if not self.session:
-            self.log_signal_func("[active-list] ❌ session 없음")
-            return
-
-        try:
-            headers = {
-                "Accept": "application/json",
-            }
-
-            resp = self.session.get(
-                self.api_key_active_list_url,
-                headers=headers,
-                timeout=(5, 30),  # connect 5초, read 30초
-            )
-
-            res = self._loads_if_needed(resp.text)
-
-            if self.is_api_error_response(res):
-                self.log_signal_func(f"[active-list] ❌ 서버 에러: {res.get('message')}")
-                return
-
-            if not res.get("success"):
-                self.log_signal_func(f"[active-list] ❌ 조회 실패: {res.get('message')}")
-                return
-
-            server_list = res.get("list") or []
-            added_count = 0
-
-            for row in server_list:
-                server_id = str(row.get("serverId") or "").strip()
-                server_base_url = str(row.get("serverUrl") or "").strip().rstrip("/")
-                server_api_key = str(row.get("serverApiKey") or "").strip()
-
-                if not server_id or not server_base_url or not server_api_key:
-                    self.log_signal_func(
-                        f"[active-list] ⚠️ 서버 정보 누락으로 skip: "
-                        f"serverId={server_id}, serverUrl={server_base_url}"
-                    )
-                    continue
-
-                mode_name = f"api_server::{server_id}"
-
-                self._api_server_mode_map[mode_name] = {
-                    "serverId": server_id,
-                    "serverUrl": server_base_url,
-                    "serverApiKey": server_api_key,
-                }
-
-                if mode_name not in self._request_modes:
-                    self._request_modes.append(mode_name)
-                    added_count += 1
-
-            self.log_signal_func(
-                f"[active-list] ✅ 동적 API 서버 모드 추가 완료. "
-                f"추가건수={added_count}, 전체모드={len(self._request_modes)}"
-            )
-
-        except Exception as e:
-            self.log_signal_func(f"[active-list] ❌ 예외: {e}")
-
     # =========================
     # helpers
     # =========================
@@ -459,7 +379,8 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         html = self.api_client.get(url, headers=headers)
         return html
 
-    def request_bizno_search_api(self,
+    def request_bizno_search_api(
+            self,
             company_name: str,
             owner_name: str,
             base_url: Optional[str] = None,
@@ -501,7 +422,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             target_url,
             params=payload,
             headers=headers,
-            timeout=(5, 30),  # connect 5초, read 30초
+            timeout=(5, 30),
         )
         return resp
 
@@ -546,7 +467,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             target_url,
             params=payload,
             headers=headers,
-            timeout=(5, 30),  # connect 5초, read 30초
+            timeout=(5, 30),
         )
         return resp
 
@@ -575,7 +496,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
         self.rotate_request_mode(reason=reason)
         self.sleep_after_mode_fail()
-
 
     def touch_request_trace(self, mode: str) -> None:
         self.attempt_no += 1
@@ -689,49 +609,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                         return
 
                     self.log_signal_func(f"[search][api] ⚠️ 매칭 없음: {res.get('message')}")
-                    return
-
-                if self.is_dynamic_api_server_mode(mode):
-                    server_info = self.get_api_server_info_by_mode(mode)
-                    server_id = str(server_info.get("serverId") or "").strip()
-                    server_base_url = str(server_info.get("serverUrl") or "").strip()
-                    server_api_key = str(server_info.get("serverApiKey") or "").strip()
-
-                    if not server_base_url or not server_api_key:
-                        self.log_signal_func(f"[search][{mode}] ❌ 서버 정보 없음")
-                        self.handle_mode_fail(f"search dynamic api server info missing: {mode}")
-                        continue
-
-                    trace_headers = self.build_request_trace_headers(
-                        mode=mode,
-                        request_url=f"{server_base_url.rstrip('/')}/bizno/search"
-                    )
-
-                    resp = self.request_bizno_search_api(
-                        filtered_company_name,
-                        owner,
-                        base_url=server_base_url,
-                        api_key=server_api_key,
-                        trace_headers=trace_headers
-                    )
-                    res = self._loads_if_needed(resp.text)
-
-                    if self.is_api_error_response(res):
-                        self.log_signal_func(
-                            f"[search][{server_id}] ❌ 서버 에러: {res.get('message')}"
-                        )
-                        self.handle_mode_fail(f"search dynamic api error [{server_id}]: {res.get('message')}")
-                        continue
-
-                    if res.get("success") and res.get("article"):
-                        item["article"] = str(res.get("article") or "").strip()
-                        item["회사명"] = str(res.get("회사명") or "").strip()
-                        self.log_signal_func(
-                            f"[search][{server_id}] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
-                        )
-                        return
-
-                    self.log_signal_func(f"[search][{server_id}] ⚠️ 매칭 없음: {res.get('message')}")
                     return
 
                 self.log_signal_func(f"[search] ❌ 알 수 없는 mode: {mode}")
@@ -854,56 +731,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     self.log_signal_func(f"[detail][api] ⚠️ 상세 데이터 없음: {res.get('message')}")
                     return
 
-                if self.is_dynamic_api_server_mode(mode):
-                    self.log_signal_func(f"[detail][{mode}] article : {article}")
-                    server_info = self.get_api_server_info_by_mode(mode)
-                    server_id = str(server_info.get("serverId") or "").strip()
-                    server_base_url = str(server_info.get("serverUrl") or "").strip()
-                    server_api_key = str(server_info.get("serverApiKey") or "").strip()
-                    user_id = self.api_user_id
-
-                    if not server_base_url or not server_api_key:
-                        self.log_signal_func(f"[detail][{mode}] ❌ 서버 정보 없음")
-                        self.handle_mode_fail(f"detail dynamic api server info missing: {mode}")
-                        continue
-
-                    trace_headers = self.build_request_trace_headers(
-                        mode=mode,
-                        request_url=f"{server_base_url.rstrip('/')}/bizno/detail"
-                    )
-
-                    resp = self.request_bizno_detail_api(
-                        article,
-                        base_url=server_base_url,
-                        api_key=server_api_key,
-                        user_id=user_id,
-                        trace_headers=trace_headers
-                    )
-                    res = self._loads_if_needed(resp.text)
-
-                    if self.is_api_error_response(res):
-                        self.log_signal_func(
-                            f"[detail][{server_id}] ❌ 서버 에러: {res.get('message')}"
-                        )
-                        self.handle_mode_fail(f"detail dynamic api error [{server_id}]: {res.get('message')}")
-                        continue
-
-                    if res.get("success"):
-                        item["url"] = str(res.get("url") or "")
-                        data = res.get("data") or {}
-
-                        row_cnt = 0
-                        for key, val in data.items():
-                            if key:
-                                item[str(key)] = str(val or "")
-                                row_cnt += 1
-
-                        self.log_signal_func(f"[detail][{server_id}] ✅ 테이블 반영 완료. row_count={row_cnt}")
-                        return
-
-                    self.log_signal_func(f"[detail][{server_id}] ⚠️ 상세 데이터 없음: {res.get('message')}")
-                    return
-
                 self.log_signal_func(f"[detail] ❌ 알 수 없는 mode: {mode}")
                 self.handle_mode_fail(f"unknown mode: {mode}")
                 continue
@@ -930,17 +757,9 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         if mode == "main_server":
             return "main"
 
-        if self.is_dynamic_api_server_mode(mode):
-            server_info = self.get_api_server_info_by_mode(mode)
-            server_id = str(server_info.get("serverId") or "").strip()
-            if server_id:
-                return server_id
-            return mode.replace("api_server::", "").strip() or "unknown"
-
         return mode or "unknown"
 
     def init_trace_context(self) -> None:
-
         self.program_trace_id = self.generate_trace_id("P")
         self.api_trace_id = self.generate_trace_id("A")
         self.request_trace_id = ""
@@ -988,7 +807,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             headers["X-JOB-NAME"] = self.job_name
 
         if self.item_key:
-            headers["X-ITEM-KEY"] = self.item_key
+            headers["X-ITEM-KEY"] = self.encode_header_value(self.item_key)
 
         return headers
 
@@ -1007,3 +826,10 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             f"current_server_id={self.server_id}, "
             f"reason={reason}"
         )
+
+
+    def encode_header_value(self, value: Any) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+        return quote(text, safe="")

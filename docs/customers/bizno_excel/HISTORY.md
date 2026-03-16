@@ -1,4 +1,37 @@
 
+■ 2026-03-16
+
+고객 : 슬기로운별9504
+거래금액 : 0
+버전 : 1.1.0
+
+
+bizno쪽 업주명이 "홍길*"로 바뀌어서 "홍길"을 포함하는지 여부로 코드 수정 
+
+
+
+# api_bizno_excel_set_worker
+is_owner_match 로 변경
+
+# http://vjrvj.cafe24.com V
+# http://404notfoundshop.shop VV
+# https://www.rapportcompany.co.kr VV
+# https://doublestock.co.kr VV
+# https://xn--9w3b17bc8b2wil9ai51c.com/ V
+isOwnerMatch 로 변경
+
+# http://vjrvj.cafe24.com VV
+SERVER2,http://goodbye772.cafe24.com VV
+SERVER3,http://neversay2.cafe24.com VV
+SERVER4,http://rapportcompany.cafe24.com VV
+SERVER5,http://jklabs.cafe24.com
+
+
+
+
+
+
+
 ■ 2026-03-05 
 
 날짜 : 2026-03-12  

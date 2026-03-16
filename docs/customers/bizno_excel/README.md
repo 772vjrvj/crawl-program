@@ -13,20 +13,28 @@
     
     # 메인서버 1개
     # http://vjrvj.cafe24.com
-    
-    # 추가 서버 3게
-    # http://404notfoundshop.shop
-    # server3-api-key-2026
-    # SERVER3
-    
-    # https://www.rapportcompany.co.kr
-    # server4-api-key-2026
-    # SERVER4
-    
-    # https://doublestock.co.kr
+
+
+    # http://goodbye772.cafe24.com
     # server2-api-key-2026
     # SERVER2
+    # 두배주식
     
+    # http://neversay2.cafe24.com
+    # server3-api-key-2026
+    # SERVER3
+    # 엠프로젝트
+    
+    # http://rapportcompany.cafe24.com
+    # server4-api-key-2026
+    # SERVER4
+    # 라포
+    
+    # http://jklabs.cafe24.com
+    # server5-api-key-2026
+    # SERVER5
+
+
     메인서버에서 목록과 api-key를 내려주고 그거를 바탕으로 크롤링을 한다.
     
     # 추후 로컬 서버, proxy 서버를 추가할 예정이다.
