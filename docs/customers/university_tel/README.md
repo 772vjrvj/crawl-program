@@ -20,3 +20,33 @@ https://biz.korea.ac.kr/main/main.html
 
 목록은 드릴 수 있을 듯한데, 확실치 않아서 포함 견적과 미포함 견적 둘다 주심 감사하겠습니자
 
+
+
+https://lib001.korea.ac.kr/lib001/about/task.do
+고려대 문과-국어국문학과 사무실
+
+https://libart.korea.ac.kr/libart/about/organization.do
+고려대 문과단과대 행정실
+
+교수(학과장/교수진들)이메일은 들어가면 안되고, 사무실이나 행정실의 차장, 팀장, 직원, 조교 등등의 이메일만 들어가야합니다.
+
+전화번호는 없어도 되고, 직위,이름,이메일은 필수/위치는 포함이 가능하다면 좋을 것 같습니다.
+
+
+
+
+
+
+■ 고려대학교
+
+전체
+https://www.korea.ac.kr/sites/ko/index.do
+
+일반대학원
+https://graduate.korea.ac.kr/department/major.html
+
+안암 행정실 이메일 직위,이름,이메일
+
+
+
+

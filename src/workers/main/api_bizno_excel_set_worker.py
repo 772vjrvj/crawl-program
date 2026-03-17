@@ -558,10 +558,14 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     }
 
                     html = self.get_html(url, headers=headers)
-                    if not html or self.is_blocked_html(html):
-                        self.log_signal_func("[search][request] ❌ 실패/차단")
-                        self.handle_mode_fail("search request fail/blocked")
+                    if self.is_blocked_html(html):
+                        self.log_signal_func("[detail][request] ❌ 실패/차단")
+                        self.handle_mode_fail("detail request fail/blocked")
                         continue
+
+                    if not html:
+                        self.log_signal_func("[detail][request] ❌ request 에러 request 확인필요 SKIP")
+                        return
 
                     soup = BeautifulSoup(html, "html.parser")
                     hit = 0
