@@ -364,11 +364,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
     def is_blocked_html(self, html: str) -> bool:
         try:
-            if not html:
-                return True
-
             low = html.lower()
-
             for k in self._block_keywords:
                 if k.lower() in low:
                     self.log_signal_func(f"🚫 차단 키워드 감지: {k}")
@@ -558,14 +554,15 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     }
 
                     html = self.get_html(url, headers=headers)
-                    if self.is_blocked_html(html):
-                        self.log_signal_func("[detail][request] ❌ 실패/차단")
-                        self.handle_mode_fail("detail request fail/blocked")
-                        continue
 
                     if not html:
                         self.log_signal_func("[detail][request] ❌ request 에러 request 확인필요 SKIP")
                         return
+
+                    if self.is_blocked_html(html):
+                        self.log_signal_func("[detail][request] ❌ 실패/차단")
+                        self.handle_mode_fail("detail request fail/blocked")
+                        continue
 
                     soup = BeautifulSoup(html, "html.parser")
                     hit = 0
@@ -675,14 +672,16 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
                     html = self.get_html(url, headers=headers)
 
+                    if not html:
+                        self.log_signal_func("[detail][request] ❌ request 에러 request 확인필요 SKIP")
+                        return
+
                     if self.is_blocked_html(html):
                         self.log_signal_func("[detail][request] ❌ 실패/차단")
                         self.handle_mode_fail("detail request fail/blocked")
                         continue
 
-                    if not html:
-                        self.log_signal_func("[detail][request] ❌ request 에러 request 확인필요 SKIP")
-                        return
+
 
                     soup = BeautifulSoup(html, "html.parser")
                     table = soup.select_one("table.table_guide01")
