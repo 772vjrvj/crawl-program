@@ -4,7 +4,7 @@ from __future__ import annotations  # === 신규 ===
 from datetime import datetime
 from queue import Queue
 from typing import Optional, Any, List, Tuple, Protocol, cast
-
+from src.utils.run_file_logger import RunFileLogger
 import keyring
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QCloseEvent
@@ -54,7 +54,7 @@ class StoppableThreadProto(Protocol):
 class ApiWorkerProto(StoppableThreadProto, Protocol):
     def wait(self) -> None: ...
     # 시그널은 런타임 객체라 타입을 강하게 못 박기 어렵습니다.
-    # === 신규 === 최소한 connect 가능하다는 전제로 Any 처리
+    # 최소한 connect 가능하다는 전제로 Any 처리
     api_failure: Any
     log_signal: Any
 
@@ -154,6 +154,22 @@ class MainWindow(QWidget):
         self._force_close = False
         self._close_timeout_ms = 8000
 
+        self.file_logger: Optional[RunFileLogger] = None
+
+
+    def ensure_file_logger(self) -> None:
+        if self.file_logger is None and self.site:
+            try:
+                self.file_logger = RunFileLogger(
+                    site=str(self.site),
+                    logs_dir="logs",
+                    retention_days=30,
+                )
+            except Exception as e:
+                if self.log_window is not None:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    self.log_window.appendPlainText(f"[{timestamp}] [오류] 파일 로그 초기화 실패: {e}")
+
     # 변경값 세팅
     def common_data_set(self) -> None:
         state = GlobalState()
@@ -174,6 +190,7 @@ class MainWindow(QWidget):
         self.api_worker_set()
         self.main_worker_set()
         self.ui_set()
+        self.ensure_file_logger()
 
     # 로그인 확인 체크
     def api_worker_set(self) -> None:
@@ -203,7 +220,7 @@ class MainWindow(QWidget):
                 self.add_log("[오류] site가 비어있습니다.")
                 return
 
-            # === 신규 === site_configs에서 현재 site key config 찾기
+            # site_configs에서 현재 site key config 찾기
             st = GlobalState()
 
             site_conf = (st.get("site_configs_by_key", {}) or {}).get(str(self.site))
@@ -476,10 +493,17 @@ class MainWindow(QWidget):
 
     # 로그
     def add_log(self, message: Any) -> None:
+        self.ensure_file_logger()
+
+        if self.file_logger is not None:
+            log_message = self.file_logger.log(message)
+        else:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            log_message = f"[{timestamp}] {message}"
+
         if self.log_window is None:
             return
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        log_message = f"[{timestamp}] {message}"
+
         self.log_window.appendPlainText(log_message)
 
     # 프로그램 시작 중지
@@ -619,6 +643,14 @@ class MainWindow(QWidget):
         # 전환용 자원 정리(워커/프로그래스)
         self.cleanup_for_nav()
 
+        # 파일 로그 닫기
+        try:
+            if self.file_logger is not None:
+                self.file_logger.close()
+        except Exception:
+            pass
+        self.file_logger = None
+
         # 다음 화면 전환은 이벤트루프 한 틱 뒤
         QTimer.singleShot(0, self.app_manager.go_to_select)
 
@@ -682,7 +714,7 @@ class MainWindow(QWidget):
 
 
     def _switch_to_login(self) -> None:
-        # === 신규 === 메인 -> 로그인 전환 공통 처리
+        # 메인 -> 로그인 전환 공통 처리
         try:
             self.hide()
         except Exception:
@@ -755,7 +787,7 @@ class MainWindow(QWidget):
         total = len(self.excel_data_list)
         self.add_log(f"엑셀 데이터 갯수 : {total}")
 
-        preview_count = min(10, total)   # === 신규 === 최대 10건만 미리보기
+        preview_count = min(10, total)   # 최대 10건만 미리보기
         for i, data in enumerate(excel_data_list[:preview_count], start=1):
             self.add_log(f"[미리보기 {i}/{preview_count}] {data}")
 
@@ -844,10 +876,18 @@ class MainWindow(QWidget):
             pass
         self.logout_worker = None
 
+        try:
+            if self.file_logger is not None:
+                self.file_logger.close()
+        except Exception:
+            pass
+        self.file_logger = None
+
+
 
 
     def closeEvent(self, event: QCloseEvent) -> None:
-        # === 신규 === 우리가 강제 종료를 요청한 경우엔 닫힘 허용
+        # 우리가 강제 종료를 요청한 경우엔 닫힘 허용
         if self._force_close:
             event.accept()
             return
@@ -891,28 +931,37 @@ class MainWindow(QWidget):
             QTimer.singleShot(2000, self._force_quit)
         except Exception:
             QTimer.singleShot(2000, self._force_quit)
-
+    
+    
     def _force_quit(self) -> None:
         # 이미 종료 진행 중인데 또 호출되는 케이스 방지(타임아웃/정상완료 둘 다 호출될 수 있음)
         if self._force_close:
             return
-
-        self._force_close = True  # === 신규 === 이제부터는 close를 허용
-
+    
+        self._force_close = True  # 이제부터는 close를 허용
+    
+        # 파일 로그 닫기
+        try:
+            if self.file_logger is not None:
+                self.file_logger.close()
+        except Exception:
+            pass
+        self.file_logger = None
+    
         try:
             if self._closing_pop is not None:
                 self._closing_pop.close()
                 self._closing_pop = None
         except Exception:
             pass
-
-        # === 신규 === 1) 윈도우 먼저 닫기 시도 (closeEvent가 accept로 통과됨)
+    
+        # 1) 윈도우 먼저 닫기 시도 (closeEvent가 accept로 통과됨)
         try:
             self.close()
         except Exception:
             pass
-
-        # === 신규 === 2) 앱 종료
+    
+        # 2) 앱 종료
         try:
             app = QApplication.instance()
             if app is not None:
