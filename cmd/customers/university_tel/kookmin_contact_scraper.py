@@ -223,12 +223,12 @@ def infer_office(context: str) -> str:
 
 
 def extract_contacts_from_dom(
-        html: str,
-        url: str,
-        title: str,
-        top_category: str,
-        seed_unit: str,
-        page,
+    html: str,
+    url: str,
+    title: str,
+    top_category: str,
+    seed_unit: str,
+    page,
 ) -> list[ContactRow]:
     soup = BeautifulSoup(html, "lxml")
     rows: list[ContactRow] = []
