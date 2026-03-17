@@ -252,7 +252,12 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     def cleanup(self) -> None:
         self.log_signal_func("🧹 cleanup 시작")
 
-        self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+        try:
+            setting = self.setting if self.setting is not None else []
+            self.folder_path = str(self.get_setting_value(setting, "folder_path") or "").strip()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] folder_path 조회 실패: {e}")
+            self.folder_path = ""
 
         try:
             if self.csv_filename and self.excel_driver:
@@ -297,8 +302,12 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.log_signal_func("✅ stop 시작")
         self.running = False
         self.log_signal_func("⛔ running=False 설정 완료. 2초 후 cleanup 진행")
-        time.sleep(2)
-        self.cleanup()
+
+        try:
+            self.cleanup()
+        except Exception as e:
+            self.log_signal_func(f"[stop] cleanup 실패: {e}")
+
         self.log_signal_func("✅ stop 완료")
 
     # 마무리
