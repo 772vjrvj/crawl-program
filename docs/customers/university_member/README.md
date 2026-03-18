@@ -39,13 +39,12 @@ https://libart.korea.ac.kr/libart/about/organization.do
 
 성신여대는 미아운정+돈암수정
 
-교수 행정
+교수 행정 ------
 성신
-외대
+외대 O
 국민 O 
 
-행정
-
+행정 ------
 고려 O 
 경희
 동덕 O
@@ -88,5 +87,103 @@ https://graduate.korea.ac.kr/department/major.html
 
 
 
+■ 일반대학원
 
+주임교수 연락처
+https://gra.hufs.ac.kr/gra/6497/subview.do
+
+학과 소개
+https://gra.hufs.ac.kr/gra/6634/subview.do
+
+sssss
+
+
+■ 교육대학원
+footer
+
+교수진
+https://gse.hufs.ac.kr/gse/7725/subview.do
+
+교학처
+https://gse.hufs.ac.kr/gse/7734/subview.do
+
+sssss
+
+
+
+
+
+
+■ 글로벌공공리더십대학원
+footer
+
+교수진
+https://gsps.hufs.ac.kr/gsps/7636/subview.do
+
+
+sssss
+
+
+■ 법학전문대학원
+footer
+교수진
+https://law.hufs.ac.kr/law/7448/subview.do
+
+
+sssss
+
+
+
+■ 통번역대학원
+
+업무
+https://gsit.hufs.ac.kr/gsit/7373/subview.do
+
+교수진
+https://gsit.hufs.ac.kr/gsit/7361/subview.do
+
+sssss
+
+
+
+
+■ 국제지역대학원
+https://gsias.hufs.ac.kr/gsias/7177/subview.do
+
+업무
+https://gsias.hufs.ac.kr/gsias/7111/subview.do
+
+sssss
+
+
+■ 경영대학원
+https://biz.hufs.ac.kr/biz/index.do
+footer
+교수진
+https://biz.hufs.ac.kr/biz/7986/subview.do
+
+sssss
+
+
+■ TESOL대학원
+footer
+https://tesolgs.hufs.ac.kr/tesolgs/7586/subview.do
+
+sssss
+
+
+■ KFL대학원
+footer
+교수진
+https://gskfl.hufs.ac.kr/gskfl/7538/subview.do
+
+sssss
+
+
+■ 글로벌미디어커뮤니케이션대학원
+footer
+교수진
+https://gsgmc.hufs.ac.kr/gsgmc/11928/subview.do
+
+sssss
 
