@@ -48,5 +48,38 @@ https://graduate.korea.ac.kr/department/major.html
 안암 행정실 이메일 직위,이름,이메일
 
 
+성신+외대+국민은 교수까지 포함해서 이메일
+
+
+
+
+■ 국민대학교
+
+국민
+
+1. 언어 : 파이썬
+
+2. 대학조직 https://www.kookmin.ac.kr/user/unIntr/unSttu/univOrgn/index.do 의 html을 가져온다.
+
+3. class="cont_section organ" 들을 가져온 후 for문을 돈다.
+
+4. class="cont_section organ" 안에 class="cont_box" 들을 찾아서 다시 for문을 돈다.
+
+class="cont_box" 안에는
+
+class="table_top" 과 class="table_wrap write_table"로 구성이 되어 있고
+table_top안에는 여러 태그 있으나 어쨌든 text를 가져오면 최상위 "구분1"이 된다.
+
+class="table_wrap write_table" 안에 tbody안에 tr들을 보면
+
+tr에 th의 text는 "구분2" td는 1개 인데 그 안에 ul 안에 li들이 있어 li안에는 a 태그가 있고
+
+<a href="#" onclick="view(10072);"><span>교무팀</span></a>
+
+이렇게 되어 있는데 "10072"를 "ID", "교무팀"을 "구분3" 이렇게 해주면돼
+
+코드 짜주고 최종 결과는 CSV로 떨구면돼
+
+
 
 
