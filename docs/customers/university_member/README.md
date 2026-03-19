@@ -40,13 +40,13 @@ https://libart.korea.ac.kr/libart/about/organization.do
 성신여대는 미아운정+돈암수정
 
 교수 행정 ------
-성신
+성신 O
 외대 O
 국민 O 
 
 행정 ------
 고려 O 
-경희
+경희 
 동덕 O
 
 •고대
