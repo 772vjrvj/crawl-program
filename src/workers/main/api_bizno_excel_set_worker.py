@@ -52,8 +52,9 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self._preemptive_rest_every_n: int = 150
         self._preemptive_rest_sec: int = 300
 
-        # 2000건마다 실패 기다리지 않고 채널 선회
-        self._rotate_every_n: int = 2000
+        # === 변경 ===
+        # 기존 2000건마다 채널 선회는 라운드로빈 분산으로 대체
+        self._rotate_every_n: int = 0
 
         # 간단 차단 감지 키워드
         self._block_keywords = [
@@ -71,15 +72,18 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "Please try again. (1)",
         ]
 
-        # 현재 채널 유지 -> 실패 시 다음 채널로 회전
-        self._request_modes: List[str] = ["request", "main_server"]
+        # === 변경 ===
+        # request + active server 들을 라운드로빈으로 순환
+        self._request_channels: List[Dict[str, Any]] = []
         self._request_mode_index: int = 0
 
         state = GlobalState()
         self.api_user_id: str = state.get("user_id")
         self.session: Optional[Session] = state.get("session")
+
         self.bizno_search_url: str = f"{server_url}/bizno/search"
         self.bizno_detail_url: str = f"{server_url}/bizno/detail"
+        self.active_list_url: str = f"{server_url}/internal/api-key-info/active-list"
 
         # trace context
         self.program_trace_id: str = ""
@@ -93,9 +97,12 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     # 초기화
     def init(self) -> bool:
         self.driver_set()
+        self.load_request_channels()
         self.init_trace_context()
 
-        self.log_signal_func(f"요청 채널 목록 : {self._request_modes}")
+        self.log_signal_func(
+            f"요청 채널 목록 : {[self.channel_label(ch) for ch in self._request_channels]}"
+        )
         self.log_signal_func(f"선택 항목 : {self.columns}")
         self.log_signal_func("✅ init 완료")
         return True
@@ -127,14 +134,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     self.log_signal_func("⛔ running=False 감지. main 루프 종료")
                     return True
 
-                # 2000 건마다 선제 채널 변경
-                if index > 1 and ((index - 1) % self._rotate_every_n == 0):
-                    prev_mode = self.get_current_request_mode()
-                    next_mode = self.rotate_request_mode()
-                    self.log_signal_func(
-                        f"🔄 {self._rotate_every_n}건 도달로 선제 채널 변경: {prev_mode} -> {next_mode}"
-                    )
-
                 try:
                     q_name = (item.get("검색회사명") or "").strip()
                     q_owner = (item.get("검색대표자명") or "").strip()
@@ -148,8 +147,9 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 )
                 self.log_signal_func(f"현재 요청 채널: {self.get_current_request_mode()}")
 
-                # 검색 전 텀
-                sleep1 = random.uniform(3.0, 6.0)
+                # === 변경 ===
+                # 기존보다 전체적으로 5~10초 정도 더 늘린 대기
+                sleep1 = random.uniform(5.0, 8.0)
                 self.log_signal_func(f"검색 전 잠시 쉽니다. ({sleep1:.2f}s)")
                 if not self.sleep_s(sleep1):
                     self.log_signal_func("⛔ sleep 중단 감지. main 루프 종료")
@@ -162,8 +162,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 if item.get("article"):
                     self.log_signal_func(f"✅ 검색 매칭 성공. article={item.get('article')}")
 
-                    # 상세 전 텀
-                    sleep2 = random.uniform(4.0, 8.0)
+                    sleep2 = random.uniform(6.0, 10.0)
                     self.log_signal_func(f"상세 조회 전 잠시 쉽니다. ({sleep2:.2f}s)")
                     if not self.sleep_s(sleep2):
                         self.log_signal_func("⛔ sleep 중단 감지. main 루프 종료")
@@ -173,8 +172,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     self.fetch_article_detail(item)
                     self.log_signal_func("📄 상세 조회 완료")
 
-                    # 상세 후 텀
-                    sleep3 = random.uniform(5.0, 10.0)
+                    sleep3 = random.uniform(8.0, 12.0)
                     self.log_signal_func(f"상세 조회 후 잠시 쉽니다. ({sleep3:.2f}s)")
                     if not self.sleep_s(sleep3):
                         self.log_signal_func("⛔ sleep 중단 감지. main 루프 종료")
@@ -232,7 +230,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                         self.log_signal_func("⛔ 초긴 휴식 중단 감지. main 루프 종료")
                         return True
 
-                self.log_signal_func(f"현재 요청 채널 유지: {self.get_current_request_mode()}")
+                self.log_signal_func(f"다음 요청 예정 채널: {self.get_current_request_mode()}")
                 self.log_signal_func(f"==================== [{index}/{self.total_cnt}] 처리 완료 ====================")
 
         except Exception as e:
@@ -319,16 +317,176 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.progress_end_signal.emit()
         self.log_signal_func("✅ progress_end_signal emit 완료")
 
-    def get_current_request_mode(self) -> str:
-        try:
-            return self._request_modes[self._request_mode_index]
-        except Exception:
+    # =========================
+    # request channel helpers
+    # =========================
+    def normalize_base_url(self, value: Any) -> str:
+        return str(value or "").strip().rstrip("/")
+
+    def channel_label(self, channel: Optional[Dict[str, Any]]) -> str:
+        if not channel:
             return "request"
+        return str(
+            channel.get("label")
+            or channel.get("server_id")
+            or channel.get("mode")
+            or "request"
+        ).strip()
+
+    def build_direct_channel(self) -> Dict[str, Any]:
+        return {
+            "mode": "request",
+            "type": "direct",
+            "label": "request",
+            "server_id": "direct",
+            "base_url": "",
+            "api_key": "",
+        }
+
+    def build_fallback_server_channel(self) -> Dict[str, Any]:
+        return {
+            "mode": "server",
+            "type": "server",
+            "label": "main_server",
+            "server_id": "main",
+            "base_url": self.normalize_base_url(server_url),
+            "api_key": "",
+        }
+
+    def request_active_server_list(self) -> Dict[str, Any]:
+        if not self.session:
+            raise RuntimeError("session 없음(active-list 조회 불가)")
+
+        headers = {
+            "Accept": "application/json",
+        }
+
+        if self.api_user_id:
+            headers["X-USER-ID"] = self.api_user_id
+
+        self.log_signal_func(f"[channel] active-list 조회 시작: {self.active_list_url}")
+
+        resp = self.session.get(
+            self.active_list_url,
+            headers=headers,
+            timeout=(5, 30),
+        )
+
+        self.log_signal_func(
+            f"[channel] active-list 응답: status={getattr(resp, 'status_code', 'unknown')}"
+        )
+
+        return self._loads_if_needed(resp.text)
+
+
+    def extract_active_server_items(self, payload: Any) -> List[Dict[str, Any]]:
+        def find_list(value: Any) -> List[Any]:
+            if isinstance(value, list):
+                return value
+            if not isinstance(value, dict):
+                return []
+
+            for key in ["list", "rows", "items", "activeList", "data", "result"]:
+                child = value.get(key)
+                if isinstance(child, list):
+                    return child
+                if isinstance(child, dict):
+                    found = find_list(child)
+                    if found:
+                        return found
+            return []
+
+        raw_items = find_list(payload)
+        result: List[Dict[str, Any]] = []
+
+        for idx, raw in enumerate(raw_items, start=1):
+            if not isinstance(raw, dict):
+                continue
+
+            use_yn = str(
+                raw.get("useYn")
+                or raw.get("use_yn")
+                or raw.get("USE_YN")
+                or "Y"
+            ).strip().upper()
+
+            if use_yn == "N":
+                continue
+
+            server_id_value = str(
+                raw.get("serverId")
+                or raw.get("server_id")
+                or raw.get("SERVER_ID")
+                or f"main_server_{idx}"
+            ).strip()
+
+            result.append({
+                "mode": "server",
+                "type": "server",
+                "label": server_id_value,
+                "server_id": server_id_value,
+            })
+
+        return result
+
+
+    def load_request_channels(self) -> None:
+        channels: List[Dict[str, Any]] = [self.build_direct_channel()]
+
+        try:
+            payload = self.request_active_server_list()
+            active_servers = self.extract_active_server_items(payload)
+
+            self.log_signal_func(f"[channel] active server count={len(active_servers)}")
+
+            if active_servers:
+                channels.extend(active_servers)
+            else:
+                self.log_signal_func("[channel] active server 없음. fallback main_server 사용")
+                channels.append(self.build_fallback_server_channel())
+
+        except Exception as e:
+            self.log_signal_func(f"[channel] active-list 조회 실패: {e}")
+            self.log_signal_func("[channel] fallback main_server 채널 사용")
+            channels.append(self.build_fallback_server_channel())
+
+        self._request_channels = channels
+        self._request_mode_index = 0
+
+        self.log_signal_func(
+            f"[channel] 최종 채널 목록: {[self.channel_label(ch) for ch in self._request_channels]}"
+        )
+
+    def get_current_request_channel(self) -> Dict[str, Any]:
+        if not self._request_channels:
+            return self.build_direct_channel()
+
+        try:
+            return self._request_channels[self._request_mode_index]
+        except Exception:
+            return self.build_direct_channel()
+
+    def get_current_request_mode(self) -> str:
+        return self.channel_label(self.get_current_request_channel())
+
+    def get_request_channel_count(self) -> int:
+        if not self._request_channels:
+            return 1
+        return len(self._request_channels)
+
+    def resolve_server_id(self, channel: Optional[Dict[str, Any]] = None) -> str:
+        ch = channel or self.get_current_request_channel()
+        return str(ch.get("server_id") or ch.get("label") or ch.get("mode") or "unknown").strip()
 
     def rotate_request_mode(self, reason: str = "") -> str:
-        prev_mode = self.get_current_request_mode()
-        self._request_mode_index = (self._request_mode_index + 1) % len(self._request_modes)
-        next_mode = self.get_current_request_mode()
+        prev_channel = self.get_current_request_channel()
+        prev_mode = self.channel_label(prev_channel)
+
+        if self._request_channels:
+            self._request_mode_index = (self._request_mode_index + 1) % len(self._request_channels)
+
+        next_channel = self.get_current_request_channel()
+        next_mode = self.channel_label(next_channel)
 
         self.rotate_api_trace(reason or f"{prev_mode}->{next_mode}")
 
@@ -388,14 +546,12 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             self,
             company_name: str,
             owner_name: str,
-            base_url: Optional[str] = None,
-            api_key: Optional[str] = None,
             trace_headers: Optional[Dict[str, str]] = None
     ) -> Response:
         if not self.session:
             raise RuntimeError("session 없음")
 
-        target_url = f"{str(base_url or '').rstrip('/')}/bizno/search" if base_url else self.bizno_search_url
+        target_url = self.bizno_search_url
 
         self.log_signal_func(
             f"[api-search] 요청 시작: url={target_url}, company_name={company_name}, owner_name={owner_name}"
@@ -414,9 +570,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "Accept": "application/json",
         }
 
-        if api_key:
-            headers["X-API-KEY"] = api_key
-
         if self.api_user_id:
             headers["X-USER-ID"] = self.api_user_id
 
@@ -434,15 +587,13 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     def request_bizno_detail_api(
             self,
             article: str,
-            base_url: Optional[str] = None,
-            api_key: Optional[str] = None,
             user_id: Optional[str] = None,
             trace_headers: Optional[Dict[str, str]] = None
     ) -> Response:
         if not self.session:
             raise RuntimeError("session 없음")
 
-        target_url = f"{str(base_url or '').rstrip('/')}/bizno/detail" if base_url else self.bizno_detail_url
+        target_url = self.bizno_detail_url
         resolved_user_id = str(user_id or self.api_user_id or "").strip()
 
         self.log_signal_func(f"[api-detail] 요청 시작: url={target_url}, article={article}")
@@ -458,9 +609,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "Content-Type": "application/json",
             "Accept": "application/json",
         }
-
-        if api_key:
-            headers["X-API-KEY"] = api_key
 
         if resolved_user_id:
             headers["X-USER-ID"] = resolved_user_id
@@ -502,10 +650,13 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.rotate_request_mode(reason=reason)
         self.sleep_after_mode_fail()
 
-    def touch_request_trace(self, mode: str) -> None:
+    def complete_current_channel(self, reason: str) -> None:
+        self.rotate_request_mode(reason=reason)
+
+    def touch_request_trace(self, channel: Dict[str, Any]) -> None:
         self.attempt_no += 1
         self.request_trace_id = self.generate_trace_id("R")
-        self.server_id = self.resolve_server_id_by_mode(mode)
+        self.server_id = self.resolve_server_id(channel)
 
     # =========================
     # bizno: search
@@ -523,17 +674,21 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             item_key=f"{filtered_company_name}|{owner}"
         )
 
-        max_try = len(self._request_modes)
+        max_try = self.get_request_channel_count()
 
         for attempt in range(max_try):
-            mode = self.get_current_request_mode()
+            channel = self.get_current_request_channel()
+            mode = str(channel.get("mode") or "").strip()
+            channel_name = self.channel_label(channel)
+
             self.log_signal_func(
-                f"[search] 시도 {attempt + 1}/{max_try}, mode={mode}, company='{filtered_company_name}', owner='{owner}'"
+                f"[search] 시도 {attempt + 1}/{max_try}, channel={channel_name}, "
+                f"company='{filtered_company_name}', owner='{owner}'"
             )
 
             try:
                 if mode == "request":
-                    self.touch_request_trace(mode)
+                    self.touch_request_trace(channel)
 
                     url = f"https://bizno.net/?area=&query={quote(filtered_company_name)}"
 
@@ -580,18 +735,21 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
                         item["article"] = href.split("/article/")[1]
                         item["회사명"] = self.safe_text(d.select_one("h4"), strip=True)
+
                         self.log_signal_func(
                             f"[search][request] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
                         )
+
+                        self.complete_current_channel("search request success")
                         return
 
                     self.log_signal_func(f"[search][request] 결과 스캔 완료. details_count={hit}, match=0")
+                    self.complete_current_channel("search request no-match")
                     return
 
-                if mode == "main_server":
+                if mode == "server":
                     trace_headers = self.build_request_trace_headers(
-                        mode=mode,
-                        request_url=self.bizno_search_url
+                        channel=channel
                     )
 
                     resp = self.request_bizno_search_api(
@@ -609,12 +767,16 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     if res.get("success") and res.get("article"):
                         item["article"] = str(res.get("article") or "").strip()
                         item["회사명"] = str(res.get("회사명") or "").strip()
+
                         self.log_signal_func(
                             f"[search][api] ✅ match found: 회사명='{item.get('회사명')}', article='{item.get('article')}'"
                         )
+
+                        self.complete_current_channel("search api success")
                         return
 
                     self.log_signal_func(f"[search][api] ⚠️ 매칭 없음: {res.get('message')}")
+                    self.complete_current_channel("search api no-match")
                     return
 
                 self.log_signal_func(f"[search] ❌ 알 수 없는 mode: {mode}")
@@ -622,7 +784,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 continue
 
             except Exception as e:
-                self.log_signal_func(f"[search][{mode}] ❌ 예외: {e}")
+                self.log_signal_func(f"[search][{channel_name}] ❌ 예외: {e}")
                 self.handle_mode_fail(f"search exception: {e}")
                 continue
 
@@ -642,15 +804,20 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             item_key=article
         )
 
-        max_try = len(self._request_modes)
+        max_try = self.get_request_channel_count()
 
         for attempt in range(max_try):
-            mode = self.get_current_request_mode()
-            self.log_signal_func(f"[detail] 시도 {attempt + 1}/{max_try}, mode={mode}, article={article}")
+            channel = self.get_current_request_channel()
+            mode = str(channel.get("mode") or "").strip()
+            channel_name = self.channel_label(channel)
+
+            self.log_signal_func(
+                f"[detail] 시도 {attempt + 1}/{max_try}, channel={channel_name}, article={article}"
+            )
 
             try:
                 if mode == "request":
-                    self.touch_request_trace(mode)
+                    self.touch_request_trace(channel)
                     url = f"https://bizno.net/article/{article}"
 
                     headers = {
@@ -669,8 +836,8 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     html = self.get_html(url, headers=headers)
 
                     if not html or self.is_blocked_html(html):
-                        self.log_signal_func("[search][request] ❌ 실패/차단")
-                        self.handle_mode_fail("search request fail/blocked")
+                        self.log_signal_func("[detail][request] ❌ 실패/차단")
+                        self.handle_mode_fail("detail request fail/blocked")
                         continue
 
                     soup = BeautifulSoup(html, "html.parser")
@@ -695,15 +862,15 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                             row_cnt += 1
 
                     self.log_signal_func(f"[detail][request] ✅ 테이블 파싱 완료. row_count={row_cnt}")
+                    self.complete_current_channel("detail request success")
                     return
 
-                if mode == "main_server":
+                if mode == "server":
                     trace_headers = self.build_request_trace_headers(
-                        mode=mode,
-                        request_url=self.bizno_detail_url
+                        channel=channel
                     )
 
-                    self.log_signal_func(f"[detail][main_server] article : {article}")
+                    self.log_signal_func(f"[detail][server] article : {article}")
                     resp = self.request_bizno_detail_api(
                         article,
                         trace_headers=trace_headers
@@ -726,9 +893,11 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                                 row_cnt += 1
 
                         self.log_signal_func(f"[detail][api] ✅ 테이블 반영 완료. row_count={row_cnt}")
+                        self.complete_current_channel("detail api success")
                         return
 
                     self.log_signal_func(f"[detail][api] ⚠️ 상세 데이터 없음: {res.get('message')}")
+                    self.complete_current_channel("detail api no-data")
                     return
 
                 self.log_signal_func(f"[detail] ❌ 알 수 없는 mode: {mode}")
@@ -736,7 +905,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                 continue
 
             except Exception as e:
-                self.log_signal_func(f"[detail][{mode}] ❌ 예외: {e}")
+                self.log_signal_func(f"[detail][{channel_name}] ❌ 예외: {e}")
                 self.handle_mode_fail(f"detail exception: {e}")
                 continue
 
@@ -748,23 +917,14 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     def generate_trace_id(self, prefix: str) -> str:
         return f"{prefix}{datetime.now().strftime('%Y%m%d%H%M%S%f')}{uuid4().hex[:6].upper()}"
 
-    def resolve_server_id_by_mode(self, mode: str) -> str:
-        mode = str(mode or "").strip()
-
-        if mode == "request":
-            return "direct"
-
-        if mode == "main_server":
-            return "main"
-
-        return mode or "unknown"
-
     def init_trace_context(self) -> None:
+        current_channel = self.get_current_request_channel()
+
         self.program_trace_id = self.generate_trace_id("P")
         self.api_trace_id = self.generate_trace_id("A")
         self.request_trace_id = ""
         self.attempt_no = 0
-        self.server_id = self.resolve_server_id_by_mode(self.get_current_request_mode())
+        self.server_id = self.resolve_server_id(current_channel)
         self.job_name = ""
         self.item_key = ""
 
@@ -787,10 +947,10 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             f"program_trace_id={self.program_trace_id}, api_trace_id={self.api_trace_id}"
         )
 
-    def build_request_trace_headers(self, mode: str, request_url: str = "") -> Dict[str, str]:
+    def build_request_trace_headers(self, channel: Dict[str, Any]) -> Dict[str, str]:
         self.attempt_no += 1
         self.request_trace_id = self.generate_trace_id("R")
-        self.server_id = self.resolve_server_id_by_mode(mode)
+        self.server_id = self.resolve_server_id(channel)
 
         headers: Dict[str, str] = {
             "X-PROGRAM-TRACE-ID": self.program_trace_id,
@@ -813,11 +973,13 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
 
     def rotate_api_trace(self, reason: str = "") -> None:
         prev_api_trace_id = self.api_trace_id
-        prev_server_id = self.server_id or self.resolve_server_id_by_mode(self.get_current_request_mode())
+        prev_server_id = self.server_id or "unknown"
+
+        current_channel = self.get_current_request_channel()
 
         self.api_trace_id = self.generate_trace_id("A")
         self.request_trace_id = ""
-        self.server_id = self.resolve_server_id_by_mode(self.get_current_request_mode())
+        self.server_id = self.resolve_server_id(current_channel)
 
         self.log_signal_func(
             f"[trace] api_trace_id 변경: "
@@ -826,7 +988,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             f"current_server_id={self.server_id}, "
             f"reason={reason}"
         )
-
 
     def encode_header_value(self, value: Any) -> str:
         text = str(value or "").strip()
