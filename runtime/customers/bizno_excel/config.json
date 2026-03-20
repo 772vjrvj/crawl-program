@@ -9,7 +9,7 @@
     {
       "name": "저장 폴더",
       "code": "folder_path",
-      "value": "E:\\git\\crawl-program",
+      "value": "",
       "type": "folder",
       "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
       "button_text": "폴더 선택",

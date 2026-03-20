@@ -1,4 +1,4 @@
-# krx_data_set.py
+# main.py
 from __future__ import annotations
 
 import json  # === 신규 ===
