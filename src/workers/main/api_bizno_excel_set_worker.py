@@ -1,11 +1,10 @@
-# src/workers/main/api_bizno_excel_set_worker.py
 import json
 import os
 import random
 import time
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from bs4 import BeautifulSoup
@@ -42,24 +41,30 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         # 전체 요청 휴식 정책
         # =========================
 
-        # 기본 대량 휴식
-        self._rest_every_n: int = 30
-        self._rest_range_sec = (60.0, 120.0)
+        # === 변경 ===
+        # 22건마다 1.5~2.5분 쉬기
+        self._rest_every_n: int = 22
+        self._rest_range_sec = (90.0, 150.0)
 
-        self._long_rest_every_n: int = 200
-        self._long_rest_range_sec = (120.0, 240.0)
+        # === 변경 ===
+        # 80건마다 8~12분 쉬기
+        self._long_rest_every_n: int = 80
+        self._long_rest_range_sec = (480.0, 720.0)
 
-        self._super_rest_every_n: int = 1000
-        self._super_rest_range_sec = (600.0, 1200.0)
+        # === 변경 ===
+        # 240건마다 25~35분 쉬기
+        self._super_rest_every_n: int = 240
+        self._super_rest_range_sec = (1500.0, 2100.0)
 
-        # 선제 장기 휴식
-        self._preemptive_rest_every_n: int = 150
-        self._preemptive_rest_sec: int = 300
+        # === 변경 ===
+        # 기존 40건마다 선제 15분 휴식은 너무 과해서 비활성화
+        self._preemptive_rest_every_n: int = 0
+        self._preemptive_rest_sec: int = 0
 
-        # 시간 기반 휴식 추가
-        # 1시간마다 5~10분 쉬기
-        self._time_rest_every_sec: int = 3600
-        self._time_rest_range_sec = (300.0, 600.0)
+        # === 변경 ===
+        # 55분마다 6~10분 쉬기
+        self._time_rest_every_sec: int = 3300
+        self._time_rest_range_sec = (360.0, 600.0)
 
         self._run_started_monotonic: float = 0.0
         self._last_time_rest_monotonic: float = 0.0
@@ -68,15 +73,18 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         # 호출 사이 휴식 정책
         # =========================
 
+        # === 변경 ===
         # 로컬 search -> detail 사이 휴식
-        self._local_search_detail_gap_range_sec = (4.0, 8.0)
+        self._local_search_detail_gap_range_sec = (6.0, 10.0)
 
+        # === 변경 ===
         # 채널 실패 후 다음 채널로 넘어가기 전 휴식
-        self._between_channel_rest_range_sec = (3.0, 7.0)
+        self._between_channel_rest_range_sec = (25.0, 45.0)
 
+        # === 변경 ===
         # 아이템 시작 전 / 완료 후 기본 텀
-        self._before_item_request_range_sec = (5.0, 8.0)
-        self._after_item_request_range_sec = (8.0, 12.0)
+        self._before_item_request_range_sec = (9.0, 13.0)
+        self._after_item_request_range_sec = (14.0, 20.0)
 
         # === 변경 ===
         # 기존 2000건마다 채널 선회는 라운드로빈 분산으로 대체
@@ -98,10 +106,46 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "Please try again. (1)",
         ]
 
+        # === 신규 ===
+        # 하드 스톱 메시지
+        self._hard_stop_keywords = [
+            "사용 가능한 처리 서버가 없습니다.",
+            "bizno 검색 차단/제한 페이지 감지",
+            "접근이 차단",
+            "비정상적인 접근",
+            "Too Many Requests",
+            "Request blocked",
+            "Access Denied",
+            "Forbidden",
+            "접속대기중",
+            "접속 대기중",
+        ]
+
         # === 변경 ===
         # request + active server count 기반 가상 채널 라운드로빈
         self._request_channels: List[Dict[str, Any]] = []
         self._request_mode_index: int = 0
+
+        # === 신규 ===
+        # 안전 운용 정책
+        self._kst = timezone(timedelta(hours=9))
+        self._use_direct_request_channel: bool = False
+
+        # === 변경 ===
+        # 같은 채널 재사용 최소 간격
+        # 너무 짧으면 차단 위험, 너무 길면 1000건 미만이라 170초로 조정
+        self._channel_min_gap_sec: int = 170
+
+        # === 변경 ===
+        # 기존 120이면 4채널이어도 하루 480건 한계라 1000건 불가
+        # 2채널이면 800, 3채널이면 1200, 4채널이면 1600 상한
+        self._channel_daily_limit: int = 400
+
+        self._channel_daily_counts: Dict[str, int] = {}
+        self._channel_last_used_monotonic: Dict[str, float] = {}
+        self._daily_limit_date_key: str = ""
+        self._force_stop_requested: bool = False
+        self._force_stop_reason: str = ""
 
         state = GlobalState()
         self.api_user_id: str = state.get("user_id")
@@ -125,9 +169,15 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         self.load_request_channels()
         self.init_trace_context()
         self.init_runtime_rest_context()
+        self.reset_daily_channel_state_if_needed()
 
         self.log_signal_func(
             f"요청 채널 목록 : {[self.channel_label(ch) for ch in self._request_channels]}"
+        )
+        self.log_signal_func(
+            f"안전 운용 정책 : direct={self._use_direct_request_channel}, "
+            f"channel_min_gap={self._channel_min_gap_sec}s, "
+            f"channel_daily_limit={self._channel_daily_limit}"
         )
         self.log_signal_func(f"선택 항목 : {self.columns}")
         self.log_signal_func("✅ init 완료")
@@ -160,6 +210,10 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     self.log_signal_func("⛔ running=False 감지. main 루프 종료")
                     return True
 
+                if self._force_stop_requested:
+                    self.log_signal_func(f"⛔ 강제 종료 플래그 감지: {self._force_stop_reason}")
+                    return True
+
                 try:
                     q_name = (item.get("검색회사명") or "").strip()
                     q_owner = (item.get("검색대표자명") or "").strip()
@@ -183,8 +237,16 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     return True
 
                 self.log_signal_func("🔎 search + detail 통합 조회 시작")
-                self.fetch_search_and_detail(item)
+                ok = self.fetch_search_and_detail(item)
                 self.log_signal_func("🔎 search + detail 통합 조회 완료")
+
+                if not ok:
+                    self.log_signal_func("⛔ fetch_search_and_detail 중단 요청 감지. main 루프 종료")
+                    return True
+
+                if self._force_stop_requested:
+                    self.log_signal_func(f"⛔ 강제 종료 사유: {self._force_stop_reason}")
+                    return True
 
                 sleep2 = random.uniform(
                     self._after_item_request_range_sec[0],
@@ -300,7 +362,6 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         try:
             if self.file_driver:
                 self.log_signal_func("🔌 file_driver.close 시작")
-                self.file_driver.close()
                 self.log_signal_func("🔌 file_driver.close 완료")
         except Exception as e:
             self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
@@ -474,7 +535,10 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         return 0
 
     def load_request_channels(self) -> None:
-        channels: List[Dict[str, Any]] = [self.build_direct_channel()]
+        channels: List[Dict[str, Any]] = []
+
+        if self._use_direct_request_channel:
+            channels.append(self.build_direct_channel())
 
         try:
             payload = self.request_active_server_count()
@@ -513,10 +577,94 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     def get_current_request_mode(self) -> str:
         return self.channel_label(self.get_current_request_channel())
 
-    def get_request_channel_count(self) -> int:
+    def now_kst_date_key(self) -> str:
+        return datetime.now(self._kst).strftime("%Y-%m-%d")
+
+    def reset_daily_channel_state_if_needed(self) -> None:
+        date_key = self.now_kst_date_key()
+
+        if self._daily_limit_date_key == date_key:
+            return
+
+        self._daily_limit_date_key = date_key
+        self._channel_daily_counts = {}
+        self._channel_last_used_monotonic = {}
+
+        self.log_signal_func(
+            f"[channel] 일일 채널 상태 초기화: date={self._daily_limit_date_key}, "
+            f"channel_daily_limit={self._channel_daily_limit}"
+        )
+
+    def get_channel_daily_count(self, channel: Optional[Dict[str, Any]]) -> int:
+        self.reset_daily_channel_state_if_needed()
+        label = self.channel_label(channel)
+        try:
+            return int(self._channel_daily_counts.get(label, 0) or 0)
+        except Exception:
+            return 0
+
+    def is_channel_daily_exhausted(self, channel: Optional[Dict[str, Any]]) -> bool:
+        if self._channel_daily_limit <= 0:
+            return False
+        return self.get_channel_daily_count(channel) >= self._channel_daily_limit
+
+    def get_available_request_channel_count(self) -> int:
+        self.reset_daily_channel_state_if_needed()
+
+        count = 0
+        for ch in self._request_channels:
+            if not self.is_channel_daily_exhausted(ch):
+                count += 1
+        return count
+
+    def find_next_available_channel_index(self, start_index: int = 0) -> int:
+        self.reset_daily_channel_state_if_needed()
+
         if not self._request_channels:
-            return 1
-        return len(self._request_channels)
+            return -1
+
+        total = len(self._request_channels)
+
+        for offset in range(total):
+            idx = (start_index + offset) % total
+            ch = self._request_channels[idx]
+
+            if not self.is_channel_daily_exhausted(ch):
+                return idx
+
+        return -1
+
+    def ensure_current_request_channel_available(self) -> bool:
+        self.reset_daily_channel_state_if_needed()
+
+        if not self._request_channels:
+            self.request_force_stop("요청 채널이 비어 있습니다.")
+            return False
+
+        current_channel = self.get_current_request_channel()
+
+        if not self.is_channel_daily_exhausted(current_channel):
+            return True
+
+        next_index = self.find_next_available_channel_index(self._request_mode_index + 1)
+        if next_index < 0:
+            self.request_force_stop(
+                f"오늘 사용 가능한 요청 채널이 없습니다. "
+                f"date={self._daily_limit_date_key}, limit={self._channel_daily_limit}"
+            )
+            return False
+
+        prev_mode = self.channel_label(current_channel)
+        self._request_mode_index = next_index
+        next_channel = self.get_current_request_channel()
+        next_mode = self.channel_label(next_channel)
+
+        self.rotate_api_trace(f"daily-limit-skip {prev_mode}->{next_mode}")
+
+        self.log_signal_func(
+            f"[channel] 일일 한도 도달 채널 건너뜀: {prev_mode} -> {next_mode}"
+        )
+        return True
 
     def resolve_server_id(self, channel: Optional[Dict[str, Any]] = None) -> str:
         ch = channel or self.get_current_request_channel()
@@ -526,8 +674,14 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         prev_channel = self.get_current_request_channel()
         prev_mode = self.channel_label(prev_channel)
 
-        if self._request_channels:
-            self._request_mode_index = (self._request_mode_index + 1) % len(self._request_channels)
+        next_index = self.find_next_available_channel_index(self._request_mode_index + 1)
+        if next_index < 0:
+            self.request_force_stop(
+                f"rotate 실패: 사용 가능한 요청 채널 없음, reason={reason}, prev_mode={prev_mode}"
+            )
+            return prev_mode
+
+        self._request_mode_index = next_index
 
         next_channel = self.get_current_request_channel()
         next_mode = self.channel_label(next_channel)
@@ -539,6 +693,42 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             f"api_trace_id={self.api_trace_id}"
         )
         return next_mode
+
+    def wait_channel_gap_if_needed(self, channel: Dict[str, Any]) -> bool:
+        if self._channel_min_gap_sec <= 0:
+            return True
+
+        label = self.channel_label(channel)
+        last_used = float(self._channel_last_used_monotonic.get(label, 0.0) or 0.0)
+
+        if last_used <= 0:
+            return True
+
+        now = time.monotonic()
+        elapsed = now - last_used
+        remain = self._channel_min_gap_sec - elapsed
+
+        if remain <= 0:
+            return True
+
+        self.log_signal_func(
+            f"[channel-gap] {label} 최소 간격 대기: remain={remain:.2f}s, "
+            f"min_gap={self._channel_min_gap_sec}s"
+        )
+        return self.sleep_s(remain)
+
+    def mark_channel_used(self, channel: Dict[str, Any]) -> None:
+        self.reset_daily_channel_state_if_needed()
+
+        label = self.channel_label(channel)
+        used_count = self.get_channel_daily_count(channel) + 1
+
+        self._channel_daily_counts[label] = used_count
+        self._channel_last_used_monotonic[label] = time.monotonic()
+
+        self.log_signal_func(
+            f"[channel] 사용 기록: label={label}, daily_count={used_count}/{self._channel_daily_limit}"
+        )
 
     # =========================
     # helpers
@@ -584,6 +774,28 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             return False
 
         return False
+
+    def is_hard_stop_message(self, message: Any) -> bool:
+        text = str(message or "").strip()
+        if not text:
+            return False
+
+        low = text.lower()
+        for keyword in self._hard_stop_keywords:
+            if keyword.lower() in low:
+                return True
+
+        return False
+
+    def request_force_stop(self, reason: str) -> None:
+        if self._force_stop_requested:
+            return
+
+        self._force_stop_requested = True
+        self._force_stop_reason = str(reason or "").strip()
+        self.running = False
+
+        self.log_signal_func(f"🛑 당일 운영 중단: {self._force_stop_reason}")
 
     def get_html(self, url: str, headers: dict) -> str:
         self.log_signal_func(f"🌐 GET: {url}")
@@ -752,10 +964,21 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         current_mode = self.get_current_request_mode()
         self.log_signal_func(f"⚠️ 현재 채널 실패: mode={current_mode}, reason={reason}")
 
+        if self._force_stop_requested:
+            self.log_signal_func("⛔ 강제 종료 상태이므로 채널 전환 생략")
+            return
+
         self.rotate_request_mode(reason=reason)
+
+        if self._force_stop_requested:
+            self.log_signal_func("⛔ 강제 종료 상태이므로 채널 전환 후 대기 생략")
+            return
+
         self.sleep_between_channel_attempts()
 
     def complete_current_channel(self, reason: str) -> None:
+        if self._force_stop_requested:
+            return
         self.rotate_request_mode(reason=reason)
 
     def touch_request_trace(self, channel: Dict[str, Any]) -> None:
@@ -766,7 +989,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     # =========================
     # bizno: search + detail
     # =========================
-    def fetch_search_and_detail(self, item: dict) -> None:
+    def fetch_search_and_detail(self, item: dict) -> bool:
         raw_company_name = (item.get("검색회사명") or "").strip()
         filtered_company_name = self.normalize_search_company_name(raw_company_name)
         owner = (item.get("검색대표자명") or "").strip()
@@ -779,9 +1002,24 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             item_key=f"{filtered_company_name}|{owner}"
         )
 
-        max_try = self.get_request_channel_count()
+        if not self.ensure_current_request_channel_available():
+            return False
+
+        max_try = self.get_available_request_channel_count()
+
+        if max_try <= 0:
+            self.request_force_stop(
+                f"오늘 사용 가능한 요청 채널 수가 0입니다. date={self._daily_limit_date_key}"
+            )
+            return False
 
         for attempt in range(max_try):
+            if self._force_stop_requested:
+                return False
+
+            if not self.ensure_current_request_channel_available():
+                return False
+
             channel = self.get_current_request_channel()
             mode = str(channel.get("mode") or "").strip()
             channel_name = self.channel_label(channel)
@@ -792,6 +1030,12 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             )
 
             try:
+                if not self.wait_channel_gap_if_needed(channel):
+                    self.log_signal_func("⛔ 채널 최소 간격 대기 중단 감지")
+                    return False
+
+                self.mark_channel_used(channel)
+
                 if mode == "request":
                     self.touch_request_trace(channel)
 
@@ -816,9 +1060,8 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     html = self.get_html(search_url, headers=search_headers)
 
                     if not html or self.is_blocked_html(html):
-                        self.log_signal_func("[search-and-detail][request] ❌ search 실패/차단")
-                        self.handle_mode_fail("search-and-detail request search fail/blocked")
-                        continue
+                        self.request_force_stop("로컬 bizno search 차단 감지. 당일 운영 종료")
+                        return False
 
                     soup = BeautifulSoup(html, "html.parser")
                     hit = 0
@@ -854,11 +1097,11 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                             f"[search-and-detail][request] 결과 스캔 완료. details_count={hit}, match=0"
                         )
                         self.complete_current_channel("search-and-detail request no-match")
-                        return
+                        return True
 
                     if not self.sleep_between_local_search_and_detail():
                         self.log_signal_func("⛔ 로컬 search/detail 사이 sleep 중단 감지")
-                        return
+                        return False
 
                     article = str(item.get("article") or "").strip()
                     detail_url = f"https://bizno.net/article/{article}"
@@ -879,18 +1122,16 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     detail_html = self.get_html(detail_url, headers=detail_headers)
 
                     if not detail_html or self.is_blocked_html(detail_html):
-                        self.log_signal_func("[search-and-detail][request] ❌ detail 실패/차단")
-                        self.handle_mode_fail("search-and-detail request detail fail/blocked")
-                        continue
+                        self.request_force_stop("로컬 bizno detail 차단 감지. 당일 운영 종료")
+                        return False
 
                     detail_soup = BeautifulSoup(detail_html, "html.parser")
                     table = detail_soup.select_one("table.table_guide01")
                     item["url"] = detail_url
 
                     if not table:
-                        self.log_signal_func("[search-and-detail][request] ❌ table.table_guide01 없음")
-                        self.handle_mode_fail("search-and-detail request detail table missing")
-                        continue
+                        self.request_force_stop("로컬 bizno detail table 없음(차단 의심). 당일 운영 종료")
+                        return False
 
                     row_cnt = 0
                     for tr in table.select("tr"):
@@ -908,7 +1149,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                         f"[search-and-detail][request] ✅ search+detail 완료. row_count={row_cnt}"
                     )
                     self.complete_current_channel("search-and-detail request success")
-                    return
+                    return True
 
                 if mode == "server":
                     trace_headers = self.build_request_trace_headers(
@@ -923,15 +1164,30 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                     res = self._loads_if_needed(resp.text)
 
                     if self.is_api_error_response(res):
+                        message = str(res.get("message") or "").strip()
+
+                        if self.is_hard_stop_message(message):
+                            self.request_force_stop(
+                                f"원격 서버 하드 차단/소진 감지: {message}"
+                            )
+                            return False
+
                         self.log_signal_func(
-                            f"[search-and-detail][api] ❌ 서버 에러: {res.get('message')}"
+                            f"[search-and-detail][api] ❌ 서버 에러: {message}"
                         )
                         self.handle_mode_fail(
-                            f"search-and-detail api error: {res.get('message')}"
+                            f"search-and-detail api error: {message}"
                         )
                         continue
 
                     normalized = self.extract_search_and_detail_api_result(res)
+                    normalized_message = str(normalized.get("message") or res.get("message") or "").strip()
+
+                    if self.is_hard_stop_message(normalized_message):
+                        self.request_force_stop(
+                            f"원격 서버 하드 차단/소진 감지: {normalized_message}"
+                        )
+                        return False
 
                     if normalized.get("success") and (
                             normalized.get("article")
@@ -965,24 +1221,30 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
                         )
 
                         self.complete_current_channel("search-and-detail api success")
-                        return
+                        return True
 
                     self.log_signal_func(
-                        f"[search-and-detail][api] ⚠️ 매칭 없음: {normalized.get('message') or res.get('message')}"
+                        f"[search-and-detail][api] ⚠️ 매칭 없음: {normalized_message}"
                     )
                     self.complete_current_channel("search-and-detail api no-match")
-                    return
+                    return True
 
                 self.log_signal_func(f"[search-and-detail] ❌ 알 수 없는 mode: {mode}")
                 self.handle_mode_fail(f"unknown mode: {mode}")
                 continue
 
             except Exception as e:
+                text = str(e)
+                if self.is_hard_stop_message(text):
+                    self.request_force_stop(f"예외 기반 하드 차단 감지: {text}")
+                    return False
+
                 self.log_signal_func(f"[search-and-detail][{channel_name}] ❌ 예외: {e}")
                 self.handle_mode_fail(f"search-and-detail exception: {e}")
                 continue
 
         self.log_signal_func("[search-and-detail] ❌ 모든 채널 시도했지만 실패")
+        return True
 
     # =========================
     # trace helpers
