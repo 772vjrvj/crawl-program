@@ -59,7 +59,11 @@ class RegionSetPop(QDialog):
         # FileUtils: logger로 signal emit 넘기는 패턴 유지
         self.file_driver = FileUtils(self.log_signal.emit)
 
-        loc_any: Any = self.file_driver.read_json_array_from_resources("naver_loc_all_real.json")
+        loc_any: Any = self.file_driver.read_json_array_from_resources(
+            "naver_loc_all_real.json",
+            "customers/naver_place_loc_all"
+        )
+
         self.loc_all: List[_Region] = cast(List[_Region], loc_any or [])
 
         self.init_ui()
@@ -298,6 +302,7 @@ class RegionSetPop(QDialog):
             QTreeView {
                 font-size: 14px;
                 padding: 4px 12px;
+                outline: none;
                 color: #111;
                 selection-color: black;
             }

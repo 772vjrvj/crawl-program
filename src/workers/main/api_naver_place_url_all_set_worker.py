@@ -168,16 +168,13 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         self.file_driver = FileUtils(self.log_signal_func)
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
-    # === 신규 ===
     def safe_filename(self, name: str) -> str:
         name = re.sub(r'[\\/:*?"<>|]+', "_", str(name or "").strip())
         return (name or "output")[:120]
 
-    # === 신규 ===
     def now_stamp(self) -> str:
         return time.strftime("%Y%m%d_%H%M%S")
 
-    # === 신규 ===
     def get_csv_filename(self) -> str:
         return f"{self.safe_filename(self.site_name)}_{self.now_stamp()}.csv"
 

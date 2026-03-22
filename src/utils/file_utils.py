@@ -229,13 +229,20 @@ class FileUtils:
             self._log(f"❌ 이미지 저장 실패: {os.path.join(folder_path, filename)} / 오류: {str(e)}")
             return None
 
-    def read_json_array_from_resources(self, filename: str) -> List[Any]:
+    def read_json_array_from_resources(self, filename: str, sub_dir: str = "") -> List[Any]:
         """
-        resources 폴더 안에서 지정한 JSON 파일을 읽어 배열(list)로 반환
+        resources 폴더 기준으로 sub_dir 하위의 JSON 파일을 읽어 배열(list)로 반환
+        ex)
+        - read_json_array_from_resources("naver_loc_all_real.json", "customers/naver_place_loc_all")
+        - read_json_array_from_resources("naver_real_estate_data.json")
         """
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         resources_dir = os.path.join(base_dir, "resources")
-        file_path = os.path.join(resources_dir, filename)
+
+        if sub_dir:
+            file_path = os.path.join(resources_dir, sub_dir, filename)
+        else:
+            file_path = os.path.join(resources_dir, filename)
 
         if not os.path.exists(file_path):
             self._log(f"❌ JSON 파일이 존재하지 않습니다: {file_path}")
@@ -244,11 +251,14 @@ class FileUtils:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
+
             if not isinstance(data, list):
                 self._log(f"⚠️ JSON 배열 형식이 아님: {file_path}")
                 return []
+
             self._log(f"📄 JSON 배열 {len(data)}개 읽음: {file_path}")
             return data
+
         except Exception as e:
             self._log(f"❌ JSON 읽기 실패: {file_path} / 오류: {e}")
             return []

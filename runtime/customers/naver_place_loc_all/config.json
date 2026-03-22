@@ -4,61 +4,186 @@
   "color": "#ccc",
   "enabled": true,
   "popup": false,
-  "region" : true,
+  "region": true,
   "worker_class": "src.workers.main.api_naver_place_loc_all_set_worker:ApiNaverPlaceLocAllSetWorker",
   "setting": [
     {
       "name": "1. 키워드(콤마(,)로 구분해주세요)",
       "code": "keyword",
-      "value": "",
+      "value": "발레, 유도",
       "type": "input"
     },
     {
-      "name": "이미지 압축 여부",
-      "code": "zip",
-      "value": true,
-      "type": "check"
-    },
-    {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "E:\\git\\crawl-program",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
       "button_text": "폴더 선택",
       "dialog_title": "저장 폴더 선택",
       "path_type": "main"
     }
   ],
   "columns": [
-    {"code": "id",             "value": "아이디",        "checked": true},
-    {"code": "name",           "value": "이름",          "checked": true},
-    {"code": "addr_jibun",     "value": "주소(지번)",    "checked": true},
-    {"code": "addr_road",      "value": "주소(도로명)",  "checked": true},
-    {"code": "category_main",  "value": "대분류",        "checked": true},
-    {"code": "category_sub",   "value": "소분류",        "checked": true},
-    {"code": "rating",         "value": "별점",          "checked": true},
-    {"code": "review_visitors","value": "방문자리뷰수",  "checked": true},
-    {"code": "review_blogs",   "value": "블로그리뷰수",  "checked": true},
-    {"code": "open_time1",     "value": "이용시간1",     "checked": true},
-    {"code": "open_time2",     "value": "이용시간2",     "checked": true},
-    {"code": "category",       "value": "카테고리",      "checked": true},
-    {"code": "url",            "value": "URL",           "checked": true},
-    {"code": "map",            "value": "지도",          "checked": true},
-    {"code": "amenities",      "value": "편의시설",      "checked": true},
-    {"code": "virtual_phone",  "value": "가상번호",      "checked": true},
-    {"code": "phone",          "value": "전화번호",      "checked": true},
-    {"code": "site",           "value": "사이트",        "checked": true},
-    {"code": "region_info",    "value": "주소지정보",    "checked": true},
-    {"code": "city",           "value": "시도(검색)",    "checked": true},
-    {"code": "division",       "value": "시군구(검색)",  "checked": true},
-    {"code": "sector",         "value": "읍면동(검색)",  "checked": true},
-    {"code": "keyword",        "value": "키워드(검색)",  "checked": true},
-    {"code": "all_keyword",    "value": "전체 검색어",  "checked": true},
-
-    {"code": "zip_code",       "value": "우편번호",          "checked": true},
-
-    {"code": "agency_name",    "value": "대행사 상호",          "checked": false},
-    {"code": "agency_ceo",     "value": "대행사 대표자명",      "checked": false},
-    {"code": "agency_address", "value": "대행사 소재지",        "checked": false},
-    {"code": "agency_bizno",   "value": "대행사 사업자번호",    "checked": false},
-    {"code": "agency_mailno",  "value": "대행사 통신판매업번호","checked": false},
-    {"code": "agency_phone",   "value": "대행사 연락처",        "checked": false},
-    {"code": "agency_site",    "value": "대행사 홈페이지",      "checked": false}
+    {
+      "code": "id",
+      "value": "아이디",
+      "checked": true
+    },
+    {
+      "code": "name",
+      "value": "이름",
+      "checked": true
+    },
+    {
+      "code": "addr_jibun",
+      "value": "주소(지번)",
+      "checked": true
+    },
+    {
+      "code": "addr_road",
+      "value": "주소(도로명)",
+      "checked": true
+    },
+    {
+      "code": "category_main",
+      "value": "대분류",
+      "checked": true
+    },
+    {
+      "code": "category_sub",
+      "value": "소분류",
+      "checked": true
+    },
+    {
+      "code": "rating",
+      "value": "별점",
+      "checked": true
+    },
+    {
+      "code": "review_visitors",
+      "value": "방문자리뷰수",
+      "checked": true
+    },
+    {
+      "code": "review_blogs",
+      "value": "블로그리뷰수",
+      "checked": true
+    },
+    {
+      "code": "open_time1",
+      "value": "이용시간1",
+      "checked": true
+    },
+    {
+      "code": "open_time2",
+      "value": "이용시간2",
+      "checked": true
+    },
+    {
+      "code": "category",
+      "value": "카테고리",
+      "checked": true
+    },
+    {
+      "code": "url",
+      "value": "URL",
+      "checked": true
+    },
+    {
+      "code": "map",
+      "value": "지도",
+      "checked": true
+    },
+    {
+      "code": "amenities",
+      "value": "편의시설",
+      "checked": true
+    },
+    {
+      "code": "virtual_phone",
+      "value": "가상번호",
+      "checked": true
+    },
+    {
+      "code": "phone",
+      "value": "전화번호",
+      "checked": true
+    },
+    {
+      "code": "site",
+      "value": "사이트",
+      "checked": true
+    },
+    {
+      "code": "region_info",
+      "value": "주소지정보",
+      "checked": true
+    },
+    {
+      "code": "city",
+      "value": "시도(검색)",
+      "checked": true
+    },
+    {
+      "code": "division",
+      "value": "시군구(검색)",
+      "checked": true
+    },
+    {
+      "code": "sector",
+      "value": "읍면동(검색)",
+      "checked": true
+    },
+    {
+      "code": "keyword",
+      "value": "키워드(검색)",
+      "checked": true
+    },
+    {
+      "code": "all_keyword",
+      "value": "전체 검색어",
+      "checked": true
+    },
+    {
+      "code": "zip_code",
+      "value": "우편번호",
+      "checked": true
+    },
+    {
+      "code": "agency_name",
+      "value": "대행사 상호",
+      "checked": false
+    },
+    {
+      "code": "agency_ceo",
+      "value": "대행사 대표자명",
+      "checked": false
+    },
+    {
+      "code": "agency_address",
+      "value": "대행사 소재지",
+      "checked": false
+    },
+    {
+      "code": "agency_bizno",
+      "value": "대행사 사업자번호",
+      "checked": false
+    },
+    {
+      "code": "agency_mailno",
+      "value": "대행사 통신판매업번호",
+      "checked": false
+    },
+    {
+      "code": "agency_phone",
+      "value": "대행사 연락처",
+      "checked": false
+    },
+    {
+      "code": "agency_site",
+      "value": "대행사 홈페이지",
+      "checked": false
+    }
   ]
 }
