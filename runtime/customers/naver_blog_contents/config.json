@@ -4,7 +4,7 @@
   "color": "#ccc",
   "enabled": true,
   "popup": false,
-  "worker_class": "src.workers.main.api_naver_blog_contents_set_worker:ApiNaverBlogContentsSetLoadWorker",
+  "worker_class": "src.workers.main.api_naver_blog_contents_set_worker:ApiNaverBlogContentsSetWorker",
   "setting": [
       {"name": "블로그 URL", "code": "url",        "value": "", "type": "button"},
       {"name": "게시판 선택", "code": "url_select", "value": "", "type": "select"},

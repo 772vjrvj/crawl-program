@@ -1,3 +1,9 @@
+플레이스 ID가 있는 URL 엑셀을 넣고 돌리면 
+이미지랑 정보를 출해준다.
+
+
+
+
 pyinstaller .\main.py `
 --noconfirm `
 --clean `

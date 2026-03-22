@@ -97,7 +97,7 @@ import tempfile
 import time
 import uuid
 import winreg
-from typing import Optional, Dict, Any, List, Set, Union, TypedDict
+from typing import Optional, Dict, Any, List, Set, Union, TypedDict, Callable, Tuple
 
 import undetected_chromedriver as uc
 from selenium.common.exceptions import (
@@ -114,7 +114,6 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from typing import Optional, Callable, Any  # === 신규 ===
 
 
 class ApiRequestMeta(TypedDict, total=False):
@@ -188,6 +187,20 @@ class SeleniumUtils:
 
         self._quit_done = False  # === 신규 ===
 
+        # === 신규 === 기본 화면 모드/크기 설정
+        # 기존 호출부 호환을 위해 기본은 browser + 600x700 유지
+        self.default_view_mode: str = "browser"
+        self.default_browser_window_size: Tuple[int, int] = (600, 700)
+
+        # 모바일 기본값
+        self.default_mobile_window_size: Tuple[int, int] = (520, 980)
+        self.default_mobile_metrics: Tuple[int, int] = (430, 932)
+        self.default_mobile_user_agent: str = (
+            "Mozilla/5.0 (Linux; Android 13; SM-S918N) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/139.0.0.0 Mobile Safari/537.36"
+        )
+
     # ---------------------------------------------------------------------
     # Logging / Config
     # ---------------------------------------------------------------------
@@ -214,8 +227,6 @@ class SeleniumUtils:
         # fallback
         print(msg)
 
-
-
     def set_capture_options(self, enabled: bool, block_images: Optional[bool] = None) -> None:
         """
         네트워크 캡처 옵션 설정.
@@ -228,6 +239,88 @@ class SeleniumUtils:
         if block_images is not None:
             self.block_images = bool(block_images)
 
+    # ---------------------------------------------------------------------
+    # View mode
+    # ---------------------------------------------------------------------
+    def set_default_view_config(
+            self,
+            view_mode: str = "browser",
+            browser_window_size: Optional[Tuple[int, int]] = None,
+            mobile_window_size: Optional[Tuple[int, int]] = None,
+            mobile_metrics: Optional[Tuple[int, int]] = None,
+            mobile_user_agent: Optional[str] = None,
+    ) -> None:
+        """
+        기본 화면 모드/크기를 설정한다.
+        - 기존 호출부는 start_driver()만 써도 default 값으로 동작
+        - 새 호출부는 start_driver(...override...)로 덮어쓰기 가능
+        """
+        mode = str(view_mode or "browser").strip().lower()
+        if mode not in ("browser", "mobile"):
+            mode = "browser"
+
+        self.default_view_mode = mode
+
+        if browser_window_size:
+            self.default_browser_window_size = (
+                int(browser_window_size[0]),
+                int(browser_window_size[1]),
+            )
+
+        if mobile_window_size:
+            self.default_mobile_window_size = (
+                int(mobile_window_size[0]),
+                int(mobile_window_size[1]),
+            )
+
+        if mobile_metrics:
+            self.default_mobile_metrics = (
+                int(mobile_metrics[0]),
+                int(mobile_metrics[1]),
+            )
+
+        if mobile_user_agent:
+            self.default_mobile_user_agent = str(mobile_user_agent)
+
+    def _normalize_view_mode(self, view_mode: Optional[str]) -> str:
+        mode = str(view_mode or self.default_view_mode or "browser").strip().lower()
+        if mode not in ("browser", "mobile"):
+            mode = "browser"
+        return mode
+
+    def _resolve_view_config(
+            self,
+            view_mode: Optional[str] = None,
+            window_size: Optional[Tuple[int, int]] = None,
+            mobile_metrics: Optional[Tuple[int, int]] = None,
+            mobile_user_agent: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        최종 화면 설정값을 계산한다.
+        - 기존 호출: browser + (600,700)
+        - 신규 호출: view_mode/window_size/mobile_metrics override 가능
+        """
+        final_view_mode = self._normalize_view_mode(view_mode)
+
+        if final_view_mode == "mobile":
+            final_window_size = window_size or self.default_mobile_window_size
+            final_mobile_metrics = mobile_metrics or self.default_mobile_metrics
+        else:
+            final_window_size = window_size or self.default_browser_window_size
+            final_mobile_metrics = mobile_metrics or self.default_mobile_metrics
+
+        return {
+            "view_mode": final_view_mode,
+            "window_size": (
+                int(final_window_size[0]),
+                int(final_window_size[1]),
+            ),
+            "mobile_metrics": (
+                int(final_mobile_metrics[0]),
+                int(final_mobile_metrics[1]),
+            ),
+            "mobile_user_agent": str(mobile_user_agent or self.default_mobile_user_agent),
+        }
 
     # ---------------------------------------------------------------------
     # Profile handling
@@ -345,19 +438,43 @@ class SeleniumUtils:
     # ---------------------------------------------------------------------
     # Options building
     # ---------------------------------------------------------------------
-    def _build_options(self, chrome_exe: Optional[str]) -> uc.ChromeOptions:
+    def _build_options(
+            self,
+            chrome_exe: Optional[str],
+            view_mode: Optional[str] = None,
+            window_size: Optional[Tuple[int, int]] = None,
+            mobile_metrics: Optional[Tuple[int, int]] = None,
+            mobile_user_agent: Optional[str] = None,
+    ) -> uc.ChromeOptions:
         """
         uc.ChromeOptions를 구성한다.
         - locale, 팝업/첫실행 비활성화, 로그 레벨, 최대화 등
         - block_images/capture_enabled/profile_dir 적용
+        - browser/mobile 모드 및 창 크기 적용
 
         Args:
             chrome_exe: chrome.exe 경로(있으면 binary_location 지정)
+            view_mode: browser | mobile
+            window_size: 실제 브라우저 창 크기
+            mobile_metrics: 모바일 내부 viewport 크기
+            mobile_user_agent: 모바일 UA
 
         Returns:
             uc.ChromeOptions 객체
         """
         opts = uc.ChromeOptions()
+
+        final_cfg = self._resolve_view_config(
+            view_mode=view_mode,
+            window_size=window_size,
+            mobile_metrics=mobile_metrics,
+            mobile_user_agent=mobile_user_agent,
+        )
+
+        final_view_mode = final_cfg["view_mode"]
+        final_window_size = final_cfg["window_size"]
+        final_mobile_metrics = final_cfg["mobile_metrics"]
+        final_mobile_user_agent = final_cfg["mobile_user_agent"]
 
         # === 기본 실행 옵션(실무에서 흔히 세팅) ===
         opts.add_argument("--lang=ko-KR")
@@ -382,10 +499,8 @@ class SeleniumUtils:
         opts.add_argument("--log-level=3")
         # Chrome 내부 로그 레벨 최소화 (0=verbose ~ 3=error만 출력)
 
-        # opts.add_argument("--start-maximized")
-        # 브라우저를 최대화 상태로 시작 (반응형 레이아웃 오작동 방지)
-        opts.add_argument("--window-size=600,700")
-        # 가로 1000px, 세로 900px로 시작
+        # === 신규 === 화면 모드별 창 크기 적용
+        opts.add_argument(f"--window-size={final_window_size[0]},{final_window_size[1]}")
 
         # Headless 모드
         if self.headless:
@@ -399,6 +514,12 @@ class SeleniumUtils:
                     "profile.managed_default_content_settings.images": 2,
                     "profile.default_content_setting_values.notifications": 2,
                 },
+            )
+
+        # 모바일 모드일 때 mobile emulation 적용
+        if final_view_mode == "mobile":
+            opts.add_argument(
+                f"--user-agent={final_mobile_user_agent}"
             )
 
         # Network/performance 캡처를 위해 performance log 활성화
@@ -419,7 +540,56 @@ class SeleniumUtils:
 
         return opts
 
+    # ---------------------------------------------------------------------
+    # Mobile emulation
+    # ---------------------------------------------------------------------
+    def _apply_mobile_emulation(
+            self,
+            width: int = 430,
+            height: int = 932,
+            user_agent: Optional[str] = None,
+    ) -> None:
+        """
+        드라이버 생성 직후 CDP로 모바일 UA / viewport / touch를 강제 적용한다.
+        - mobileEmulation 옵션만으로 부족한 사이트 보정용
+        """
+        if not self.driver:
+            return
 
+        ua = str(user_agent or self.default_mobile_user_agent)
+
+        try:
+            self.driver.execute_cdp_cmd(
+                "Emulation.setUserAgentOverride",
+                {
+                    "userAgent": ua,
+                    "platform": "Android",
+                    "acceptLanguage": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+                },
+            )
+
+            self.driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "width": int(width),
+                    "height": int(height),
+                    "deviceScaleFactor": 3,
+                    "mobile": True,
+                },
+            )
+
+            self.driver.execute_cdp_cmd(
+                "Emulation.setTouchEmulationEnabled",
+                {
+                    "enabled": True,
+                    "maxTouchPoints": 5,
+                },
+            )
+
+            self._log("mobile emulation applied:", width, height)
+
+        except Exception as e:
+            self._log("mobile emulation apply failed:", str(e))
 
     # ---------------------------------------------------------------------
     # CDP / performance log
@@ -765,6 +935,11 @@ class SeleniumUtils:
             "headless": self.headless,
             "capture_enabled": self.capture_enabled,
             "block_images": self.block_images,
+            # === 신규 ===
+            "default_view_mode": self.default_view_mode,
+            "default_browser_window_size": self.default_browser_window_size,
+            "default_mobile_window_size": self.default_mobile_window_size,
+            "default_mobile_metrics": self.default_mobile_metrics,
         }
         try:
             import selenium
@@ -794,17 +969,30 @@ class SeleniumUtils:
         except Exception:
             pass
 
-
-    def start_driver(self, timeout: int = 30, force_major: Optional[int] = None) -> WebDriver:
+    def start_driver(
+            self,
+            timeout: int = 30,
+            force_major: Optional[int] = None,
+            view_mode: Optional[str] = None,  # === 신규 ===
+            window_size: Optional[Tuple[int, int]] = None,  # === 신규 ===
+            mobile_metrics: Optional[Tuple[int, int]] = None,  # === 신규 ===
+            mobile_user_agent: Optional[str] = None,  # === 신규 ===
+    ) -> WebDriver:
         """
         uc.Chrome 드라이버를 기동한다.
         - 임시 프로필 생성 후 user-data-dir로 지정
         - Chrome exe 탐색 후 options에 반영
         - driver 생성 실패 시 uc 캐시 삭제 후 1회 재시도
+        - 기존 호출부는 start_driver() 그대로 사용 가능
+        - 신규 호출부는 browser/mobile 및 크기 override 가능
 
         Args:
             timeout: page_load_timeout (초)
             force_major: 강제 major 버전(옵션). None이면 내부 기본값 사용
+            view_mode: "browser" | "mobile"
+            window_size: 실제 브라우저 창 크기 (w, h)
+            mobile_metrics: 모바일 내부 viewport 크기 (w, h)
+            mobile_user_agent: 모바일 UA
 
         Returns:
             생성된 WebDriver(uc.Chrome)
@@ -823,6 +1011,19 @@ class SeleniumUtils:
         # NOTE: 원본 코드 로직 유지(없으면 145 기본)
         major = int(force_major) if force_major else 145
 
+        # === 신규 === 최종 화면 설정값 계산
+        final_cfg = self._resolve_view_config(
+            view_mode=view_mode,
+            window_size=window_size,
+            mobile_metrics=mobile_metrics,
+            mobile_user_agent=mobile_user_agent,
+        )
+
+        final_view_mode = final_cfg["view_mode"]
+        final_window_size = final_cfg["window_size"]
+        final_mobile_metrics = final_cfg["mobile_metrics"]
+        final_mobile_user_agent = final_cfg["mobile_user_agent"]
+
         def _create_driver(opts_any: uc.ChromeOptions) -> WebDriver:
             """
             uc.Chrome 생성 래퍼.
@@ -835,10 +1036,22 @@ class SeleniumUtils:
 
         try:
             # 1차 생성 시도
-            opts = self._build_options(chrome_exe)
+            opts = self._build_options(
+                chrome_exe=chrome_exe,
+                view_mode=final_view_mode,
+                window_size=final_window_size,
+                mobile_metrics=final_mobile_metrics,
+                mobile_user_agent=final_mobile_user_agent,
+            )
             t = time.time()
             self.driver = _create_driver(opts)
-            self._force_window(600, 700)  # 여기(1차 생성 직후)
+            self._force_window(final_window_size[0], final_window_size[1])  # === 신규 ===
+            if final_view_mode == "mobile":
+                self._apply_mobile_emulation(
+                    width=final_mobile_metrics[0],
+                    height=final_mobile_metrics[1],
+                    user_agent=final_mobile_user_agent,
+                )
             self._log("driver create time:", time.time() - t)
 
             # 페이지 로드 타임아웃 설정(지원 안 되면 무시)
@@ -863,10 +1076,22 @@ class SeleniumUtils:
 
             # 2차 재시도
             try:
-                opts = self._build_options(chrome_exe)
+                opts = self._build_options(
+                    chrome_exe=chrome_exe,
+                    view_mode=final_view_mode,
+                    window_size=final_window_size,
+                    mobile_metrics=final_mobile_metrics,
+                    mobile_user_agent=final_mobile_user_agent,
+                )
                 t = time.time()
                 self.driver = _create_driver(opts)
-                self._force_window(600, 700)  # 여기(1차 생성 직후)
+                self._force_window(final_window_size[0], final_window_size[1])  # === 신규 ===
+                if final_view_mode == "mobile":
+                    self._apply_mobile_emulation(
+                        width=final_mobile_metrics[0],
+                        height=final_mobile_metrics[1],
+                        user_agent=final_mobile_user_agent,
+                    )
                 self._log("driver create time:", time.time() - t)
 
                 try:
@@ -881,7 +1106,6 @@ class SeleniumUtils:
                 self.last_error = e2
                 self._safe_quit_driver()
                 raise e2
-
 
     def quit(self) -> None:
         # === 신규 === 중복 quit 방지 (PySide/QThread에서 매우 중요)
@@ -901,7 +1125,6 @@ class SeleniumUtils:
         self._net_enabled = False
         self._perf_supported = None
 
-
     def _force_window(self, w: int = 600, h: int = 700) -> None:
         # === 신규 === uc/Chrome 조합에서 --window-size가 무시되는 케이스가 있어 생성 직후 강제 적용
         if not self.driver:
@@ -912,7 +1135,6 @@ class SeleniumUtils:
             self._log("window forced:", self.driver.get_window_size(), self.driver.get_window_position())
         except Exception as e:
             self._log("window force failed:", str(e))
-
 
     def cleanup_old_profiles(self, older_than_hours: int = 24) -> int:
         base = os.path.join(tempfile.gettempdir(), "selenium_profiles")

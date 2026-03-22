@@ -17,7 +17,7 @@ from src.utils.selenium_utils import SeleniumUtils
 from src.workers.api_base_worker import BaseApiWorker
 
 
-class ApiNaverBlogContentsSetLoadWorker(BaseApiWorker):
+class ApiNaverBlogContentsSetWorker(BaseApiWorker):
 
     # 초기화
     def __init__(self, setting: Any = None) -> None:
