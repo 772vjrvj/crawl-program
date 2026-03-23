@@ -18,12 +18,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'GB7'),
             StringStruct('FileDescription', 'BIZNO'),
-            StringStruct('FileVersion', '1.2.1'),
+            StringStruct('FileVersion', '1.2.2'),
             StringStruct('InternalName', 'BIZNO'),
             StringStruct('LegalCopyright', '© 2026 GB7'),
             StringStruct('OriginalFilename', 'BIZNO.exe'),
             StringStruct('ProductName', 'BIZNO'),
-            StringStruct('ProductVersion', '1.2.1')
+            StringStruct('ProductVersion', '1.2.2')
           ]
         )
       ]

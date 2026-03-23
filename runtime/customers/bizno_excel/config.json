@@ -86,7 +86,7 @@
     {
       "code": "fax",
       "value": "팩스번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "corp_size",
