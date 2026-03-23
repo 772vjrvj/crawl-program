@@ -25,39 +25,175 @@
     }
   ],
   "columns": [
-    {"code": "article_number",        "value": "번호",   "checked": false},
-    {"code": "region",                "value": "지역",   "checked": false},
-    {"code": "city",                  "value": "시도",   "checked": true},
-    {"code": "division",              "value": "시군구",  "checked": true},
-    {"code": "sector",                "value": "읍면동",  "checked": true},
-    {"code": "item_name",             "value": "매물명",  "checked": true},
-    {"code": "latitude",              "value": "위도",         "checked": false},
-    {"code": "longitude",             "value": "경도",         "checked": false},
-    {"code": "keyword",               "value": "키워드",  "checked": true},
-    {"code": "complex_name",          "value": "단지명",  "checked": true},
-    {"code": "complex_dong_name",     "value": "동(단지)",     "checked": true},
-    {"code": "brokerage_name",        "value": "중개사무소 이름",      "checked": true},
-    {"code": "broker_name",           "value": "중개사 이름",        "checked": true},
-    {"code": "broker_address",        "value": "중개사무소 주소",         "checked": true},
-    {"code": "phone_brokerage",       "value": "중개사무소 번호",   "checked": true},
-    {"code": "phone_mobile",          "value": "중개사 헨드폰번호",   "checked": true},
-    {"code": "floor_info",            "value": "층",           "checked": false},
-    {"code": "target_floor",          "value": "층(목표)",     "checked": false},
-    {"code": "total_floor",           "value": "층(전체)",     "checked": false},
-    {"code": "direction_ko",          "value": "방향",         "checked": false},
-    {"code": "direction_raw",         "value": "방향(원문)",   "checked": true},
-    {"code": "direction_standard",    "value": "방향기준",     "checked": false},
-    {"code": "exclusive_sqm_pyeong",  "value": "전용(㎡/평)",  "checked": false},
-    {"code": "supply_sqm_pyeong",     "value": "공급(㎡/평)",  "checked": false},
-    {"code": "contract_sqm_pyeong",   "value": "계약(㎡/평)",  "checked": false},
-    {"code": "deal_price_fmt",        "value": "매매가",       "checked": false},
-    {"code": "deal_price",            "value": "매매가(원)",   "checked": false},
-    {"code": "maintenance_fee",       "value": "관리비",       "checked": false},
-    {"code": "real_estate_type",      "value": "부동산종류",   "checked": true},
-    {"code": "trade_type",            "value": "거래유형",     "checked": true},
-    {"code": "exposure_date",         "value": "노출일",       "checked": false},
-    {"code": "confirm_date",          "value": "확인일",       "checked": false},
-    {"code": "approval_elapsed_year", "value": "준공연차",     "checked": false},
-    {"code": "completion_date",       "value": "준공일",       "checked": false}
+    {
+      "code": "article_number",
+      "value": "번호",
+      "checked": false
+    },
+    {
+      "code": "region",
+      "value": "지역",
+      "checked": false
+    },
+    {
+      "code": "city",
+      "value": "시도",
+      "checked": true
+    },
+    {
+      "code": "division",
+      "value": "시군구",
+      "checked": true
+    },
+    {
+      "code": "sector",
+      "value": "읍면동",
+      "checked": true
+    },
+    {
+      "code": "item_name",
+      "value": "매물명",
+      "checked": true
+    },
+    {
+      "code": "latitude",
+      "value": "위도",
+      "checked": false
+    },
+    {
+      "code": "longitude",
+      "value": "경도",
+      "checked": false
+    },
+    {
+      "code": "keyword",
+      "value": "키워드",
+      "checked": true
+    },
+    {
+      "code": "complex_name",
+      "value": "단지명",
+      "checked": true
+    },
+    {
+      "code": "complex_dong_name",
+      "value": "동(단지)",
+      "checked": true
+    },
+    {
+      "code": "brokerage_name",
+      "value": "중개사무소 이름",
+      "checked": true
+    },
+    {
+      "code": "broker_name",
+      "value": "중개사 이름",
+      "checked": true
+    },
+    {
+      "code": "broker_address",
+      "value": "중개사무소 주소",
+      "checked": true
+    },
+    {
+      "code": "phone_brokerage",
+      "value": "중개사무소 번호",
+      "checked": true
+    },
+    {
+      "code": "phone_mobile",
+      "value": "중개사 헨드폰번호",
+      "checked": true
+    },
+    {
+      "code": "floor_info",
+      "value": "층",
+      "checked": false
+    },
+    {
+      "code": "target_floor",
+      "value": "층(목표)",
+      "checked": false
+    },
+    {
+      "code": "total_floor",
+      "value": "층(전체)",
+      "checked": false
+    },
+    {
+      "code": "direction_ko",
+      "value": "방향",
+      "checked": false
+    },
+    {
+      "code": "direction_raw",
+      "value": "방향(원문)",
+      "checked": true
+    },
+    {
+      "code": "direction_standard",
+      "value": "방향기준",
+      "checked": false
+    },
+    {
+      "code": "exclusive_sqm_pyeong",
+      "value": "전용(㎡/평)",
+      "checked": false
+    },
+    {
+      "code": "supply_sqm_pyeong",
+      "value": "공급(㎡/평)",
+      "checked": false
+    },
+    {
+      "code": "contract_sqm_pyeong",
+      "value": "계약(㎡/평)",
+      "checked": false
+    },
+    {
+      "code": "deal_price_fmt",
+      "value": "매매가",
+      "checked": false
+    },
+    {
+      "code": "deal_price",
+      "value": "매매가(원)",
+      "checked": false
+    },
+    {
+      "code": "maintenance_fee",
+      "value": "관리비",
+      "checked": false
+    },
+    {
+      "code": "real_estate_type",
+      "value": "부동산종류",
+      "checked": true
+    },
+    {
+      "code": "trade_type",
+      "value": "거래유형",
+      "checked": true
+    },
+    {
+      "code": "exposure_date",
+      "value": "노출일",
+      "checked": false
+    },
+    {
+      "code": "confirm_date",
+      "value": "확인일",
+      "checked": false
+    },
+    {
+      "code": "approval_elapsed_year",
+      "value": "준공연차",
+      "checked": false
+    },
+    {
+      "code": "completion_date",
+      "value": "준공일",
+      "checked": false
+    }
   ]
 }

@@ -7,7 +7,7 @@ import random
 import re
 import time
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qs, parse_qsl, urlencode, urlparse, urlunparse
 
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import TimeoutException
@@ -37,10 +37,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.before_pro_value: float = 0.0
 
         self.driver: Any = None
-        self.columns: List[Any] = []
-        self.output_columns: List[str] = []
-        self.region: List[Dict[str, Any]] = []
-        self.setting_detail: List[Any] = []
 
         self.site_name: str = "네이버 부동산 상세"
         self.folder_path: str = ""
@@ -59,7 +55,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.api_client: Optional[APIClient] = None
 
         self.resource_sub_dir: str = ""
-        self._cleaned_up: bool = False
 
         self.headers: Dict[str, str] = {
             "accept": "application/json, text/plain, */*",
@@ -103,74 +98,58 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "B3": "단기임대",
         }
 
-    # 초기화
+    # 실행 전 준비
     def init(self) -> bool:
-        self._cleaned_up = False
         self.current_cnt = 0
         self.total_cnt = 0
         self.before_pro_value = 0.0
         self.detail_region_article_list = []
         self.result_data_list = []
-        self.search_trade_labels = []
-        self.search_trade_codes = []
-        self.search_rlet_labels = []
-        self.search_rlet_codes = []
         self.naver_loc_all_real_detail = []
-
-        if self.columns is None:
-            self.columns = []
-        if self.region is None:
-            self.region = []
-        if self.setting_detail is None:
-            self.setting_detail = []
+        self.search_trade_codes = []
+        self.search_trade_labels = []
+        self.search_rlet_codes = []
+        self.search_rlet_labels = []
 
         self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
-        self.output_columns = self._extract_output_columns(self.columns)
-
+        self._resolve_search_filters()
         self.driver_set(False)
 
         self.log_signal_func(f"선택 항목 : {self.columns}")
-        self.log_signal_func(f"출력 컬럼 : {self.output_columns}")
         self.log_signal_func(f"상세 정보 : {self.setting_detail}")
+        self.log_signal_func(self._build_filter_log_text())
         return True
 
     # 프로그램 실행
     def main(self) -> bool:
         self.log_signal_func("시작합니다.")
 
-        if self.file_driver is None:
-            self.log_signal_func("[ERROR] file_driver 가 초기화되지 않았습니다.")
-            return False
-
-        if self.excel_driver is None:
-            self.log_signal_func("[ERROR] excel_driver 가 초기화되지 않았습니다.")
-            return False
-
         self.csv_filename = os.path.basename(self.file_driver.get_csv_filename(self.site_name))
-
         self.excel_driver.init_csv(
             self.csv_filename,
-            self.output_columns,
+            self.columns,
             folder_path=self.folder_path,
-            sub_dir=self.out_dir
+            sub_dir=self.out_dir,
         )
+        if not self.region:
+            self.log_signal_func("지역 데이터가 없습니다.")
+            return False
 
         self.naver_loc_all_real_detail = self.file_driver.read_json_array_from_resources(
             "naver_real_estate_data.json",
-            "customers/naver_land_real_estate_detail"
+            "customers/naver_land_real_estate_detail",
         )
-
         if not self.naver_loc_all_real_detail:
             self.log_signal_func("지역 상세 JSON 데이터가 없습니다.")
             return False
 
         self._set_region_articles()
-
         if not self.detail_region_article_list:
             self.log_signal_func("수집 대상 지역/기사 목록이 없습니다.")
             return False
 
-        self.log_signal_func(f"대상 지역 수: {len(self.detail_region_article_list)}")
+        total_region_count = len(self.detail_region_article_list)
+        self.log_signal_func(f"대상 지역 수: {total_region_count}")
 
         for index, article in enumerate(self.detail_region_article_list, start=1):
             if not self.running:
@@ -178,39 +157,26 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 break
 
             self.log_signal_func(
-                f"지역 진행 {index}/{len(self.detail_region_article_list)} : "
+                f"지역 진행 {index}/{total_region_count} : "
                 f"{article.get('시도', '')} {article.get('시군구', '')} {article.get('읍면동', '')}"
             )
-
             self._crawl_article_list(article)
 
-            pro_value = (index / max(len(self.detail_region_article_list), 1)) * 1000000
+            pro_value = (index / max(total_region_count, 1)) * 1000000
             self.progress_signal.emit(self.before_pro_value, pro_value)
             self.before_pro_value = pro_value
 
-        if self.result_data_list:
-            self.excel_driver.append_to_csv(
-                self.csv_filename,
-                self.result_data_list,
-                self.output_columns,
-                folder_path=self.folder_path,
-                sub_dir=self.out_dir
-            )
-            self.result_data_list = []
-
+        self._flush_result_data()
         return True
 
     # 정리
     def cleanup(self) -> None:
-        if self._cleaned_up:
-            return
-
         try:
             if self.csv_filename and self.excel_driver:
                 self.excel_driver.convert_csv_to_excel_and_delete(
                     csv_filename=self.csv_filename,
                     folder_path=self.folder_path,
-                    sub_dir=self.out_dir
+                    sub_dir=self.out_dir,
                 )
                 self.log_signal_func("✅ [엑셀 변환] 성공")
         except Exception as e:
@@ -252,7 +218,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.excel_driver = None
         self.selenium_driver = None
         self.csv_filename = None
-        self._cleaned_up = True
 
     def stop(self) -> None:
         self.log_signal_func("✅ stop 시작")
@@ -274,8 +239,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.file_driver = FileUtils(self.log_signal_func)
         self.selenium_driver = SeleniumUtils(headless=headless)
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
-
-        # 기존 프로젝트 SeleniumUtils 시그니처에 맞게 사용
         self.driver = self.selenium_driver.start_driver(
             timeout=1200,
             view_mode="mobile",
@@ -283,37 +246,26 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             mobile_metrics=(430, 932),
         )
 
-    # =========================
-    # 메인 수집
-    # =========================
-
+    # 지역별 article URL 세팅
     def _set_region_articles(self) -> None:
         self.detail_region_article_list = []
 
-        if not self.region:
-            self.detail_region_article_list = list(self.naver_loc_all_real_detail)
-            self.total_cnt = len(self.detail_region_article_list)
-            return
-
         for item in self.region:
-            sido = str(item.get("시도") or "").strip()
-            sigungu = str(item.get("시군구") or "").strip()
-            eupmyeondong = str(item.get("읍면동") or "").strip()
-
-            found = self._find_location_detail(sido, sigungu, eupmyeondong)
+            found = self._find_location_detail(
+                sido=str(item.get("시도") or "").strip(),
+                sigungu=str(item.get("시군구") or "").strip(),
+                eupmyeondong=str(item.get("읍면동") or "").strip(),
+            )
             if found:
-                self.detail_region_article_list.append(found)
+                self.detail_region_article_list.append(self._apply_search_filters_to_article(found))
             else:
-                self.log_signal_func(f"지역 상세 정보 없음: {sido} {sigungu} {eupmyeondong}")
+                self.log_signal_func(
+                    f"지역 상세 정보 없음: {item.get('시도', '')} {item.get('시군구', '')} {item.get('읍면동', '')}"
+                )
 
         self.total_cnt = len(self.detail_region_article_list)
 
-    def _find_location_detail(
-            self,
-            sido: str,
-            sigungu: str,
-            eupmyeondong: str
-    ) -> Optional[Dict[str, Any]]:
+    def _find_location_detail(self, sido: str, sigungu: str, eupmyeondong: str) -> Optional[Dict[str, Any]]:
         for row in self.naver_loc_all_real_detail:
             if (
                     str(row.get("시도") or "").strip() == sido
@@ -323,69 +275,61 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 return row
         return None
 
+    def _apply_search_filters_to_article(self, article: Dict[str, Any]) -> Dict[str, Any]:
+        item = dict(article)
+        article_list_url = str(item.get("articleList") or "").strip()
+        cluster_list_url = str(item.get("clusterList_url") or "").strip()
+
+        if article_list_url:
+            updated_article_list = self._apply_url_filters(article_list_url)
+            item["articleList"] = updated_article_list
+            if updated_article_list != article_list_url:
+                self.log_signal_func(
+                    f"articleList 필터 적용 [{self._build_parts_text(item)}] "
+                    f"tradTpCd={self._get_query_value(updated_article_list, 'tradTpCd')} "
+                    f"rletTpCd={self._get_query_value(updated_article_list, 'rletTpCd')}"
+                )
+
+        if cluster_list_url:
+            updated_cluster_list = self._apply_url_filters(cluster_list_url)
+            item["clusterList_url"] = updated_cluster_list
+
+        cortar_no = self._pick_cortar_no(item)
+        if cortar_no:
+            item["cortarNo"] = cortar_no
+
+        return item
+
     def _crawl_article_list(self, article: Dict[str, Any]) -> None:
         article_list_url = str(article.get("articleList") or "").strip()
         if not article_list_url:
             self.log_signal_func("articleList URL 없음")
             return
 
-        trad_codes, rlet_codes = self._pick_detail_codes()
-
         page = 1
-        empty_count = 0
+        max_count = 100
 
         while self.running:
-            list_url = self._replace_query_params(
-                article_list_url,
-                page=page,
-                tradTpCd=self._join_codes(trad_codes) if trad_codes else None,
-                rletTpCd=self._join_codes(rlet_codes) if rlet_codes else None,
-            )
-
+            list_url = self._replace_query_params(article_list_url, page=page)
             self.log_signal_func(f"목록 조회 page={page} url={list_url}")
-
-            try:
-                if self.api_client is None:
-                    self.log_signal_func("api_client 없음")
-                    return
-
-                res = self.api_client.get(url=list_url, headers=self.headers)
-            except Exception as e:
-                self.log_signal_func(f"목록 요청 실패: {e}")
-                return
-
+            res = self.api_client.get(url=list_url, headers=self.headers)
             items = self._extract_article_items(res)
             if not items:
-                empty_count += 1
-                if empty_count >= 1:
-                    break
-                page += 1
-                continue
-
-            empty_count = 0
+                break
 
             for idx, item in enumerate(items, start=1):
                 if not self.running:
                     break
 
-                item_dict = item if isinstance(item, dict) else {}
-                atcl_no = str(
-                    item_dict.get("atclNo")
-                    or item_dict.get("articleNo")
-                    or item_dict.get("atclNoEnc")
-                    or ""
-                ).strip()
-
+                atcl_no = str(item.get("atclNo") or item.get("articleNo") or item.get("atclNoEnc") or "").strip()
                 if not atcl_no:
                     continue
 
-                self.log_signal_func(
-                    f"매물 진행 page={page}, idx={idx}/{len(items)}, atclNo={atcl_no}"
-                )
+                self.log_signal_func(f"매물 진행 page={page}, idx={idx}/{len(items)}, atclNo={atcl_no}")
 
-                if self._should_fetch_detail(item_dict):
+                if self._should_fetch_detail(item):
                     detail_url = f"{self.fin_land_article_url}/{atcl_no}"
-                    out_obj = self._fetch_detail(detail_url, item_dict, atcl_no, article)
+                    out_obj = self._fetch_detail(detail_url, item, atcl_no, article)
                     self.log_signal_func(f"매물 결과: {out_obj}")
                     if out_obj:
                         self.result_data_list.append(out_obj)
@@ -393,48 +337,40 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     self._crawl_same_addr(atcl_no, article)
 
                 self.current_cnt += 1
-
-                if len(self.result_data_list) >= 20 and self.excel_driver and self.csv_filename:
-                    self.excel_driver.append_to_csv(
-                        self.csv_filename,
-                        self.result_data_list,
-                        self.output_columns,
-                        folder_path=self.folder_path,
-                        sub_dir=self.out_dir
-                    )
-                    self.result_data_list = []
+                if len(self.result_data_list) >= 20:
+                    self._flush_result_data()
 
                 time.sleep(random.uniform(0.4, 0.9))
 
             page += 1
-            if page > 50:
+            if page > max_count:
                 break
 
     def _crawl_same_addr(self, atcl_no: str, article: Dict[str, Any]) -> None:
         try:
-            if self.api_client is None:
+            if not self.api_client:
                 return
 
-            params: Dict[str, Any] = {
-                "atclNo": atcl_no,
-            }
+            params: Dict[str, Any] = {"atclNo": atcl_no}
 
-            cortar_no = article.get("cortarNo") or article.get("cortar_no")
+            cortar_no = self._pick_cortar_no(article)
             if cortar_no:
                 params["cortarNo"] = cortar_no
+            if self.search_trade_codes:
+                params["tradTpCd"] = self._join_codes(self.search_trade_codes)
+            if self.search_rlet_codes:
+                params["rletTpCd"] = self._join_codes(self.search_rlet_codes)
 
-            trad_codes, rlet_codes = self._pick_detail_codes()
-            if trad_codes:
-                params["tradTpCd"] = self._join_codes(trad_codes)
-            if rlet_codes:
-                params["rletTpCd"] = self._join_codes(rlet_codes)
+            self.log_signal_func(
+                f"동일주소 조회 atclNo={atcl_no} tradTpCd={params.get('tradTpCd', '')} "
+                f"rletTpCd={params.get('rletTpCd', '')}"
+            )
 
             res = self.api_client.get(
                 url=self.same_addr_article_url,
                 headers=self.headers,
-                params=params
+                params=params,
             )
-
             items = self._extract_article_items(res)
             if not items:
                 return
@@ -442,21 +378,15 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             for same_item in items:
                 if not self.running:
                     break
-
-                same_dict = same_item if isinstance(same_item, dict) else {}
-                if not self._should_fetch_detail(same_dict):
+                if not self._should_fetch_detail(same_item):
                     continue
 
-                article_number = str(
-                    same_dict.get("atclNo")
-                    or same_dict.get("articleNo")
-                    or ""
-                ).strip()
+                article_number = str(same_item.get("atclNo") or same_item.get("articleNo") or "").strip()
                 if not article_number:
                     continue
 
                 detail_url = f"{self.fin_land_article_url}/{article_number}"
-                out_obj = self._fetch_detail(detail_url, same_dict, article_number, article)
+                out_obj = self._fetch_detail(detail_url, same_item, article_number, article)
                 self.log_signal_func(f"매물 결과: {out_obj}")
                 if out_obj:
                     self.result_data_list.append(out_obj)
@@ -464,21 +394,14 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         except Exception as e:
             self.log_signal_func(f"_crawl_same_addr 실패: {e}")
 
-    def _should_fetch_detail(self, first: Dict[str, Any]) -> bool:
-        if not isinstance(first, dict):
+    def _should_fetch_detail(self, item: Dict[str, Any]) -> bool:
+        item_trad = str(item.get("tradTpCd") or item.get("tradeTypeCode") or "").strip()
+        item_rlet = self._normalize_rlet_code(item.get("rletTpCd") or item.get("realEstateTypeCode") or "")
+
+        if self.search_trade_codes and item_trad and item_trad not in self.search_trade_codes:
             return False
-
-        trad_codes, rlet_codes = self._pick_detail_codes()
-
-        item_trad = str(first.get("tradTpCd") or first.get("tradeTypeCode") or "").strip()
-        item_rlet = str(first.get("rletTpCd") or first.get("realEstateTypeCode") or "").strip()
-
-        if trad_codes and item_trad and item_trad not in trad_codes:
+        if self.search_rlet_codes and item_rlet and item_rlet not in self.search_rlet_codes:
             return False
-
-        if rlet_codes and item_rlet and item_rlet not in rlet_codes:
-            return False
-
         return True
 
     def _fetch_detail(
@@ -486,12 +409,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             url: str,
             parent: Dict[str, Any],
             article_number: str,
-            article: Dict[str, Any]
+            article: Dict[str, Any],
     ) -> Dict[str, Any]:
         result_data: Dict[str, Any] = {}
 
         try:
-            if self.driver is None:
+            if not self.driver:
                 self.log_signal_func("driver 없음")
                 return result_data
 
@@ -512,19 +435,15 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 article_number=article_number,
                 article=article,
                 url=url,
-                html=html
+                html=html,
             )
-
             return result_data
 
         except Exception as e:
             self.log_signal_func(f"_fetch_detail 실패 ({article_number}): {e}")
             return result_data
 
-    # =========================
     # 결과 객체 생성
-    # =========================
-
     def _build_result_data(
             self,
             results_by_key: Dict[str, Any],
@@ -532,184 +451,117 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             article_number: str,
             article: Dict[str, Any],
             url: str,
-            html: str
+            html: str,
     ) -> Dict[str, Any]:
         out: Dict[str, Any] = {}
 
         trade_code = self._to_text(self._first_value(
             [results_by_key, parent],
-            ["tradTpCd", "tradeTypeCode", "tradeType"]
+            ["tradTpCd", "tradeTypeCode", "tradeType"],
         ))
         rlet_code = self._normalize_rlet_code(self._first_value(
             [results_by_key, parent],
-            ["rletTpCd", "realEstateTypeCode", "realEstateType", "buildingType"]
+            ["rletTpCd", "realEstateTypeCode", "realEstateType", "buildingType"],
         ))
 
         brokerage_phone, mobile_phone = self._pick_phone_numbers(results_by_key)
-        floor_text = self._pick_floor_text(results_by_key)
-        if not floor_text:
-            floor_text = self._parse_floor_text_from_dom(html)
+        floor_text = self._pick_floor_text(results_by_key) or self._parse_floor_text_from_dom(html)
 
         supply_space = self._first_value(
             [results_by_key, parent],
-            ["supplySpace", "spc1", "supplyArea", "area1"]
+            ["supplySpace", "spc1", "supplyArea", "area1"],
         )
         exclusive_space = self._first_value(
             [results_by_key, parent],
-            ["exclusiveSpace", "spc2", "exclusiveArea", "area2"]
+            ["exclusiveSpace", "spc2", "exclusiveArea", "area2"],
         )
 
         pyeong_area = self._first_value(
             [results_by_key, parent],
-            ["pyeongArea", "exclusivePy", "supplyPy"]
+            ["pyeongArea", "exclusivePy", "supplyPy"],
         )
-        if pyeong_area in [None, "", [], {}]:
-            pyeong_area = self._calc_pyeong(exclusive_space if exclusive_space not in [None, "", [], {}] else supply_space)
+        if not pyeong_area:
+            pyeong_area = self._calc_pyeong(exclusive_space or supply_space)
 
         out["게시번호"] = self._to_text(article_number)
-        out["단지명"] = self._to_text(self._first_value(
-            [results_by_key, parent],
-            ["complexName", "cpxNm"]
-        ))
-        out["동이름"] = self._to_text(self._first_value(
-            [results_by_key, parent],
-            ["dongName", "bildNm", "buildingName"]
-        ))
-        out["매매가"] = self._first_value(
-            [results_by_key, parent],
-            ["price", "dealOrWarrantPrc", "prcInfo"]
-        )
-        out["보증금"] = self._first_value(
-            [results_by_key, parent],
-            ["warrantyAmount", "wrtPrc", "depositPrice"]
-        )
-        out["월세"] = self._first_value(
-            [results_by_key, parent],
-            ["rentAmount", "rentPrc", "rentPrice"]
-        )
+        out["단지명"] = self._to_text(self._first_value([results_by_key, parent], ["complexName", "cpxNm"]))
+        out["동이름"] = self._to_text(self._first_value([results_by_key, parent], ["dongName", "bildNm", "buildingName"]))
+        out["매매가"] = self._first_value([results_by_key, parent], ["price", "dealOrWarrantPrc", "prcInfo"])
+        out["보증금"] = self._first_value([results_by_key, parent], ["warrantyAmount", "wrtPrc", "depositPrice"])
+        out["월세"] = self._first_value([results_by_key, parent], ["rentAmount", "rentPrc", "rentPrice"])
         out["공급면적"] = self._to_text(supply_space)
         out["평수"] = self._to_text(pyeong_area)
-        out["대지면적"] = self._to_text(self._first_value(
-            [results_by_key, parent],
-            ["landSpace", "landArea", "siteArea"]
-        ))
-        out["연면적"] = self._to_text(self._first_value(
-            [results_by_key, parent],
-            ["floorSpace", "totalFloorArea", "grossFloorArea"]
-        ))
-        out["건축면적"] = self._to_text(self._first_value(
-            [results_by_key, parent],
-            ["buildingSpace", "buildingArea"]
-        ))
+        out["대지면적"] = self._to_text(self._first_value([results_by_key, parent], ["landSpace", "landArea", "siteArea"]))
+        out["연면적"] = self._to_text(self._first_value([results_by_key, parent], ["floorSpace", "totalFloorArea", "grossFloorArea"]))
+        out["건축면적"] = self._to_text(self._first_value([results_by_key, parent], ["buildingSpace", "buildingArea"]))
         out["전용면적"] = self._to_text(exclusive_space)
         out["매물특징"] = self._to_text(self._first_value(
             [results_by_key, parent],
-            ["articleFeatureDescription", "articleFeatureDesc", "featureDesc", "detailDescription", "description"]
+            ["articleFeatureDescription", "articleFeatureDesc", "featureDesc", "detailDescription", "description"],
         ))
         out["매물확인일"] = self._to_text(self._first_value(
             [results_by_key, parent],
-            ["exposureStartDate", "articleConfirmYmd", "articleConfirmDate", "confirmDate"]
+            ["exposureStartDate", "articleConfirmYmd", "articleConfirmDate", "confirmDate"],
         ))
         out["건축물용도"] = self._to_text(self._first_value(
             [results_by_key, parent],
-            ["buildingPrincipalUse", "principalUse", "buildingUse"]
+            ["buildingPrincipalUse", "principalUse", "buildingUse"],
         ))
         out["층정보"] = self._to_text(floor_text)
 
         out["시도"] = self._to_text(article.get("시도") or self._first_value(results_by_key, ["city"]))
         out["시군구"] = self._to_text(article.get("시군구") or self._first_value(results_by_key, ["division"]))
         out["읍면동"] = self._to_text(article.get("읍면동") or self._first_value(results_by_key, ["sector"]))
-        out["번지"] = self._to_text(self._first_value(
-            [results_by_key, parent],
-            ["jibun", "jibunAddress"]
-        ))
-        out["도로명주소"] = self._to_text(self._first_value(
-            [results_by_key, parent],
-            ["roadName", "roadAddress", "detailAddress"]
-        ))
-        out["우편번호"] = self._to_text(self._first_value(
-            [results_by_key, parent],
-            ["zipCode", "zipcode"]
-        ))
-        out["전체주소"] = self._to_text(self._first_value(
-            [results_by_key, parent],
-            ["full_addr", "fullAddress", "regionName", "address"]
-        ))
+        out["번지"] = self._to_text(self._first_value([results_by_key, parent], ["jibun", "jibunAddress"]))
+        out["도로명주소"] = self._to_text(self._first_value([results_by_key, parent], ["roadName", "roadAddress", "detailAddress"]))
+        out["우편번호"] = self._to_text(self._first_value([results_by_key, parent], ["zipCode", "zipcode"]))
+        out["전체주소"] = self._to_text(self._first_value([results_by_key, parent], ["full_addr", "fullAddress", "regionName", "address"]))
 
         out["중개사무소이름"] = self._to_text(self._first_value(
             [results_by_key, parent],
-            ["brokerage_name", "tradeBizNm", "agentName", "realtorName", "brokerageName"]
+            ["brokerage_name", "tradeBizNm", "agentName", "realtorName", "brokerageName"],
         ))
         out["중개사이름"] = self._to_text(self._first_value(
             [results_by_key, parent],
-            ["broker_name", "bossName", "representativeName", "brokerName"]
+            ["broker_name", "bossName", "representativeName", "brokerName"],
         ))
         out["중개사무소주소"] = self._to_text(self._first_value(
             [results_by_key, parent],
-            ["broker_address", "brokerageAddress", "agentAddress", "address"]
+            ["broker_address", "brokerageAddress", "agentAddress", "address"],
         ))
         out["중개사무소번호"] = self._to_text(brokerage_phone)
         out["중개사핸드폰번호"] = self._to_text(mobile_phone)
 
         out["URL"] = self._to_text(url)
-
-        out["상위매물명"] = self._to_text(self._first_value(
-            parent,
-            ["atclNm", "articleName", "articleTitle"]
-        ))
-        out["상위매물동"] = self._to_text(self._first_value(
-            parent,
-            ["bildNm", "dongName", "buildingName"]
-        ))
-        out["상위매물게시번호"] = self._to_text(self._first_value(
-            parent,
-            ["atclNo", "articleNo"]
-        ))
-        out["매물유형"] = self.RLET_TYPE_MAP.get(rlet_code, self._to_text(self._first_value(
-            [results_by_key, parent],
-            ["rletType", "realEstateTypeName"]
-        )))
-        out["거래유형"] = self.TRADE_TYPE_MAP.get(trade_code, self._to_text(self._first_value(
-            [results_by_key, parent],
-            ["tradeTypeName", "tradeType"]
-        )))
+        out["상위매물명"] = self._to_text(self._first_value(parent, ["atclNm", "articleName", "articleTitle"]))
+        out["상위매물동"] = self._to_text(self._first_value(parent, ["bildNm", "dongName", "buildingName"]))
+        out["상위매물게시번호"] = self._to_text(self._first_value(parent, ["atclNo", "articleNo"]))
+        out["매물유형"] = self.RLET_TYPE_MAP.get(rlet_code, self._to_text(self._first_value([results_by_key, parent], ["rletType", "realEstateTypeName"])))
+        out["거래유형"] = self.TRADE_TYPE_MAP.get(trade_code, self._to_text(self._first_value([results_by_key, parent], ["tradeTypeName", "tradeType"])))
         out["검색 주소"] = self._build_parts_text(article)
         out["검색 매물유형"] = ", ".join(self.search_rlet_labels)
         out["검색 거래유형"] = ", ".join(self.search_trade_labels)
 
-        # 선택되지 않은 컬럼은 append_to_csv 에서 걸러질 수 있지만,
-        # 혹시 모를 누락 방지용으로 출력 컬럼 기본값도 맞춰둠
         self._ensure_output_keys(out)
-
         return out
 
-    # =========================
     # Next.js / payload 파싱
-    # =========================
-
     def _collect_next_f_payload_text(self, html: str) -> str:
         try:
             soup = BeautifulSoup(html, "html.parser")
             texts: List[str] = []
-
             for script in soup.find_all("script"):
                 script_text = script.string or script.get_text()
                 if not script_text:
                     continue
-
-                if "__NEXT_DATA__" in script_text:
+                if (
+                        "__NEXT_DATA__" in script_text
+                        or "self.__next_f.push" in script_text
+                        or "__PRELOADED_STATE__" in script_text
+                        or "dehydratedState" in script_text
+                ):
                     texts.append(script_text)
-                elif "self.__next_f.push" in script_text:
-                    texts.append(script_text)
-                elif "__PRELOADED_STATE__" in script_text:
-                    texts.append(script_text)
-                elif "dehydratedState" in script_text:
-                    texts.append(script_text)
-
-            if texts:
-                return "\n".join(texts)
-
-            return html
+            return "\n".join(texts) if texts else html
         except Exception:
             return html
 
@@ -717,67 +569,48 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         if not text:
             return {}
 
-        # 1) __NEXT_DATA__
-        m = re.search(
-            r'<script[^>]*id="__NEXT_DATA__"[^>]*>\s*(\{.*?\})\s*</script>',
-            text,
-            flags=re.S
-        )
-        if m:
-            try:
-                data = json.loads(m.group(1))
-                if isinstance(data, dict):
-                    return data
-            except Exception:
-                pass
-
-        # 2) window.__PRELOADED_STATE__
-        m = re.search(r'window\.__PRELOADED_STATE__\s*=\s*', text)
-        if m:
-            start_idx = text.find("{", m.end())
-            if start_idx >= 0:
-                json_str = self._extract_balanced_braces(text, start_idx)
-                if json_str:
-                    try:
-                        data = json.loads(json_str)
-                        if isinstance(data, dict):
-                            return data
-                    except Exception:
-                        pass
-
-        # 3) dehydratedState
-        m = re.search(r'"dehydratedState"\s*:\s*', text)
-        if m:
-            start_idx = text.find("{", m.end())
-            if start_idx >= 0:
-                json_str = self._extract_balanced_braces(text, start_idx)
-                if json_str:
-                    try:
-                        data = json.loads(json_str)
-                        if isinstance(data, dict):
-                            return data
-                    except Exception:
-                        pass
-
-        # 4) self.__next_f.push(...)
-        if "self.__next_f.push" in text:
-            data = self._extract_next_f_state(text)
+        for extractor in [
+            self._extract_next_data_state,
+            self._extract_preloaded_state,
+            self._extract_dehydrated_json,
+            self._extract_next_f_state_from_text,
+            self._extract_first_json_object,
+        ]:
+            data = extractor(text)
             if data:
                 return data
-
-        # 5) 첫 JSON 객체 시도
-        first_brace = text.find("{")
-        if first_brace >= 0:
-            json_str = self._extract_balanced_braces(text, first_brace)
-            if json_str:
-                try:
-                    data = json.loads(json_str)
-                    if isinstance(data, dict):
-                        return data
-                except Exception:
-                    pass
-
         return {}
+
+    def _extract_next_data_state(self, text: str) -> Dict[str, Any]:
+        match = re.search(
+            r'<script[^>]*id="__NEXT_DATA__"[^>]*>\s*(\{.*?\})\s*</script>',
+            text,
+            flags=re.S,
+        )
+        return self._json_load_dict(match.group(1) if match else "")
+
+    def _extract_preloaded_state(self, text: str) -> Dict[str, Any]:
+        match = re.search(r'window\.__PRELOADED_STATE__\s*=\s*', text)
+        if not match:
+            return {}
+        start_idx = text.find("{", match.end())
+        return self._json_load_dict(self._extract_balanced_braces(text, start_idx))
+
+    def _extract_dehydrated_json(self, text: str) -> Dict[str, Any]:
+        match = re.search(r'"dehydratedState"\s*:\s*', text)
+        if not match:
+            return {}
+        start_idx = text.find("{", match.end())
+        return self._json_load_dict(self._extract_balanced_braces(text, start_idx))
+
+    def _extract_next_f_state_from_text(self, text: str) -> Dict[str, Any]:
+        if "self.__next_f.push" not in text:
+            return {}
+        return self._extract_next_f_state(text)
+
+    def _extract_first_json_object(self, text: str) -> Dict[str, Any]:
+        first_brace = text.find("{")
+        return self._json_load_dict(self._extract_balanced_braces(text, first_brace))
 
     def _extract_next_f_state(self, text: str) -> Dict[str, Any]:
         chunks = self._extract_next_f_chunks(text)
@@ -803,61 +636,51 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
                 if not re.fullmatch(r"[0-9a-zA-Z]+", prefix):
                     continue
-
                 if not payload or payload[0] not in ["[", "{"]:
                     continue
 
-                try:
-                    obj = json.loads(payload)
-                except Exception:
-                    continue
-
-                self._collect_next_f_query_info(obj, out)
+                obj = self._json_load_any(payload)
+                if obj is not None:
+                    self._collect_next_f_query_info(obj, out)
 
         if out["queries"] or out["query_map"] or out["merged_result"]:
             return out
-
         return {}
 
     def _extract_next_f_chunks(self, text: str) -> List[str]:
         chunks: List[str] = []
-
         pattern = re.compile(
             r'self\.__next_f\.push\(\[\s*\d+\s*,\s*"((?:\\.|[^"\\])*)"\s*\]\)',
-            flags=re.S
+            flags=re.S,
         )
 
         for match in pattern.finditer(text):
             raw_chunk = match.group(1)
             if not raw_chunk:
                 continue
-
             try:
-                decoded = json.loads(f"\"{raw_chunk}\"")
-                if decoded:
-                    chunks.append(decoded)
+                decoded = json.loads(f'"{raw_chunk}"')
             except Exception:
                 try:
                     decoded = bytes(raw_chunk, "utf-8").decode("unicode_escape")
-                    if decoded:
-                        chunks.append(decoded)
                 except Exception:
-                    continue
+                    decoded = ""
+            if decoded:
+                chunks.append(decoded)
 
         return chunks
 
     def _collect_next_f_query_info(self, data: Any, out: Dict[str, Any]) -> None:
         if isinstance(data, dict):
             state = data.get("state")
-            if isinstance(state, dict):
-                queries = state.get("queries")
-                if isinstance(queries, list):
-                    self._append_query_infos(queries, out)
-
+            queries = state.get("queries") if isinstance(state, dict) else None
+            if isinstance(queries, list):
+                self._append_query_infos(queries, out)
             for value in data.values():
                 self._collect_next_f_query_info(value, out)
+            return
 
-        elif isinstance(data, list):
+        if isinstance(data, list):
             for item in data:
                 self._collect_next_f_query_info(item, out)
 
@@ -867,13 +690,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 continue
 
             out["queries"].append(query)
-
             query_key = query.get("queryKey")
             query_name = ""
-
             if isinstance(query_key, list) and query_key:
                 query_name = str(query_key[0] or "").strip()
-
             if not query_name:
                 query_name = str(query.get("queryHash") or "").strip()
 
@@ -883,7 +703,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
             if query_name:
                 out["query_map"][query_name] = result
-
             if isinstance(result, dict):
                 self._merge_dict_recursive(out["merged_result"], result)
 
@@ -892,21 +711,19 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             if key not in target:
                 target[key] = value
                 continue
-
             if isinstance(target.get(key), dict) and isinstance(value, dict):
                 self._merge_dict_recursive(target[key], value)
 
-    def _extract_balanced_braces(self, s: str, start_idx: int) -> str:
-        if start_idx < 0 or start_idx >= len(s) or s[start_idx] != "{":
+    def _extract_balanced_braces(self, text: str, start_idx: int) -> str:
+        if start_idx < 0 or start_idx >= len(text) or text[start_idx] != "{":
             return ""
 
         depth = 0
         in_str = False
         escape = False
 
-        for i in range(start_idx, len(s)):
-            ch = s[i]
-
+        for idx in range(start_idx, len(text)):
+            ch = text[idx]
             if in_str:
                 if escape:
                     escape = False
@@ -919,20 +736,16 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             if ch == '"':
                 in_str = True
                 continue
-
             if ch == "{":
                 depth += 1
             elif ch == "}":
                 depth -= 1
                 if depth == 0:
-                    return s[start_idx:i + 1]
+                    return text[start_idx:idx + 1]
 
         return ""
 
-    # =========================
     # 파싱 보조
-    # =========================
-
     def _wait_ready_state_complete(self, timeout_sec: int = 7) -> None:
         try:
             WebDriverWait(self.driver, timeout_sec).until(
@@ -943,77 +756,49 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def _is_ready_state_complete(self, driver: Any) -> bool:
         try:
-            state = driver.execute_script("return document.readyState")
-            return state == "complete"
+            return driver.execute_script("return document.readyState") == "complete"
         except Exception:
             return False
 
     def _parse_floor_text_from_dom(self, html: str) -> str:
         try:
-            soup = BeautifulSoup(html, "html.parser")
-            text = soup.get_text("\n", strip=True)
-
-            patterns = [
+            text = BeautifulSoup(html, "html.parser").get_text("\n", strip=True)
+            for pattern in [
                 r"층\s*정보[:\s]*([^\n]+)",
                 r"해당층[:\s]*([^\n]+)",
                 r"층수[:\s]*([^\n]+)",
                 r"(\d+층\s*/\s*\d+층)",
-            ]
-
-            for pattern in patterns:
-                m = re.search(pattern, text)
-                if m:
-                    return m.group(1).strip()
-
-            return ""
+            ]:
+                match = re.search(pattern, text)
+                if match:
+                    return match.group(1).strip()
         except Exception:
-            return ""
+            pass
+        return ""
 
     def _pick_floor_text(self, results_by_key: Dict[str, Any]) -> str:
         floor_value = self._first_value(
             results_by_key,
-            ["floorText", "flrInfo", "floorInfo", "targetFloor", "totalFloor"]
+            ["floorText", "flrInfo", "floorInfo", "targetFloor", "totalFloor"],
         )
-
         if isinstance(floor_value, dict):
             target_floor = str(floor_value.get("targetFloor") or "").strip()
             total_floor = str(floor_value.get("totalFloor") or "").strip()
-
             if target_floor and total_floor:
                 return f"{target_floor}/{total_floor}층"
             if target_floor:
                 return target_floor
             if total_floor:
                 return f"{total_floor}층"
-
         return self._to_text(floor_value)
 
     def _pick_phone_numbers(self, results_by_key: Dict[str, Any]) -> Tuple[str, str]:
-        phone_value = self._first_value(
-            results_by_key,
-            ["cpPc", "phone", "phoneNo", "mobile"]
-        )
-
-        brokerage_phone = ""
-        mobile_phone = ""
-
+        phone_value = self._first_value(results_by_key, ["cpPc", "phone", "phoneNo", "mobile"])
         if isinstance(phone_value, dict):
-            brokerage_phone = str(
-                phone_value.get("brokerage")
-                or phone_value.get("phone")
-                or phone_value.get("tel")
-                or ""
-            ).strip()
-
-            mobile_phone = str(
-                phone_value.get("mobile")
-                or phone_value.get("cell")
-                or ""
-            ).strip()
+            brokerage_phone = str(phone_value.get("brokerage") or phone_value.get("phone") or phone_value.get("tel") or "").strip()
+            mobile_phone = str(phone_value.get("mobile") or phone_value.get("cell") or "").strip()
             return brokerage_phone, mobile_phone
-
-        phone_text = self._to_text(phone_value)
-        return phone_text, ""
+        return self._to_text(phone_value), ""
 
     def _calc_pyeong(self, value: Any) -> str:
         number = self._extract_first_float(value)
@@ -1024,217 +809,174 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def _extract_first_float(self, value: Any) -> Optional[float]:
         if value in [None, "", [], {}]:
             return None
-
         if isinstance(value, (int, float)):
             return float(value)
+        match = re.search(r"(\d+(?:\.\d+)?)", str(value).replace(",", ""))
+        return float(match.group(1)) if match else None
 
-        text = str(value)
-        match = re.search(r"(\d+(?:\.\d+)?)", text.replace(",", ""))
-        if not match:
-            return None
-
-        try:
-            return float(match.group(1))
-        except Exception:
-            return None
-
-    # =========================
-    # 컬럼 / 코드 / 텍스트 유틸
-    # =========================
-
-    def _extract_output_columns(self, columns: List[Any]) -> List[str]:
-        out: List[str] = []
-
-        for col in columns or []:
-            if isinstance(col, dict):
-                checked = bool(col.get("checked", False))
-                value = str(col.get("value") or "").strip()
-                if checked and value:
-                    out.append(value)
-            else:
-                value = str(col).strip()
-                if value:
-                    out.append(value)
-
-        return out
-
+    # 설정 / URL / 공통 유틸
     def _ensure_output_keys(self, out: Dict[str, Any]) -> None:
-        for col in self.output_columns:
-            if col not in out:
-                out[col] = ""
+        for col in self.columns:
+            out.setdefault(col, "")
 
-    def _pick_detail_codes(self) -> Tuple[List[str], List[str]]:
-        if self.search_trade_codes or self.search_rlet_codes:
-            return self.search_trade_codes, self.search_rlet_codes
+    # 세팅
+    def _resolve_search_filters(self) -> None:
+        self.search_trade_codes = []
+        self.search_trade_labels = []
+        self.search_rlet_codes = []
+        self.search_rlet_labels = []
 
-        self.search_trade_codes, self.search_trade_labels = self._normalize_search_config(
-            raw_value=(
-                    self.get_setting_value(self.setting, "search_trade")
-                    or self.get_setting_value(self.setting, "trade_type")
-                    or self.get_setting_value(self.setting, "tradTpCd")
-            ),
-            code_map=self.TRADE_TYPE_MAP
-        )
-
-        self.search_rlet_codes, self.search_rlet_labels = self._normalize_search_config(
-            raw_value=(
-                    self.get_setting_value(self.setting, "search_rlet")
-                    or self.get_setting_value(self.setting, "rlet_type")
-                    or self.get_setting_value(self.setting, "rletTpCd")
-            ),
-            code_map=self.RLET_TYPE_MAP
-        )
-
-        # setting_detail 도 같이 보조 반영
         for item in self.setting_detail or []:
-            if not isinstance(item, dict):
+            if item.get("row_type") != "item" or not item.get("checked"):
                 continue
 
-            key = str(item.get("key") or item.get("name") or "").strip()
-            value = item.get("value")
+            item_type = str(item.get("type") or "").strip()
+            code = str(item.get("code") or "").strip()
+            label = str(item.get("value") or "").strip()
 
-            if key in ["거래유형", "search_trade", "trade_type", "tradTpCd"] and not self.search_trade_codes:
-                self.search_trade_codes, self.search_trade_labels = self._normalize_search_config(
-                    raw_value=value,
-                    code_map=self.TRADE_TYPE_MAP
-                )
+            if item_type == "trade_types" and code in self.TRADE_TYPE_MAP:
+                self._append_unique(self.search_trade_codes, code)
+                self._append_unique(self.search_trade_labels, label or self.TRADE_TYPE_MAP[code])
 
-            if key in ["매물유형", "search_rlet", "rlet_type", "rletTpCd"] and not self.search_rlet_codes:
-                self.search_rlet_codes, self.search_rlet_labels = self._normalize_search_config(
-                    raw_value=value,
-                    code_map=self.RLET_TYPE_MAP
-                )
+            if item_type == "rlet_types" and code in self.RLET_TYPE_MAP:
+                self._append_unique(self.search_rlet_codes, code)
+                self._append_unique(self.search_rlet_labels, label or self.RLET_TYPE_MAP[code])
 
-        return self.search_trade_codes, self.search_rlet_codes
 
-    def _normalize_search_config(
-            self,
-            raw_value: Any,
-            code_map: Dict[str, str]
-    ) -> Tuple[List[str], List[str]]:
+    def _build_filter_log_text(self) -> str:
+        trade_text = self._format_code_label_pairs(self.search_trade_codes, self.TRADE_TYPE_MAP)
+        rlet_text = self._format_code_label_pairs(self.search_rlet_codes, self.RLET_TYPE_MAP)
+        return f"검색 필터 설정 - 거래유형: {trade_text or '원본 유지'}, 매물유형: {rlet_text or '원본 유지'}"
+
+    def _format_code_label_pairs(self, codes: List[str], code_map: Dict[str, str]) -> str:
+        parts: List[str] = []
+        for code in codes:
+            label = code_map.get(code, code)
+            parts.append(f"{label}({code})")
+        return ", ".join(parts)
+
+    def _normalize_search_config(self, raw_value: Any, code_map: Dict[str, str]) -> Tuple[List[str], List[str]]:
         if raw_value is None:
             return [], []
 
         values: List[str] = []
-
         if isinstance(raw_value, list):
-            for v in raw_value:
-                s = str(v).strip()
-                if s:
-                    values.append(s)
+            values = [str(v).strip() for v in raw_value if str(v).strip()]
         else:
             text = str(raw_value).strip()
             if text:
-                values = re.split(r"[,|:/]+", text)
+                values = [v.strip() for v in re.split(r"[,|:/]+", text) if v.strip()]
 
-        reverse_map: Dict[str, str] = {v: k for k, v in code_map.items()}
+        reverse_map = {value: key for key, value in code_map.items()}
         codes: List[str] = []
         labels: List[str] = []
 
         for item in values:
-            s = str(item).strip()
-            if not s:
+            if item in code_map:
+                self._append_unique(codes, item)
+                self._append_unique(labels, code_map[item])
                 continue
-
-            if s in code_map:
-                if s not in codes:
-                    codes.append(s)
-                label = code_map.get(s, "")
-                if label and label not in labels:
-                    labels.append(label)
-                continue
-
-            if s in reverse_map:
-                code = reverse_map[s]
-                if code not in codes:
-                    codes.append(code)
-                if s not in labels:
-                    labels.append(s)
+            if item in reverse_map:
+                self._append_unique(codes, reverse_map[item])
+                self._append_unique(labels, item)
 
         return codes, labels
 
-    def _replace_query_params(self, url: str, **repl: Any) -> str:
+    def _apply_url_filters(self, url: str) -> str:
+        replace_params: Dict[str, Any] = {}
+        if self.search_trade_codes:
+            replace_params["tradTpCd"] = self._join_codes(self.search_trade_codes)
+        if self.search_rlet_codes:
+            replace_params["rletTpCd"] = self._join_codes(self.search_rlet_codes)
+        if not replace_params:
+            return url
+        return self._replace_query_params(url, **replace_params)
+
+    def _replace_query_params(self, url: str, **replace_values: Any) -> str:
         parsed = urlparse(url)
-        pairs = parse_qsl(parsed.query, keep_blank_values=True)
-        query_map: Dict[str, str] = {k: v for k, v in pairs}
-
-        for k, v in repl.items():
-            if v is None:
+        query_map = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        for key, value in replace_values.items():
+            if value is None:
                 continue
-            query_map[k] = str(v)
+            query_map[key] = str(value)
 
-        new_query = urlencode(query_map, doseq=True)
         return urlunparse((
             parsed.scheme,
             parsed.netloc,
             parsed.path,
             parsed.params,
-            new_query,
+            urlencode(query_map, doseq=True),
             parsed.fragment,
         ))
 
-    def _join_codes(self, values: List[Any]) -> str:
-        new_values: List[str] = []
-        for v in values:
-            s = str(v).strip()
-            if s and s not in new_values:
-                new_values.append(s)
-        return ":".join(new_values)
+    def _join_codes(self, values: List[str]) -> str:
+        return ":".join([value for value in values if value])
+
+    def _pick_cortar_no(self, article: Dict[str, Any]) -> str:
+        value = str(article.get("cortarNo") or article.get("cortar_no") or "").strip()
+        if value:
+            return value
+
+        for key in ["articleList", "clusterList_url"]:
+            url = str(article.get(key) or "").strip()
+            if not url:
+                continue
+            query = parse_qs(urlparse(url).query)
+            values = query.get("cortarNo") or query.get("cortar_no") or []
+            if values and str(values[0]).strip():
+                return str(values[0]).strip()
+
+        return ""
+
+    def _get_query_value(self, url: str, key: str) -> str:
+        query = parse_qs(urlparse(url).query)
+        values = query.get(key) or []
+        return str(values[0]).strip() if values else ""
 
     def _extract_article_items(self, res: Any) -> List[Dict[str, Any]]:
-        if res is None:
-            return []
+        if isinstance(res, str):
+            res = self._json_load_any(res)
 
         if isinstance(res, list):
-            return [x for x in res if isinstance(x, dict)]
+            return [item for item in res if isinstance(item, dict)]
 
-        if isinstance(res, dict):
-            candidates = [
-                res.get("body"),
-                res.get("result"),
-                res.get("articleList"),
-                res.get("list"),
-                res.get("items"),
-            ]
+        if not isinstance(res, dict):
+            return []
 
-            for candidate in candidates:
-                if isinstance(candidate, list):
-                    return [x for x in candidate if isinstance(x, dict)]
-
-                if isinstance(candidate, dict):
-                    for key in ["list", "items", "articleList"]:
-                        arr = candidate.get(key)
-                        if isinstance(arr, list):
-                            return [x for x in arr if isinstance(x, dict)]
-
-        if isinstance(res, str):
-            try:
-                data = json.loads(res)
-                return self._extract_article_items(data)
-            except Exception:
-                return []
+        for candidate in [
+            res.get("body"),
+            res.get("result"),
+            res.get("articleList"),
+            res.get("list"),
+            res.get("items"),
+        ]:
+            if isinstance(candidate, list):
+                return [item for item in candidate if isinstance(item, dict)]
+            if isinstance(candidate, dict):
+                for key in ["list", "items", "articleList"]:
+                    nested = candidate.get(key)
+                    if isinstance(nested, list):
+                        return [item for item in nested if isinstance(item, dict)]
 
         return []
 
     def _build_parts_text(self, article: Dict[str, Any]) -> str:
-        parts = [
-            str(article.get("시도") or "").strip(),
-            str(article.get("시군구") or "").strip(),
-            str(article.get("읍면동") or "").strip(),
-        ]
-        return " ".join([x for x in parts if x])
+        return " ".join([
+            value for value in [
+                str(article.get("시도") or "").strip(),
+                str(article.get("시군구") or "").strip(),
+                str(article.get("읍면동") or "").strip(),
+            ] if value
+        ])
 
     def _normalize_rlet_code(self, value: Any) -> str:
         code = str(value or "").strip()
         if not code:
             return ""
-
         if code in self.RLET_TYPE_MAP:
             return code
-
         if len(code) >= 3 and code[:3] in self.RLET_TYPE_MAP:
             return code[:3]
-
         return code
 
     def _to_text(self, value: Any) -> str:
@@ -1244,26 +986,21 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         if isinstance(value, dict):
             for key in [
                 "full_addr", "fullAddress", "regionName", "address",
-                "roadName", "roadAddress", "jibunAddress"
+                "roadName", "roadAddress", "jibunAddress",
             ]:
                 inner = value.get(key)
                 if inner not in [None, "", [], {}]:
                     return self._to_text(inner)
-
-            parts: List[str] = []
-            for v in value.values():
-                s = self._to_text(v)
-                if s and s not in parts:
-                    parts.append(s)
-            return " / ".join(parts)
+            parts = [self._to_text(v) for v in value.values()]
+            return " / ".join([part for part in parts if part])
 
         if isinstance(value, list):
-            parts = []
-            for item in value:
-                s = self._to_text(item)
-                if s and s not in parts:
-                    parts.append(s)
-            return ", ".join(parts)
+            parts = [self._to_text(item) for item in value]
+            unique_parts: List[str] = []
+            for part in parts:
+                if part and part not in unique_parts:
+                    unique_parts.append(part)
+            return ", ".join(unique_parts)
 
         return str(value).strip()
 
@@ -1279,27 +1016,82 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             if target_key in data:
                 return data.get(target_key)
 
-            # === 신규 === Next.js merged_result / query_map 우선 탐색
-            if "merged_result" in data:
-                found = self._deep_find_first(data.get("merged_result"), target_key)
+            merged_result = data.get("merged_result")
+            if isinstance(merged_result, dict):
+                found = self._deep_find_first(merged_result, target_key)
                 if found not in [None, "", [], {}]:
                     return found
 
-            if "query_map" in data and isinstance(data.get("query_map"), dict):
-                for qv in data["query_map"].values():
-                    found = self._deep_find_first(qv, target_key)
+            query_map = data.get("query_map")
+            if isinstance(query_map, dict):
+                for value in query_map.values():
+                    found = self._deep_find_first(value, target_key)
                     if found not in [None, "", [], {}]:
                         return found
 
-            for v in data.values():
-                found = self._deep_find_first(v, target_key)
+            for value in data.values():
+                found = self._deep_find_first(value, target_key)
                 if found not in [None, "", [], {}]:
                     return found
+            return None
 
-        elif isinstance(data, list):
+        if isinstance(data, list):
             for item in data:
                 found = self._deep_find_first(item, target_key)
                 if found not in [None, "", [], {}]:
                     return found
 
         return None
+
+    def _flush_result_data(self) -> None:
+        if not self.result_data_list:
+            return
+
+        fr_date: str = str(self.get_setting_value(self.setting, "fr_date") or "").strip()
+        to_date: str = str(self.get_setting_value(self.setting, "to_date") or "").strip()
+
+        save_list: List[Dict[str, Any]] = self.result_data_list
+
+        # fr_date, to_date 둘 다 있을 때만 매물확인일 범위 필터 적용
+        if fr_date and to_date:
+            filtered_list: List[Dict[str, Any]] = []
+
+            for row in self.result_data_list:
+                confirm_date = str(row.get("매물확인일") or "").strip()
+                confirm_date_ymd = confirm_date.replace("-", "")
+
+                # YYYY-MM-DD -> YYYYMMDD 길이 체크
+                if len(confirm_date_ymd) == 8 and confirm_date_ymd.isdigit():
+                    if fr_date <= confirm_date_ymd <= to_date:
+                        filtered_list.append(row)
+
+            save_list = filtered_list
+            self.log_signal_func(
+                f"매물확인일 필터 적용: {fr_date} ~ {to_date} / "
+                f"원본 {len(self.result_data_list)}건 -> 저장 {len(save_list)}건"
+            )
+
+        if save_list:
+            self.excel_driver.append_to_csv(
+                self.csv_filename,
+                save_list,
+                self.columns,
+                folder_path=self.folder_path,
+                sub_dir=self.out_dir,
+            )
+
+        self.result_data_list = []
+
+    def _append_unique(self, target: List[str], value: str) -> None:
+        if value and value not in target:
+            target.append(value)
+
+    def _json_load_any(self, text: str) -> Any:
+        try:
+            return json.loads(text)
+        except Exception:
+            return None
+
+    def _json_load_dict(self, text: str) -> Dict[str, Any]:
+        data = self._json_load_any(text)
+        return data if isinstance(data, dict) else {}
