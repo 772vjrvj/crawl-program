@@ -17,8 +17,24 @@
       "dialog_title": "저장 폴더 선택",
       "path_type": "main"
     },
-    {"name": "매물확인일(YYYYMMDD) 시작", "code": "fr_date","value": "", "type": "input"},
-    {"name": "매물확인일(YYYYMMDD) 종료", "code": "to_date","value": "", "type": "input"}
+    {
+      "name": "매물확인일(YYYYMMDD) 시작",
+      "code": "fr_date",
+      "value": "",
+      "type": "input"
+    },
+    {
+      "name": "매물확인일(YYYYMMDD) 종료",
+      "code": "to_date",
+      "value": "",
+      "type": "input"
+    },
+    {
+      "name": "영어컬럼",
+      "code": "eng",
+      "value": true,
+      "type": "check"
+    }
   ],
   "setting_detail": [
     {
@@ -238,187 +254,217 @@
     {
       "code": "article_number",
       "value": "게시번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "complexName",
       "value": "단지명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "dongName",
       "value": "동이름",
-      "checked": false
+      "checked": true
     },
     {
       "code": "price",
       "value": "매매가",
-      "checked": false
+      "checked": true
     },
     {
       "code": "warrantyAmount",
       "value": "보증금",
-      "checked": false
+      "checked": true
     },
     {
       "code": "rentAmount",
       "value": "월세",
-      "checked": false
+      "checked": true
     },
     {
       "code": "supplySpace",
       "value": "공급면적",
-      "checked": false
+      "checked": true
     },
     {
       "code": "pyeongArea",
       "value": "평수",
-      "checked": false
+      "checked": true
     },
     {
       "code": "landSpace",
       "value": "대지면적",
-      "checked": false
+      "checked": true
     },
     {
       "code": "floorSpace",
       "value": "연면적",
-      "checked": false
+      "checked": true
     },
     {
       "code": "buildingSpace",
       "value": "건축면적",
-      "checked": false
+      "checked": true
     },
     {
       "code": "exclusiveSpace",
       "value": "전용면적",
-      "checked": false
+      "checked": true
     },
     {
       "code": "articleFeatureDescription",
       "value": "매물특징",
-      "checked": false
+      "checked": true
     },
     {
       "code": "exposureStartDate",
       "value": "매물확인일",
-      "checked": false
+      "checked": true
     },
     {
       "code": "buildingPrincipalUse",
       "value": "건축물용도",
-      "checked": false
+      "checked": true
     },
     {
       "code": "floorText",
       "value": "층정보",
-      "checked": false
+      "checked": true
     },
     {
       "code": "city",
       "value": "시도",
-      "checked": false
+      "checked": true
     },
     {
       "code": "division",
       "value": "시군구",
-      "checked": false
+      "checked": true
     },
     {
       "code": "sector",
       "value": "읍면동",
-      "checked": false
+      "checked": true
     },
     {
       "code": "jibun",
       "value": "번지",
-      "checked": false
+      "checked": true
     },
     {
       "code": "roadName",
       "value": "도로명주소",
-      "checked": false
+      "checked": true
     },
     {
       "code": "zipCode",
       "value": "우편번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "full_addr",
       "value": "전체주소",
-      "checked": false
+      "checked": true
     },
     {
       "code": "brokerage_name",
       "value": "중개사무소이름",
-      "checked": false
+      "checked": true
     },
     {
       "code": "broker_name",
       "value": "중개사이름",
-      "checked": false
+      "checked": true
     },
     {
       "code": "broker_address",
       "value": "중개사무소주소",
-      "checked": false
+      "checked": true
     },
     {
       "code": "phone_brokerage",
       "value": "중개사무소번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "phone_mobile",
       "value": "중개사핸드폰번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "url",
       "value": "URL",
-      "checked": false
+      "checked": true
     },
     {
       "code": "atclNm",
       "value": "상위매물명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "bildNm",
       "value": "상위매물동",
-      "checked": false
+      "checked": true
     },
     {
       "code": "atclNo",
       "value": "상위매물게시번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "rletType",
       "value": "매물유형",
-      "checked": false
+      "checked": true
     },
     {
       "code": "tradeType",
       "value": "거래유형",
-      "checked": false
+      "checked": true
+    },
+    {
+      "code": "tagList",
+      "value": "매물태그",
+      "checked": true
+    },
+    {
+      "code": "sameAddrCnt",
+      "value": "동일주소매물수",
+      "checked": true
+    },
+    {
+      "code": "atclCfmYmd",
+      "value": "등록일자",
+      "checked": true
+    },
+    {
+      "code": "lat",
+      "value": "위도",
+      "checked": true
+    },
+    {
+      "code": "lng",
+      "value": "경도",
+      "checked": true
+    },
+    {
+      "code": "direction",
+      "value": "방향정보",
+      "checked": true
     },
     {
       "code": "parts",
       "value": "검색 주소",
-      "checked": false
+      "checked": true
     },
     {
       "code": "search_rletType",
       "value": "검색 매물유형",
-      "checked": false
+      "checked": true
     },
     {
       "code": "search_tradeType",
       "value": "검색 거래유형",
-      "checked": false
+      "checked": true
     }
   ]
 }
