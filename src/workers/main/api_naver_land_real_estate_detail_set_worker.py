@@ -574,6 +574,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         out["동일주소최대가"] = self._to_text(parent.get("sameAddrMaxPrc"))
         out["등록일자"] = self._to_text(parent.get("atclCfmYmd"))
         out["방향정보"] = self._to_text(parent.get("direction"))
+        out["매물확인유형코드"] = self._to_text(parent.get("vrfcTpCd"))
 
         out["위도"] = self._to_text(parent.get("lat"))
         out["경도"] = self._to_text(parent.get("lng"))
@@ -1068,7 +1069,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "sameAddrMinPrc": str(out.get("동일주소최소가") or ""),
             "sameAddrMaxPrc": str(out.get("동일주소최대가") or ""),
             "sameAddrCnt": str(out.get("동일주소매물수") or ""),
-            "vrfcTpCd": "",
+            "vrfcTpCd": str(out["매물확인유형코드"] or ""),
             "rank": "",
             "lat": str(out.get("위도") or ""),
             "lng": str(out.get("경도") or ""),
