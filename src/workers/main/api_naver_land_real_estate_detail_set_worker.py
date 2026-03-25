@@ -339,6 +339,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 self.log_signal_func(f"매물 진행 page={page}, idx={idx}/{len(items)}, atclNo={atcl_no}")
 
                 if self._should_fetch_detail(item):
+                    self._apply_same_addr_price_range(item)
                     detail_url = f"{self.fin_land_article_url}/{atcl_no}"
                     out_obj = self._fetch_detail(detail_url, item, atcl_no, article)
                     self.log_signal_func(f"매물 결과: {out_obj}")
@@ -386,6 +387,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             items = self._extract_article_items(res)
             if not items:
                 return
+
+            same_addr_min_prc, same_addr_max_prc = self._extract_same_addr_price_range(items)
+            for same_item in items:
+                same_item["sameAddrMinPrc"] = same_addr_min_prc
+                same_item["sameAddrMaxPrc"] = same_addr_max_prc
 
             for same_item in items:
                 if not self.running:
@@ -519,7 +525,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             [results_by_key, parent],
             ["buildingPrincipalUse", "principalUse", "buildingUse"],
         ))
-        out["층정보"] = self._to_text(floor_text)
+        out["층정보"] = self._normalize_floor_text(floor_text)
 
         out["시도"] = self._to_text(article.get("시도") or self._first_value(results_by_key, ["city"]))
         out["시군구"] = self._to_text(article.get("시군구") or self._first_value(results_by_key, ["division"]))
@@ -564,6 +570,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             out["매물태그"] = self._to_text(tag_list)
 
         out["동일주소매물수"] = self._to_text(parent.get("sameAddrCnt"))
+        out["동일주소최소가"] = self._to_text(parent.get("sameAddrMinPrc"))
+        out["동일주소최대가"] = self._to_text(parent.get("sameAddrMaxPrc"))
         out["등록일자"] = self._to_text(parent.get("atclCfmYmd"))
         out["방향정보"] = self._to_text(parent.get("direction"))
 
@@ -803,7 +811,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             ]:
                 match = re.search(pattern, text)
                 if match:
-                    return match.group(1).strip()
+                    return self._normalize_floor_text(match.group(1).strip())
         except Exception:
             pass
         return ""
@@ -817,12 +825,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             target_floor = str(floor_value.get("targetFloor") or "").strip()
             total_floor = str(floor_value.get("totalFloor") or "").strip()
             if target_floor and total_floor:
-                return f"{target_floor}/{total_floor}층"
+                return self._normalize_floor_text(f"{target_floor}/{total_floor}층")
             if target_floor:
-                return target_floor
+                return self._normalize_floor_text(target_floor)
             if total_floor:
-                return f"{total_floor}층"
-        return self._to_text(floor_value)
+                return self._normalize_floor_text(f"{total_floor}층")
+        return self._normalize_floor_text(self._to_text(floor_value))
 
     def _pick_phone_numbers(self, results_by_key: Dict[str, Any]) -> Tuple[str, str]:
         phone_value = self._first_value(results_by_key, ["cpPc", "phone", "phoneNo", "mobile"])
@@ -845,6 +853,100 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             return float(value)
         match = re.search(r"(\d+(?:\.\d+)?)", str(value).replace(",", ""))
         return float(match.group(1)) if match else None
+
+    # === 신규 ===
+    def _normalize_floor_text(self, value: Any) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+
+        text = re.sub(r"(?i)for\s*info", "", text)
+        text = re.sub(r"층\s*정보", "", text)
+        text = re.sub(r"해당층", "", text)
+        text = re.sub(r"층수", "", text)
+        text = text.replace("층", "")
+        text = text.replace(" ", "")
+        text = re.sub(r"/+", "/", text)
+        text = re.sub(r"^[/:\-]+", "", text)
+        text = re.sub(r"[/:\-]+$", "", text)
+        return text.strip()
+
+    # === 신규 ===
+    def _apply_same_addr_price_range(self, item: Dict[str, Any]) -> None:
+        try:
+            same_addr_cnt = int(str(item.get("sameAddrCnt") or "0").strip())
+        except Exception:
+            same_addr_cnt = 0
+
+        if same_addr_cnt <= 1:
+            item["sameAddrMinPrc"] = ""
+            item["sameAddrMaxPrc"] = ""
+            return
+
+        if str(item.get("sameAddrMinPrc") or "").strip() or str(item.get("sameAddrMaxPrc") or "").strip():
+            return
+
+        if not self.api_client:
+            return
+
+        params: Dict[str, Any] = {"atclNo": str(item.get("atclNo") or item.get("articleNo") or "").strip()}
+        cortar_no = self._pick_cortar_no(item)
+        if cortar_no:
+            params["cortarNo"] = cortar_no
+        if self.search_trade_codes:
+            params["tradTpCd"] = self._join_codes(self.search_trade_codes)
+        if self.search_rlet_codes:
+            params["rletTpCd"] = self._join_codes(self.search_rlet_codes)
+
+        if not params.get("atclNo"):
+            return
+
+        res = self.api_client.get(
+            url=self.same_addr_article_url,
+            headers=self.headers,
+            params=params,
+        )
+        items = self._extract_article_items(res)
+        if not items:
+            return
+
+        item["sameAddrMinPrc"], item["sameAddrMaxPrc"] = self._extract_same_addr_price_range(items)
+
+    # === 신규 ===
+    def _extract_same_addr_price_range(self, items: List[Dict[str, Any]]) -> Tuple[str, str]:
+        prices: List[int] = []
+
+        for item in items or []:
+            raw_price = self._extract_same_addr_base_price(item)
+            digits = re.sub(r"[^0-9]", "", str(raw_price or ""))
+            if digits:
+                prices.append(int(digits))
+
+        if len(prices) <= 1:
+            return "", ""
+
+        return self._format_price_value(min(prices)), self._format_price_value(max(prices))
+
+    # === 신규 ===
+    def _extract_same_addr_base_price(self, item: Dict[str, Any]) -> str:
+        trad_tp = str(item.get("tradTpCd") or item.get("tradeTypeCode") or "").strip()
+
+        if trad_tp == "A1":
+            return str(item.get("price") or item.get("dealOrWarrantPrc") or item.get("prcInfo") or "").strip()
+
+        if trad_tp == "B1":
+            return str(item.get("warrantyAmount") or item.get("dealOrWarrantPrc") or item.get("price") or "").strip()
+
+        if trad_tp == "B2":
+            return str(item.get("warrantyAmount") or item.get("dealOrWarrantPrc") or item.get("price") or "").strip()
+
+        return str(
+            item.get("warrantyAmount")
+            or item.get("dealOrWarrantPrc")
+            or item.get("price")
+            or item.get("prcInfo")
+            or ""
+        ).strip()
 
     # === 신규 ===
     def _get_eng_columns(self) -> List[str]:
@@ -956,15 +1058,15 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "ipjuday": str(out.get("매물확인일") or ""),
             "keyword": str(out.get("검색 주소") or ""),
             "atcURL": str(out.get("URL") or ""),
-            "id": str(out.get("중개사이름") or ""),
+            "id": "",
             "search_requirement": self._build_search_requirement_text(out),
             "atclCfmYmd": str(out.get("등록일자") or ""),
             "rletTpNm": str(out.get("매물유형") or ""),
             "ArticlePriceInfo": self._build_article_price_info(out),
             "supply_space_name": str(out.get("평수") or ""),
             "bildNm": str(out.get("동이름") or out.get("상위매물동") or ""),
-            "sameAddrMinPrc": "",
-            "sameAddrMaxPrc": "",
+            "sameAddrMinPrc": str(out.get("동일주소최소가") or ""),
+            "sameAddrMaxPrc": str(out.get("동일주소최대가") or ""),
             "sameAddrCnt": str(out.get("동일주소매물수") or ""),
             "vrfcTpCd": "",
             "rank": "",

@@ -32,7 +32,7 @@
     {
       "name": "영어컬럼",
       "code": "eng",
-      "value": true,
+      "value": false,
       "type": "check"
     }
   ],
@@ -427,11 +427,6 @@
       "checked": true
     },
     {
-      "code": "sameAddrCnt",
-      "value": "동일주소매물수",
-      "checked": true
-    },
-    {
       "code": "atclCfmYmd",
       "value": "등록일자",
       "checked": true
@@ -449,6 +444,21 @@
     {
       "code": "direction",
       "value": "방향정보",
+      "checked": true
+    },
+    {
+      "code": "sameAddrCnt",
+      "value": "동일주소매물수",
+      "checked": true
+    },
+    {
+      "code": "sameAddrMinPrc",
+      "value": "동일주소최소가",
+      "checked": true
+    },
+    {
+      "code": "sameAddrMaxPrc",
+      "value": "동일주소최대가",
       "checked": true
     },
     {
