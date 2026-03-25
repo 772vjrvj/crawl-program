@@ -20,35 +20,47 @@
     {
       "name": "매물확인일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": "",
+      "value": 20260326,
       "type": "input"
     },
     {
-      "name": "매물확인일(YYYYMMDD) 시작",
-      "code": "fr_date",
-      "value": "",
+      "name": "매물확인일(YYYYMMDD) 종료",
+      "code": "to_date",
+      "value": 20260323,
       "type": "input"
     },
     {
-      "name": "■ 썸네일 확장자명",
-      "code": "thumb_ext",
-      "value": "jpg",
+      "name": "정렬방식",
+      "code": "sort",
+      "value": "최신순",
       "type": "select",
       "options": [
         {
-          "key": "JPG",
-          "value": "jpg"
+          "key": "랭킹순",
+          "value": "랭킹순"
         },
         {
-          "key": "PNG",
-          "value": "png"
+          "key": "높은가격순",
+          "value": "높은가격순"
+        },
+        {
+          "key": "낮은가격순",
+          "value": "낮은가격순"
+        },
+        {
+          "key": "최신순",
+          "value": "최신순"
+        },
+        {
+          "key": "면적순",
+          "value": "면적순"
         }
       ]
     },
     {
       "name": "영어컬럼",
       "code": "eng",
-      "value": false,
+      "value": true,
       "type": "check"
     }
   ],
