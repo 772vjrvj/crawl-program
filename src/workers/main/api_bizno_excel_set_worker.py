@@ -25,6 +25,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
+        self.main_url = "https://bizno.net"
         self.api_client = None
         self.columns: Optional[List[str]] = None
         self.csv_filename: Optional[str] = None
@@ -884,18 +885,15 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         normalized: Dict[str, Any] = {
             "success": bool(res.get("success")),
             "message": str(res.get("message") or ""),
-            "article": "",
-            "회사명": "",
-            "url": "",
+            "article": str(res.get("article") or ""),
+            "회사명": str(res.get("companyName") or ""),
+            "url": f"{self.main_url}/article/{res.get('article')}",
             "data": {},
         }
 
         data_block = res.get("data")
 
         if isinstance(data_block, dict):
-            normalized["article"] = str(data_block.get("article") or "").strip()
-            normalized["회사명"] = str(data_block.get("회사명") or "").strip()
-            normalized["url"] = str(data_block.get("url") or "").strip()
             normalized["data"] = data_block
 
         elif isinstance(data_block, str) and data_block.strip():
