@@ -56,6 +56,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         self.resource_sub_dir: str = ""
 
+        # === 신규 ===
+        self.eng: bool = False
+
         self.headers: Dict[str, str] = {
             "accept": "application/json, text/plain, */*",
             "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
@@ -112,6 +115,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.search_rlet_labels = []
 
         self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+
+        # === 신규 ===
+        self.eng = bool(self.get_setting_value(self.setting, "eng"))
+        if self.eng:
+            self.columns = self._get_eng_columns()
+
         self._resolve_search_filters()
         self.driver_set(False)
 
@@ -165,6 +174,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             pro_value = (index / max(total_region_count, 1)) * 1000000
             self.progress_signal.emit(self.before_pro_value, pro_value)
             self.before_pro_value = pro_value
+
+            time.sleep(random.uniform(2, 4))
 
         self._flush_result_data()
         return True
@@ -342,6 +353,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
                 time.sleep(random.uniform(0.4, 0.9))
 
+            time.sleep(random.uniform(1, 1.5))
             page += 1
             if page > max_count:
                 break
@@ -486,9 +498,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         out["게시번호"] = self._to_text(article_number)
         out["단지명"] = self._to_text(self._first_value([results_by_key, parent], ["complexName", "cpxNm"]))
         out["동이름"] = self._to_text(self._first_value([results_by_key, parent], ["dongName", "bildNm", "buildingName"]))
-        out["매매가"] = self._first_value([results_by_key, parent], ["price", "dealOrWarrantPrc", "prcInfo"])
-        out["보증금"] = self._first_value([results_by_key, parent], ["warrantyAmount", "wrtPrc", "depositPrice"])
-        out["월세"] = self._first_value([results_by_key, parent], ["rentAmount", "rentPrc", "rentPrice"])
+        out["매매가"] = self._format_price_value(self._first_value([results_by_key, parent], ["price", "dealOrWarrantPrc", "prcInfo"]))
+        out["보증금"] = self._format_price_value(self._first_value([results_by_key, parent], ["warrantyAmount", "wrtPrc", "depositPrice"]))
+        out["월세"] = self._format_price_value(self._first_value([results_by_key, parent], ["rentAmount", "rentPrc", "rentPrice"]))
         out["공급면적"] = self._to_text(supply_space)
         out["평수"] = self._to_text(pyeong_area)
         out["대지면적"] = self._to_text(self._first_value([results_by_key, parent], ["landSpace", "landArea", "siteArea"]))
@@ -542,8 +554,28 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         out["검색 매물유형"] = ", ".join(self.search_rlet_labels)
         out["검색 거래유형"] = ", ".join(self.search_trade_labels)
 
+        # === 신규 ===
+        tag_list = parent.get("tagList")
+        if isinstance(tag_list, list):
+            out["매물태그"] = ", ".join(
+                [self._to_text(x) for x in tag_list if self._to_text(x)]
+            )
+        else:
+            out["매물태그"] = self._to_text(tag_list)
+
+        out["동일주소매물수"] = self._to_text(parent.get("sameAddrCnt"))
+        out["등록일자"] = self._to_text(parent.get("atclCfmYmd"))
+        out["방향정보"] = self._to_text(parent.get("direction"))
+
+        out["위도"] = self._to_text(parent.get("lat"))
+        out["경도"] = self._to_text(parent.get("lng"))
+
+
         self._ensure_output_keys(out)
         return out
+
+
+
 
     # Next.js / payload 파싱
     def _collect_next_f_payload_text(self, html: str) -> str:
@@ -814,6 +846,137 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         match = re.search(r"(\d+(?:\.\d+)?)", str(value).replace(",", ""))
         return float(match.group(1)) if match else None
 
+    # === 신규 ===
+    def _get_eng_columns(self) -> List[str]:
+        return [
+            "date",
+            "atclNo",
+            "atclNm",
+            "tradTpNm",
+            "hanPrc",
+            "rentPrc",
+            "ho",
+            "flrInfo",
+            "spc1",
+            "spc2",
+            "Jibun",
+            "atclFetrDesc",
+            "tagList",
+            "rltrNm",
+            "phone",
+            "direction",
+            "ipjuday",
+            "keyword",
+            "atcURL",
+            "id",
+            "search_requirement",
+            "atclCfmYmd",
+            "rletTpNm",
+            "ArticlePriceInfo",
+            "supply_space_name",
+            "bildNm",
+            "sameAddrMinPrc",
+            "sameAddrMaxPrc",
+            "sameAddrCnt",
+            "vrfcTpCd",
+            "rank",
+            "lat",
+            "lng",
+        ]
+
+    # === 신규 ===
+    def _format_price_value(self, value: Any) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+
+        digits = re.sub(r"[^0-9]", "", text)
+        if not digits:
+            return text
+
+        try:
+            number = int(digits)
+            number = number // 10000
+            return f"{number:,}"
+        except Exception:
+            return text
+
+    # === 신규 ===
+    def _build_article_price_info(self, out: Dict[str, Any]) -> str:
+        price = str(out.get("매매가") or "").strip()
+        warranty = str(out.get("보증금") or "").strip()
+        rent = str(out.get("월세") or "").strip()
+
+        if price:
+            return price
+        if warranty and rent:
+            return f"{warranty}/{rent}"
+        if warranty:
+            return warranty
+        if rent:
+            return rent
+        return ""
+
+    # === 신규 ===
+    def _build_search_requirement_text(self, out: Dict[str, Any]) -> str:
+        parts: List[str] = []
+
+        search_addr = str(out.get("검색 주소") or "").strip()
+        search_rlet = str(out.get("검색 매물유형") or "").strip()
+        search_trade = str(out.get("검색 거래유형") or "").strip()
+
+        if search_addr:
+            parts.append(search_addr)
+        if search_rlet:
+            parts.append(f"매물유형:{search_rlet}")
+        if search_trade:
+            parts.append(f"거래유형:{search_trade}")
+
+        return " / ".join(parts)
+
+    # === 신규 ===
+    def _map_out_to_eng(self, out: Dict[str, Any]) -> Dict[str, Any]:
+        eng_out: Dict[str, Any] = {
+            "date": str(out.get("매물확인일") or ""),
+            "atclNo": str(out.get("게시번호") or ""),
+            "atclNm": str(out.get("상위매물명") or ""),
+            "tradTpNm": str(out.get("거래유형") or ""),
+            "hanPrc": str(out.get("매매가") or out.get("보증금") or ""),
+            "rentPrc": str(out.get("월세") or ""),
+            "ho": "",
+            "flrInfo": str(out.get("층정보") or ""),
+            "spc1": str(out.get("공급면적") or ""),
+            "spc2": str(out.get("전용면적") or ""),
+            "Jibun": str(out.get("번지") or ""),
+            "atclFetrDesc": str(out.get("매물특징") or ""),
+            "tagList": str(out.get("매물태그") or ""),
+            "rltrNm": str(out.get("중개사무소이름") or ""),
+            "phone": str(out.get("중개사무소번호") or out.get("중개사핸드폰번호") or ""),
+            "direction": str(out.get("방향정보") or ""),
+            "ipjuday": str(out.get("매물확인일") or ""),
+            "keyword": str(out.get("검색 주소") or ""),
+            "atcURL": str(out.get("URL") or ""),
+            "id": str(out.get("중개사이름") or ""),
+            "search_requirement": self._build_search_requirement_text(out),
+            "atclCfmYmd": str(out.get("등록일자") or ""),
+            "rletTpNm": str(out.get("매물유형") or ""),
+            "ArticlePriceInfo": self._build_article_price_info(out),
+            "supply_space_name": str(out.get("평수") or ""),
+            "bildNm": str(out.get("동이름") or out.get("상위매물동") or ""),
+            "sameAddrMinPrc": "",
+            "sameAddrMaxPrc": "",
+            "sameAddrCnt": str(out.get("동일주소매물수") or ""),
+            "vrfcTpCd": "",
+            "rank": "",
+            "lat": str(out.get("위도") or ""),
+            "lng": str(out.get("경도") or ""),
+        }
+
+        for col in self._get_eng_columns():
+            eng_out.setdefault(col, "")
+
+        return eng_out
+
     # 설정 / URL / 공통 유틸
     def _ensure_output_keys(self, out: Dict[str, Any]) -> None:
         for col in self.columns:
@@ -841,7 +1004,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             if item_type == "rlet_types" and code in self.RLET_TYPE_MAP:
                 self._append_unique(self.search_rlet_codes, code)
                 self._append_unique(self.search_rlet_labels, label or self.RLET_TYPE_MAP[code])
-
 
     def _build_filter_log_text(self) -> str:
         trade_text = self._format_code_label_pairs(self.search_trade_codes, self.TRADE_TYPE_MAP)
@@ -1070,6 +1232,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 f"매물확인일 필터 적용: {fr_date} ~ {to_date} / "
                 f"원본 {len(self.result_data_list)}건 -> 저장 {len(save_list)}건"
             )
+
+        # === 신규 === eng=True면 영문 컬럼 매핑 후 저장
+        if self.eng:
+            save_list = [self._map_out_to_eng(row) for row in save_list]
 
         if save_list:
             self.excel_driver.append_to_csv(
