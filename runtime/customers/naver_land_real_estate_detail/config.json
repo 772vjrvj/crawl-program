@@ -18,13 +18,13 @@
       "path_type": "main"
     },
     {
-      "name": "매물확인일(YYYYMMDD) 시작",
+      "name": "등록일(YYYYMMDD) 시작",
       "code": "fr_date",
       "value": 20260326,
       "type": "input"
     },
     {
-      "name": "매물확인일(YYYYMMDD) 종료",
+      "name": "등록일(YYYYMMDD) 종료",
       "code": "to_date",
       "value": 20260323,
       "type": "input"
