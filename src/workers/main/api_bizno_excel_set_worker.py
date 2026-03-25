@@ -2,6 +2,7 @@ import json
 import os
 import random
 import time
+import ast
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 from datetime import datetime, timedelta, timezone
@@ -203,6 +204,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             self.total_cnt = len(self.excel_data_list)
 
             for index, item in enumerate(self.excel_data_list, start=1):
+                item['번호'] = index
                 if not self.running:
                     self.log_signal_func("⛔ running=False 감지. main 루프 종료")
                     return True
@@ -877,6 +879,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
     def is_api_error_response(self, res: Dict[str, Any]) -> bool:
         return int(res.get("error", 0) or 0) == 1
 
+
     def extract_search_and_detail_api_result(self, res: Dict[str, Any]) -> Dict[str, Any]:
         normalized: Dict[str, Any] = {
             "success": bool(res.get("success")),
@@ -887,80 +890,26 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
             "data": {},
         }
 
-        blocks: List[Dict[str, Any]] = []
-
-        if isinstance(res, dict):
-            blocks.append(res)
-
         data_block = res.get("data")
-        if isinstance(data_block, dict):
-            blocks.append(data_block)
-
-        result_block = res.get("result")
-        if isinstance(result_block, dict):
-            blocks.append(result_block)
-
-        for block in blocks:
-            if not normalized["article"]:
-                normalized["article"] = str(
-                    block.get("article")
-                    or block.get("ARTICLE")
-                    or ""
-                ).strip()
-
-            if not normalized["회사명"]:
-                normalized["회사명"] = str(
-                    block.get("회사명")
-                    or block.get("companyName")
-                    or block.get("name")
-                    or ""
-                ).strip()
-
-            if not normalized["url"]:
-                normalized["url"] = str(
-                    block.get("url")
-                    or block.get("URL")
-                    or ""
-                ).strip()
-
-        detail_candidates: List[Any] = []
-
-        detail_candidates.append(res.get("detailData"))
-        detail_candidates.append(res.get("detail"))
-        detail_candidates.append(res.get("data"))
 
         if isinstance(data_block, dict):
-            detail_candidates.append(data_block.get("detailData"))
-            detail_candidates.append(data_block.get("detail"))
-            detail_candidates.append(data_block.get("data"))
+            normalized["article"] = str(data_block.get("article") or "").strip()
+            normalized["회사명"] = str(data_block.get("회사명") or "").strip()
+            normalized["url"] = str(data_block.get("url") or "").strip()
+            normalized["data"] = data_block
 
-        if isinstance(result_block, dict):
-            detail_candidates.append(result_block.get("detailData"))
-            detail_candidates.append(result_block.get("detail"))
-            detail_candidates.append(result_block.get("data"))
-
-        for candidate in detail_candidates:
-            if isinstance(candidate, dict) and candidate:
-                normalized["data"] = candidate
-                break
-
-        # res["data"] 자체가 상세 데이터인 경우 처리
-        if not normalized["data"] and isinstance(res.get("data"), dict):
-            data_value = res.get("data") or {}
-            wrapper_keys = {
-                "success", "message", "article", "companyName", "회사명", "url",
-                "detail", "detailData", "data", "error"
-            }
-            has_wrapper_key = False
-            for k in data_value.keys():
-                if str(k) in wrapper_keys:
-                    has_wrapper_key = True
-                    break
-
-            if not has_wrapper_key:
-                normalized["data"] = data_value
+        elif isinstance(data_block, str) and data_block.strip():
+            try:
+                parsed = ast.literal_eval(data_block)
+                if isinstance(parsed, dict):
+                    normalized["data"] = parsed
+            except Exception as e:
+                normalized["message"] = (
+                    f"{normalized['message']} | detail data parse error: {e}"
+                ).strip(" |")
 
         return normalized
+
 
     def sleep_between_channel_attempts(self) -> None:
         sleep_t = random.uniform(
@@ -969,6 +918,7 @@ class ApiBiznoExcelSetWorker(BaseApiWorker):
         )
         self.log_signal_func(f"🕒 채널 전환 후 대기: {sleep_t:.2f}s")
         self.sleep_s(sleep_t)
+
 
     def sleep_between_local_search_and_detail(self) -> bool:
         sleep_t = random.uniform(

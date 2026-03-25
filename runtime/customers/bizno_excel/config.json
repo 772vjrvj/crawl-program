@@ -26,27 +26,27 @@
     {
       "code": "sc_kr_nm",
       "value": "검색회사명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "sc_ft_kr_nm",
       "value": "검색필터회사명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "sc_ceo_nm",
       "value": "검색대표자명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "sc_addr",
       "value": "검색회사주소",
-      "checked": false
+      "checked": true
     },
     {
       "code": "article",
       "value": "article",
-      "checked": false
+      "checked": true
     },
     {
       "code": "kr_nm",
@@ -56,27 +56,27 @@
     {
       "code": "eng_nm",
       "value": "회사명(영문)",
-      "checked": false
+      "checked": true
     },
     {
       "code": "nts_ind",
       "value": "국세청산업분류",
-      "checked": false
+      "checked": true
     },
     {
       "code": "biz_type",
       "value": "업 태",
-      "checked": false
+      "checked": true
     },
     {
       "code": "biz_item",
       "value": "종 목",
-      "checked": false
+      "checked": true
     },
     {
       "code": "main_prod",
       "value": "주요제품",
-      "checked": false
+      "checked": true
     },
     {
       "code": "tel",
@@ -91,22 +91,22 @@
     {
       "code": "corp_size",
       "value": "기업규모",
-      "checked": false
+      "checked": true
     },
     {
       "code": "tax_type",
       "value": "과세유형",
-      "checked": false
+      "checked": true
     },
     {
       "code": "hq_branch",
       "value": "본사/지사",
-      "checked": false
+      "checked": true
     },
     {
       "code": "corp_type",
       "value": "법인형태",
-      "checked": false
+      "checked": true
     },
     {
       "code": "reg_dt",
@@ -116,27 +116,27 @@
     {
       "code": "homepage",
       "value": "홈페이지",
-      "checked": false
+      "checked": true
     },
     {
       "code": "ir_home",
       "value": "IR홈페이지",
-      "checked": false
+      "checked": true
     },
     {
       "code": "email",
       "value": "회사이메일",
-      "checked": false
+      "checked": true
     },
     {
       "code": "ceo_nm",
       "value": "대표자명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "biz_status",
       "value": "사업자 현재 상태",
-      "checked": false
+      "checked": true
     },
     {
       "code": "biz_no",
@@ -146,37 +146,37 @@
     {
       "code": "corp_no",
       "value": "법인등록번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "emp_cnt",
       "value": "종업원수",
-      "checked": false
+      "checked": true
     },
     {
       "code": "zip",
       "value": "우편번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "addr",
       "value": "회사주소",
-      "checked": false
+      "checked": true
     },
     {
       "code": "tax_office",
       "value": "관할세무서",
-      "checked": false
+      "checked": true
     },
     {
       "code": "close_mon",
       "value": "결산월",
-      "checked": false
+      "checked": true
     },
     {
       "code": "url",
       "value": "url",
-      "checked": false
+      "checked": true
     }
   ]
 }

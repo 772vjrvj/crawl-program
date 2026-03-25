@@ -24,10 +24,26 @@
       "type": "input"
     },
     {
-      "name": "매물확인일(YYYYMMDD) 종료",
-      "code": "to_date",
+      "name": "매물확인일(YYYYMMDD) 시작",
+      "code": "fr_date",
       "value": "",
       "type": "input"
+    },
+    {
+      "name": "■ 썸네일 확장자명",
+      "code": "thumb_ext",
+      "value": "jpg",
+      "type": "select",
+      "options": [
+        {
+          "key": "JPG",
+          "value": "jpg"
+        },
+        {
+          "key": "PNG",
+          "value": "png"
+        }
+      ]
     },
     {
       "name": "영어컬럼",

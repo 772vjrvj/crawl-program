@@ -1,4 +1,5 @@
 # src/workers/main/api_naver_land_real_estate_detail_set_load_worker.py
+
 from __future__ import annotations
 
 import json
@@ -6,6 +7,7 @@ import os
 import random
 import re
 import time
+from datetime import datetime  # === 신규 ===
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, parse_qsl, urlencode, urlparse, urlunparse
 
@@ -99,6 +101,14 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "B1": "전세",
             "B2": "월세",
             "B3": "단기임대",
+        }
+
+        self.SORT_MAP = {
+            "랭킹순": "rank",
+            "높은가격순": "highPrc",
+            "낮은가격순": "lowPrc",
+            "최신순": "dates",
+            "면적순": "highSpc",
         }
 
     # 실행 전 준비
@@ -298,7 +308,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 self.log_signal_func(
                     f"articleList 필터 적용 [{self._build_parts_text(item)}] "
                     f"tradTpCd={self._get_query_value(updated_article_list, 'tradTpCd')} "
-                    f"rletTpCd={self._get_query_value(updated_article_list, 'rletTpCd')}"
+                    f"rletTpCd={self._get_query_value(updated_article_list, 'rletTpCd')} "
+                    f"sort={self._get_query_value(updated_article_list, 'sort')}"
                 )
 
         if cluster_list_url:
@@ -317,26 +328,56 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.log_signal_func("articleList URL 없음")
             return
 
+        fr_date: str = str(self.get_setting_value(self.setting, "fr_date") or "").strip()
+        to_date: str = str(self.get_setting_value(self.setting, "to_date") or "").strip()
+        sort_code: str = self._get_selected_sort_code()
+        is_latest_sort: bool = (sort_code == "dates")
+
         page = 1
         max_count = 100
 
         while self.running:
-            list_url = self._replace_query_params(article_list_url, page=page)
-            self.log_signal_func(f"목록 조회 page={page} url={list_url}")
+            replace_values: Dict[str, Any] = {"page": page}
+            if sort_code:
+                replace_values["sort"] = sort_code
+
+            list_url = self._replace_query_params(article_list_url, **replace_values)
+            self.log_signal_func(f"목록 조회 page={page} sort={sort_code or '원본유지'} url={list_url}")
+
             res = self.api_client.get(url=list_url, headers=self.headers)
             items = self._extract_article_items(res)
             if not items:
                 break
 
+            should_break_paging = False
+
             for idx, item in enumerate(items, start=1):
                 if not self.running:
                     break
+
+                item_atcl_cfm_ymd = self._normalize_atcl_cfm_ymd(item.get("atclCfmYmd"))
+
+                # 최신순일 때만 시작일 이전이면 이후 페이지도 볼 필요 없음
+                if is_latest_sort and fr_date and item_atcl_cfm_ymd and item_atcl_cfm_ymd < fr_date:
+                    self.log_signal_func(
+                        f"등록일자 기준 페이지 조회 종료: page={page}, idx={idx}, "
+                        f"atclCfmYmd={item_atcl_cfm_ymd}, fr_date={fr_date}"
+                    )
+                    should_break_paging = True
+                    break
+
+                # 목록 단계에서 바로 등록일자 필터
+                if not self._is_date_in_range(item_atcl_cfm_ymd, fr_date, to_date):
+                    continue
 
                 atcl_no = str(item.get("atclNo") or item.get("articleNo") or item.get("atclNoEnc") or "").strip()
                 if not atcl_no:
                     continue
 
-                self.log_signal_func(f"매물 진행 page={page}, idx={idx}/{len(items)}, atclNo={atcl_no}")
+                self.log_signal_func(
+                    f"매물 진행 page={page}, idx={idx}/{len(items)}, "
+                    f"atclNo={atcl_no}, atclCfmYmd={item_atcl_cfm_ymd}"
+                )
 
                 if self._should_fetch_detail(item):
                     self._apply_same_addr_price_range(item)
@@ -354,6 +395,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
                 time.sleep(random.uniform(0.4, 0.9))
 
+            if should_break_paging:
+                break
+
             time.sleep(random.uniform(1, 1.5))
             page += 1
             if page > max_count:
@@ -363,6 +407,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         try:
             if not self.api_client:
                 return
+
+            fr_date: str = str(self.get_setting_value(self.setting, "fr_date") or "").strip()
+            to_date: str = str(self.get_setting_value(self.setting, "to_date") or "").strip()
 
             params: Dict[str, Any] = {"atclNo": atcl_no}
 
@@ -396,6 +443,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             for same_item in items:
                 if not self.running:
                     break
+
+                item_atcl_cfm_ymd = self._normalize_atcl_cfm_ymd(same_item.get("atclCfmYmd"))
+                if not self._is_date_in_range(item_atcl_cfm_ymd, fr_date, to_date):
+                    continue
+
                 if not self._should_fetch_detail(same_item):
                     continue
 
@@ -579,12 +631,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         out["위도"] = self._to_text(parent.get("lat"))
         out["경도"] = self._to_text(parent.get("lng"))
 
-
         self._ensure_output_keys(out)
         return out
-
-
-
 
     # Next.js / payload 파싱
     def _collect_next_f_payload_text(self, html: str) -> str:
@@ -873,6 +921,42 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         return text.strip()
 
     # === 신규 ===
+    def _get_selected_sort_code(self) -> str:
+        sort_label = str(self.get_setting_value(self.setting, "sort") or "").strip()
+        return str(self.SORT_MAP.get(sort_label) or "").strip()
+
+    # === 신규 ===
+    def _normalize_atcl_cfm_ymd(self, value: Any) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+
+        digits = re.sub(r"[^0-9]", "", text)
+        if len(digits) == 8:
+            return digits
+
+        if len(digits) == 6:
+            yy = int(digits[:2])
+            year = 2000 + yy
+            return f"{year:04d}{digits[2:]}"
+
+        return ""
+
+    # === 신규 ===
+    def _is_date_in_range(self, ymd: str, fr_date: str, to_date: str) -> bool:
+        if not fr_date and not to_date:
+            return True
+
+        if not ymd or len(ymd) != 8 or not ymd.isdigit():
+            return False
+
+        if fr_date and ymd < fr_date:
+            return False
+        if to_date and ymd > to_date:
+            return False
+        return True
+
+    # === 신규 ===
     def _apply_same_addr_price_range(self, item: Dict[str, Any]) -> None:
         try:
             same_addr_cnt = int(str(item.get("sameAddrCnt") or "0").strip())
@@ -1153,6 +1237,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             replace_params["tradTpCd"] = self._join_codes(self.search_trade_codes)
         if self.search_rlet_codes:
             replace_params["rletTpCd"] = self._join_codes(self.search_rlet_codes)
+
+        sort_code = self._get_selected_sort_code()
+        if sort_code:
+            replace_params["sort"] = sort_code
+
         if not replace_params:
             return url
         return self._replace_query_params(url, **replace_params)
@@ -1312,29 +1401,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         if not self.result_data_list:
             return
 
-        fr_date: str = str(self.get_setting_value(self.setting, "fr_date") or "").strip()
-        to_date: str = str(self.get_setting_value(self.setting, "to_date") or "").strip()
-
         save_list: List[Dict[str, Any]] = self.result_data_list
-
-        # fr_date, to_date 둘 다 있을 때만 매물확인일 범위 필터 적용
-        if fr_date and to_date:
-            filtered_list: List[Dict[str, Any]] = []
-
-            for row in self.result_data_list:
-                confirm_date = str(row.get("매물확인일") or "").strip()
-                confirm_date_ymd = confirm_date.replace("-", "")
-
-                # YYYY-MM-DD -> YYYYMMDD 길이 체크
-                if len(confirm_date_ymd) == 8 and confirm_date_ymd.isdigit():
-                    if fr_date <= confirm_date_ymd <= to_date:
-                        filtered_list.append(row)
-
-            save_list = filtered_list
-            self.log_signal_func(
-                f"매물확인일 필터 적용: {fr_date} ~ {to_date} / "
-                f"원본 {len(self.result_data_list)}건 -> 저장 {len(save_list)}건"
-            )
 
         # === 신규 === eng=True면 영문 컬럼 매핑 후 저장
         if self.eng:
