@@ -1,299 +1,244 @@
-import json
-import time
+# main.py
+from __future__ import annotations
+
+import json  # === 신규 ===
+import sys
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import local
-
-import pandas as pd
-import requests
-from bs4 import BeautifulSoup
+from typing import Optional
 
 
-# =========================
-# 설정
-# =========================
-BASE_DIR = Path(__file__).resolve().parent
-INPUT_DIR = BASE_DIR / "resources" / "customers" / "childcare"
-OUTPUT_FILE = INPUT_DIR / "childcare_nursery_merged.xlsx"
-
-DETAIL_URL = (
-    "https://info.childcare.go.kr/info_html5/pnis/search/preview/"
-    "SummaryInfoSlPu.jsp?flag=YJ&STCODE_POP={stcode}"
-)
-
-SITE_NAME = "아이사랑"
-
-REQUEST_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/136.0.0.0 Safari/537.36"
-    ),
-    "Referer": "https://info.childcare.go.kr/",
-}
-
-REQUEST_TIMEOUT = 15
-REQUEST_SLEEP_SEC = 0.05
-
-# 너무 크게 잡으면 차단될 수 있음
-MAX_WORKERS = 8
-
-# 쓰레드별 Session 보관
-_thread_local = local()
+import os
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
 
 
-# =========================
-# 공통 함수
-# =========================
-def safe_str(value: Any) -> str:
-    if value is None:
-        return ""
-    return str(value).strip()
+from PySide6.QtCore import Qt, QLockFile, QDir  # === 신규 ===
+from PySide6.QtWidgets import QApplication, QMessageBox
+
+from src.app_manager import AppManager
+from src.core.global_state import GlobalState
+from src.utils.app_config_loader import AppConfigLoader
+from src.utils.config import set_app_server_config
+from src.core.services.service_loader import load_services
 
 
-def split_region(stsmrycn: str) -> Tuple[str, str]:
-    text = safe_str(stsmrycn)
-    if not text:
-        return "", ""
+def _setup_ffmpeg_path(base_path: Path):
+    """
+    _internal/resources/bin 또는 resources/bin에 있는 ffmpeg를
+    시스템 PATH에 등록하여 Whisper가 인식하도록 합니다.
+    """
+    # PyInstaller 빌드 시 보통 base_path는 exe 위치입니다.
+    # 제공해주신 경로 구조에 맞춰 bin 폴더 위치를 잡습니다.
+    ffmpeg_bin = base_path / "_internal" / "resources" / "bin"
 
-    parts = text.split()
-    sido = parts[0] if len(parts) >= 1 else ""
-    sigungu = " ".join(parts[1:]) if len(parts) >= 2 else ""
-    return sido, sigungu
+    # 만약 위 경로가 없다면 일반 resources/bin도 확인 (개발 환경 등)
+    if not ffmpeg_bin.exists():
+        ffmpeg_bin = base_path / "resources" / "bin"
 
-
-def normalize_phone(value: Any) -> str:
-    return safe_str(value)
-
-
-def normalize_home_as_email(value: Any) -> str:
-    return safe_str(value)
-
-
-def map_vehicle_operating(row: Dict[str, Any]) -> str:
-    return "운영" if safe_str(row.get("crcargb")).upper() == "Y" else "미 운영"
+    if ffmpeg_bin.exists():
+        bin_str = str(ffmpeg_bin.resolve())
+        if bin_str not in os.environ["PATH"]:
+            os.environ["PATH"] = bin_str + os.pathsep + os.environ["PATH"]
 
 
-def build_detail_url(stcode: str) -> str:
-    return DETAIL_URL.format(stcode=stcode)
+def show_already_running_alert(existing_app: Optional[QApplication] = None) -> None:
+    app_created = False
+    app = existing_app or QApplication.instance()
+    if app is None:
+        app = QApplication(sys.argv)
+        app_created = True
+
+    msg = QMessageBox()
+    msg.setIcon(QMessageBox.Warning)
+    msg.setWindowTitle("이미 실행 중")
+    msg.setText("프로그램이 이미 실행 중입니다.\n기존 실행 중인 창을 확인해 주세요.")
+    msg.setStandardButtons(QMessageBox.Ok)
+    msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+    msg.exec()
+
+    if app_created:
+        try:
+            app.exit(0)
+        except Exception:
+            pass
 
 
-def get_thread_session() -> requests.Session:
-    session = getattr(_thread_local, "session", None)
-    if session is None:
-        session = requests.Session()
-        session.headers.update(REQUEST_HEADERS)
-        _thread_local.session = session
-    return session
+# =========================================================
+# runtime path helpers
+# =========================================================
+def _get_base_path() -> Path:
+    """
+    - 개발: 프로젝트 기준
+    - 빌드(frozen): exe 위치 기준. 개발 krx_data_set.py 기준
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
 
 
-def build_korean_row(item: Dict[str, Any]) -> Dict[str, Any]:
-    stcode = safe_str(item.get("stcode"))
-    sido, sigungu = split_region(item.get("stsmrycn"))
+# =========================================================
+# config helpers  # === 신규 ===
+# =========================================================
+def _read_runtime_app_json(base_path: Path) -> dict:
+    runtime_dir = base_path / "runtime"
+    app_json_path = runtime_dir / "app.json"
 
-    return {
-        "사이트 이름": SITE_NAME,
-        "상세 URL": build_detail_url(stcode),
-        "시도": sido,
-        "시군구": sigungu,
-        "원본 시군구문자열": safe_str(item.get("stsmrycn")),
-        "코드": stcode,
-        "시설명": safe_str(item.get("crrepre")) or safe_str(item.get("crname")),
-        "유형": safe_str(item.get("crtypenm")),
-        "주소": safe_str(item.get("craddr")),
-        "전화번호": normalize_phone(item.get("tel_no")),
-        "핸드폰번호": "",
-        "이메일주소": normalize_home_as_email(item.get("crhome")),
-        "정원": safe_str(item.get("crcapat")),
-        "현원": safe_str(item.get("crchcnt")),
-        "차량운행": map_vehicle_operating(item),
-        "대표자명": safe_str(item.get("crrepname")),
-        "원장(시설장)명": "",
-        "대기인원": "",
-        "대기여부": safe_str(item.get("etnrtrynnm")),
-    }
-
-
-# =========================
-# 상세페이지 파싱
-# =========================
-def parse_detail_names_from_html(html: str) -> Tuple[str, str]:
-    soup = BeautifulSoup(html, "html.parser")
-    table = soup.select_one(".table_childcare")
-    if not table:
-        return "", ""
-
-    rep_name = ""
-    director_name = ""
-
-    for tr in table.select("tbody tr"):
-        th = tr.find("th")
-        td = tr.find("td")
-        if not th or not td:
-            continue
-
-        label = th.get_text(" ", strip=True)
-        value = td.get_text(" ", strip=True)
-
-        if label == "대표자명":
-            rep_name = value
-        elif label == "원장명":
-            director_name = value
-
-    return rep_name, director_name
-
-
-def fetch_detail_names(stcode: str) -> Tuple[str, str]:
-    if not stcode:
-        return "", ""
-
-    url = build_detail_url(stcode)
-    session = get_thread_session()
+    if not app_json_path.exists():
+        raise FileNotFoundError(f"runtime/app.json not found: {str(app_json_path)}")
 
     try:
-        time.sleep(REQUEST_SLEEP_SEC)
-        res = session.get(url, timeout=REQUEST_TIMEOUT)
-        res.raise_for_status()
-        return parse_detail_names_from_html(res.text)
-    except Exception as e:
-        print(f"[WARN] stcode={stcode} 상세 조회 실패: {e}")
-        return "", ""
-
-
-def enrich_row_with_detail(row: Dict[str, Any]) -> Dict[str, Any]:
-    stcode = safe_str(row.get("코드"))
-    rep_name_detail, director_name_detail = fetch_detail_names(stcode)
-
-    if rep_name_detail:
-        row["대표자명"] = rep_name_detail
-
-    if director_name_detail:
-        row["원장(시설장)명"] = director_name_detail
-
-    return row
-
-
-# =========================
-# 파일 처리
-# =========================
-def load_json_file(file_path: Path) -> Dict[str, Any]:
-    with open(file_path, "r", encoding="utf-8-sig") as f:
-        return json.load(f)
-
-
-def collect_json_files(input_dir: Path) -> List[Path]:
-    return sorted(input_dir.glob("childcare_nursery_*.json"))
-
-
-def process_json_file(file_path: Path) -> List[Dict[str, Any]]:
-    print(f"[INFO] 파일 처리 시작: {file_path.name}")
+        raw = app_json_path.read_text(encoding="utf-8")
+    except Exception:
+        raw = app_json_path.read_text(encoding="utf-8-sig")
 
     try:
-        payload = load_json_file(file_path)
+        data = json.loads(raw)
     except Exception as e:
-        print(f"[ERROR] JSON 로드 실패: {file_path.name} / {e}")
-        return []
+        raise ValueError(f"runtime/app.json JSON 파싱 실패: {str(e)}")
 
-    data_list = payload.get("data_list")
-    if not isinstance(data_list, list):
-        print(f"[WARN] data_list 없음 또는 리스트 아님: {file_path.name}")
-        return []
-
-    base_rows: List[Dict[str, Any]] = []
-    for item in data_list:
-        if isinstance(item, dict):
-            base_rows.append(build_korean_row(item))
-
-    print(f"[INFO] {file_path.name} 기본 변환 완료 / {len(base_rows)}건")
-
-    rows: List[Dict[str, Any]] = [None] * len(base_rows)  # type: ignore
-
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        future_to_index = {
-            executor.submit(enrich_row_with_detail, row): idx
-            for idx, row in enumerate(base_rows)
-        }
-
-        done_count = 0
-        for future in as_completed(future_to_index):
-            idx = future_to_index[future]
-            try:
-                rows[idx] = future.result()
-            except Exception as e:
-                print(f"[WARN] 상세 병렬 처리 실패 idx={idx}: {e}")
-                rows[idx] = base_rows[idx]
-
-            done_count += 1
-            if done_count % 100 == 0:
-                print(f"[INFO] {file_path.name} 상세조회 진행중... {done_count}/{len(base_rows)}")
-
-    final_rows = [row for row in rows if row]
-    print(f"[INFO] 파일 처리 완료: {file_path.name} / 총 {len(final_rows)}건")
-    return final_rows
+    if not isinstance(data, dict):
+        raise ValueError("runtime/app.json 최상위 구조는 object(dict)여야 합니다.")
+    return data
 
 
-def save_to_excel(rows: List[Dict[str, Any]], output_file: Path) -> None:
-    if not rows:
-        print("[WARN] 저장할 데이터가 없습니다.")
+def _get_allow_multi_instance(runtime_json: dict) -> bool:
+    v = runtime_json.get("allow_multi_instance", False)
+    return bool(v)
+
+
+def _get_single_instance_key(runtime_json: dict) -> str:
+    v = runtime_json.get("instance_key", "my_pyside_app")
+    v = str(v).strip()
+    return v or "my_pyside_app"
+
+
+# =========================================================
+# single instance guard  # === 신규 ===
+# =========================================================
+_SINGLE_INSTANCE_LOCK: Optional[QLockFile] = None  # === 신규 ===
+
+
+def _acquire_single_instance_lock(app: QApplication, lock_key: str) -> bool:  # === 신규 ===
+    global _SINGLE_INSTANCE_LOCK
+
+    base_dir = Path(QDir.tempPath()) / lock_key
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    lock_path = base_dir / f"{lock_key}.lock"
+    lock = QLockFile(str(lock_path))
+    lock.setStaleLockTime(10_000)  # 10초
+
+    if not lock.tryLock(0):
+        show_already_running_alert(app)
+        return False
+
+    _SINGLE_INSTANCE_LOCK = lock
+    return True
+
+
+def _release_single_instance_lock() -> None:  # === 신규 ===
+    global _SINGLE_INSTANCE_LOCK
+    lock = _SINGLE_INSTANCE_LOCK
+    _SINGLE_INSTANCE_LOCK = None
+    if lock is None:
         return
-
-    df = pd.DataFrame(rows)
-
-    ordered_columns = [
-        "사이트 이름",
-        "상세 URL",
-        "시도",
-        "시군구",
-        "원본 시군구문자열",
-        "코드",
-        "시설명",
-        "유형",
-        "주소",
-        "전화번호",
-        "핸드폰번호",
-        "이메일주소",
-        "정원",
-        "현원",
-        "차량운행",
-        "대표자명",
-        "원장(시설장)명",
-        "대기인원",
-        "대기여부",
-    ]
-
-    for col in ordered_columns:
-        if col not in df.columns:
-            df[col] = ""
-
-    df = df[ordered_columns]
-    df = df.sort_values(by=["시도", "시군구", "시설명"], ascending=[True, True, True])
-
-    output_file.parent.mkdir(parents=True, exist_ok=True)
-    df.to_excel(output_file, index=False)
-
-    print(f"[INFO] 엑셀 저장 완료: {output_file}")
+    try:
+        lock.unlock()
+    except Exception:
+        pass
 
 
-def main() -> None:
-    json_files = collect_json_files(INPUT_DIR)
+def _bootstrap_runtime_config(state: GlobalState) -> None:
+    base = _get_base_path()
+    runtime_dir = base / "runtime"
+    app_json_path = runtime_dir / "app.json"
 
-    if not json_files:
-        print(f"[WARN] 대상 JSON 파일이 없습니다: {INPUT_DIR}")
-        return
+    loader = AppConfigLoader(str(app_json_path))
 
-    print(f"[INFO] 대상 파일 수: {len(json_files)}")
-    print(f"[INFO] 상세조회 멀티쓰레드 수: {MAX_WORKERS}")
+    app_conf = loader.load_app_config()
+    set_app_server_config(app_conf.server_url, app_conf.server_name)
 
-    all_rows: List[Dict[str, Any]] = []
+    site_configs = loader.get_enabled_site_configs(app_conf)
 
-    for file_path in json_files:
-        rows = process_json_file(file_path)
-        all_rows.extend(rows)
+    state.set(
+        GlobalState.APP_CONFIG,
+        {
+            "site_list_use": app_conf.site_list_use,
+            "runtime_dir": str(runtime_dir),
+        },
+    )
+    state.set(GlobalState.SITE_CONFIGS, site_configs)
 
-    save_to_excel(all_rows, OUTPUT_FILE)
-    print("[INFO] 전체 작업 완료")
+    site_configs_by_key = {}
+    for d in (site_configs or []):
+        k = str(d.get("key") or "").strip()
+        if k:
+            site_configs_by_key[k] = d
+    state.set("site_configs_by_key", site_configs_by_key)
+
+
+def main() -> int:
+    base = _get_base_path()
+    _setup_ffmpeg_path(base)
+
+    app = QApplication(sys.argv)
+
+    try:
+        runtime_json = _read_runtime_app_json(base)
+        allow_multi = _get_allow_multi_instance(runtime_json)
+        lock_key = _get_single_instance_key(runtime_json)
+    except Exception as e:
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Critical)
+        msg.setWindowTitle("설정 로드 실패")
+        msg.setText(f"runtime/app.json을 읽는 중 오류가 발생했습니다.\n\n{str(e)}")
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+        msg.exec()
+        return 1
+
+    if not allow_multi:
+        if not _acquire_single_instance_lock(app, lock_key):
+            return 0
+
+    state = GlobalState()
+    state.initialize()
+
+    try:
+        _bootstrap_runtime_config(state)
+
+        site_configs = state.get(GlobalState.SITE_CONFIGS) or []
+
+        services = set()
+        for conf in site_configs:
+            for svc in (conf.get("services") or []):
+                s = str(svc).strip()
+                if s:
+                    services.add(s)
+
+        load_services(services)
+
+    except Exception as e:
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Critical)
+        msg.setWindowTitle("설정 로드 실패")
+        msg.setText(f"runtime 설정을 읽는 중 오류가 발생했습니다.\n\n{str(e)}")
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
+        msg.exec()
+        _release_single_instance_lock()
+        return 1
+
+    manager = AppManager(app)
+    manager.start()
+
+    rc = app.exec()
+
+    _release_single_instance_lock()
+    return rc
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
