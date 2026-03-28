@@ -2,8 +2,6 @@ import json
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import local
 
 import pandas as pd
 import requests
@@ -34,13 +32,7 @@ REQUEST_HEADERS = {
 }
 
 REQUEST_TIMEOUT = 15
-REQUEST_SLEEP_SEC = 0.05
-
-# 너무 크게 잡으면 차단될 수 있음
-MAX_WORKERS = 8
-
-# 쓰레드별 Session 보관
-_thread_local = local()
+REQUEST_SLEEP_SEC = 0.2
 
 
 # =========================
@@ -77,15 +69,6 @@ def map_vehicle_operating(row: Dict[str, Any]) -> str:
 
 def build_detail_url(stcode: str) -> str:
     return DETAIL_URL.format(stcode=stcode)
-
-
-def get_thread_session() -> requests.Session:
-    session = getattr(_thread_local, "session", None)
-    if session is None:
-        session = requests.Session()
-        session.headers.update(REQUEST_HEADERS)
-        _thread_local.session = session
-    return session
 
 
 def build_korean_row(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -144,34 +127,19 @@ def parse_detail_names_from_html(html: str) -> Tuple[str, str]:
     return rep_name, director_name
 
 
-def fetch_detail_names(stcode: str) -> Tuple[str, str]:
+def fetch_detail_names(session: requests.Session, stcode: str) -> Tuple[str, str]:
     if not stcode:
         return "", ""
 
     url = build_detail_url(stcode)
-    session = get_thread_session()
 
     try:
-        time.sleep(REQUEST_SLEEP_SEC)
-        res = session.get(url, timeout=REQUEST_TIMEOUT)
+        res = session.get(url, headers=REQUEST_HEADERS, timeout=REQUEST_TIMEOUT)
         res.raise_for_status()
         return parse_detail_names_from_html(res.text)
     except Exception as e:
         print(f"[WARN] stcode={stcode} 상세 조회 실패: {e}")
         return "", ""
-
-
-def enrich_row_with_detail(row: Dict[str, Any]) -> Dict[str, Any]:
-    stcode = safe_str(row.get("코드"))
-    rep_name_detail, director_name_detail = fetch_detail_names(stcode)
-
-    if rep_name_detail:
-        row["대표자명"] = rep_name_detail
-
-    if director_name_detail:
-        row["원장(시설장)명"] = director_name_detail
-
-    return row
 
 
 # =========================
@@ -186,7 +154,7 @@ def collect_json_files(input_dir: Path) -> List[Path]:
     return sorted(input_dir.glob("childcare_nursery_*.json"))
 
 
-def process_json_file(file_path: Path) -> List[Dict[str, Any]]:
+def process_json_file(session: requests.Session, file_path: Path) -> List[Dict[str, Any]]:
     print(f"[INFO] 파일 처리 시작: {file_path.name}")
 
     try:
@@ -200,37 +168,32 @@ def process_json_file(file_path: Path) -> List[Dict[str, Any]]:
         print(f"[WARN] data_list 없음 또는 리스트 아님: {file_path.name}")
         return []
 
-    base_rows: List[Dict[str, Any]] = []
-    for item in data_list:
-        if isinstance(item, dict):
-            base_rows.append(build_korean_row(item))
+    rows: List[Dict[str, Any]] = []
 
-    print(f"[INFO] {file_path.name} 기본 변환 완료 / {len(base_rows)}건")
+    for idx, item in enumerate(data_list, start=1):
+        if not isinstance(item, dict):
+            continue
 
-    rows: List[Dict[str, Any]] = [None] * len(base_rows)  # type: ignore
+        row = build_korean_row(item)
+        stcode = row.get("코드", "")
 
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        future_to_index = {
-            executor.submit(enrich_row_with_detail, row): idx
-            for idx, row in enumerate(base_rows)
-        }
+        rep_name_detail, director_name_detail = fetch_detail_names(session, stcode)
 
-        done_count = 0
-        for future in as_completed(future_to_index):
-            idx = future_to_index[future]
-            try:
-                rows[idx] = future.result()
-            except Exception as e:
-                print(f"[WARN] 상세 병렬 처리 실패 idx={idx}: {e}")
-                rows[idx] = base_rows[idx]
+        if rep_name_detail:
+            row["대표자명"] = rep_name_detail
 
-            done_count += 1
-            if done_count % 100 == 0:
-                print(f"[INFO] {file_path.name} 상세조회 진행중... {done_count}/{len(base_rows)}")
+        if director_name_detail:
+            row["원장(시설장)명"] = director_name_detail
 
-    final_rows = [row for row in rows if row]
-    print(f"[INFO] 파일 처리 완료: {file_path.name} / 총 {len(final_rows)}건")
-    return final_rows
+        rows.append(row)
+
+        if idx % 100 == 0:
+            print(f"[INFO] {file_path.name} 처리중... {idx}건")
+
+        time.sleep(REQUEST_SLEEP_SEC)
+
+    print(f"[INFO] 파일 처리 완료: {file_path.name} / 총 {len(rows)}건")
+    return rows
 
 
 def save_to_excel(rows: List[Dict[str, Any]], output_file: Path) -> None:
@@ -240,6 +203,9 @@ def save_to_excel(rows: List[Dict[str, Any]], output_file: Path) -> None:
 
     df = pd.DataFrame(rows)
 
+    # 주소 관련 컬럼을 한쪽으로 모으고,
+    # 원본 시군구문자열은 시도/시군구 바로 뒤,
+    # stcode는 코드로 변경
     ordered_columns = [
         "사이트 이름",
         "상세 URL",
@@ -283,13 +249,13 @@ def main() -> None:
         return
 
     print(f"[INFO] 대상 파일 수: {len(json_files)}")
-    print(f"[INFO] 상세조회 멀티쓰레드 수: {MAX_WORKERS}")
 
     all_rows: List[Dict[str, Any]] = []
 
-    for file_path in json_files:
-        rows = process_json_file(file_path)
-        all_rows.extend(rows)
+    with requests.Session() as session:
+        for file_path in json_files:
+            rows = process_json_file(session, file_path)
+            all_rows.extend(rows)
 
     save_to_excel(all_rows, OUTPUT_FILE)
     print("[INFO] 전체 작업 완료")
