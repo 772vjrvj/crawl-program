@@ -1,244 +1,198 @@
-# main.py
-from __future__ import annotations
-
-import json  # === 신규 ===
-import sys
+import json
+import re
+import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List
+
+from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
 
 
-import os
-if sys.stdout is None:
-    sys.stdout = open(os.devnull, "w")
-if sys.stderr is None:
-    sys.stderr = open(os.devnull, "w")
+URL = "https://central.childcare.go.kr/ccef/job/JobOfferSlPL.jsp"
+OUTPUT_JSON = "childcare_job_offer_list.json"
+
+HEADLESS = False
+SLEEP_SEC = 0.8
+STEP = 10
+
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/146.0.0.0 Safari/537.36"
+)
+
+BASE_PAYLOAD: Dict[str, str] = {
+    "flag": "SlPL",
+    "JOSEQ": "",
+    "total": "",
+    "offset": "0",
+    "limit": "",
+    "returnUrl": "",
+    "schCrType": "",
+    "ctprvn": "",
+    "signgu": "",
+    "dong": "",
+    "crspec": "",
+    "crpub": "",
+    "schEmpGbCode": "",
+    "crcert": "",
+    "endYn": "N",
+    "schCrName": "",
+}
 
 
-from PySide6.QtCore import Qt, QLockFile, QDir  # === 신규 ===
-from PySide6.QtWidgets import QApplication, QMessageBox
-
-from src.app_manager import AppManager
-from src.core.global_state import GlobalState
-from src.utils.app_config_loader import AppConfigLoader
-from src.utils.config import set_app_server_config
-from src.core.services.service_loader import load_services
+def clean_text(value: Any) -> str:
+    return " ".join(str(value or "").split())
 
 
-def _setup_ffmpeg_path(base_path: Path):
+def extract_joseq(onclick_text: str) -> str:
+    if not onclick_text:
+        return ""
+    m = re.search(r"fnGoBoardSl\('(\d+)'\)", onclick_text)
+    return m.group(1) if m else ""
+
+
+def parse_rows(html: str) -> List[Dict[str, str]]:
+    soup = BeautifulSoup(html, "html.parser")
+    tbody = soup.select_one(".com_list1 table tbody")
+    if not tbody:
+        return []
+
+    rows: List[Dict[str, str]] = []
+
+    for tr in tbody.find_all("tr", recursive=False):
+        td_list = tr.find_all("td", recursive=False)
+        if len(td_list) < 9:
+            continue
+
+        title_a = td_list[2].find("a")
+        nursery_a = td_list[3].find("a")
+
+        title = clean_text(
+            title_a.get_text(" ", strip=True) if title_a else td_list[2].get_text(" ", strip=True)
+        )
+        nursery_name = clean_text(
+            nursery_a.get_text(" ", strip=True) if nursery_a else td_list[3].get_text(" ", strip=True)
+        )
+
+        onclick_text = ""
+        if nursery_a:
+            onclick_text = nursery_a.get("onclick", "") or ""
+        elif title_a:
+            onclick_text = title_a.get("onclick", "") or ""
+
+        joseq = extract_joseq(onclick_text)
+
+        item = {
+            "번호": clean_text(td_list[0].get_text(" ", strip=True)),
+            "유형": clean_text(td_list[1].get_text(" ", strip=True)),
+            "제목": title,
+            "어린이집명": nursery_name,
+            "JOSEQ": joseq,
+            "직종": clean_text(td_list[4].get_text(" ", strip=True)),
+            "소재지": clean_text(td_list[5].get_text(" ", strip=True)),
+            "마감일": clean_text(td_list[6].get_text(" ", strip=True)),
+            "작성일": clean_text(td_list[7].get_text(" ", strip=True)),
+            "조회": clean_text(td_list[8].get_text(" ", strip=True)),
+        }
+        rows.append(item)
+
+    return rows
+
+
+def browser_fetch_list_html(page, offset: int) -> str:
+    payload = dict(BASE_PAYLOAD)
+    payload["offset"] = str(offset)
+
+    js_code = """
+    async ({ url, payload }) => {
+        const form = new URLSearchParams();
+        for (const [k, v] of Object.entries(payload)) {
+            form.append(k, v ?? "");
+        }
+
+        const res = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Pragma": "no-cache",
+                "Cache-Control": "no-cache"
+            },
+            body: form.toString(),
+            credentials: "include"
+        });
+
+        return await res.text();
+    }
     """
-    _internal/resources/bin 또는 resources/bin에 있는 ffmpeg를
-    시스템 PATH에 등록하여 Whisper가 인식하도록 합니다.
-    """
-    # PyInstaller 빌드 시 보통 base_path는 exe 위치입니다.
-    # 제공해주신 경로 구조에 맞춰 bin 폴더 위치를 잡습니다.
-    ffmpeg_bin = base_path / "_internal" / "resources" / "bin"
 
-    # 만약 위 경로가 없다면 일반 resources/bin도 확인 (개발 환경 등)
-    if not ffmpeg_bin.exists():
-        ffmpeg_bin = base_path / "resources" / "bin"
-
-    if ffmpeg_bin.exists():
-        bin_str = str(ffmpeg_bin.resolve())
-        if bin_str not in os.environ["PATH"]:
-            os.environ["PATH"] = bin_str + os.pathsep + os.environ["PATH"]
+    return page.evaluate(js_code, {"url": URL, "payload": payload})
 
 
-def show_already_running_alert(existing_app: Optional[QApplication] = None) -> None:
-    app_created = False
-    app = existing_app or QApplication.instance()
-    if app is None:
-        app = QApplication(sys.argv)
-        app_created = True
-
-    msg = QMessageBox()
-    msg.setIcon(QMessageBox.Warning)
-    msg.setWindowTitle("이미 실행 중")
-    msg.setText("프로그램이 이미 실행 중입니다.\n기존 실행 중인 창을 확인해 주세요.")
-    msg.setStandardButtons(QMessageBox.Ok)
-    msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
-    msg.exec()
-
-    if app_created:
-        try:
-            app.exit(0)
-        except Exception:
-            pass
-
-
-# =========================================================
-# runtime path helpers
-# =========================================================
-def _get_base_path() -> Path:
-    """
-    - 개발: 프로젝트 기준
-    - 빌드(frozen): exe 위치 기준. 개발 krx_data_set.py 기준
-    """
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent
-    return Path(__file__).resolve().parent
-
-
-# =========================================================
-# config helpers  # === 신규 ===
-# =========================================================
-def _read_runtime_app_json(base_path: Path) -> dict:
-    runtime_dir = base_path / "runtime"
-    app_json_path = runtime_dir / "app.json"
-
-    if not app_json_path.exists():
-        raise FileNotFoundError(f"runtime/app.json not found: {str(app_json_path)}")
-
-    try:
-        raw = app_json_path.read_text(encoding="utf-8")
-    except Exception:
-        raw = app_json_path.read_text(encoding="utf-8-sig")
-
-    try:
-        data = json.loads(raw)
-    except Exception as e:
-        raise ValueError(f"runtime/app.json JSON 파싱 실패: {str(e)}")
-
-    if not isinstance(data, dict):
-        raise ValueError("runtime/app.json 최상위 구조는 object(dict)여야 합니다.")
-    return data
-
-
-def _get_allow_multi_instance(runtime_json: dict) -> bool:
-    v = runtime_json.get("allow_multi_instance", False)
-    return bool(v)
-
-
-def _get_single_instance_key(runtime_json: dict) -> str:
-    v = runtime_json.get("instance_key", "my_pyside_app")
-    v = str(v).strip()
-    return v or "my_pyside_app"
-
-
-# =========================================================
-# single instance guard  # === 신규 ===
-# =========================================================
-_SINGLE_INSTANCE_LOCK: Optional[QLockFile] = None  # === 신규 ===
-
-
-def _acquire_single_instance_lock(app: QApplication, lock_key: str) -> bool:  # === 신규 ===
-    global _SINGLE_INSTANCE_LOCK
-
-    base_dir = Path(QDir.tempPath()) / lock_key
-    base_dir.mkdir(parents=True, exist_ok=True)
-
-    lock_path = base_dir / f"{lock_key}.lock"
-    lock = QLockFile(str(lock_path))
-    lock.setStaleLockTime(10_000)  # 10초
-
-    if not lock.tryLock(0):
-        show_already_running_alert(app)
-        return False
-
-    _SINGLE_INSTANCE_LOCK = lock
-    return True
-
-
-def _release_single_instance_lock() -> None:  # === 신규 ===
-    global _SINGLE_INSTANCE_LOCK
-    lock = _SINGLE_INSTANCE_LOCK
-    _SINGLE_INSTANCE_LOCK = None
-    if lock is None:
-        return
-    try:
-        lock.unlock()
-    except Exception:
-        pass
-
-
-def _bootstrap_runtime_config(state: GlobalState) -> None:
-    base = _get_base_path()
-    runtime_dir = base / "runtime"
-    app_json_path = runtime_dir / "app.json"
-
-    loader = AppConfigLoader(str(app_json_path))
-
-    app_conf = loader.load_app_config()
-    set_app_server_config(app_conf.server_url, app_conf.server_name)
-
-    site_configs = loader.get_enabled_site_configs(app_conf)
-
-    state.set(
-        GlobalState.APP_CONFIG,
-        {
-            "site_list_use": app_conf.site_list_use,
-            "runtime_dir": str(runtime_dir),
-        },
+def save_json(data: List[Dict[str, str]], output_path: str) -> None:
+    Path(output_path).write_text(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        encoding="utf-8"
     )
-    state.set(GlobalState.SITE_CONFIGS, site_configs)
-
-    site_configs_by_key = {}
-    for d in (site_configs or []):
-        k = str(d.get("key") or "").strip()
-        if k:
-            site_configs_by_key[k] = d
-    state.set("site_configs_by_key", site_configs_by_key)
+    print(f"[INFO] 저장 완료: {output_path} / 총 {len(data)}건")
 
 
-def main() -> int:
-    base = _get_base_path()
-    _setup_ffmpeg_path(base)
+def crawl_all() -> List[Dict[str, str]]:
+    all_items: List[Dict[str, str]] = []
 
-    app = QApplication(sys.argv)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=HEADLESS,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-first-run",
+                "--disable-dev-shm-usage",
+            ],
+        )
 
-    try:
-        runtime_json = _read_runtime_app_json(base)
-        allow_multi = _get_allow_multi_instance(runtime_json)
-        lock_key = _get_single_instance_key(runtime_json)
-    except Exception as e:
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Critical)
-        msg.setWindowTitle("설정 로드 실패")
-        msg.setText(f"runtime/app.json을 읽는 중 오류가 발생했습니다.\n\n{str(e)}")
-        msg.setStandardButtons(QMessageBox.Ok)
-        msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
-        msg.exec()
-        return 1
+        context = browser.new_context(
+            user_agent=USER_AGENT,
+            locale="ko-KR",
+            viewport={"width": 1400, "height": 1000},
+            ignore_https_errors=True,
+            extra_http_headers={
+                "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache",
+            },
+        )
 
-    if not allow_multi:
-        if not _acquire_single_instance_lock(app, lock_key):
-            return 0
+        page = context.new_page()
+        page.goto(URL, wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_timeout(2000)
 
-    state = GlobalState()
-    state.initialize()
+        offset = 0
 
-    try:
-        _bootstrap_runtime_config(state)
+        while True:
+            print(f"[INFO] offset={offset} 요청 중...")
+            html = browser_fetch_list_html(page, offset)
+            rows = parse_rows(html)
 
-        site_configs = state.get(GlobalState.SITE_CONFIGS) or []
+            if not rows:
+                print(f"[INFO] offset={offset} 데이터 없음. 종료")
+                break
 
-        services = set()
-        for conf in site_configs:
-            for svc in (conf.get("services") or []):
-                s = str(svc).strip()
-                if s:
-                    services.add(s)
+            print(f"[INFO] offset={offset} -> {len(rows)}건 수집")
+            all_items.extend(rows)
 
-        load_services(services)
+            if len(rows) < STEP:
+                print("[INFO] 마지막 페이지로 판단. 종료")
+                break
 
-    except Exception as e:
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Critical)
-        msg.setWindowTitle("설정 로드 실패")
-        msg.setText(f"runtime 설정을 읽는 중 오류가 발생했습니다.\n\n{str(e)}")
-        msg.setStandardButtons(QMessageBox.Ok)
-        msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
-        msg.exec()
-        _release_single_instance_lock()
-        return 1
+            offset += STEP
+            time.sleep(SLEEP_SEC)
 
-    manager = AppManager(app)
-    manager.start()
+        browser.close()
 
-    rc = app.exec()
-
-    _release_single_instance_lock()
-    return rc
+    return all_items
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    result = crawl_all()
+    save_json(result, OUTPUT_JSON)

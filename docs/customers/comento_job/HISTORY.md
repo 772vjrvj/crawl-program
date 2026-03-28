@@ -1,19 +1,18 @@
-
-■ 2026-03-11
+■ 2026-03-28
 
 날짜 : 2026-03-11
-고객 : 대기업사원
-거래금액 : 200,000
+고객 : 뛰는봄비1874
+거래금액 : 100,000
 버전 : 1.0.0
 
-yohanflower1@gmail.com / kyh2050!
+링크1(어린이집정보)
+https://www.childcare.go.kr/?menuno=1
+순서: 어린이집 > 어린이집 찾기 > 크롤링
 
-직무소개 내요 크롤링
-https://comento.kr/job-questions?feed=recent
+링크2(핸드폰번호/이메일주소)
+https://central.childcare.go.kr/ccef/job/JobOfferSlPL.jsp
+순서: 인력뱅크 > 어린이집 구인 > 마감여부(전체) > 크롤링
 
-생산직, 기술직, 기능직, 고졸, 전문대졸
+사이트 f12 막힘 -> js 스크립트 수정 -> js 비활성화 -> 셀레니움 크롬 
 
-커뮤니티 부문 1. QNA 2. 직무소개
-
-부문 추출 용도입니다!
-
+post방식이라 멀티 하거나 조회 갯수 올리면 차단
