@@ -1,0 +1,68 @@
+{
+  "label": "네이버 부동산 이미지 영상 다운로드",
+  "key": "NAVER_LAND_REAL_ESTATE_DOWN_DETAIL",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": true,
+  "region": false,
+  "worker_class": "src.workers.main.api_naver_land_real_estate_detail_down_set_worker:ApiNaverLandRealEstateDetailDownSetWorker",
+  "setting": [
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
+  ],
+  "columns": [
+    {
+      "code": "name",
+      "value": "건물명",
+      "checked": true
+    },
+    {
+      "code": "ho",
+      "value": "호수",
+      "checked": true
+    },
+    {
+      "code": "number",
+      "value": "네이버부동산",
+      "checked": true
+    },
+    {
+      "code": "seq",
+      "value": "미디어 번호",
+      "checked": true
+    },
+    {
+      "code": "type",
+      "value": "유형",
+      "checked": true
+    },
+    {
+      "code": "url",
+      "value": "URL",
+      "checked": true
+    },
+    {
+      "code": "path",
+      "value": "저장경로",
+      "checked": true
+    },
+    {
+      "code": "status",
+      "value": "상태",
+      "checked": true
+    },
+    {
+      "code": "message",
+      "value": "메세지",
+      "checked": true
+    }
+  ]
+}
