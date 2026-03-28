@@ -1,7 +1,8 @@
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from bs4 import BeautifulSoup
 from openpyxl import Workbook
@@ -16,6 +17,7 @@ OUTPUT_XLSX_PATH = Path("resources/customers/childcare/childcare_job_offer_detai
 
 HEADLESS = False
 SLEEP_SEC = 0.5
+WORKER_COUNT = 8
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -84,13 +86,11 @@ def parse_detail_html(html: str) -> Dict[str, str]:
 
     tr_list = tbody.find_all("tr", recursive=False)
     for tr in tr_list:
-        # === 메모 ===
         memo_td = tr.find("td", class_="con_con")
         if memo_td:
             result["메모"] = clean_text(memo_td.get_text(" ", strip=True))
             continue
 
-        # === 일반 th / td 구조 ===
         cells = tr.find_all(["th", "td"], recursive=False)
         if not cells:
             continue
@@ -110,8 +110,25 @@ def parse_detail_html(html: str) -> Dict[str, str]:
     return result
 
 
-def crawl_detail_all(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    results: List[Dict[str, Any]] = []
+def split_indexed_items(
+        items: List[Dict[str, Any]],
+        worker_count: int,
+) -> List[List[Tuple[int, Dict[str, Any]]]]:
+    buckets: List[List[Tuple[int, Dict[str, Any]]]] = [[] for _ in range(worker_count)]
+
+    for idx, item in enumerate(items):
+        bucket_index = idx % worker_count
+        buckets[bucket_index].append((idx, item))
+
+    return [bucket for bucket in buckets if bucket]
+
+
+def crawl_detail_batch(
+        worker_id: int,
+        indexed_items: List[Tuple[int, Dict[str, Any]]],
+        total_count: int,
+) -> List[Tuple[int, Dict[str, Any]]]:
+    worker_results: List[Tuple[int, Dict[str, Any]]] = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -139,38 +156,62 @@ def crawl_detail_all(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         page.goto(DETAIL_URL, wait_until="domcontentloaded", timeout=60000)
         page.wait_for_timeout(2000)
 
-        total_count = len(items)
-
-        for idx, item in enumerate(items, start=1):
+        for idx, item in indexed_items:
             joseq = clean_text(item.get("JOSEQ"))
+
             if not joseq:
-                print(f"[SKIP] {idx}/{total_count} JOSEQ 없음")
+                print(f"[SKIP][W{worker_id}] {idx + 1}/{total_count} JOSEQ 없음")
                 failed = dict(item)
                 failed["상세조회실패"] = "JOSEQ 없음"
-                results.append(failed)
+                worker_results.append((idx, failed))
                 continue
 
             try:
-                print(f"[INFO] {idx}/{total_count} JOSEQ={joseq} 상세조회 중...")
+                print(f"[INFO][W{worker_id}] {idx + 1}/{total_count} JOSEQ={joseq} 상세조회 중...")
                 html = fetch_detail_html(page, joseq)
                 detail_obj = parse_detail_html(html)
 
                 merged = dict(item)
                 merged.update(detail_obj)
 
-                results.append(merged)
-                print(f"[DONE] {idx}/{total_count} JOSEQ={joseq}")
+                worker_results.append((idx, merged))
+                print(f"[DONE][W{worker_id}] {idx + 1}/{total_count} JOSEQ={joseq}")
             except Exception as e:
-                print(f"[ERROR] {idx}/{total_count} JOSEQ={joseq} 실패: {e}")
+                print(f"[ERROR][W{worker_id}] {idx + 1}/{total_count} JOSEQ={joseq} 실패: {e}")
                 failed = dict(item)
                 failed["상세조회실패"] = str(e)
-                results.append(failed)
+                worker_results.append((idx, failed))
 
             time.sleep(SLEEP_SEC)
 
+        context.close()
         browser.close()
 
-    return results
+    return worker_results
+
+
+def crawl_detail_all(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    total_count = len(items)
+    if total_count == 0:
+        return []
+
+    actual_worker_count = min(WORKER_COUNT, total_count)
+    buckets = split_indexed_items(items, actual_worker_count)
+
+    indexed_results: List[Tuple[int, Dict[str, Any]]] = []
+
+    with ThreadPoolExecutor(max_workers=actual_worker_count) as executor:
+        futures = [
+            executor.submit(crawl_detail_batch, worker_id + 1, bucket, total_count)
+            for worker_id, bucket in enumerate(buckets)
+        ]
+
+        for future in as_completed(futures):
+            batch_result = future.result()
+            indexed_results.extend(batch_result)
+
+    indexed_results.sort(key=lambda x: x[0])
+    return [row for _, row in indexed_results]
 
 
 def save_json(path: Path, data: List[Dict[str, Any]]) -> None:
@@ -187,13 +228,11 @@ def build_excel_headers(rows: List[Dict[str, Any]]) -> List[str]:
     headers: List[str] = []
     seen = set()
 
-    # 첫 행 기준으로 기본 컬럼 순서 먼저 유지
     for key in rows[0].keys():
         if key not in seen:
             headers.append(key)
             seen.add(key)
 
-    # 나머지 행에서 새 컬럼 추가
     for row in rows[1:]:
         for key in row.keys():
             if key not in seen:
@@ -217,14 +256,11 @@ def save_excel(path: Path, data: List[Dict[str, Any]]) -> None:
 
     headers = build_excel_headers(data)
 
-    # 헤더
     ws.append(headers)
 
-    # 데이터
     for row in data:
         ws.append([clean_text(row.get(header, "")) for header in headers])
 
-    # 열 너비 자동 조정
     for column_cells in ws.columns:
         max_length = 0
         column_letter = column_cells[0].column_letter
@@ -244,6 +280,7 @@ def save_excel(path: Path, data: List[Dict[str, Any]]) -> None:
 def main():
     items = load_list_json(INPUT_JSON_PATH)
     print(f"[INFO] 목록 로드 완료: {len(items)}건")
+    print(f"[INFO] 멀티쓰레드 시작: WORKER_COUNT={WORKER_COUNT}")
 
     results = crawl_detail_all(items)
 
