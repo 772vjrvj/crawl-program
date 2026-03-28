@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
+import certifi
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -32,6 +33,12 @@ except Exception:
     Image = None
     PIL_AVAILABLE = False
 
+try:
+    import truststore
+    truststore.inject_into_ssl()
+    print("[BOOT] truststore injected")
+except Exception as e:
+    print(f"[BOOT] truststore inject 실패: {e}")
 
 class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
@@ -52,14 +59,19 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         self.api_client: Optional[APIClient] = None
         self.folder_path: str = ""
         self.fin_land_article_url: str = "https://fin.land.naver.com/articles"
+        self.gallery_image_api_url: str = "https://fin.land.naver.com/front-api/v1/article/galleryImages"
 
         # 저장 하위 폴더
         self.out_dir: str = "output_naver_land_real_estate_detail_down"
+
+        # === 신규 === SSL 검증용 CA 번들
+        self.ca_bundle_path: str = certifi.where()
 
     # 초기화
     def init(self) -> bool:
         self.driver_set()
         self.log_signal_func(f"선택 항목 : {self.columns}")
+        self.log_signal_func(f"✅ certifi CA bundle : {self.ca_bundle_path}")
         self.log_signal_func("✅ init 완료")
         return True
 
@@ -68,13 +80,9 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         try:
             self.log_signal_func(" main 시작")
 
-            # 저장경로
             self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
-
-            # 파일명
             self.csv_filename = os.path.basename(self.file_driver.get_csv_filename(self.site_name))
 
-            # 초기 파일 생성
             self.excel_driver.init_csv(
                 self.csv_filename,
                 self.columns,
@@ -83,6 +91,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             )
 
             total_len = len(self.excel_data_list) if self.excel_data_list else 0
+            min_cnt = self._get_min_image_count_setting(default=8)
 
             for index, data in enumerate(self.excel_data_list, start=1):
                 try:
@@ -99,43 +108,12 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                     self._wait_ready_state_complete(7)
                     time.sleep(random.uniform(3, 5))
 
-                    opened = self._open_media_popup_any_frame(
-                        target_name="매물 대표 이미지 1",
-                        timeout_sec=12,
-                    )
+                    gallery_count = self._get_gallery_image_count(atcl_no)
+                    self.log_signal_func(f"gallery image count : {gallery_count} / 기준 cnt : {min_cnt}")
 
-                    if opened:
-                        self.log_signal_func("✅ 썸네일 클릭 완료 - 팝업 열림")
-
-                        media_items = self._scan_all_media_current_popup(max_steps=40)
-
-                        if not media_items:
-                            save_list = [{
-                                "건물명": str(data.get("건물명") or ""),
-                                "호수": str(data.get("호수") or ""),
-                                "네이버부동산": atcl_no,
-                                "미디어 번호": "",
-                                "유형": "",
-                                "URL": "",
-                                "저장경로": "",
-                                "상태": "fail",
-                                "메세지": "팝업에서 미디어를 찾지 못함",
-                            }]
-                            self.excel_driver.append_to_csv(
-                                self.csv_filename,
-                                save_list,
-                                self.columns,
-                                folder_path=self.folder_path,
-                                sub_dir=self.out_dir,
-                            )
-                        else:
-                            self._download_and_append_result_rows(
-                                data=data,
-                                atcl_no=atcl_no,
-                                media_items=media_items,
-                            )
-                    else:
-                        self.log_signal_func("❌ 썸네일 클릭 실패 - 팝업 못 열음")
+                    if gallery_count is not None and gallery_count <= min_cnt:
+                        msg = f"API 이미지 개수 {gallery_count}개로 기준({min_cnt}) 이하라 클릭/다운로드 스킵"
+                        self.log_signal_func(msg)
 
                         save_list = [{
                             "건물명": str(data.get("건물명") or ""),
@@ -145,8 +123,8 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                             "유형": "",
                             "URL": "",
                             "저장경로": "",
-                            "상태": "fail",
-                            "메세지": "썸네일 클릭 실패 - 팝업 못 열음",
+                            "상태": "skip",
+                            "메세지": msg,
                         }]
                         self.excel_driver.append_to_csv(
                             self.csv_filename,
@@ -155,6 +133,67 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                             folder_path=self.folder_path,
                             sub_dir=self.out_dir,
                         )
+
+                    else:
+                        if gallery_count is None:
+                            self.log_signal_func("galleryImages API count 확인 실패 -> 기존 팝업 방식 계속 진행")
+
+                        opened = self._open_media_popup_any_frame(
+                            target_name="매물 대표 이미지 1",
+                            timeout_sec=12,
+                        )
+
+                        if opened:
+                            self.log_signal_func("✅ 썸네일 클릭 완료 - 팝업 열림")
+
+                            media_items = self._scan_all_media_current_popup(max_steps=40)
+
+                            if not media_items:
+                                save_list = [{
+                                    "건물명": str(data.get("건물명") or ""),
+                                    "호수": str(data.get("호수") or ""),
+                                    "네이버부동산": atcl_no,
+                                    "미디어 번호": "",
+                                    "유형": "",
+                                    "URL": "",
+                                    "저장경로": "",
+                                    "상태": "fail",
+                                    "메세지": "팝업에서 미디어를 찾지 못함",
+                                }]
+                                self.excel_driver.append_to_csv(
+                                    self.csv_filename,
+                                    save_list,
+                                    self.columns,
+                                    folder_path=self.folder_path,
+                                    sub_dir=self.out_dir,
+                                )
+                            else:
+                                self._download_and_append_result_rows(
+                                    data=data,
+                                    atcl_no=atcl_no,
+                                    media_items=media_items,
+                                )
+                        else:
+                            self.log_signal_func("❌ 썸네일 클릭 실패 - 팝업 못 열음")
+
+                            save_list = [{
+                                "건물명": str(data.get("건물명") or ""),
+                                "호수": str(data.get("호수") or ""),
+                                "네이버부동산": atcl_no,
+                                "미디어 번호": "",
+                                "유형": "",
+                                "URL": "",
+                                "저장경로": "",
+                                "상태": "fail",
+                                "메세지": "썸네일 클릭 실패 - 팝업 못 열음",
+                            }]
+                            self.excel_driver.append_to_csv(
+                                self.csv_filename,
+                                save_list,
+                                self.columns,
+                                folder_path=self.folder_path,
+                                sub_dir=self.out_dir,
+                            )
 
                 except Exception as e:
                     self.log_signal_func(f"[item 처리 실패] {e}")
@@ -196,7 +235,6 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         self.log_signal_func("✅ main 종료")
         return True
 
-    # 드라이버 세팅
     def driver_set(self) -> None:
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
@@ -211,7 +249,6 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
         self.log_signal_func("✅ stop 완료")
 
-    # 정지
     def cleanup(self) -> None:
         try:
             if self.csv_filename and self.excel_driver:
@@ -289,11 +326,9 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             WebDriverWait(self.driver, timeout_sec).until(
                 lambda d: d.execute_script("return document.readyState") in ("interactive", "complete")
             )
-
             WebDriverWait(self.driver, timeout_sec).until(
                 lambda d: d.execute_script("return !!document.body")
             )
-
             return True
         except Exception as e:
             self.log_signal_func(f"frame ready 대기 실패: {e}")
@@ -446,11 +481,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             self.log_signal_func(f"fallback 클릭 실패: {e}")
             return False
 
-    def _open_media_popup_any_frame(
-            self,
-            target_name: str = "매물 대표 이미지 1",
-            timeout_sec: int = 12,
-    ) -> bool:
+    def _open_media_popup_any_frame(self, target_name: str = "매물 대표 이미지 1", timeout_sec: int = 12) -> bool:
         try:
             for round_idx in range(4):
                 self.driver.switch_to.default_content()
@@ -548,6 +579,16 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         text = re.sub(r'[\\/:*?"<>|]+', "_", text)
         text = re.sub(r"\s+", " ", text).strip()
         return text
+
+    def _get_min_image_count_setting(self, default: int = 8) -> int:
+        raw = self.get_setting_value(self.setting, "cnt")
+        try:
+            value = int(str(raw).strip())
+            if value < 0:
+                return default
+            return value
+        except Exception:
+            return default
 
     def _build_folder_base_name(self, building_name: str, ho: str) -> str:
         today_text = self._get_today_text()
@@ -651,6 +692,105 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             self.log_signal_func(f"쿠키 세팅 실패: {e}")
 
         return session
+
+    def _build_cookie_header_from_driver(self) -> str:
+        try:
+            cookies = self.driver.get_cookies() or []
+            parts = []
+
+            for cookie in cookies:
+                name = str(cookie.get("name") or "").strip()
+                value = str(cookie.get("value") or "").strip()
+                if name:
+                    parts.append(f"{name}={value}")
+
+            cookie_header = "; ".join(parts)
+            self.log_signal_func(f"[gallery] cookie count={len(cookies)} / cookie header length={len(cookie_header)}")
+            return cookie_header
+        except Exception as e:
+            self.log_signal_func(f"cookie header 생성 실패: {e}")
+            return ""
+
+    def _build_gallery_request_headers(self, atcl_no: str) -> Dict[str, str]:
+        ua = self._get_browser_user_agent()
+
+        try:
+            referer = str(self.driver.current_url or "").strip()
+        except Exception:
+            referer = ""
+
+        if not referer:
+            referer = f"{self.fin_land_article_url}/{atcl_no}"
+
+        headers = {
+            "accept": "application/json, text/plain, */*",
+            "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+            "cache-control": "no-cache",
+            "pragma": "no-cache",
+            "referer": referer,
+            "origin": "https://fin.land.naver.com",
+            "user-agent": ua,
+            "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
+        }
+
+        cookie_header = self._build_cookie_header_from_driver()
+        if cookie_header:
+            headers["cookie"] = cookie_header
+
+        return headers
+
+# 제거
+# import certifi
+
+# __init__ 에서 제거
+# self.ca_bundle_path: str = certifi.where()
+
+    def _get_gallery_image_count(self, atcl_no: str) -> Optional[int]:
+        headers = self._build_gallery_request_headers(atcl_no)
+        params = {
+            "articleNumber": str(atcl_no or "").strip(),
+        }
+
+        try:
+            res = requests.get(
+                self.gallery_image_api_url,
+                params=params,
+                headers=headers,
+                timeout=20,
+                allow_redirects=True,
+            )
+
+            self.log_signal_func(f"[gallery] status={res.status_code}")
+            self.log_signal_func(f"[gallery] final_url={res.url}")
+            self.log_signal_func(f"[gallery] content-type={res.headers.get('content-type', '')}")
+            self.log_signal_func(f"[gallery] text[:300]={res.text[:300]}")
+
+            if res.status_code >= 400:
+                self.log_signal_func(f"galleryImages API 실패 status={res.status_code}")
+                return None
+
+            content_type = str(res.headers.get("content-type") or "").lower()
+            if "json" not in content_type:
+                self.log_signal_func("[gallery] JSON 응답 아님")
+                return None
+
+            data = res.json()
+            result = data.get("result")
+
+            if not isinstance(result, list):
+                self.log_signal_func(f"galleryImages API result 형식 이상: {type(result)} / body={data}")
+                return None
+
+            return len(result)
+
+        except Exception as e:
+            self.log_signal_func(f"galleryImages API 예외: {e}")
+            return None
 
     def _request_media_bytes(self, media_url: str) -> Tuple[bool, bytes, str, str]:
         session = self._build_requests_session_from_driver()
@@ -994,24 +1134,6 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
     ) -> None:
         building_name = str(data.get("건물명") or "").strip()
         ho = str(data.get("호수") or "").strip()
-
-        image_items = [x for x in media_items if str(x.get("media_type") or "") == "image"]
-        image_count = len(image_items)
-
-        if image_count <= 8:
-            msg = f"사진 {image_count}장으로 8장 이하라 다운로드 스킵"
-            self.log_signal_func(msg)
-            self._append_result_row(
-                data=data,
-                atcl_no=atcl_no,
-                seq="",
-                media_type_text="",
-                media_url="",
-                saved_path="",
-                status="skip",
-                message=msg,
-            )
-            return
 
         target_dir = self._make_target_dir(building_name, ho)
         self.log_signal_func(f"저장 폴더: {target_dir}")
