@@ -1,12 +1,26 @@
+■ 고객 : 갓승찬
+■ 날짜 : 2026.03.30
+■ 요청 사이트 : 크몽
+■ 가격 : 180,000
+■ 크롤링 사이트 : https://msearch.shopping.naver.com
+■ 내용
+
+# 빌드후
+/resources/customers/naver_shop_total
+/bin/ffmpeg.exe
+
+이거를 를 빌드후
+
+_internal/resources/bin/ffmpeg.exe
+
+넣어줘야함
+
+
 
 
 유일하게 service 로더가 있음
 
 크롬 로그인 2개 되어 있으면 안됨
-
-
-
---console `
 
 
 pyinstaller .\main.py `
