@@ -669,7 +669,7 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
             limit=9999,
         )
 
-        final_desc_html: str = self.build_detail_html(detail_img_rel_paths)
+        final_desc_html: str = self.build_detail_html(detail_img_rel_paths, content_html)
         option1, option2, option3 = self.build_option_columns(data)
         product_url: str = f"{self.shop_url}{href}/?idx={idx_number}"
 
@@ -919,19 +919,44 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
 
         return built[0], built[1], built[2]
 
-    def build_detail_html(self, relative_paths: List[str]) -> str:
-        if not relative_paths:
+
+    # === 수정 2) 기존 build_detail_html 교체 + 아래 함수 추가 ===
+    def build_detail_html(self, relative_paths: List[str], content_html: str = "") -> str:
+        html_list: List[str] = [
+            '<div class="detail-desc-center-wrap" '
+            'style="display:flex; flex-direction:column; align-items:center; text-align:center;">'
+        ]
+
+        for rel_path in relative_paths:
+            html_list.append(
+                f'<div><img src="{self.make_public_image_url(rel_path)}" style="display:block; margin:0 auto;"></div>'
+            )
+
+        size_notice_html: str = self.extract_size_notice_html(content_html)
+        if size_notice_html:
+            html_list.append(size_notice_html)
+
+        html_list.append("</div>")
+        return "".join(html_list)
+
+
+    def extract_size_notice_html(self, content_html: str) -> str:
+        if not content_html.strip():
             return ""
 
-        html_list: List[str] = []
-        for rel_path in relative_paths:
-            html_list.append(f'<img src="{self.make_public_image_url(rel_path)}">')
+        soup: BeautifulSoup = BeautifulSoup(content_html, "html.parser")
+        size_notice: Optional[Tag] = soup.select_one("p.size-notice")
 
-        return "".join(html_list)
+        if not size_notice:
+            return ""
+
+        return f'<div class="detail-size-notice-wrap" style="text-align:center;">{str(size_notice)}</div>'
+
 
     def make_public_image_url(self, relative_path: str) -> str:
         rel: str = relative_path.replace("\\", "/").lstrip("/")
         return f"{self.IMAGE_URL_PREFIX}{rel}"
+
 
     def get_existing_file_name_set(self, target_dir: str) -> Set[str]:
         if not os.path.isdir(target_dir):
