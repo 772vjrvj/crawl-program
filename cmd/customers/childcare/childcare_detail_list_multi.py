@@ -4,10 +4,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import local
+from urllib.parse import quote
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 
 
 # =========================
@@ -15,11 +17,19 @@ from bs4 import BeautifulSoup
 # =========================
 BASE_DIR = Path(__file__).resolve().parent
 INPUT_DIR = BASE_DIR / "resources" / "customers" / "childcare"
-OUTPUT_FILE = INPUT_DIR / "childcare_nursery_merged.xlsx"
+
+# OUTPUT_FILE = INPUT_DIR / "childcare_nursery_merged.xlsx"
+
+OUTPUT_FILE = INPUT_DIR / "childcare_nursery_merged.csv"
 
 DETAIL_URL = (
     "https://info.childcare.go.kr/info_html5/pnis/search/preview/"
     "SummaryInfoSlPu.jsp?flag=YJ&STCODE_POP={stcode}"
+)
+
+BASIS_PRESENT_URL = (
+    "https://info.childcare.go.kr/info_html5/pnis/search/preview/"
+    "BasisPresentConditionSlPu.jsp?flag=GH&STCODE_POP={stcode}&CRNAMETITLE={cr_name}&loginFlag="
 )
 
 SITE_NAME = "아이사랑"
@@ -79,6 +89,13 @@ def build_detail_url(stcode: str) -> str:
     return DETAIL_URL.format(stcode=stcode)
 
 
+def build_basis_present_url(stcode: str, facility_name: str) -> str:
+    return BASIS_PRESENT_URL.format(
+        stcode=quote(safe_str(stcode), safe=""),
+        cr_name=quote(safe_str(facility_name), safe=""),
+    )
+
+
 def get_thread_session() -> requests.Session:
     session = getattr(_thread_local, "session", None)
     if session is None:
@@ -101,6 +118,9 @@ def build_korean_row(item: Dict[str, Any]) -> Dict[str, Any]:
         "코드": stcode,
         "시설명": safe_str(item.get("crrepre")) or safe_str(item.get("crname")),
         "유형": safe_str(item.get("crtypenm")),
+        "설립유형": "",
+        "건물소유형태": "",
+        "평가인증 연월": "",
         "주소": safe_str(item.get("craddr")),
         "전화번호": normalize_phone(item.get("tel_no")),
         "핸드폰번호": "",
@@ -118,35 +138,87 @@ def build_korean_row(item: Dict[str, Any]) -> Dict[str, Any]:
 # =========================
 # 상세페이지 파싱
 # =========================
-def parse_detail_names_from_html(html: str) -> Tuple[str, str]:
+def extract_label_value_map_from_rows(rows: List[Tag]) -> Dict[str, str]:
+    result: Dict[str, str] = {}
+
+    for tr in rows:
+        cells = tr.find_all(["th", "td"], recursive=False)
+        if not cells:
+            continue
+
+        i = 0
+        while i < len(cells) - 1:
+            left = cells[i]
+            right = cells[i + 1]
+
+            if left.name == "th" and right.name == "td":
+                label = left.get_text(" ", strip=True)
+                value = right.get_text(" ", strip=True)
+                if label and value and label not in result:
+                    result[label] = value
+                i += 2
+            else:
+                i += 1
+
+    return result
+
+
+def parse_summary_detail_from_html(html: str) -> Dict[str, str]:
     soup = BeautifulSoup(html, "html.parser")
     table = soup.select_one(".table_childcare")
     if not table:
-        return "", ""
+        return {
+            "대표자명": "",
+            "원장명": "",
+            "설립유형": "",
+            "평가인증 연월": "",
+        }
 
-    rep_name = ""
-    director_name = ""
+    tbody_rows = table.select("tbody > tr")
+    data_map = extract_label_value_map_from_rows(tbody_rows)
 
-    for tr in table.select("tbody tr"):
-        th = tr.find("th")
-        td = tr.find("td")
-        if not th or not td:
-            continue
-
-        label = th.get_text(" ", strip=True)
-        value = td.get_text(" ", strip=True)
-
-        if label == "대표자명":
-            rep_name = value
-        elif label == "원장명":
-            director_name = value
-
-    return rep_name, director_name
+    return {
+        "대표자명": safe_str(data_map.get("대표자명")),
+        "원장명": safe_str(data_map.get("원장명")),
+        "설립유형": safe_str(data_map.get("설립유형")),
+        "평가인증 연월": safe_str(data_map.get("평가인증 연월")),
+    }
 
 
-def fetch_detail_names(stcode: str) -> Tuple[str, str]:
+def parse_basis_present_from_html(html: str) -> Dict[str, str]:
+    soup = BeautifulSoup(html, "html.parser")
+
+    x_scroll = soup.select_one(".x-scroll")
+    if not x_scroll:
+        return {
+            "설립유형": "",
+            "건물소유형태": "",
+        }
+
+    tbody = x_scroll.select_one("tbody")
+    if not tbody:
+        return {
+            "설립유형": "",
+            "건물소유형태": "",
+        }
+
+    rows = tbody.find_all("tr", recursive=False)
+    data_map = extract_label_value_map_from_rows(rows)
+
+    return {
+        "설립유형": safe_str(data_map.get("설립유형")),
+        "건물소유형태": safe_str(data_map.get("건물소유형태")),
+    }
+
+
+def fetch_summary_detail(stcode: str) -> Dict[str, str]:
     if not stcode:
-        return "", ""
+        return {
+            "대표자명": "",
+            "원장명": "",
+            "설립유형": "",
+            "평가인증 연월": "",
+        }
 
     url = build_detail_url(stcode)
     session = get_thread_session()
@@ -155,21 +227,64 @@ def fetch_detail_names(stcode: str) -> Tuple[str, str]:
         time.sleep(REQUEST_SLEEP_SEC)
         res = session.get(url, timeout=REQUEST_TIMEOUT)
         res.raise_for_status()
-        return parse_detail_names_from_html(res.text)
+        return parse_summary_detail_from_html(res.text)
     except Exception as e:
-        print(f"[WARN] stcode={stcode} 상세 조회 실패: {e}")
-        return "", ""
+        print(f"[WARN] stcode={stcode} 요약 상세 조회 실패: {e}")
+        return {
+            "대표자명": "",
+            "원장명": "",
+            "설립유형": "",
+            "평가인증 연월": "",
+        }
+
+
+def fetch_basis_present_detail(stcode: str, facility_name: str) -> Dict[str, str]:
+    if not stcode:
+        return {
+            "설립유형": "",
+            "건물소유형태": "",
+        }
+
+    url = build_basis_present_url(stcode, facility_name)
+    session = get_thread_session()
+
+    try:
+        time.sleep(REQUEST_SLEEP_SEC)
+        res = session.get(url, timeout=REQUEST_TIMEOUT)
+        res.raise_for_status()
+        return parse_basis_present_from_html(res.text)
+    except Exception as e:
+        print(f"[WARN] stcode={stcode} 기본현황 상세 조회 실패: {e}")
+        return {
+            "설립유형": "",
+            "건물소유형태": "",
+        }
 
 
 def enrich_row_with_detail(row: Dict[str, Any]) -> Dict[str, Any]:
     stcode = safe_str(row.get("코드"))
-    rep_name_detail, director_name_detail = fetch_detail_names(stcode)
+    facility_name = safe_str(row.get("시설명"))
 
-    if rep_name_detail:
-        row["대표자명"] = rep_name_detail
+    summary_detail = fetch_summary_detail(stcode)
+    basis_detail = fetch_basis_present_detail(stcode, facility_name)
 
-    if director_name_detail:
-        row["원장(시설장)명"] = director_name_detail
+    rep_name = safe_str(summary_detail.get("대표자명"))
+    director_name = safe_str(summary_detail.get("원장명"))
+    setup_type_summary = safe_str(summary_detail.get("설립유형"))
+    eval_month = safe_str(summary_detail.get("평가인증 연월"))
+
+    setup_type_basis = safe_str(basis_detail.get("설립유형"))
+    building_ownership = safe_str(basis_detail.get("건물소유형태"))
+
+    if rep_name:
+        row["대표자명"] = rep_name
+
+    if director_name:
+        row["원장(시설장)명"] = director_name
+
+    row["설립유형"] = setup_type_summary or setup_type_basis
+    row["건물소유형태"] = building_ownership
+    row["평가인증 연월"] = eval_month
 
     return row
 
@@ -233,6 +348,52 @@ def process_json_file(file_path: Path) -> List[Dict[str, Any]]:
     return final_rows
 
 
+# 기존 save_to_excel 함수 대신 이걸로 교체
+def save_to_csv(rows: List[Dict[str, Any]], output_file: Path) -> None:
+    if not rows:
+        print("[WARN] 저장할 데이터가 없습니다.")
+        return
+
+    df = pd.DataFrame(rows)
+
+    ordered_columns = [
+        "사이트 이름",
+        "상세 URL",
+        "시도",
+        "시군구",
+        "원본 시군구문자열",
+        "코드",
+        "시설명",
+        "유형",
+        "설립유형",
+        "건물소유형태",
+        "평가인증 연월",
+        "주소",
+        "전화번호",
+        "핸드폰번호",
+        "이메일주소",
+        "정원",
+        "현원",
+        "차량운행",
+        "대표자명",
+        "원장(시설장)명",
+        "대기인원",
+        "대기여부",
+    ]
+
+    for col in ordered_columns:
+        if col not in df.columns:
+            df[col] = ""
+
+    df = df[ordered_columns]
+    df = df.sort_values(by=["시도", "시군구", "시설명"], ascending=[True, True, True])
+
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_file, index=False, encoding="utf-8-sig")
+
+    print(f"[INFO] CSV 저장 완료: {output_file}")
+
+
 def save_to_excel(rows: List[Dict[str, Any]], output_file: Path) -> None:
     if not rows:
         print("[WARN] 저장할 데이터가 없습니다.")
@@ -249,6 +410,9 @@ def save_to_excel(rows: List[Dict[str, Any]], output_file: Path) -> None:
         "코드",
         "시설명",
         "유형",
+        "설립유형",
+        "건물소유형태",
+        "평가인증 연월",
         "주소",
         "전화번호",
         "핸드폰번호",
@@ -291,7 +455,8 @@ def main() -> None:
         rows = process_json_file(file_path)
         all_rows.extend(rows)
 
-    save_to_excel(all_rows, OUTPUT_FILE)
+    # save_to_excel(all_rows, OUTPUT_FILE)
+    save_to_csv(all_rows, OUTPUT_FILE)
     print("[INFO] 전체 작업 완료")
 
 
