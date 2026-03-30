@@ -9,13 +9,16 @@
 https://www.childcare.go.kr/?menuno=1
 순서: 어린이집 > 어린이집 찾기 > 크롤링
 
-기본 현황 
-
+기본 현황
 https://info.childcare.go.kr/info_html5/pnis/search/preview/BasisPresentConditionSlPu.jsp?flag=GH&STCODE_POP=11710000068&CRNAMETITLE=%28%EC%9E%AC%29%EC%B2%9C%EC%A3%BC%EA%B5%90%EC%84%9C%EC%9A%B8%EB%8C%80%EA%B5%90%EA%B5%AC%EC%9C%A0%EC%A7%80%EC%9E%AC%EB%8B%A8%EC%B2%9C%EC%82%AC%EC%96%B4%EB%A6%B0%EC%9D%B4%EC%A7%91&loginFlag=
 
+요약
+https://info.childcare.go.kr/info_html5/pnis/search/preview/SummaryInfoSlPu.jsp?flag=YJ&STCODE_POP=11710000068
+
+기본 현황
+https://info.childcare.go.kr/info_html5/pnis/search/preview/BasisPresentConditionSlPu.jsp?flag=GH&STCODE_POP=11710000068&CRNAMETITLE=%28%EC%9E%AC%29%EC%B2%9C%EC%A3%BC%EA%B5%90%EC%84%9C%EC%9A%B8%EB%8C%80%EA%B5%90%EA%B5%AC%EC%9C%A0%EC%A7%80%EC%9E%AC%EB%8B%A8%EC%B2%9C%EC%82%AC%EC%96%B4%EB%A6%B0%EC%9D%B4%EC%A7%91&loginFlag=
 
 아이사랑
-
 시도
 시군구
 시설명
@@ -27,13 +30,10 @@ https://info.childcare.go.kr/info_html5/pnis/search/preview/BasisPresentConditio
 대표자
 시설장(원장)
 
-
+[추가 컬럼]
 평가인증 연월 V
 설립유형 V
 건물소유형태 V
-
-
-
 
 
 
@@ -53,6 +53,8 @@ https://www.childcare.go.kr/?menuno=1
 https://central.childcare.go.kr/ccef/job/JobOfferSlPL.jsp?flag=SlPL
 순서: 인력뱅크 > 어린이집 구인 > 마감여부(전체) > 크롤링
 
+요약
+https://info.childcare.go.kr/info_html5/pnis/search/preview/SummaryInfoSlPu.jsp?flag=YJ&STCODE_POP=11710000068
 
 
 ■ 내용

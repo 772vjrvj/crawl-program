@@ -33,7 +33,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         self.current_cnt = 0
         self.before_pro_value = 0.0
 
-        # === 신규 === 저장 폴더/하위 폴더 보관
+        # 저장 폴더/하위 폴더 보관
         self.folder_path: str = ""
         self.out_dir: str = "output_naver_shop"
 
@@ -152,7 +152,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         end_p = int(self.get_setting_value(self.setting, "end_page") or 1)
         site_total_cnt = int(self.get_setting_value(self.setting, "site_total_cnt") or 0)
 
-        # === 신규 === 저장 폴더 설정값 확보
+        # 저장 폴더 설정값 확보
         self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
 
         if not keywords:
@@ -165,7 +165,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         self.current_cnt = 0
         self.before_pro_value = 0.0
 
-        # === 수정 === 파일명은 이름만 보관하고 실제 저장경로는 ExcelUtils 에 맡김
+        # 파일명은 이름만 보관하고 실제 저장경로는 ExcelUtils 에 맡김
         self.csv_filename = os.path.basename(self.file_driver.get_csv_filename(self.site_name))
 
         self.excel_driver.init_csv(
