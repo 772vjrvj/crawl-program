@@ -5,7 +5,7 @@
   "server_name": "CrawlProgram",
   "allow_multi_instance": true,
   "instance_key": "my_pyside_app",
-  "site_list_use": ["NAVER_LAND_REAL_ESTATE_DOWN_DETAIL"],
+  "site_list_use": ["COCO_LABEL"],
   "site_list": [
     {
       "key": "NAVER_BAND_MEMBER",
@@ -70,6 +70,10 @@
     {
       "key": "NAVER_LAND_REAL_ESTATE_DOWN_DETAIL",
       "config_path": "customers/naver_land_real_estate_detail_down/config.json"
+    },
+    {
+      "key": "COCO_LABEL",
+      "config_path": "customers/coco_label/config.json"
     }
   ]
 }

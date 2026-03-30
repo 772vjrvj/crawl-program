@@ -1,0 +1,253 @@
+{
+  "label": "COCO LABEL",
+  "key": "COCO_LABEL",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": false,
+  "worker_class": "src.workers.main.api_coco_label_set_worker:ApiCocoLabelSetWorker",
+  "setting": [
+    {
+      "name": "1. 키워드(콤마(,)로 구분해주세요)",
+      "code": "keyword",
+      "value": "남성>크롬하츠",
+      "type": "input"
+    },
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "E:\\git\\crawl-program",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
+  ],
+  "columns": [
+    {
+      "code": "product_code",
+      "value": "상품코드",
+      "checked": true
+    },
+    {
+      "code": "category_main",
+      "value": "기본분류",
+      "checked": true
+    },
+    {
+      "code": "category_2",
+      "value": "분류2",
+      "checked": true
+    },
+    {
+      "code": "category_3",
+      "value": "분류3",
+      "checked": true
+    },
+    {
+      "code": "product_name",
+      "value": "상품명",
+      "checked": true
+    },
+    {
+      "code": "manufacturer",
+      "value": "제조사",
+      "checked": true
+    },
+    {
+      "code": "origin",
+      "value": "원산지",
+      "checked": true
+    },
+    {
+      "code": "brand",
+      "value": "브랜드",
+      "checked": true
+    },
+    {
+      "code": "model",
+      "value": "모델",
+      "checked": true
+    },
+    {
+      "code": "option_1",
+      "value": "상품옵션1",
+      "checked": true
+    },
+    {
+      "code": "option_2",
+      "value": "상품옵션2",
+      "checked": true
+    },
+    {
+      "code": "option_3",
+      "value": "상품옵션3",
+      "checked": true
+    },
+    {
+      "code": "option_common",
+      "value": "옵션공통",
+      "checked": true
+    },
+    {
+      "code": "product_type_1",
+      "value": "상품유형1",
+      "checked": true
+    },
+    {
+      "code": "product_type_2",
+      "value": "상품유형2",
+      "checked": true
+    },
+    {
+      "code": "product_type_3",
+      "value": "상품유형3",
+      "checked": true
+    },
+    {
+      "code": "product_type_4",
+      "value": "상품유형4",
+      "checked": true
+    },
+    {
+      "code": "product_type_5",
+      "value": "상품유형5",
+      "checked": true
+    },
+    {
+      "code": "basic_description",
+      "value": "기본설명",
+      "checked": true
+    },
+    {
+      "code": "description",
+      "value": "상품설명",
+      "checked": true
+    },
+    {
+      "code": "mobile_description",
+      "value": "모바일상품설명",
+      "checked": true
+    },
+    {
+      "code": "market_price",
+      "value": "시중가격",
+      "checked": true
+    },
+    {
+      "code": "sale_price",
+      "value": "판매가격",
+      "checked": true
+    },
+    {
+      "code": "phone_inquiry",
+      "value": "전화문의",
+      "checked": true
+    },
+    {
+      "code": "point",
+      "value": "포인트",
+      "checked": true
+    },
+    {
+      "code": "point_type",
+      "value": "포인트타입",
+      "checked": true
+    },
+    {
+      "code": "seller_email",
+      "value": "판매자이메일",
+      "checked": true
+    },
+    {
+      "code": "is_sale",
+      "value": "판매가능",
+      "checked": true
+    },
+    {
+      "code": "stock_qty",
+      "value": "재고수량",
+      "checked": true
+    },
+    {
+      "code": "stock_alert_qty",
+      "value": "재고통보수량",
+      "checked": true
+    },
+    {
+      "code": "min_order_qty",
+      "value": "최소구매수량",
+      "checked": true
+    },
+    {
+      "code": "max_order_qty",
+      "value": "최대구매수량",
+      "checked": true
+    },
+    {
+      "code": "tax_type",
+      "value": "과세유형",
+      "checked": true
+    },
+    {
+      "code": "sort_order",
+      "value": "정렬순서",
+      "checked": true
+    },
+    {
+      "code": "image_1",
+      "value": "이미지1",
+      "checked": true
+    },
+    {
+      "code": "image_2",
+      "value": "이미지2",
+      "checked": true
+    },
+    {
+      "code": "image_3",
+      "value": "이미지3",
+      "checked": true
+    },
+    {
+      "code": "image_4",
+      "value": "이미지4",
+      "checked": true
+    },
+    {
+      "code": "image_5",
+      "value": "이미지5",
+      "checked": true
+    },
+    {
+      "code": "image_6",
+      "value": "이미지6",
+      "checked": true
+    },
+    {
+      "code": "image_7",
+      "value": "이미지7",
+      "checked": true
+    },
+    {
+      "code": "image_8",
+      "value": "이미지8",
+      "checked": true
+    },
+    {
+      "code": "image_9",
+      "value": "이미지9",
+      "checked": true
+    },
+    {
+      "code": "image_10",
+      "value": "이미지10",
+      "checked": true
+    },
+    {
+      "code": "url",
+      "value": "URL",
+      "checked": true
+    }
+  ]
+}

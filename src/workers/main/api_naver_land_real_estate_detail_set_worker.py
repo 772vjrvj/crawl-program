@@ -193,13 +193,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     # 정리
     def cleanup(self) -> None:
         try:
-            if self.csv_filename and self.excel_driver:
-                self.excel_driver.convert_csv_to_excel_and_delete(
-                    csv_filename=self.csv_filename,
-                    folder_path=self.folder_path,
-                    sub_dir=self.out_dir,
-                )
-                self.log_signal_func("✅ [엑셀 변환] 성공")
+            self.excel_driver.convert_csv_to_excel_and_delete(
+                csv_filename=self.csv_filename,
+                folder_path=self.folder_path,
+                sub_dir=self.out_dir,
+            )
+            self.log_signal_func("✅ [엑셀 변환] 성공")
         except Exception as e:
             self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
 

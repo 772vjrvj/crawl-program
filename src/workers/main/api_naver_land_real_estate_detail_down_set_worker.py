@@ -40,6 +40,7 @@ try:
 except Exception as e:
     print(f"[BOOT] truststore inject 실패: {e}")
 
+
 class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
     # 초기화
@@ -138,43 +139,18 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                         if gallery_count is None:
                             self.log_signal_func("galleryImages API count 확인 실패 -> 기존 팝업 방식 계속 진행")
 
-                        opened = self._open_media_popup_any_frame(
-                            target_name="매물 대표 이미지 1",
-                            timeout_sec=12,
+                        media_items = self._collect_media_items_with_retry(
+                            atcl_no=atcl_no,
+                            detail_url=detail_url,
+                            gallery_count=gallery_count,
+                            max_retry=3,
                         )
 
-                        if opened:
-                            self.log_signal_func("✅ 썸네일 클릭 완료 - 팝업 열림")
+                        actual_count = len(media_items)
 
-                            media_items = self._scan_all_media_current_popup(max_steps=40)
-
-                            if not media_items:
-                                save_list = [{
-                                    "건물명": str(data.get("건물명") or ""),
-                                    "호수": str(data.get("호수") or ""),
-                                    "네이버부동산": atcl_no,
-                                    "미디어 번호": "",
-                                    "유형": "",
-                                    "URL": "",
-                                    "저장경로": "",
-                                    "상태": "fail",
-                                    "메세지": "팝업에서 미디어를 찾지 못함",
-                                }]
-                                self.excel_driver.append_to_csv(
-                                    self.csv_filename,
-                                    save_list,
-                                    self.columns,
-                                    folder_path=self.folder_path,
-                                    sub_dir=self.out_dir,
-                                )
-                            else:
-                                self._download_and_append_result_rows(
-                                    data=data,
-                                    atcl_no=atcl_no,
-                                    media_items=media_items,
-                                )
-                        else:
-                            self.log_signal_func("❌ 썸네일 클릭 실패 - 팝업 못 열음")
+                        if not media_items:
+                            msg = "팝업에서 미디어를 찾지 못함"
+                            self.log_signal_func(f"❌ {msg}")
 
                             save_list = [{
                                 "건물명": str(data.get("건물명") or ""),
@@ -185,7 +161,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                                 "URL": "",
                                 "저장경로": "",
                                 "상태": "fail",
-                                "메세지": "썸네일 클릭 실패 - 팝업 못 열음",
+                                "메세지": msg,
                             }]
                             self.excel_driver.append_to_csv(
                                 self.csv_filename,
@@ -193,6 +169,39 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                                 self.columns,
                                 folder_path=self.folder_path,
                                 sub_dir=self.out_dir,
+                            )
+
+                        elif gallery_count is not None and actual_count != gallery_count:
+                            msg = (
+                                f"미디어 개수 불일치 expected={gallery_count}, actual={actual_count} "
+                                f"/ 3회 재시도 후 실패"
+                            )
+                            self.log_signal_func(f"❌ {msg}")
+
+                            save_list = [{
+                                "건물명": str(data.get("건물명") or ""),
+                                "호수": str(data.get("호수") or ""),
+                                "네이버부동산": atcl_no,
+                                "미디어 번호": "",
+                                "유형": "",
+                                "URL": "",
+                                "저장경로": "",
+                                "상태": "fail",
+                                "메세지": msg,
+                            }]
+                            self.excel_driver.append_to_csv(
+                                self.csv_filename,
+                                save_list,
+                                self.columns,
+                                folder_path=self.folder_path,
+                                sub_dir=self.out_dir,
+                            )
+
+                        else:
+                            self._download_and_append_result_rows(
+                                data=data,
+                                atcl_no=atcl_no,
+                                media_items=media_items,
                             )
 
                 except Exception as e:
@@ -235,6 +244,81 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         self.log_signal_func("✅ main 종료")
         return True
 
+    def _collect_media_items_with_retry(
+            self,
+            atcl_no: str,
+            detail_url: str,
+            gallery_count: Optional[int],
+            max_retry: int = 3,
+    ) -> List[Dict[str, Any]]:
+        best_media_items: List[Dict[str, Any]] = []
+
+        for attempt in range(1, max_retry + 1):
+            if not self.running:
+                return best_media_items
+
+            try:
+                self.log_signal_func(f"[미디어 재수집] attempt={attempt}/{max_retry}")
+
+                self.driver.get(detail_url)
+                self._wait_ready_state_complete(7)
+                time.sleep(random.uniform(2.8, 4.2))
+
+                opened = self._open_media_popup_any_frame(
+                    target_name="매물 대표 이미지 1",
+                    timeout_sec=12,
+                )
+
+                if not opened:
+                    self.log_signal_func(
+                        f"[미디어 재수집] 팝업 열기 실패 attempt={attempt}/{max_retry}"
+                    )
+                    time.sleep(random.uniform(1.0, 1.6))
+                    continue
+
+                ready = self._wait_popup_viewer_ready(timeout_sec=8.0)
+                if not ready:
+                    self.log_signal_func(
+                        f"[미디어 재수집] 팝업 준비 timeout attempt={attempt}/{max_retry}"
+                    )
+
+                # === 신규 === 팝업 포커스 선점
+                self._focus_popup_viewer()
+                time.sleep(0.4)
+
+                scan_steps = 40
+                if gallery_count is not None:
+                    scan_steps = max(40, int(gallery_count) + 5)
+
+                media_items = self._scan_all_media_current_popup(max_steps=scan_steps)
+                actual_count = len(media_items)
+
+                self.log_signal_func(
+                    f"[미디어 재수집 결과] attempt={attempt}/{max_retry} "
+                    f"expected={gallery_count} actual={actual_count}"
+                )
+
+                if actual_count > len(best_media_items):
+                    best_media_items = [dict(item) for item in media_items]
+
+                if gallery_count is None:
+                    if media_items:
+                        return media_items
+                    time.sleep(random.uniform(1.0, 1.6))
+                    continue
+
+                if actual_count == int(gallery_count):
+                    return media_items
+
+            except Exception as e:
+                self.log_signal_func(
+                    f"[미디어 재수집 실패] attempt={attempt}/{max_retry} / {e}"
+                )
+
+            time.sleep(random.uniform(1.0, 1.8))
+
+        return best_media_items
+
     def driver_set(self) -> None:
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
@@ -245,7 +329,12 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             debug=True,
             log_func=self.log_signal_func,
         )
-        self.driver = self.selenium_driver.start_driver(1200)
+        self.driver = self.selenium_driver.start_driver(
+            timeout=1200,
+            view_mode="mobile",
+            window_size=(520, 980),
+            mobile_metrics=(430, 932),
+        )
 
         self.log_signal_func("✅ stop 완료")
 
@@ -590,22 +679,196 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         except Exception:
             return default
 
-    def _build_folder_base_name(self, building_name: str, ho: str) -> str:
-        today_text = self._get_today_text()
-        base_name = f"{building_name} {ho} (N) {today_text}"
-        return self._sanitize_filename(base_name)
+    def _focus_popup_viewer(self) -> bool:
+        try:
+            focused = self.driver.execute_script("""
+                function visibleArea(el) {
+                    const r = el.getBoundingClientRect();
+                    return Math.max(0, r.width) * Math.max(0, r.height);
+                }
 
-    def _build_media_file_base_name(self, building_name: str, ho: str, is_video: bool) -> str:
+                function isVisible(el) {
+                    if (!el) return false;
+                    const r = el.getBoundingClientRect();
+                    const style = window.getComputedStyle(el);
+                    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) {
+                        return false;
+                    }
+                    return r.width > 20 && r.height > 20;
+                }
+
+                const candidates = [];
+
+                document.querySelectorAll("video, img, [role='dialog'], [aria-modal='true'], [tabindex], body").forEach((el) => {
+                    if (!isVisible(el)) return;
+                    candidates.push({
+                        el: el,
+                        area: visibleArea(el)
+                    });
+                });
+
+                candidates.sort((a, b) => b.area - a.area);
+
+                const target = candidates.length ? candidates[0].el : document.body;
+                if (!target) return false;
+
+                try {
+                    target.scrollIntoView({block: "center", inline: "center"});
+                } catch (e) {}
+
+                try {
+                    target.click();
+                } catch (e) {}
+
+                try {
+                    if (typeof target.focus === "function") {
+                        target.focus();
+                    }
+                } catch (e) {}
+
+                try {
+                    document.body.focus();
+                } catch (e) {}
+
+                return true;
+            """)
+            return bool(focused)
+        except Exception as e:
+            self.log_signal_func(f"_focus_popup_viewer 실패: {e}")
+            return False
+
+    def _send_arrow_right_fallback(self) -> bool:
+        try:
+            from selenium.webdriver.common.keys import Keys
+
+            self._focus_popup_viewer()
+            time.sleep(0.2)
+
+            targets = []
+
+            try:
+                active_el = self.driver.switch_to.active_element
+                if active_el:
+                    targets.append(active_el)
+            except Exception:
+                pass
+
+            try:
+                body = self.driver.find_element(By.TAG_NAME, "body")
+                targets.append(body)
+            except Exception:
+                pass
+
+            for target in targets:
+                try:
+                    target.send_keys(Keys.ARROW_RIGHT)
+                    return True
+                except Exception:
+                    continue
+
+            js_ok = self.driver.execute_script("""
+                function dispatchArrowRight(target) {
+                    try {
+                        const down = new KeyboardEvent("keydown", {
+                            key: "ArrowRight",
+                            code: "ArrowRight",
+                            keyCode: 39,
+                            which: 39,
+                            bubbles: true
+                        });
+                        const up = new KeyboardEvent("keyup", {
+                            key: "ArrowRight",
+                            code: "ArrowRight",
+                            keyCode: 39,
+                            which: 39,
+                            bubbles: true
+                        });
+                        target.dispatchEvent(down);
+                        target.dispatchEvent(up);
+                        return true;
+                    } catch (e) {
+                        return false;
+                    }
+                }
+
+                const active = document.activeElement || document.body;
+                if (dispatchArrowRight(active)) return true;
+                if (dispatchArrowRight(document.body)) return true;
+                if (dispatchArrowRight(document)) return true;
+                return false;
+            """)
+            return bool(js_ok)
+        except Exception as e:
+            self.log_signal_func(f"_send_arrow_right_fallback 실패: {e}")
+            return False
+
+    def _wait_until_media_changed(
+            self,
+            prev_url: str,
+            prev_media_type: str = "",
+            timeout_sec: float = 5.0,
+    ) -> Tuple[str, str]:
+        extra_timeout = 0.0
+        if str(prev_media_type or "").strip() == "video":
+            extra_timeout = 3.0
+
+        end_time = time.time() + timeout_sec + extra_timeout
+
+        while time.time() < end_time:
+            if not self.running:
+                return "", ""
+
+            try:
+                state = self._get_popup_state()
+                media_type = str(state.get("media_type") or "").strip()
+                media_url = str(state.get("media_url") or "").strip()
+
+                if media_url and media_url != prev_url:
+                    return media_type, media_url
+            except Exception:
+                pass
+
+            time.sleep(0.25)
+
+        return "", ""
+
+    def _build_folder_base_name(self, building_name: str, ho: str, has_video: bool = False) -> str:
         today_text = self._get_today_text()
-        prefix = "(동)" if is_video else ""
+        prefix = "(동)" if has_video else ""
         base_name = f"{prefix}{building_name} {ho} (N) {today_text}"
         return self._sanitize_filename(base_name)
 
-    def _make_target_dir(self, building_name: str, ho: str) -> str:
+    def _build_media_file_base_name(self, atcl_no: str, seq: int) -> str:
+        return self._sanitize_filename(f"{str(atcl_no).strip()}_{int(seq):02d}")
+
+    def _wait_popup_viewer_ready(self, timeout_sec: float = 8.0) -> bool:
+        end_time = time.time() + timeout_sec
+
+        while time.time() < end_time:
+            if not self.running:
+                return False
+
+            try:
+                state = self._get_popup_state()
+                media_url = str(state.get("media_url") or "").strip()
+                if media_url:
+                    return True
+            except Exception:
+                pass
+
+            time.sleep(0.25)
+
+        return False
+
+    def _make_target_dir(self, building_name: str, ho: str, has_video: bool = False) -> str:
         root_dir = os.path.join(self.folder_path, self.out_dir)
         os.makedirs(root_dir, exist_ok=True)
 
-        folder_base_name = self._build_folder_base_name(building_name, ho)
+        folder_base_name = self._build_folder_base_name(
+            building_name=building_name,
+            ho=ho,
+            has_video=has_video,
+        )
 
         candidate = os.path.join(root_dir, folder_base_name)
         if not os.path.exists(candidate):
@@ -743,12 +1006,6 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             headers["cookie"] = cookie_header
 
         return headers
-
-# 제거
-# import certifi
-
-# __init__ 에서 제거
-# self.ca_bundle_path: str = certifi.where()
 
     def _get_gallery_image_count(self, atcl_no: str) -> Optional[int]:
         headers = self._build_gallery_request_headers(atcl_no)
@@ -980,13 +1237,17 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             self.log_signal_func(f"_is_next_disabled 실패: {e}")
             return None
 
-    def _click_next(self) -> bool:
+    def _click_next(self, current_media_type: str = "") -> bool:
         selectors = [
             "button[aria-label*='다음']",
             "button[aria-label*='next' i]",
             "[role='button'][aria-label*='다음']",
             "[role='button'][aria-label*='next' i]",
         ]
+
+        # === 신규 === 포커스 선점
+        self._focus_popup_viewer()
+        time.sleep(0.15)
 
         for selector in selectors:
             try:
@@ -1016,7 +1277,12 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                             self.driver.execute_script("arguments[0].click();", btn)
 
                         self.log_signal_func(f"다음 버튼 클릭 성공 selector={selector} index={idx}")
-                        time.sleep(1.8)
+
+                        if current_media_type == "video":
+                            time.sleep(2.0)
+                        else:
+                            time.sleep(1.0)
+
                         return True
 
                     except Exception:
@@ -1024,22 +1290,23 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             except Exception:
                 pass
 
-        try:
-            from selenium.webdriver.common.keys import Keys
-            body = self.driver.find_element(By.TAG_NAME, "body")
-            body.send_keys(Keys.ARROW_RIGHT)
+        if self._send_arrow_right_fallback():
             self.log_signal_func("ArrowRight 이동 성공")
-            time.sleep(1.8)
+
+            if current_media_type == "video":
+                time.sleep(2.0)
+            else:
+                time.sleep(1.0)
+
             return True
-        except Exception as e:
-            self.log_signal_func(f"다음 이동 실패: {e}")
-            return False
+
+        self.log_signal_func("다음 이동 실패")
+        return False
 
     def _scan_all_media_current_popup(self, max_steps: int = 40) -> List[Dict[str, Any]]:
         results: List[Dict[str, Any]] = []
         seen_urls = set()
-        prev_url = ""
-        unchanged_count = 0
+        unchanged_after_move_count = 0
 
         for step in range(max_steps):
             if not self.running:
@@ -1047,8 +1314,8 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
             state = self._get_popup_state()
 
-            media_type = str(state.get("media_type") or "")
-            media_url = str(state.get("media_url") or "")
+            media_type = str(state.get("media_type") or "").strip()
+            media_url = str(state.get("media_url") or "").strip()
 
             self.log_signal_func("=" * 80)
             self.log_signal_func(f"[STEP] {step + 1}")
@@ -1066,32 +1333,56 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                         "media_url": media_url,
                     })
 
-            if media_url and media_url == prev_url:
-                unchanged_count += 1
-            else:
-                unchanged_count = 0
-
-            if unchanged_count >= 1:
-                self.log_signal_func("같은 media_url 반복 -> 마지막으로 판단")
-                break
-
-            prev_url = media_url
-
             next_disabled = self._is_next_disabled()
             if next_disabled is True:
                 self.log_signal_func("다음 버튼 비활성화 -> 마지막으로 판단")
                 break
 
-            moved = self._click_next()
+            prev_url = media_url
+            moved = self._click_next(current_media_type=media_type)
             if not moved:
                 self.log_signal_func("다음 이동 실패")
                 break
 
-            next_state = self._get_popup_state()
-            next_url = str(next_state.get("media_url") or "")
-            if media_url and next_url and media_url == next_url:
-                self.log_signal_func("다음으로 이동했지만 media_url 변화 없음 -> 마지막으로 판단")
-                break
+            _, changed_url = self._wait_until_media_changed(
+                prev_url=prev_url,
+                prev_media_type=media_type,
+                timeout_sec=5.0,
+            )
+
+            # === 신규 === 첫 장/동영상에서 포커스 꼬이면 같은 step에서 한 번 더 보정
+            if not changed_url and (len(results) <= 1 or media_type == "video"):
+                self.log_signal_func("포커스 보정 후 ArrowRight 1회 재시도")
+                self._focus_popup_viewer()
+                time.sleep(0.3)
+
+                if self._send_arrow_right_fallback():
+                    self.log_signal_func("ArrowRight 재이동 성공")
+
+                    if media_type == "video":
+                        time.sleep(2.0)
+                    else:
+                        time.sleep(1.0)
+
+                    _, changed_url = self._wait_until_media_changed(
+                        prev_url=prev_url,
+                        prev_media_type=media_type,
+                        timeout_sec=5.0,
+                    )
+
+            if not changed_url:
+                unchanged_after_move_count += 1
+                self.log_signal_func(
+                    f"다음으로 이동 후 media_url 변경 대기 timeout ({unchanged_after_move_count}/2)"
+                )
+
+                if unchanged_after_move_count >= 2:
+                    self.log_signal_func("연속 timeout -> 마지막으로 판단")
+                    break
+
+                continue
+
+            unchanged_after_move_count = 0
 
         return results
 
@@ -1135,12 +1426,21 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         building_name = str(data.get("건물명") or "").strip()
         ho = str(data.get("호수") or "").strip()
 
-        target_dir = self._make_target_dir(building_name, ho)
+        has_video = any(
+            str(item.get("media_type") or "").strip() == "video"
+            for item in (media_items or [])
+        )
+
+        target_dir = self._make_target_dir(
+            building_name=building_name,
+            ho=ho,
+            has_video=has_video,
+        )
         self.log_signal_func(f"저장 폴더: {target_dir}")
 
         for idx, item in enumerate(media_items, start=1):
-            media_type = str(item.get("media_type") or "")
-            media_url = str(item.get("media_url") or "")
+            media_type = str(item.get("media_type") or "").strip()
+            media_url = str(item.get("media_url") or "").strip()
 
             if not media_url:
                 self._append_result_row(
@@ -1155,12 +1455,9 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                 )
                 continue
 
+            file_base_name = self._build_media_file_base_name(atcl_no, idx)
+
             if media_type == "video":
-                file_base_name = self._build_media_file_base_name(
-                    building_name=building_name,
-                    ho=ho,
-                    is_video=True,
-                )
                 save_path = self._make_unique_file_path(target_dir, file_base_name, ".mp4")
 
                 ok, final_path, msg = self._save_video_file(media_url, save_path)
@@ -1177,11 +1474,6 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                 )
                 continue
 
-            file_base_name = self._build_media_file_base_name(
-                building_name=building_name,
-                ho=ho,
-                is_video=False,
-            )
             save_path = self._make_unique_file_path(target_dir, file_base_name, ".jpg")
 
             ok, final_path, msg = self._save_image_file_as_jpg(media_url, save_path)
