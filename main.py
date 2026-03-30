@@ -1,7 +1,7 @@
 # main.py
 from __future__ import annotations
 
-import json  # === 신규 ===
+import json
 import sys
 from pathlib import Path
 from typing import Optional
@@ -14,7 +14,7 @@ if sys.stderr is None:
     sys.stderr = open(os.devnull, "w")
 
 
-from PySide6.QtCore import Qt, QLockFile, QDir  # === 신규 ===
+from PySide6.QtCore import Qt, QLockFile, QDir
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from src.app_manager import AppManager
@@ -115,12 +115,12 @@ def _get_single_instance_key(runtime_json: dict) -> str:
 
 
 # =========================================================
-# single instance guard  # === 신규 ===
+# single instance guard
 # =========================================================
-_SINGLE_INSTANCE_LOCK: Optional[QLockFile] = None  # === 신규 ===
+_SINGLE_INSTANCE_LOCK: Optional[QLockFile] = None
 
 
-def _acquire_single_instance_lock(app: QApplication, lock_key: str) -> bool:  # === 신규 ===
+def _acquire_single_instance_lock(app: QApplication, lock_key: str) -> bool:
     global _SINGLE_INSTANCE_LOCK
 
     base_dir = Path(QDir.tempPath()) / lock_key
@@ -138,7 +138,7 @@ def _acquire_single_instance_lock(app: QApplication, lock_key: str) -> bool:  # 
     return True
 
 
-def _release_single_instance_lock() -> None:  # === 신규 ===
+def _release_single_instance_lock() -> None:
     global _SINGLE_INSTANCE_LOCK
     lock = _SINGLE_INSTANCE_LOCK
     _SINGLE_INSTANCE_LOCK = None
