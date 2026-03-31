@@ -660,6 +660,15 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
         )
 
         content_html: str = str(data.get("content") or "")
+        size_wrap_img_links: List[str] = self.extract_size_wrap_image_urls(content_html)
+        size_wrap_img_rel_paths: List[str] = self.download_product_images(
+            image_links=size_wrap_img_links,
+            category_path_codes=category_path_codes,
+            idx_number=idx_number,
+            prefix="size",
+            limit=50,
+        )
+
         detail_img_links: List[str] = self.extract_detail_content_images(content_html)
         detail_img_rel_paths: List[str] = self.download_product_images(
             image_links=detail_img_links,
@@ -669,7 +678,11 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
             limit=9999,
         )
 
-        final_desc_html: str = self.build_detail_html(detail_img_rel_paths, content_html)
+        final_desc_html: str = self.build_detail_html(
+            detail_img_rel_paths=detail_img_rel_paths,
+            content_html=content_html,
+            size_wrap_img_rel_paths=size_wrap_img_rel_paths,
+        )
         option1, option2, option3 = self.build_option_columns(data)
         product_url: str = f"{self.shop_url}{href}/?idx={idx_number}"
 
@@ -838,15 +851,39 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
             if not isinstance(img, Tag):
                 continue
 
-            src: str = str(img.get("src") or "").strip()
-            if not src:
+            if img.find_parent(class_="size-wrap"):
                 continue
 
-            if src.startswith("data:image"):
+            src: str = str(img.get("src") or "").strip()
+            if not src or src.startswith("data:image"):
                 continue
 
             src = self.upgrade_image_size(src)
+            if src in seen:
+                continue
 
+            seen.add(src)
+            result.append(src)
+
+        return result
+
+    def extract_size_wrap_image_urls(self, content_html: str) -> List[str]:
+        if not content_html.strip():
+            return []
+
+        soup: BeautifulSoup = BeautifulSoup(content_html, "html.parser")
+        result: List[str] = []
+        seen: Set[str] = set()
+
+        for img in soup.select(".size-wrap img"):
+            if not isinstance(img, Tag):
+                continue
+
+            src: str = str(img.get("src") or "").strip()
+            if not src or src.startswith("data:image"):
+                continue
+
+            src = self.upgrade_image_size(src)
             if src in seen:
                 continue
 
@@ -920,37 +957,154 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
         return built[0], built[1], built[2]
 
 
-    # === 수정 2) 기존 build_detail_html 교체 + 아래 함수 추가 ===
-    def build_detail_html(self, relative_paths: List[str], content_html: str = "") -> str:
+    def build_detail_html(
+            self,
+            detail_img_rel_paths: List[str],
+            content_html: str = "",
+            size_wrap_img_rel_paths: Optional[List[str]] = None,
+    ) -> str:
+        size_wrap_html: str = self.extract_size_wrap_html(content_html, size_wrap_img_rel_paths or [])
+
         html_list: List[str] = [
-            '<div class="detail-desc-center-wrap" '
-            'style="display:flex; flex-direction:column; align-items:center; text-align:center;">'
+            '<div class="detail-desc-center-wrap" style="text-align:center;">'
         ]
 
-        for rel_path in relative_paths:
+        for rel_path in detail_img_rel_paths:
             html_list.append(
                 f'<div><img src="{self.make_public_image_url(rel_path)}" style="display:block; margin:0 auto;"></div>'
             )
 
-        size_notice_html: str = self.extract_size_notice_html(content_html)
-        if size_notice_html:
-            html_list.append(size_notice_html)
+        if size_wrap_html:
+            html_list.append(self.build_size_wrap_block(size_wrap_html))
 
         html_list.append("</div>")
         return "".join(html_list)
 
 
-    def extract_size_notice_html(self, content_html: str) -> str:
+    def extract_size_wrap_html(self, content_html: str, size_wrap_img_rel_paths: List[str]) -> str:
         if not content_html.strip():
             return ""
 
         soup: BeautifulSoup = BeautifulSoup(content_html, "html.parser")
-        size_notice: Optional[Tag] = soup.select_one("p.size-notice")
-
-        if not size_notice:
+        size_wrap_list: List[Tag] = soup.select(".size-wrap")
+        if not size_wrap_list:
             return ""
 
-        return f'<div class="detail-size-notice-wrap" style="text-align:center;">{str(size_notice)}</div>'
+        html_list: List[str] = []
+        img_idx: int = 0
+
+        for size_wrap in size_wrap_list:
+            for style_tag in size_wrap.find_all("style"):
+                style_tag.decompose()
+
+            for img in size_wrap.find_all("img"):
+                if not isinstance(img, Tag):
+                    continue
+
+                if img_idx < len(size_wrap_img_rel_paths):
+                    img["src"] = self.make_public_image_url(size_wrap_img_rel_paths[img_idx])
+                    img_idx += 1
+                else:
+                    src: str = str(img.get("src") or "").strip()
+                    if not src:
+                        img.decompose()
+                        continue
+                    img["src"] = self.upgrade_image_size(src)
+
+                for attr in ["srcset", "sizes", "loading", "width", "height"]:
+                    if img.has_attr(attr):
+                        del img[attr]
+
+            self.apply_size_wrap_inline_styles(size_wrap)
+            html_list.append(str(size_wrap))
+
+        return "".join(html_list)
+
+    def apply_size_wrap_inline_styles(self, size_wrap: Tag) -> None:
+        size_wrap["style"] = (
+            "display:flex;"
+            "align-items:stretch;"
+            "max-width:1080px;"
+            "margin:0 auto;"
+            "margin-bottom:20px;"
+        )
+
+        for size_img in size_wrap.select(".size-img"):
+            size_img["style"] = (
+                "flex:0 0 30%;"
+                "border:1px solid #ddd;"
+                "margin-right:20px;"
+            )
+
+            for img in size_img.find_all("img"):
+                if not isinstance(img, Tag):
+                    continue
+                img["style"] = (
+                    "width:100%;"
+                    "height:100%;"
+                    "object-fit:cover;"
+                    "margin:0 !important;"
+                    "display:block;"
+                )
+
+        for size_table in size_wrap.select(".size-table"):
+            size_table["style"] = (
+                "flex:0 0 calc(70% - 20px);"
+                "display:flex;"
+                "align-items:stretch;"
+            )
+
+        for table in size_wrap.select(".table-size"):
+            table["style"] = (
+                "width:100%;"
+                "border-collapse:collapse;"
+                "text-align:center;"
+                "font-size:15px;"
+            )
+
+            for th in table.select("thead tr th"):
+                th["style"] = (
+                    "font-weight:bold;"
+                    "text-align:center;"
+                    "padding:12px 0;"
+                    "border:0;"
+                    "background:#f2f2f2;"
+                    "border-bottom:2px solid #ddd;"
+                )
+
+            tbody: Optional[Tag] = table.find("tbody")
+            if isinstance(tbody, Tag):
+                tbody["style"] = "border-left:0 !important;"
+
+                for tr in tbody.find_all("tr"):
+                    if not isinstance(tr, Tag):
+                        continue
+
+                    td_list: List[Tag] = tr.find_all("td", recursive=False)
+                    for i, td in enumerate(td_list):
+                        td["style"] = (
+                                "padding:10px 0;"
+                                "text-align:center;"
+                                "border:0;"
+                                "border-bottom:1px solid #eee;"
+                                + ("font-weight:bold;" if i == 0 else "")
+                        )
+
+    def build_size_wrap_block(self, size_wrap_html: str) -> str:
+        return f"{size_wrap_html}{self.build_size_notice_html()}"
+
+    def get_detail_desc_css(self) -> str:
+        return ""
+
+    def build_size_notice_html(self) -> str:
+        return (
+            '<p class="size-notice" '
+            'style="font-weight:bold; font-size:15px; text-align:center; max-width:1080px; '
+            'margin:20px auto 0; color:#555; background:#f2f2f2; padding:10px 14px; '
+            'border-radius:8px;">'
+            '※사이즈 측정법에 따라 1~3cm 가량 오차가 생길 수 있습니다.'
+            '</p>'
+        )
 
 
     def make_public_image_url(self, relative_path: str) -> str:

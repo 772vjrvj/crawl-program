@@ -258,7 +258,24 @@ S M L XL XXL
 ■ 무조건 2개 테스트 하고 넣기
 이게 제일 중요
 
-	
 
 
 
+
+■ 개별 빌드
+pyinstaller .\main.py `
+--noconfirm `
+--clean `
+--windowed `
+--name "COCO_LABEL" `
+--icon ".\resources\icons\crawling.ico" `
+--version-file ".\docs\customers\coco_label\version_info.txt" `
+--distpath ".\dist" `
+--hidden-import "src.workers.main.api_coco_label_set_worker" `
+--hidden-import "pandas" `
+--hidden-import "openpyxl" `
+--exclude-module tkinter `
+--exclude-module _tkinter `
+--exclude-module tk `
+--exclude-module Tcl `
+--exclude-module tcl

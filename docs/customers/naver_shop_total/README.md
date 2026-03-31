@@ -5,6 +5,8 @@
 ■ 크롤링 사이트 : https://msearch.shopping.naver.com
 ■ 내용
 
+크몽 26.03.31 네이버 샵 크롤링 AI Whisper 추가됨 메크로
+
 # 빌드후
 /resources/customers/naver_shop_total
 /bin/ffmpeg.exe

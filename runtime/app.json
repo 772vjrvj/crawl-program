@@ -5,7 +5,7 @@
   "server_name": "CrawlProgram",
   "allow_multi_instance": true,
   "instance_key": "my_pyside_app",
-  "site_list_use": ["NAVER_SHOP_TOTAL"],
+  "site_list_use": ["COCO_LABEL"],
   "site_list": [
     {
       "key": "NAVER_BAND_MEMBER",
