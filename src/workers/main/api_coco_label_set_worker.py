@@ -956,7 +956,6 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
 
         return built[0], built[1], built[2]
 
-
     def build_detail_html(
             self,
             detail_img_rel_paths: List[str],
@@ -979,7 +978,6 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
 
         html_list.append("</div>")
         return "".join(html_list)
-
 
     def extract_size_wrap_html(self, content_html: str, size_wrap_img_rel_paths: List[str]) -> str:
         if not content_html.strip():
@@ -1011,84 +1009,20 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
                         continue
                     img["src"] = self.upgrade_image_size(src)
 
-                for attr in ["srcset", "sizes", "loading", "width", "height"]:
+                for attr in ["srcset", "sizes", "loading", "width", "height", "style"]:
                     if img.has_attr(attr):
                         del img[attr]
 
-            self.apply_size_wrap_inline_styles(size_wrap)
+            if size_wrap.has_attr("style"):
+                del size_wrap["style"]
+
+            for tag in size_wrap.select(".size-img, .size-table, .table-size, thead th, tbody, tbody td"):
+                if tag.has_attr("style"):
+                    del tag["style"]
+
             html_list.append(str(size_wrap))
 
         return "".join(html_list)
-
-    def apply_size_wrap_inline_styles(self, size_wrap: Tag) -> None:
-        size_wrap["style"] = (
-            "display:flex;"
-            "align-items:stretch;"
-            "max-width:1080px;"
-            "margin:0 auto;"
-            "margin-bottom:20px;"
-        )
-
-        for size_img in size_wrap.select(".size-img"):
-            size_img["style"] = (
-                "flex:0 0 30%;"
-                "border:1px solid #ddd;"
-                "margin-right:20px;"
-            )
-
-            for img in size_img.find_all("img"):
-                if not isinstance(img, Tag):
-                    continue
-                img["style"] = (
-                    "width:100%;"
-                    "height:100%;"
-                    "object-fit:cover;"
-                    "margin:0 !important;"
-                    "display:block;"
-                )
-
-        for size_table in size_wrap.select(".size-table"):
-            size_table["style"] = (
-                "flex:0 0 calc(70% - 20px);"
-                "display:flex;"
-                "align-items:stretch;"
-            )
-
-        for table in size_wrap.select(".table-size"):
-            table["style"] = (
-                "width:100%;"
-                "border-collapse:collapse;"
-                "text-align:center;"
-                "font-size:15px;"
-            )
-
-            for th in table.select("thead tr th"):
-                th["style"] = (
-                    "font-weight:bold;"
-                    "text-align:center;"
-                    "padding:12px 0;"
-                    "border:0;"
-                    "background:#f2f2f2;"
-                    "border-bottom:2px solid #ddd;"
-                )
-
-            tbody: Optional[Tag] = table.find("tbody")
-            if isinstance(tbody, Tag):
-                tbody["style"] = "border-left:0 !important;"
-
-                for tr in tbody.find_all("tr"):
-                    if not isinstance(tr, Tag):
-                        continue
-
-                    td_list: List[Tag] = tr.find_all("td", recursive=False)
-                    for i, td in enumerate(td_list):
-                        td["style"] = (
-                                "padding:10px 0;"
-                                "text-align:center;"
-                                "border:0;"
-                                "border-bottom:1px solid #eee;"
-                                + ("font-weight:bold;" if i == 0 else "")
-                        )
 
     def build_size_wrap_block(self, size_wrap_html: str) -> str:
         return f"{size_wrap_html}{self.build_size_notice_html()}"
@@ -1098,19 +1032,14 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
 
     def build_size_notice_html(self) -> str:
         return (
-            '<p class="size-notice" '
-            'style="font-weight:bold; font-size:15px; text-align:center; max-width:1080px; '
-            'margin:20px auto 0; color:#555; background:#f2f2f2; padding:10px 14px; '
-            'border-radius:8px;">'
+            '<p class="size-notice">'
             '※사이즈 측정법에 따라 1~3cm 가량 오차가 생길 수 있습니다.'
             '</p>'
         )
 
-
     def make_public_image_url(self, relative_path: str) -> str:
         rel: str = relative_path.replace("\\", "/").lstrip("/")
         return f"{self.IMAGE_URL_PREFIX}{rel}"
-
 
     def get_existing_file_name_set(self, target_dir: str) -> Set[str]:
         if not os.path.isdir(target_dir):
@@ -1183,7 +1112,6 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
             root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
         return os.path.join(root_dir, "data", "item", *category_path_codes, idx_number)
-
 
     def make_relative_image_path(self, relative_path: str) -> str:
         return str(relative_path or "").replace("\\", "/").lstrip("/")
