@@ -97,12 +97,12 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
 
         self.coco_label_admin_list = self.file_driver.read_json_array_from_resources(
             "coco_label_admin_list.json",
-            "customers/coco_label",
+            "customers/coco_label/json",
         )
 
         self.coco_label_site_list = self.file_driver.read_json_array_from_resources(
             "coco_label_site_list.json",
-            "customers/coco_label",
+            "customers/coco_label/json",
         )
 
         if not self.coco_label_admin_list:
@@ -970,7 +970,7 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
 
         for rel_path in detail_img_rel_paths:
             html_list.append(
-                f'<div><img src="{self.make_public_image_url(rel_path)}" style="display:block; margin:0 auto;"></div>'
+                f'<div><img src="{self.make_public_image_url(rel_path)}"></div>'
             )
 
         if size_wrap_html:
