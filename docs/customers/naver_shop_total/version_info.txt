@@ -18,12 +18,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'GB7'),
             StringStruct('FileDescription', '네이버 스토어'),
-            StringStruct('FileVersion', '1.0.1'),
+            StringStruct('FileVersion', '1.0.2'),
             StringStruct('InternalName', 'GB7'),
             StringStruct('LegalCopyright', '© 2026 GB7'),
             StringStruct('OriginalFilename', '네이버 스토어.exe'),
             StringStruct('ProductName', 'GB7'),
-            StringStruct('ProductVersion', '1.0.1')
+            StringStruct('ProductVersion', '1.0.2')
           ]
         )
       ]

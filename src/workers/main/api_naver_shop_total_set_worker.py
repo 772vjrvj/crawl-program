@@ -210,7 +210,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                         f"https://msearch.shopping.naver.com/search/all?"
                         f"adQuery={kw}&npayType=2&origQuery={kw}&"
                         f"pagingIndex={page}&pagingSize=40&productSet=checkout&"
-                        f"query={kw}&sort=rel&viewType=list"
+                        f"query={kw}&sort=date&viewType=list"
                     )
 
                     for retry in range(1, 4):

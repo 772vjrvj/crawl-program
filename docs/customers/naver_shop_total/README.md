@@ -2,6 +2,7 @@
 ■ 날짜 : 2026.03.30
 ■ 요청 사이트 : 크몽
 ■ 가격 : 180,000
+■ 코드 : NAVER_SHOP_TOTAL
 ■ 크롤링 사이트 : https://msearch.shopping.naver.com
 ■ 내용
 
