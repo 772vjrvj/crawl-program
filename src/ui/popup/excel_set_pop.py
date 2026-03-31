@@ -3,13 +3,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
 from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QDialog,
+    QFileDialog,
     QHBoxLayout,
     QHeaderView,
     QPushButton,
@@ -37,6 +38,13 @@ class ExcelSetPop(QDialog):
     updateList: Signal = Signal(object)  # list[dict] 전달 (기존 시그니처 유지)
     updateUser: Signal = Signal(object)  # dict 전달 (기존 시그니처 유지)
 
+    # === 신규 === 팝업 재오픈 시 복원용 캐시
+    _cached_file_paths: ClassVar[List[str]] = []
+    _cached_data_list: ClassVar[List[Dict[str, Any]]] = []
+    _cached_user: ClassVar[Optional[UserCred]] = None
+    _cached_headers: ClassVar[List[str]] = []
+    _cached_rows: ClassVar[List[List[str]]] = []
+
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
 
@@ -60,30 +68,67 @@ class ExcelSetPop(QDialog):
         layout.addWidget(self.table_widget)
 
         button_layout = QHBoxLayout()
-        self.confirm_button = QPushButton("확인", self)
-        self.confirm_button.setStyleSheet(
-            """
-            background-color: black;
-            color: white;
-            border-radius: 20px;
-            font-size: 14px;
-            padding: 10px;
-            """
+
+        # === 신규 === 파일첨부 버튼
+        self.attach_button = self._create_action_button(
+            text="파일첨부",
+            bg_color="white",
+            text_color="black",
         )
-        self.confirm_button.setFixedHeight(40)
-        self.confirm_button.setFixedWidth(140)
-        self.confirm_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.attach_button.clicked.connect(self.on_attach_file)
+        button_layout.addWidget(self.attach_button)
+
+        # === 신규 === 초기화 버튼
+        self.reset_button = self._create_action_button(
+            text="초기화",
+            bg_color="white",
+            text_color="black",
+        )
+        self.reset_button.clicked.connect(self.on_reset)
+        button_layout.addWidget(self.reset_button)
+
+        self.confirm_button = self._create_action_button(
+            text="확인",
+            bg_color="black",
+            text_color="white",
+        )
         self.confirm_button.clicked.connect(self.on_confirm)
         button_layout.addWidget(self.confirm_button)
+
         button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addLayout(button_layout)
 
         # === 신규 === QDesktopWidget 제거(Deprecated) → Qt 스크린으로 중앙 배치
         self._center_on_screen()
 
+        # === 신규 === 직전 캐시 복원
+        self._restore_cache()
+
     # =========================
     # core
     # =========================
+    def _create_action_button(
+            self,
+            text: str,
+            bg_color: str = "black",
+            text_color: str = "white",
+    ) -> QPushButton:
+        button = QPushButton(text, self)
+        button.setStyleSheet(
+            f"""
+            background-color: {bg_color};
+            color: {text_color};
+            border: 1px solid black;
+            border-radius: 20px;
+            font-size: 14px;
+            padding: 10px;
+            """
+        )
+        button.setFixedHeight(40)
+        button.setFixedWidth(140)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        return button
+
     def _center_on_screen(self) -> None:
         screen = self.screen()
         if screen is None:
@@ -122,7 +167,6 @@ class ExcelSetPop(QDialog):
         if len(excel_file.sheet_names) >= 2:
             df2 = excel_file.parse(sheet_name=1, dtype=str).fillna("")
             if not df2.empty and "ID" in df2.columns and "PW" in df2.columns:
-                # NaN은 fillna("") 했지만 안전하게 str 처리
                 cred = UserCred(id=str(df2.iloc[0]["ID"]), pw=str(df2.iloc[0]["PW"]))
 
         return df1, cred
@@ -156,9 +200,67 @@ class ExcelSetPop(QDialog):
         self.drag_drop_label.setStyleSheet("")  # 기존 성공 배경 제거
         self.drag_drop_label.setText(f"파일 로드 중 오류 발생: {msg}")
 
+    # === 신규 === 기본 안내문구 복원
+    def _set_default_hint(self) -> None:
+        self.drag_drop_label.setStyleSheet("")
+        self.drag_drop_label.setText("엑셀 파일을 드래그 앤 드롭 해주세요")
+
+    # === 신규 === 캐시 저장
+    def _save_cache(
+            self,
+            file_paths: List[str],
+            headers: List[str],
+            rows: List[List[str]],
+            data_list: List[Dict[str, Any]],
+            user: Optional[UserCred],
+    ) -> None:
+        self.__class__._cached_file_paths = list(file_paths)
+        self.__class__._cached_headers = list(headers)
+        self.__class__._cached_rows = [list(row) for row in rows]
+        self.__class__._cached_data_list = [dict(row) for row in data_list]
+        self.__class__._cached_user = user
+
+    # === 신규 === 캐시 초기화
+    def _clear_cache(self) -> None:
+        self.__class__._cached_file_paths = []
+        self.__class__._cached_headers = []
+        self.__class__._cached_rows = []
+        self.__class__._cached_data_list = []
+        self.__class__._cached_user = None
+
+    # === 신규 === 캐시 복원
+    def _restore_cache(self) -> None:
+        if not self.__class__._cached_data_list:
+            self._set_default_hint()
+            return
+
+        self.data_list = [dict(row) for row in self.__class__._cached_data_list]
+        self.user = self.__class__._cached_user
+
+        headers = list(self.__class__._cached_headers)
+        rows = [list(row) for row in self.__class__._cached_rows]
+
+        self._render_table(headers=headers, rows=rows)
+        self._set_success_hint(
+            file_count=len(self.__class__._cached_file_paths),
+            row_count=len(rows),
+            col_count=len(headers),
+        )
+
     # =========================
     # slots
     # =========================
+    @Slot()
+    def on_attach_file(self) -> None:
+        file_paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "엑셀 파일 선택",
+            "",
+            "Excel Files (*.xlsx *.xls *.csv)",
+        )
+        if file_paths:
+            self.load_excel(file_paths)
+
     @Slot(list)
     def load_excel(self, file_paths: List[str]) -> None:
         # 기존 시그니처 유지: DragDropLabel에서 list[str] emit
@@ -191,12 +293,28 @@ class ExcelSetPop(QDialog):
             self._set_success_hint(file_count=len(file_paths), row_count=len(rows), col_count=len(headers))
 
             self.data_list = combined_df.to_dict(orient="records")
+            self._save_cache(
+                file_paths=file_paths,
+                headers=headers,
+                rows=rows,
+                data_list=self.data_list,
+                user=self.user,
+            )
 
         except Exception as e:
             self._render_table(headers=[], rows=[])
             self.data_list = []
             self.user = None
+            self._clear_cache()
             self._set_error_hint(str(e))
+
+    @Slot()
+    def on_reset(self) -> None:
+        self._render_table(headers=[], rows=[])
+        self.data_list = []
+        self.user = None
+        self._clear_cache()
+        self._set_default_hint()
 
     @Slot()
     def on_confirm(self) -> None:
