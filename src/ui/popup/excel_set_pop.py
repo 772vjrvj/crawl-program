@@ -98,10 +98,7 @@ class ExcelSetPop(QDialog):
         button_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addLayout(button_layout)
 
-        # === 신규 === QDesktopWidget 제거(Deprecated) → Qt 스크린으로 중앙 배치
         self._center_on_screen()
-
-        # === 신규 === 직전 캐시 복원
         self._restore_cache()
 
     # =========================
@@ -137,6 +134,15 @@ class ExcelSetPop(QDialog):
         geo = self.frameGeometry()
         geo.moveCenter(avail.center())
         self.move(geo.topLeft())
+
+    def _label_base_style(self) -> str:
+        return """
+        border: 2px dashed #999;
+        border-radius: 10px;
+        padding: 20px;
+        background-color: white;
+        color: #111;
+        """
 
     def _read_csv(self, path: str) -> pd.DataFrame:
         base = Path(path).stem
@@ -194,16 +200,19 @@ class ExcelSetPop(QDialog):
 
     def _set_success_hint(self, file_count: int, row_count: int, col_count: int) -> None:
         self.drag_drop_label.setText(f"총 {file_count}개 파일, {row_count}행 {col_count}열 로드 완료")
-        self.drag_drop_label.setStyleSheet("background-color: lightgreen; color: #111;")
+        self.drag_drop_label.setStyleSheet(
+            self._label_base_style() + "background-color: lightgreen;"
+        )
 
     def _set_error_hint(self, msg: str) -> None:
-        self.drag_drop_label.setStyleSheet("")  # 기존 성공 배경 제거
         self.drag_drop_label.setText(f"파일 로드 중 오류 발생: {msg}")
+        self.drag_drop_label.setStyleSheet(
+            self._label_base_style() + "background-color: #ffeaea;"
+        )
 
-    # === 신규 === 기본 안내문구 복원
     def _set_default_hint(self) -> None:
-        self.drag_drop_label.setStyleSheet("")
         self.drag_drop_label.setText("엑셀 파일을 드래그 앤 드롭 해주세요")
+        self.drag_drop_label.setStyleSheet(self._label_base_style())
 
     # === 신규 === 캐시 저장
     def _save_cache(
@@ -263,50 +272,45 @@ class ExcelSetPop(QDialog):
 
     @Slot(list)
     def load_excel(self, file_paths: List[str]) -> None:
-        # 기존 시그니처 유지: DragDropLabel에서 list[str] emit
-        try:
-            dfs: List[pd.DataFrame] = []
-            self.user = None
+        dfs: List[pd.DataFrame] = []
+        self.user = None
 
-            for file in file_paths:
-                lower = file.lower()
-                if lower.endswith(".csv"):
-                    dfs.append(self._read_csv(file))
-                    continue
+        for file in file_paths:
+            lower = file.lower()
+            if lower.endswith(".csv"):
+                dfs.append(self._read_csv(file))
+                continue
 
-                df1, cred = self._read_xlsx_first_sheet(file)
-                dfs.append(df1)
-                if cred is not None:
-                    # 마지막 파일의 creds로 덮어쓰기 (기존 로직과 동일한 효과)
-                    self.user = cred
+            df1, cred = self._read_xlsx_first_sheet(file)
+            dfs.append(df1)
+            if cred is not None:
+                self.user = cred
 
-            if not dfs:
-                raise ValueError("로드할 수 있는 파일이 없습니다.")
-
-            combined_df = pd.concat(dfs, ignore_index=True, sort=False).fillna("")
-            combined_df = combined_df.astype(str)
-
-            headers = [str(c) for c in combined_df.columns]
-            rows = combined_df.values.tolist()  # list[list[str]]
-
-            self._render_table(headers=headers, rows=rows)
-            self._set_success_hint(file_count=len(file_paths), row_count=len(rows), col_count=len(headers))
-
-            self.data_list = combined_df.to_dict(orient="records")
-            self._save_cache(
-                file_paths=file_paths,
-                headers=headers,
-                rows=rows,
-                data_list=self.data_list,
-                user=self.user,
-            )
-
-        except Exception as e:
+        if not dfs:
             self._render_table(headers=[], rows=[])
             self.data_list = []
             self.user = None
             self._clear_cache()
-            self._set_error_hint(str(e))
+            self._set_error_hint("로드할 수 있는 파일이 없습니다.")
+            return
+
+        combined_df = pd.concat(dfs, ignore_index=True, sort=False).fillna("")
+        combined_df = combined_df.astype(str)
+
+        headers = [str(c) for c in combined_df.columns]
+        rows = combined_df.values.tolist()
+
+        self._render_table(headers=headers, rows=rows)
+        self._set_success_hint(file_count=len(file_paths), row_count=len(rows), col_count=len(headers))
+
+        self.data_list = combined_df.to_dict(orient="records")
+        self._save_cache(
+            file_paths=file_paths,
+            headers=headers,
+            rows=rows,
+            data_list=self.data_list,
+            user=self.user,
+        )
 
     @Slot()
     def on_reset(self) -> None:
@@ -321,7 +325,6 @@ class ExcelSetPop(QDialog):
         self.updateList.emit(self.data_list)
 
         if self.user is not None:
-            # 기존 소비처 호환: dict로 전달
             self.updateUser.emit({"id": self.user.id, "pw": self.user.pw})
 
         self.accept()
