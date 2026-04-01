@@ -8,11 +8,12 @@ pyinstaller .\main.py `
 --clean `
 --console `
 --windowed `
---name "naver_land_real_estate_detail" `
+--name "naver_land_real_estate_detail_down" `
 --icon ".\resources\icons\crawling.ico" `
---version-file ".\docs\customers\naver_land_real_estate_detail\version_info.txt" `
+--version-file ".\docs\customers\naver_land_real_estate_detail_down\version_info.txt" `
 --distpath ".\dist" `
 --workpath ".\build" `
+--hidden-import "src.workers.main.api_naver_land_real_estate_detail_down_set_worker" `
 --hidden-import "src.workers.main.api_naver_land_real_estate_detail_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `
