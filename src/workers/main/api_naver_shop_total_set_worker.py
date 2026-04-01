@@ -182,7 +182,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             all_pages = list(range(start_p, end_p + 1))
             chunk_size = 10
 
-            for i in range(0, len(all_pages), chunk_size):
+            for i in range(0, len(all_pages), chunk_size): # 0, 10
                 if not self.running:
                     return True
 
@@ -255,6 +255,26 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
                 if chunk_items_queue:
                     self.log_signal_func(f"🚀 확보된 {len(chunk_items_queue)}개 상품 상세 수집 시작...")
+
+                    seen_store_names = set()
+                    dedup_items_queue = []
+
+                    for item_data in chunk_items_queue:
+                        item = item_data.get("item", {})
+                        mall_name = str(item.get("mallName") or "").strip()
+
+                        if not mall_name:
+                            self.log_signal_func("⏭️ 스토어명 없음 스킵")
+                            continue
+
+                        if mall_name in seen_store_names:
+                            self.log_signal_func(f"⏭️ 스토어명 중복 스킵: {mall_name}")
+                            continue
+
+                        seen_store_names.add(mall_name)
+                        dedup_items_queue.append(item_data)
+
+                    chunk_items_queue = dedup_items_queue
                     chunk_results = []
 
                     for idx, item_data in enumerate(chunk_items_queue):
