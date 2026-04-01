@@ -189,8 +189,7 @@ SALE (당일발송)     -> SALE (당일발송)
 	find /home/bitnami/htdocs/data/item/d0 -type d -exec chmod 2775 {} \;
 	find /home/bitnami/htdocs/data/item/d0 -type f -exec chmod 644 {} \;
 
-	
-	
+
 	폴더 추가후 진행
 	sudo chown -R bitnami:daemon /opt/bitnami/apache/htdocs/data/item/lucidshop/mensclothing
 	find /opt/bitnami/apache/htdocs/data/item/lucidshop/mensclothing -type d -exec chmod 2775 {} \;
@@ -234,14 +233,6 @@ MobaXterm > Session > SSH
 		- Use private key  : LightsailDefaultKey-ap-northeast-2.ppk
 
 
-
-
-
-
-
-
-
-
 ■ 이미지 저장 경로
 기본 경로 : /opt/bitnami/apache/htdocs/data/item
 기본 경로 : /opt/bitnami/apache/htdocs/data/item	/image/test.jpg
@@ -259,10 +250,7 @@ S M L XL XXL
 이게 제일 중요
 
 
-
-
-
-■ 개별 빌드
+■ 빌드
 pyinstaller .\main.py `
 --noconfirm `
 --clean `
@@ -271,7 +259,7 @@ pyinstaller .\main.py `
 --icon ".\resources\icons\crawling.ico" `
 --version-file ".\docs\customers\coco_label\version_info.txt" `
 --distpath ".\dist" `
---add-data ".\resources\customers\coco_label\coco_label_admin_list.json;resources\customers\coco_label\coco_label_site_list.json" `
+--add-data ".\resources\customers\coco_label\json;resources\customers\coco_label\json" `
 --hidden-import "src.workers.main.api_coco_label_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `

@@ -13,9 +13,7 @@
 /bin/ffmpeg.exe
 
 이거를 를 빌드후
-
 _internal/resources/bin/ffmpeg.exe
-
 넣어줘야함
 
 

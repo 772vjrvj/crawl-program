@@ -35,6 +35,7 @@ from src.ui.popup.param_set_pop import ParamSetPop
 from src.ui.popup.region_set_pop import RegionSetPop
 from src.ui.popup.site_set_pop import SiteSetPop
 from src.ui.popup.closing_pop import ClosingPop
+from src.ui.popup.user_info_pop import UserInfoPop
 from src.ui.style.style import create_common_button, main_style, LOG_STYLE, HEADER_TEXT_STYLE
 
 
@@ -118,6 +119,7 @@ class MainWindow(QWidget):
         self.site_list_button: Optional[QWidget] = None
         self.log_reset_button: Optional[QWidget] = None
         self.collect_button: Optional[QWidget] = None
+        self.user_info_button: Optional[QWidget] = None
         self.log_out_button: Optional[QWidget] = None
 
         self.setting_button: Optional[QWidget] = None
@@ -254,6 +256,8 @@ class MainWindow(QWidget):
                 self.log_reset_button.setStyleSheet(main_style(self.color))
             if self.collect_button is not None:
                 self.collect_button.setStyleSheet(main_style(self.color))
+            if self.user_info_button is not None:
+                self.user_info_button.setStyleSheet(main_style(self.color))
             if self.log_out_button is not None:
                 self.log_out_button.setStyleSheet(main_style(self.color))
 
@@ -381,11 +385,13 @@ class MainWindow(QWidget):
         self.site_list_button = create_common_button("목록", self.go_site_list, self.color, 100)
         self.log_reset_button = create_common_button("로그리셋", self.log_reset, self.color, 100)
         self.collect_button = create_common_button("시작", self.start_on_demand_worker, self.color, 100)
+        self.user_info_button = create_common_button("유저정보", self.open_user_info, self.color, 100)
         self.log_out_button = create_common_button("로그아웃", self.on_log_out, self.color, 100)
 
         self.left_button_layout.addWidget(self.site_list_button)
         self.left_button_layout.addWidget(self.log_reset_button)
         self.left_button_layout.addWidget(self.collect_button)
+        self.left_button_layout.addWidget(self.user_info_button)
         self.left_button_layout.addWidget(self.log_out_button)
 
         # 오른쪽 버튼 레이아웃
@@ -725,6 +731,10 @@ class MainWindow(QWidget):
 
         # 메인윈도우 객체 정리
         QTimer.singleShot(0, self.deleteLater)
+
+    def open_user_info(self) -> None:
+        pop = UserInfoPop(self)
+        pop.exec()
 
     # 세팅 버튼
     def open_setting(self) -> None:
