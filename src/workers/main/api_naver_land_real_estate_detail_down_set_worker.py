@@ -1247,8 +1247,8 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             return default
 
     def _build_folder_base_name(self, building_name: str, ho: str, has_video: bool = False) -> str:
-        prefix = "(동)" if has_video else ""
-        return self._sanitize_filename(f"{prefix}{building_name} {ho} (N) {self._get_today_text()}")
+        suffix = " (동)" if has_video else ""
+        return self._sanitize_filename(f"{building_name} {ho} (N) {self._get_today_text()}{suffix}")
 
     def _build_media_file_base_name(self, atcl_no: str, seq: int) -> str:
         return self._sanitize_filename(f"{str(atcl_no).strip()}_{int(seq):02d}")
