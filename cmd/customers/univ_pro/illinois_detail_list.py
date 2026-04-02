@@ -24,13 +24,7 @@ SITES = [
         "list_url": "https://mechse.illinois.edu/people/faculty",
         "base_url": "https://mechse.illinois.edu",
         "output": "illinois_mechse_faculty.xlsx",
-    },
-    {
-        "name": "chbe",
-        "list_url": "https://chbe.illinois.edu/people/faculty",
-        "base_url": "https://chbe.illinois.edu",
-        "output": "illinois_chbe_faculty.xlsx",
-    },
+    }
 ]
 
 
@@ -86,6 +80,24 @@ def get_lab_name(root):
     return "\n".join(texts)
 
 
+def get_area(root):
+    area_boxes = root.find_elements(By.CSS_SELECTOR, ".extProfileAREA")
+    if not area_boxes:
+        return ""
+
+    li_list = area_boxes[0].find_elements(By.CSS_SELECTOR, "li")
+    if not li_list:
+        return ""
+
+    texts = []
+    for li in li_list:
+        text = (li.get_attribute("textContent") or "").strip()
+        if text:
+            texts.append(text)
+
+    return "\n".join(texts)
+
+
 def parse_profile(driver, profile_url):
     print(f"[상세] 접속: {profile_url}")
     driver.get(profile_url)
@@ -97,6 +109,7 @@ def parse_profile(driver, profile_url):
     row = {
         "Name": text_or_empty(root, ".roles h1"),
         "Role": text_or_empty(root, ".roles .role .title"),
+        "Area": get_area(root),
         "Phone": text_or_empty(root, ".roles .role .phone"),
         "Email": text_or_empty(root, ".roles .role .email"),
         "Office": text_or_empty(root, ".roles .role .office"),
@@ -113,13 +126,14 @@ def save_excel(rows, output_path):
     ws = wb.active
     ws.title = "data"
 
-    headers = ["Name", "Role", "Phone", "Email", "Office", "Lab Name", "Profile URL"]
+    headers = ["Name", "Role", "Area", "Phone", "Email", "Office", "Lab Name", "Profile URL"]
     ws.append(headers)
 
     for row in rows:
         ws.append([
             row.get("Name", ""),
             row.get("Role", ""),
+            row.get("Area", ""),
             row.get("Phone", ""),
             row.get("Email", ""),
             row.get("Office", ""),
