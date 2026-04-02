@@ -38,7 +38,7 @@ def text_or_empty(parent, selector):
     els = parent.find_elements(By.CSS_SELECTOR, selector)
     if not els:
         return ""
-    return els[0].get_attribute("textContent").strip()
+    return (els[0].get_attribute("textContent") or "").strip()
 
 
 def get_profile_urls(driver, list_url, base_url):
@@ -67,6 +67,25 @@ def get_profile_urls(driver, list_url, base_url):
     return urls
 
 
+def get_lab_name(root):
+    h2_list = root.find_elements(By.XPATH, './/h2[normalize-space()="For More Information"]')
+    if not h2_list:
+        return ""
+
+    h2 = h2_list[0]
+    li_list = h2.find_elements(By.XPATH, './following-sibling::ul[1]/li')
+    if not li_list:
+        return ""
+
+    texts = []
+    for li in li_list:
+        text = (li.get_attribute("textContent") or "").strip()
+        if text:
+            texts.append(text)
+
+    return "\n".join(texts)
+
+
 def parse_profile(driver, profile_url):
     print(f"[상세] 접속: {profile_url}")
     driver.get(profile_url)
@@ -81,6 +100,7 @@ def parse_profile(driver, profile_url):
         "Phone": text_or_empty(root, ".roles .role .phone"),
         "Email": text_or_empty(root, ".roles .role .email"),
         "Office": text_or_empty(root, ".roles .role .office"),
+        "Lab Name": get_lab_name(root),
         "Profile URL": profile_url,
     }
 
@@ -93,7 +113,7 @@ def save_excel(rows, output_path):
     ws = wb.active
     ws.title = "data"
 
-    headers = ["Name", "Role", "Phone", "Email", "Office", "Profile URL"]
+    headers = ["Name", "Role", "Phone", "Email", "Office", "Lab Name", "Profile URL"]
     ws.append(headers)
 
     for row in rows:
@@ -103,6 +123,7 @@ def save_excel(rows, output_path):
             row.get("Phone", ""),
             row.get("Email", ""),
             row.get("Office", ""),
+            row.get("Lab Name", ""),
             row.get("Profile URL", ""),
         ])
 
