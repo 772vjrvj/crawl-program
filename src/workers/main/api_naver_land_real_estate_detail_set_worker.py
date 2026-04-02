@@ -392,12 +392,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 if len(self.result_data_list) >= 20:
                     self._flush_result_data()
 
-                time.sleep(random.uniform(0.4, 0.9))
+                time.sleep(random.uniform(2.0, 2.3))
 
             if should_break_paging:
                 break
 
-            time.sleep(random.uniform(1, 1.5))
+            time.sleep(random.uniform(2, 2.5))
             page += 1
             if page > max_count:
                 break
@@ -489,7 +489,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
             self.driver.get(url)
             self._wait_ready_state_complete(7)
-            time.sleep(random.uniform(0.8, 1.5))
+            time.sleep(random.uniform(2.0, 2.5))
 
             html = self.driver.page_source or ""
             if not html:

@@ -60,7 +60,7 @@
     {
       "name": "영어컬럼",
       "code": "eng",
-      "value": true,
+      "value": false,
       "type": "check"
     }
   ],
