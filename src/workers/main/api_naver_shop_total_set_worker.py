@@ -436,7 +436,9 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             p.terminate()
 
     def handle_captcha_with_retry(self):
-        max_tries = 5
+        captcha_cnt = int(self.get_setting_value(self.setting, "cpcha_cnt") or 5)
+        max_tries = captcha_cnt
+
         for attempt in range(1, max_tries + 1):
             if not self.running:
                 return 0

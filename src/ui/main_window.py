@@ -2,12 +2,13 @@
 from __future__ import annotations  # === 신규 ===
 
 from datetime import datetime
+from pathlib import Path
 from queue import Queue
 from typing import Optional, Any, List, Tuple, Protocol, cast
 from src.utils.run_file_logger import RunFileLogger
 import keyring
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QCloseEvent
+from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QCloseEvent, QDesktopServices
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -38,6 +39,7 @@ from src.ui.popup.closing_pop import ClosingPop
 from src.ui.popup.user_info_pop import UserInfoPop
 from src.ui.style.style import create_common_button, main_style, LOG_STYLE, HEADER_TEXT_STYLE
 
+import sys
 
 # =========================================================
 # typing helpers (Protocol)
@@ -53,19 +55,22 @@ class StoppableThreadProto(Protocol):
 
 
 class ApiWorkerProto(StoppableThreadProto, Protocol):
-    def wait(self) -> None: ...
-    # 시그널은 런타임 객체라 타입을 강하게 못 박기 어렵습니다.
-    # 최소한 connect 가능하다는 전제로 Any 처리
+    def wait(self, msecs: int = 30000) -> bool: ...
     api_failure: Any
     log_signal: Any
 
 
 class ProgressWorkerProto(StoppableThreadProto, Protocol):
+    def quit(self) -> None: ...
+    def wait(self, msecs: int = 30000) -> bool: ...
     progress_signal: Any
     log_signal: Any
 
 
 class OnDemandWorkerProto(StoppableThreadProto, Protocol):
+    def quit(self) -> None: ...
+    def wait(self, msecs: int = 30000) -> bool: ...
+
     log_signal: Any
     show_countdown_signal: Any
     progress_signal: Any
@@ -128,6 +133,13 @@ class MainWindow(QWidget):
         self.site_setting_button: Optional[QWidget] = None
         self.region_setting_button: Optional[QWidget] = None
         self.excel_setting_button: Optional[QWidget] = None
+
+        self.bottom_left_button: Optional[QWidget] = None
+        self.bottom_center_wrap: Optional[QWidget] = None
+        self.bottom_logo_label: Optional[QLabel] = None
+        self.bottom_title_label: Optional[QLabel] = None
+        self.bottom_url_label: Optional[QLabel] = None
+        self.bottom_right_button: Optional[QWidget] = None
 
         self.progress_bar: Optional[QProgressBar] = None
         self.log_window: Optional[QPlainTextEdit] = None
@@ -222,7 +234,6 @@ class MainWindow(QWidget):
                 self.add_log("[오류] site가 비어있습니다.")
                 return
 
-            # site_configs에서 현재 site key config 찾기
             st = GlobalState()
 
             site_conf = (st.get("site_configs_by_key", {}) or {}).get(str(self.site))
@@ -249,7 +260,6 @@ class MainWindow(QWidget):
             if self.header_label is not None:
                 self.header_label.setText(f"{self.name}")
 
-            # 버튼/로그/진행바는 None 체크 후 접근
             if self.site_list_button is not None:
                 self.site_list_button.setStyleSheet(main_style(self.color))
             if self.log_reset_button is not None:
@@ -261,7 +271,11 @@ class MainWindow(QWidget):
             if self.log_out_button is not None:
                 self.log_out_button.setStyleSheet(main_style(self.color))
 
-            # 🔧 기존 오른쪽 버튼 싹 제거 후 다시 구성
+            if self.bottom_left_button is not None:
+                self.bottom_left_button.setStyleSheet(main_style(self.color))
+            if self.bottom_right_button is not None:
+                self.bottom_right_button.setStyleSheet(main_style(self.color))
+
             self._clear_right_buttons()
 
             if self.right_button_layout is None:
@@ -306,7 +320,6 @@ class MainWindow(QWidget):
             if w is not None:
                 w.setParent(None)
                 w.deleteLater()
-        # 참조 리셋
         self.setting_button = None
         self.column_setting_button = None
         self.site_setting_button = None
@@ -326,7 +339,6 @@ class MainWindow(QWidget):
 
     # 프로그램 일시 중지 (동일한 아이디로 로그인시)
     def handle_api_failure(self, error_message: str) -> None:
-        # UI 복구
         if self.collect_button is not None:
             self.collect_button.setStyleSheet(main_style(self.color))
             self.collect_button.repaint()
@@ -335,10 +347,8 @@ class MainWindow(QWidget):
             self.log_window.setStyleSheet(LOG_STYLE)
             self.log_window.repaint()
 
-        # ✅ 전환용 자원 정리
         self.cleanup_for_switch()
 
-        # 로그 + 메시지
         self.add_log(f"동시사용자 접속으로 프로그램을 종료하겠습니다... {error_message}")
         self.show_message(
             "동시 사용자 접속이 감지되었습니다.\n다시 로그인 해주세요.",
@@ -346,21 +356,17 @@ class MainWindow(QWidget):
             None
         )
 
-        # ✅ 1) 창 숨김
         self.hide()
 
-        # ✅ 2) 로그인 화면 전환 (이벤트 루프 한 틱 뒤 실행)
         QTimer.singleShot(0, self.app_manager.go_to_login)
 
-        # ✅ 3) MainWindow 객체 완전 제거
         QTimer.singleShot(0, self.deleteLater)
 
 
     # 레이아웃 설정
     def set_layout(self) -> None:
         self.setWindowTitle("메인 화면")
-
-        # 동그란 파란색 원을 그린 아이콘 생성
+    
         icon_pixmap = QPixmap(32, 32)
         icon_pixmap.fill(QColor("transparent"))
         painter = QPainter(icon_pixmap)
@@ -369,67 +375,64 @@ class MainWindow(QWidget):
         painter.drawRect(0, 0, 32, 32)
         painter.end()
         self.setWindowIcon(QIcon(icon_pixmap))
-
-        # 메인화면 설졍
+    
         self.setGeometry(100, 100, 1000, 700)
         self.setStyleSheet("QWidget{background:#fff;color:#111;} QLabel{color:#111;} QTextEdit{background:#fff;color:#111;}")
-
+    
         main_layout = QVBoxLayout()
-
+    
         header_layout = QHBoxLayout()
-
-        # 왼쪽 버튼들 레이아웃
+    
         self.left_button_layout = QHBoxLayout()
         self.left_button_layout.setAlignment(Qt.AlignLeft)
-
+    
         self.site_list_button = create_common_button("목록", self.go_site_list, self.color, 100)
         self.log_reset_button = create_common_button("로그리셋", self.log_reset, self.color, 100)
         self.collect_button = create_common_button("시작", self.start_on_demand_worker, self.color, 100)
         self.user_info_button = create_common_button("유저정보", self.open_user_info, self.color, 100)
         self.log_out_button = create_common_button("로그아웃", self.on_log_out, self.color, 100)
-
+    
         self.left_button_layout.addWidget(self.site_list_button)
         self.left_button_layout.addWidget(self.log_reset_button)
         self.left_button_layout.addWidget(self.collect_button)
         self.left_button_layout.addWidget(self.user_info_button)
         self.left_button_layout.addWidget(self.log_out_button)
-
-        # 오른쪽 버튼 레이아웃
+    
         self.right_button_layout = QHBoxLayout()
         self.right_button_layout.setAlignment(Qt.AlignRight)
-
+    
         if self.setting:
             self.setting_button = create_common_button("기본세팅", self.open_setting, self.color, 100)
             self.right_button_layout.addWidget(self.setting_button)
-
+    
         if self.setting_detail:
             self.detail_setting_button = create_common_button("상세세팅", self.open_detail_setting, self.color, 100)
             self.right_button_layout.addWidget(self.detail_setting_button)
-
+    
         if self.columns:
             self.column_setting_button = create_common_button("항목세팅", self.open_column_setting, self.color, 100)
             self.right_button_layout.addWidget(self.column_setting_button)
-
+    
         if self.sites:
             self.site_setting_button = create_common_button("사이트세팅", self.open_site_setting, self.color, 100)
             self.right_button_layout.addWidget(self.site_setting_button)
-
+    
         if self.region:
             self.region_setting_button = create_common_button("지역세팅", self.open_region_setting, self.color, 100)
             self.right_button_layout.addWidget(self.region_setting_button)
-
+    
         if self.popup:
             self.excel_setting_button = create_common_button("엑셀세팅", self.open_excel_setting, self.color, 100)
             self.right_button_layout.addWidget(self.excel_setting_button)
-
+    
         header_layout.addLayout(self.left_button_layout)
         header_layout.addStretch()
         header_layout.addLayout(self.right_button_layout)
-
+    
         self.header_label = QLabel(f"{self.name} 데이터 추출")
         self.header_label.setAlignment(Qt.AlignCenter)
         self.header_label.setStyleSheet(HEADER_TEXT_STYLE)
-
+    
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setRange(0, 1000000)
         self.progress_bar.setValue(0)
@@ -447,14 +450,14 @@ class MainWindow(QWidget):
                 margin: 0px;
             }
         """)
-
+    
         self.log_window = QPlainTextEdit(self)
-
+    
         self.log_window.setObjectName("log_window")
-
+    
         self.log_window.setReadOnly(True)
         self.log_window.document().setMaximumBlockCount(2000)
-
+    
         self.log_window.setStyleSheet(f"""
         QPlainTextEdit#log_window {{
             {LOG_STYLE}
@@ -484,18 +487,122 @@ class MainWindow(QWidget):
             height: 0px;
         }}
         """)
-
+    
         self.log_window.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.log_window.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.log_window.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-
+    
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setSpacing(12)
+    
+        self.bottom_left_button = create_common_button("개발자", self.open_developer_info, self.color, 100)
+    
+        self.bottom_center_wrap = QWidget()
+        self.bottom_center_wrap.setStyleSheet("""
+            QWidget {
+                background-color: #ffffff;
+                border: 1px solid #d9d9d9;
+                border-radius: 12px;
+            }
+            QLabel {
+                border: none;
+                background: transparent;
+                color: #111111;
+            }
+        """)
+    
+        bottom_center_layout = QHBoxLayout(self.bottom_center_wrap)
+        bottom_center_layout.setContentsMargins(18, 10, 18, 10)
+        bottom_center_layout.setSpacing(14)
+        bottom_center_layout.setAlignment(Qt.AlignCenter)
+    
+        self.bottom_logo_label = QLabel()
+        self.bottom_logo_label.setFixedSize(64, 64)
+        self.bottom_logo_label.setAlignment(Qt.AlignCenter)
+        self.set_bottom_logo()
+    
+        bottom_text_layout = QVBoxLayout()
+        bottom_text_layout.setSpacing(2)
+        bottom_text_layout.setAlignment(Qt.AlignCenter)
+    
+        self.bottom_title_label = QLabel("프로그램 개발 · 수정 문의")
+        self.bottom_title_label.setAlignment(Qt.AlignCenter)
+        self.bottom_title_label.setStyleSheet("""
+            font-size: 15px;
+            font-weight: 700;
+            color: #111111;
+        """)
+    
+        self.bottom_url_label = QLabel(
+            f'<a href="{server_url}" style="color:#1a73e8; text-decoration:none;">{server_url}</a>'
+        )
+        self.bottom_url_label.setAlignment(Qt.AlignCenter)
+        self.bottom_url_label.setOpenExternalLinks(True)
+        self.bottom_url_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.bottom_url_label.setStyleSheet("""
+            font-size: 14px;
+            font-weight: 500;
+            color: #1a73e8;
+        """)
+    
+        bottom_text_layout.addWidget(self.bottom_title_label, 0, Qt.AlignCenter)
+        bottom_text_layout.addWidget(self.bottom_url_label, 0, Qt.AlignCenter)
+    
+        bottom_center_layout.addStretch()
+        bottom_center_layout.addWidget(self.bottom_logo_label, 0, Qt.AlignCenter)
+        bottom_center_layout.addLayout(bottom_text_layout, 0)
+        bottom_center_layout.addStretch()
+    
+        self.bottom_right_button = create_common_button("제품 정보", self.open_product_info, self.color, 120)
+    
+        bottom_layout.addWidget(self.bottom_left_button, 0)
+        bottom_layout.addWidget(self.bottom_center_wrap, 1)
+        bottom_layout.addWidget(self.bottom_right_button, 0)
+    
         main_layout.addLayout(header_layout)
         main_layout.addWidget(self.header_label)
         main_layout.addWidget(self.progress_bar)
         main_layout.addWidget(self.log_window, stretch=2)
-
+        main_layout.addLayout(bottom_layout)
+    
         self.setLayout(main_layout)
         self.center_window()
+
+
+
+
+    def set_bottom_logo(self) -> None:
+        if self.bottom_logo_label is None:
+            return
+
+        base_path = Path(getattr(sys, "_MEIPASS", Path.cwd()))
+        logo_candidates = [
+            base_path / "resources" / "icons" / "crawling.ico",
+            Path.cwd() / "resources" / "icons" / "crawling.ico",
+            Path(sys.executable).resolve().parent / "resources" / "icons" / "crawling.ico",
+            Path(sys.executable).resolve().parent / "_internal" / "resources" / "icons" / "crawling.ico",
+            ]
+
+        logo_pixmap = QPixmap()
+
+        for logo_path in logo_candidates:
+            if logo_path.exists():
+                logo_pixmap = QPixmap(str(logo_path))
+                if not logo_pixmap.isNull():
+                    break
+
+        if not logo_pixmap.isNull():
+            scaled = logo_pixmap.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.bottom_logo_label.setPixmap(scaled)
+            self.bottom_logo_label.setText("")
+        else:
+            self.bottom_logo_label.setPixmap(QPixmap())
+            self.bottom_logo_label.setText("GB7")
+            self.bottom_logo_label.setStyleSheet("""
+                font-size: 22px;
+                font-weight: 800;
+                color: #111111;
+            """)
 
     # 로그
     def add_log(self, message: Any) -> None:
@@ -568,12 +675,10 @@ class MainWindow(QWidget):
     def stop(self, *, show_popup: bool = True, reason: Optional[str] = None) -> None:
         ok = self.cleanup_for_nav()
 
-        # 정리 성공했을 때만 UI 변경
         if ok and self.collect_button:
             self.collect_button.setText("시작")
             self.collect_button.repaint()
 
-        # 정리 실패면 로그만
         if not ok:
             self.add_log("⚠️ 정리 중입니다. 3초 후 다시 시도해주세요.")
 
@@ -600,7 +705,7 @@ class MainWindow(QWidget):
             self.progress_bar.setValue(value)
 
     # 화면 중앙
-    def center_window(self):
+    def center_window(self) -> None:
         if not self.screen():
             return
 
@@ -612,7 +717,6 @@ class MainWindow(QWidget):
 
     # 경고 alert창
     def show_message(self, message: str, type: str, event: Optional[Any]) -> None:
-        """메시지 박스를 띄우고 OK 버튼이 눌리면 event.set() 호출"""
         try:
             msg = QMessageBox(self)
             msg.setStyleSheet("QMessageBox{background:#fff;color:#111;} QLabel{color:#111;}")
@@ -625,7 +729,7 @@ class MainWindow(QWidget):
 
             msg.setText(message)
             msg.setStandardButtons(QMessageBox.Ok)
-            msg.exec()  # PySide6: exec_ -> exec
+            msg.exec()
 
             if event:
                 event.set()
@@ -646,10 +750,8 @@ class MainWindow(QWidget):
         except Exception:
             pass
 
-        # 전환용 자원 정리(워커/프로그래스)
         self.cleanup_for_nav()
 
-        # 파일 로그 닫기
         try:
             if self.file_logger is not None:
                 self.file_logger.close()
@@ -657,21 +759,17 @@ class MainWindow(QWidget):
             pass
         self.file_logger = None
 
-        # 다음 화면 전환은 이벤트루프 한 틱 뒤
         QTimer.singleShot(0, self.app_manager.go_to_select)
 
-        # 재 메인윈도우 객체 정리
         QTimer.singleShot(0, self.deleteLater)
 
     # 로그아웃
     def on_log_out(self) -> None:
-        # 0) 실행 중 작업/스레드 정리
         try:
             self.stop(show_popup=False)
         except Exception:
             pass
 
-        # 1) 로그인 체크 워커 중단
         try:
             if self.api_worker is not None:
                 self.api_worker.stop()
@@ -680,31 +778,26 @@ class MainWindow(QWidget):
         except Exception:
             pass
 
-        # 2) 자동 로그인 정보 삭제
         try:
             keyring.delete_password(server_name, "username")
             keyring.delete_password(server_name, "password")
         except Exception:
             pass
 
-        # 3) 세션 가져오기
         st = GlobalState()
         session = cast(Optional[Session], st.get("session"))
 
-        # ✅ 4) 화면 먼저 숨김 (close 금지)
         try:
             self.hide()
         except Exception:
             pass
 
-        # 세션이 없으면 바로 전환
         if session is None:
             self.cleanup_for_switch()
             QTimer.singleShot(0, self.app_manager.go_to_login)
             QTimer.singleShot(0, self.deleteLater)
             return
 
-        # 5) 서버 로그아웃 요청
         self.logout_worker = LogoutWorker(session)
         self.logout_worker.logout_success.connect(self._on_logout)
         self.logout_worker.logout_failed.connect(self._on_logout)
@@ -712,36 +805,40 @@ class MainWindow(QWidget):
 
 
     def _on_logout(self, msg: str) -> None:
-        # ✅ 전환용 자원 정리(워커/세션 등)
         self.cleanup_for_switch()
 
-        # ✅ 로그인 화면으로 전환
         self._switch_to_login()
 
 
     def _switch_to_login(self) -> None:
-        # 메인 -> 로그인 전환 공통 처리
         try:
             self.hide()
         except Exception:
             pass
 
-        # UI 전환 안정화
         QTimer.singleShot(0, self.app_manager.go_to_login)
 
-        # 메인윈도우 객체 정리
         QTimer.singleShot(0, self.deleteLater)
 
     def open_user_info(self) -> None:
         pop = UserInfoPop(self)
         pop.exec()
 
+    def open_developer_info(self) -> None:
+        self.show_message("개발자 정보 및 문의는 하단 사이트를 확인해주세요.", "info", None)
+
+    def open_product_info(self) -> None:
+        self.show_message("제품 정보 준비중입니다.", "info", None)
+
+    def open_my_site(self) -> None:
+        QDesktopServices.openUrl(QUrl(server_url))
+
     # 세팅 버튼
     def open_setting(self) -> None:
         if self.param_set_pop is None:
             self.param_set_pop = ParamSetPop(self)
             self.param_set_pop.log_signal.connect(self.add_log)
-        self.param_set_pop.exec()  # PySide6
+        self.param_set_pop.exec()
 
     def open_detail_setting(self) -> None:
         if self.detail_set_pop is None:
@@ -797,7 +894,7 @@ class MainWindow(QWidget):
         total = len(self.excel_data_list)
         self.add_log(f"엑셀 데이터 갯수 : {total}")
 
-        preview_count = min(10, total)   # 최대 10건만 미리보기
+        preview_count = min(10, total)
         for i, data in enumerate(excel_data_list[:preview_count], start=1):
             self.add_log(f"[미리보기 {i}/{preview_count}] {data}")
 
@@ -812,13 +909,11 @@ class MainWindow(QWidget):
     def cleanup_for_nav(self) -> bool:
         self.add_log("정리 중입니다. 최대 10초까지 소요될 수 있습니다. 잠시만 기다려주세요.")
 
-        # 1) on_demand_worker 정지
         try:
             if self.on_demand_worker is not None:
                 self.on_demand_worker.stop()
                 self.on_demand_worker.quit()
 
-                # QThread.wait(): True=종료됨, False=timeout
                 ok = self.on_demand_worker.wait(3000)
                 if not ok:
                     self.add_log("[경고] on_demand_worker가 아직 종료되지 않았습니다. (wait timeout)")
@@ -829,7 +924,6 @@ class MainWindow(QWidget):
             self.add_log(f"[오류] on_demand_worker 정리 실패: {e}")
             return False
 
-        # 2) progress_worker 정지
         try:
             if self.progress_worker is not None:
                 self.progress_worker.stop()
@@ -851,10 +945,9 @@ class MainWindow(QWidget):
 
 
     def cleanup_for_switch(self) -> None:
-        
+
         self.cleanup_for_nav()
 
-        # 3) 로그인 체크 워커 정지
         try:
             if self.api_worker is not None:
                 self.api_worker.stop()
@@ -863,7 +956,6 @@ class MainWindow(QWidget):
         except Exception:
             pass
 
-        # 4) 세션 정리
         try:
             if self.session is not None:
                 try:
@@ -877,7 +969,6 @@ class MainWindow(QWidget):
         except Exception:
             pass
 
-        # 5) LogoutWorker 정리 (여기에 추가)
         try:
             if self.logout_worker is not None:
                 self.logout_worker.quit()
@@ -897,26 +988,22 @@ class MainWindow(QWidget):
 
 
     def closeEvent(self, event: QCloseEvent) -> None:
-        # 우리가 강제 종료를 요청한 경우엔 닫힘 허용
         if self._force_close:
             event.accept()
             return
 
-        # 이미 종료 시퀀스 들어갔으면 중복 방지
         if self._closing:
             event.ignore()
             return
 
         self._closing = True
-        event.ignore()  # ✅ 일단 종료 막고, 정리 끝나면 우리가 종료시킴
+        event.ignore()
 
-        # 1) 종료 팝업 표시
         self._closing_pop = ClosingPop(self)
         self._closing_pop.show()
 
         QTimer.singleShot(self._close_timeout_ms, self._force_quit)
 
-        # 2) 정리 워커 시작 (UI 멈춤 방지)
         self._cleanup_worker = CleanupWorker(
             api_worker=self.api_worker,
             on_demand_worker=self.on_demand_worker,
@@ -928,7 +1015,6 @@ class MainWindow(QWidget):
 
     def _on_cleanup_done(self, ok: bool, msg: str) -> None:
         try:
-            # 내부 참조도 정리
             self.api_worker = None
             self.on_demand_worker = None
             self.progress_worker = None
@@ -941,37 +1027,33 @@ class MainWindow(QWidget):
             QTimer.singleShot(2000, self._force_quit)
         except Exception:
             QTimer.singleShot(2000, self._force_quit)
-    
-    
+
+
     def _force_quit(self) -> None:
-        # 이미 종료 진행 중인데 또 호출되는 케이스 방지(타임아웃/정상완료 둘 다 호출될 수 있음)
         if self._force_close:
             return
-    
-        self._force_close = True  # 이제부터는 close를 허용
-    
-        # 파일 로그 닫기
+
+        self._force_close = True
+
         try:
             if self.file_logger is not None:
                 self.file_logger.close()
         except Exception:
             pass
         self.file_logger = None
-    
+
         try:
             if self._closing_pop is not None:
                 self._closing_pop.close()
                 self._closing_pop = None
         except Exception:
             pass
-    
-        # 1) 윈도우 먼저 닫기 시도 (closeEvent가 accept로 통과됨)
+
         try:
             self.close()
         except Exception:
             pass
-    
-        # 2) 앱 종료
+
         try:
             app = QApplication.instance()
             if app is not None:

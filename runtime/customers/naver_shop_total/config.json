@@ -34,6 +34,12 @@
       "type": "input"
     },
     {
+      "name": "캡챠 재시도 횟수",
+      "code": "cpcha_cnt",
+      "value": 10,
+      "type": "input"
+    },
+    {
       "name": "저장 폴더",
       "code": "folder_path",
       "value": "E:\\git\\crawl-program",
