@@ -1,0 +1,129 @@
+{
+  "filter": {
+    "tradeTypes": [
+      "B2",
+      "B1",
+      "A1",
+      "B3"
+    ],
+    "realEstateTypes": [
+      "D01",
+      "E04",
+      "D03",
+      "D04",
+      "E01",
+      "Z00",
+      "D02",
+      "A01",
+      "A04",
+      "A02",
+      "B02",
+      "B01",
+      "A05",
+      "A06",
+      "A07",
+      "C02",
+      "C01",
+      "C03",
+      "C04",
+      "F01",
+      "D05",
+      "E03",
+      "E02"
+    ],
+    "roomCount": [
+      "RCF04",
+      "RCF03",
+      "RCF02",
+      "RCF01"
+    ],
+    "bathRoomCount": [
+      "RCF01",
+      "RCF02",
+      "RCF04",
+      "RCF03"
+    ],
+    "optionTypes": [
+      "OPF08"
+    ],
+    "oneRoomShapeTypes": [
+      "20"
+    ],
+    "loanRatioType": "10",
+    "moveInTypes": [
+      "MVF02",
+      "MVF01"
+    ],
+    "dealPrice": {
+      "min": 790000000,
+      "max": 3240000000
+    },
+    "warrantyPrice": {
+      "min": 330000000,
+      "max": 2090000000
+    },
+    "rentPrice": {
+      "min": 750000,
+      "max": 4250000
+    },
+    "space": {
+      "min": 16.529,
+      "max": 142.1494
+    },
+    "filtersExclusiveSpace": true,
+    "approvalElapsedYear": {
+      "min": 5,
+      "max": 20
+    },
+    "floorTypes": [
+      "FLF05",
+      "FLF01",
+      "FLF02",
+      "FLF03",
+      "FLF04"
+    ],
+    "directionTypes": [
+      "EN",
+      "ES",
+      "WN",
+      "WS",
+      "NN",
+      "SS",
+      "WW",
+      "EE"
+    ],
+    "hasArticlePhoto": true,
+    "isAuthorizedByOwner": true,
+    "managementFee": {
+      "min": 120000,
+      "max": 550000
+    },
+    "householdNumber": {
+      "min": 500,
+      "max":2500
+    },
+    "parkingTypes": [
+      "PKF01"
+    ],
+    "entranceTypes": [
+      "10"
+    ],
+    "hasArticle": true,
+    "walkingMinuteToSubwayStation": {
+      "min": 0,
+      "max": 20
+    },
+    "legalDivisionNumbers": [
+      "2817710200"
+    ],
+    "legalDivisionType": "EUP"
+  },
+  "boundingBox": {
+    "left": 126.61226980103999,
+    "right": 126.66536957190863,
+    "top": 37.460701346785,
+    "bottom": 37.44073453877036
+  },
+  "precision": 14.588090556425138,
+  "userChannelType": "PC"
+}
