@@ -15,6 +15,7 @@ class Site:
     # 지금 네 UI 흐름상 setting/columns는 "그대로 들고 다니기"만 하면 됨
     setting: Any = None
     setting_detail: Any = None
+    setting_detail_all_style: Any = None
     columns: Any = None
     region: Any = None
 
@@ -34,6 +35,7 @@ class Site:
             enabled=bool(d.get("enabled", True)),
             setting=d.get("setting"),
             setting_detail=d.get("setting_detail"),
+            setting_detail_all_style=d.get("setting_detail_all_style"),
             columns=d.get("columns"),
             region=d.get("region"),
             popup=bool(d.get("popup", False)),

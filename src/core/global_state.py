@@ -11,6 +11,7 @@ class GlobalState:
     SESSION: ClassVar[str] = "session"
     SETTING: ClassVar[str] = "setting"
     SETTING_DETAIL: ClassVar[str] = "setting_detail"
+    SETTING_DETAIL_ALL_STYLE: ClassVar[str] = "setting_detail_all_style"
     COLUMNS: ClassVar[str] = "columns"
     REGION: ClassVar[str] = "region"
     POPUP: ClassVar[str] = "popup"
@@ -47,6 +48,7 @@ class GlobalState:
                 self.SESSION: None,
                 self.SETTING: None,
                 self.SETTING_DETAIL: None,
+                self.SETTING_DETAIL_ALL_STYLE: None,
                 self.COLUMNS: None,
                 self.REGION: None,
                 self.POPUP: False,

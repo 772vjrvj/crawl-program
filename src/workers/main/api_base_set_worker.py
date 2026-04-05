@@ -47,7 +47,6 @@ class ApiBaseExcelSetWorker(BaseApiWorker):
     # 프로그램 실행
     def main(self) -> bool:
         try:
-
             self.log_signal_func(" main 시작")
             # 저장경로
             self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
@@ -60,8 +59,6 @@ class ApiBaseExcelSetWorker(BaseApiWorker):
                 folder_path=self.folder_path,
                 sub_dir=self.out_dir
             )
-
-
             self.log_signal_func("✅ main 종료")
         except Exception as e:
             self.log_signal_func(f"크롤링 에러: {e}")
@@ -71,11 +68,9 @@ class ApiBaseExcelSetWorker(BaseApiWorker):
 
     # 드라이버 세팅
     def driver_set(self) -> None:
-
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
-
         self.selenium_driver = SeleniumUtils(
             headless=False,
             debug=True,
@@ -83,30 +78,24 @@ class ApiBaseExcelSetWorker(BaseApiWorker):
         )
         self.driver = self.selenium_driver.start_driver(1200)
 
-        self.log_signal_func("✅ stop 완료")
 
     # 정지
     def cleanup(self) -> None:
-        # 1) selenium 종료 (driver -> selenium_driver 순서 권장)
         try:
             if self.driver:
-                try:
-                    self.driver.quit()
-                except Exception:
-                    pass
+                self.driver.quit()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] driver.quit 실패: {e}")
         finally:
-            self.driver = None  # 여기서 끊어줘야 이후 로직이 안정적
+            self.driver = None
 
         try:
             if self.selenium_driver:
-                try:
-                    self.selenium_driver.quit()
-                except Exception:
-                    pass
+                self.selenium_driver.quit()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] selenium_driver.quit 실패: {e}")
         finally:
             self.selenium_driver = None
-
-        # 2) api/file/excel (각각 독립적으로 닫기)
 
         try:
             if self.file_driver:

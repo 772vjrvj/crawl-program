@@ -5,6 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from queue import Queue
 from typing import Optional, Any, List, Tuple, Protocol, cast
+
+from src.ui.popup.detail_all_style_set_pop import DetailAllStyleSetPop
 from src.utils.run_file_logger import RunFileLogger
 import keyring
 from PySide6.QtCore import Qt, QTimer, QUrl
@@ -81,6 +83,7 @@ class OnDemandWorkerProto(StoppableThreadProto, Protocol):
 
     def set_setting(self, setting: Any) -> None: ...
     def set_setting_detail(self, setting_detail: Any) -> None: ...
+    def set_setting_detail_all_style(self, set_setting_detail_all_style: Any) -> None: ...
     def set_columns(self, columns: Any) -> None: ...
     def set_sites(self, sites: Any) -> None: ...
     def set_region(self, regions: List[Any]) -> None: ...
@@ -98,6 +101,7 @@ class MainWindow(QWidget):
         super().__init__()
 
         # 상태값
+
         self.user: Optional[Any] = None
         self.excel_data_list: Optional[List[Any]] = None
 
@@ -109,6 +113,7 @@ class MainWindow(QWidget):
         self.popup: Optional[Any] = None
         self.setting: Optional[Any] = None
         self.setting_detail: Optional[Any] = None
+        self.setting_detail_all_style: Optional[Any] = None
 
         self.name: Optional[str] = None
         self.site: Optional[str] = None
@@ -129,6 +134,7 @@ class MainWindow(QWidget):
 
         self.setting_button: Optional[QWidget] = None
         self.detail_setting_button: Optional[QWidget] = None
+        self.detail_all_style_setting_button = None
         self.column_setting_button: Optional[QWidget] = None
         self.site_setting_button: Optional[QWidget] = None
         self.region_setting_button: Optional[QWidget] = None
@@ -152,6 +158,7 @@ class MainWindow(QWidget):
         self.param_set_pop: Optional[ParamSetPop] = None
         self.excel_set_pop: Optional[ExcelSetPop] = None
         self.detail_set_pop: Optional[DetailSetPop] = None
+        self.detail_all_style_set_pop = None
 
         # 워커/큐
         self.task_queue: Optional[Queue[Tuple[int, int]]] = None
@@ -196,7 +203,8 @@ class MainWindow(QWidget):
         self.sites = state.get("sites")
         self.region = state.get("region")
         self.popup = state.get("popup")
-        self.setting_detail = state.get("setting_detail")   # === 신규 ===
+        self.setting_detail = state.get("setting_detail")
+        self.setting_detail_all_style = state.get("setting_detail_all_style")
 
     # 재 초기화
     def init_reset(self) -> None:
@@ -288,6 +296,10 @@ class MainWindow(QWidget):
             if self.setting_detail:
                 self.detail_setting_button = create_common_button("상세세팅", self.open_detail_setting, self.color, 100)
                 self.right_button_layout.addWidget(self.detail_setting_button)
+
+            if self.setting_detail_all_style:
+                self.detail_all_style_setting_button = create_common_button("상세세팅", self.open_detail_all_style_setting, self.color, 100)
+                self.right_button_layout.addWidget(self.detail_all_style_setting_button)
 
             if self.columns:
                 self.column_setting_button = create_common_button("항목세팅", self.open_column_setting, self.color, 100)
@@ -408,7 +420,11 @@ class MainWindow(QWidget):
         if self.setting_detail:
             self.detail_setting_button = create_common_button("상세세팅", self.open_detail_setting, self.color, 100)
             self.right_button_layout.addWidget(self.detail_setting_button)
-    
+
+        if self.setting_detail_all_style:
+            self.detail_all_style_setting_button = create_common_button("상세세팅", self.open_detail_all_style_setting, self.color, 100)
+            self.right_button_layout.addWidget(self.detail_all_style_setting_button)
+
         if self.columns:
             self.column_setting_button = create_common_button("항목세팅", self.open_column_setting, self.color, 100)
             self.right_button_layout.addWidget(self.column_setting_button)
@@ -647,7 +663,10 @@ class MainWindow(QWidget):
                 self.on_demand_worker.set_setting(self.setting)
 
             if self.setting_detail:
-                self.on_demand_worker.set_setting_detail(self.setting_detail)  # === 신규 ===
+                self.on_demand_worker.set_setting_detail(self.setting_detail)
+
+            if self.setting_detail_all_style:
+                self.on_demand_worker.set_setting_detail(self.setting_detail_all_style)
 
             if self.columns:
                 self.on_demand_worker.set_columns(self.columns)
@@ -843,8 +862,14 @@ class MainWindow(QWidget):
     def open_detail_setting(self) -> None:
         if self.detail_set_pop is None:
             self.detail_set_pop = DetailSetPop(self)
-            self.detail_set_pop.log_signal.connect(self.add_log)
         self.detail_set_pop.exec()
+
+
+    def open_detail_all_style_setting(self) -> None:
+        if self.detail_all_style_set_pop is None:
+            self.detail_all_style_set_pop = DetailAllStyleSetPop(self)
+        self.detail_all_style_set_pop.exec()
+
 
     def open_column_setting(self) -> None:
         try:

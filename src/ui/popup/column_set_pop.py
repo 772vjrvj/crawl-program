@@ -293,7 +293,7 @@ class ColumnSetPop(QDialog):
             if checkbox is not None:
                 col["checked"] = checkbox.isChecked()
 
-        # runtime config.json columns.checked 동기화
+        # runtime config_old.json columns.checked 동기화
         self._save_columns_to_runtime_config(cols)
 
         self.accept()

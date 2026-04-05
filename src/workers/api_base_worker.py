@@ -23,6 +23,7 @@ class BaseApiWorker(QThread):
         super().__init__()
 
         self.setting_detail: Optional[Any] = None
+        self.setting_detail_all_style: Optional[Any] = None
         self.user: Optional[Any] = None
         self.excel_data_list: Optional[Any] = None
         self.region: Optional[Any] = None
@@ -103,6 +104,9 @@ class BaseApiWorker(QThread):
 
     def set_setting_detail(self, setting_detail: Any) -> None:
         self.setting_detail = setting_detail
+
+    def set_setting_detail_all_style(self, setting_detail_all_style: Any) -> None:
+        self.setting_detail_all_style = setting_detail_all_style
 
     def set_excel_data_list(self, excel_data_list: Any) -> None:
         self.excel_data_list = excel_data_list

@@ -152,7 +152,7 @@ class ParamSetPop(QDialog):
             }
         """
 
-    # === 신규 === 현재 site의 config.json 경로 해석
+    # === 신규 === 현재 site의 config_old.json 경로 해석
     def _resolve_site_config_path(self) -> Optional[str]:
         try:
             state = GlobalState()
@@ -217,14 +217,14 @@ class ParamSetPop(QDialog):
                 return
 
             if not os.path.exists(config_path):
-                self._emit_log(f"[설정저장] config.json 파일이 없습니다: {config_path}")
+                self._emit_log(f"[설정저장] config_old.json 파일이 없습니다: {config_path}")
                 return
 
             try:
                 with open(config_path, "r", encoding="utf-8") as f:
                     config_data = json.load(f)
             except Exception as e:
-                self._emit_log(f"[설정저장] config.json 읽기 실패: {str(e)}")
+                self._emit_log(f"[설정저장] config_old.json 읽기 실패: {str(e)}")
                 return
 
             config_setting = config_data.get("setting") or []
@@ -265,7 +265,7 @@ class ParamSetPop(QDialog):
                     json.dump(config_data, f, ensure_ascii=False, indent=2)
                     f.write("\n")
             except Exception as e:
-                self._emit_log(f"[설정저장] config.json 저장 실패: {str(e)}")
+                self._emit_log(f"[설정저장] config_old.json 저장 실패: {str(e)}")
                 return
 
             self._emit_log(

@@ -1,0 +1,508 @@
+{
+  "label": "네이버 부동산 전국 공인중개사 번호",
+  "key": "NAVER_LAND_REAL_ESTATE_DETAIL",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": false,
+  "region": true,
+  "worker_class": "src.workers.main.api_naver_land_real_estate_detail_set_worker:ApiNaverLandRealEstateDetailSetWorker",
+  "setting": [
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "E:\\git\\crawl-program",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    },
+    {
+      "name": "등록일(YYYYMMDD) 시작",
+      "code": "fr_date",
+      "value": 20260323,
+      "type": "input"
+    },
+    {
+      "name": "등록일(YYYYMMDD) 종료",
+      "code": "to_date",
+      "value": 20260402,
+      "type": "input"
+    },
+    {
+      "name": "정렬방식",
+      "code": "sort",
+      "value": "최신순",
+      "type": "select",
+      "options": [
+        {
+          "key": "랭킹순",
+          "value": "랭킹순"
+        },
+        {
+          "key": "높은가격순",
+          "value": "높은가격순"
+        },
+        {
+          "key": "낮은가격순",
+          "value": "낮은가격순"
+        },
+        {
+          "key": "최신순",
+          "value": "최신순"
+        },
+        {
+          "key": "면적순",
+          "value": "면적순"
+        }
+      ]
+    },
+    {
+      "name": "영어컬럼",
+      "code": "eng",
+      "value": false,
+      "type": "check"
+    }
+  ],
+  "setting_detail": [
+    {
+      "row_type": "section",
+      "id": "rlet_types",
+      "title": "매물유형",
+      "col_per_row": 5
+    },
+    {
+      "row_type": "section",
+      "id": "trade_types",
+      "title": "거래유형",
+      "col_per_row": 5
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "A01",
+      "value": "아파트",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "A02",
+      "value": "오피스텔",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "C02",
+      "value": "빌라",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "A06",
+      "value": "다세대/연립",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "B01",
+      "value": "아파트 분양권",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "B02",
+      "value": "오피스텔분양권",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "A04",
+      "value": "재건축",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "C04",
+      "value": "전원주택",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "C03",
+      "value": "단독/다가구",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "D05",
+      "value": "상가주택",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "C06",
+      "value": "한옥주택",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "F01",
+      "value": "재개발",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "C01",
+      "value": "원룸",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "D02",
+      "value": "상가",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "D01",
+      "value": "사무실",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "E02",
+      "value": "공장/창고",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "D03",
+      "value": "건물",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "E03",
+      "value": "토지",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "E04",
+      "value": "지식산업센터",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "D04",
+      "value": "상가건물",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "rlet_types",
+      "code": "Z00",
+      "value": "기타",
+      "checked": true,
+      "type": "rlet_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "trade_types",
+      "code": "A1",
+      "value": "매매",
+      "checked": true,
+      "type": "trade_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "trade_types",
+      "code": "B1",
+      "value": "전세",
+      "checked": true,
+      "type": "trade_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "trade_types",
+      "code": "B2",
+      "value": "월세",
+      "checked": true,
+      "type": "trade_types"
+    },
+    {
+      "row_type": "item",
+      "parent_id": "trade_types",
+      "code": "B3",
+      "value": "단기임대",
+      "checked": true,
+      "type": "trade_types"
+    }
+  ],
+  "columns": [
+    {
+      "code": "article_number",
+      "value": "게시번호",
+      "checked": true
+    },
+    {
+      "code": "complexName",
+      "value": "단지명",
+      "checked": true
+    },
+    {
+      "code": "dongName",
+      "value": "동이름",
+      "checked": true
+    },
+    {
+      "code": "price",
+      "value": "매매가",
+      "checked": true
+    },
+    {
+      "code": "warrantyAmount",
+      "value": "보증금",
+      "checked": true
+    },
+    {
+      "code": "rentAmount",
+      "value": "월세",
+      "checked": true
+    },
+    {
+      "code": "supplySpace",
+      "value": "공급면적",
+      "checked": true
+    },
+    {
+      "code": "pyeongArea",
+      "value": "평수",
+      "checked": true
+    },
+    {
+      "code": "landSpace",
+      "value": "대지면적",
+      "checked": true
+    },
+    {
+      "code": "floorSpace",
+      "value": "연면적",
+      "checked": true
+    },
+    {
+      "code": "buildingSpace",
+      "value": "건축면적",
+      "checked": true
+    },
+    {
+      "code": "exclusiveSpace",
+      "value": "전용면적",
+      "checked": true
+    },
+    {
+      "code": "articleFeatureDescription",
+      "value": "매물특징",
+      "checked": true
+    },
+    {
+      "code": "exposureStartDate",
+      "value": "매물확인일",
+      "checked": true
+    },
+    {
+      "code": "buildingPrincipalUse",
+      "value": "건축물용도",
+      "checked": true
+    },
+    {
+      "code": "floorText",
+      "value": "층정보",
+      "checked": true
+    },
+    {
+      "code": "city",
+      "value": "시도",
+      "checked": true
+    },
+    {
+      "code": "division",
+      "value": "시군구",
+      "checked": true
+    },
+    {
+      "code": "sector",
+      "value": "읍면동",
+      "checked": true
+    },
+    {
+      "code": "jibun",
+      "value": "번지",
+      "checked": true
+    },
+    {
+      "code": "roadName",
+      "value": "도로명주소",
+      "checked": true
+    },
+    {
+      "code": "zipCode",
+      "value": "우편번호",
+      "checked": true
+    },
+    {
+      "code": "full_addr",
+      "value": "전체주소",
+      "checked": true
+    },
+    {
+      "code": "brokerage_name",
+      "value": "중개사무소이름",
+      "checked": true
+    },
+    {
+      "code": "broker_name",
+      "value": "중개사이름",
+      "checked": true
+    },
+    {
+      "code": "broker_address",
+      "value": "중개사무소주소",
+      "checked": true
+    },
+    {
+      "code": "phone_brokerage",
+      "value": "중개사무소번호",
+      "checked": true
+    },
+    {
+      "code": "phone_mobile",
+      "value": "중개사핸드폰번호",
+      "checked": true
+    },
+    {
+      "code": "url",
+      "value": "URL",
+      "checked": true
+    },
+    {
+      "code": "atclNm",
+      "value": "상위매물명",
+      "checked": true
+    },
+    {
+      "code": "bildNm",
+      "value": "상위매물동",
+      "checked": true
+    },
+    {
+      "code": "atclNo",
+      "value": "상위매물게시번호",
+      "checked": true
+    },
+    {
+      "code": "rletType",
+      "value": "매물유형",
+      "checked": true
+    },
+    {
+      "code": "tradeType",
+      "value": "거래유형",
+      "checked": true
+    },
+    {
+      "code": "tagList",
+      "value": "매물태그",
+      "checked": true
+    },
+    {
+      "code": "atclCfmYmd",
+      "value": "등록일자",
+      "checked": true
+    },
+    {
+      "code": "lat",
+      "value": "위도",
+      "checked": true
+    },
+    {
+      "code": "lng",
+      "value": "경도",
+      "checked": true
+    },
+    {
+      "code": "direction",
+      "value": "방향정보",
+      "checked": true
+    },
+    {
+      "code": "sameAddrCnt",
+      "value": "동일주소매물수",
+      "checked": true
+    },
+    {
+      "code": "sameAddrMinPrc",
+      "value": "동일주소최소가",
+      "checked": true
+    },
+    {
+      "code": "sameAddrMaxPrc",
+      "value": "동일주소최대가",
+      "checked": true
+    },
+    {
+      "code": "parts",
+      "value": "검색 주소",
+      "checked": true
+    },
+    {
+      "code": "search_rletType",
+      "value": "검색 매물유형",
+      "checked": true
+    },
+    {
+      "code": "search_tradeType",
+      "value": "검색 거래유형",
+      "checked": true
+    }
+  ]
+}

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -32,7 +32,6 @@ class _DetailRow(TypedDict, total=False):
 
 
 class DetailSetPop(QDialog):
-    log_signal: Signal = Signal(str)
 
     def __init__(self, parent: Optional[QWidget] = None, title: str = "상세세팅") -> None:
         super().__init__(parent)
