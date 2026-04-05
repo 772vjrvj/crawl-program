@@ -37,7 +37,7 @@ class DetailAllStyleSetPop(QDialog):
         self.setting_attr_name: str = setting_attr_name
 
         self.setWindowTitle(title)
-        self.resize(840, 760)
+        self.resize(560, 760)
         self.setStyleSheet("background-color: white; color: #111;")
 
         self.setting_data: List[Dict[str, Any]] = self._load_setting_data()
@@ -143,7 +143,42 @@ class DetailAllStyleSetPop(QDialog):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("background: transparent;")
+        scroll.setStyleSheet("""
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+        
+            QScrollBar:vertical {
+                width: 8px;
+                background: transparent;
+            }
+            QScrollBar:horizontal {
+                height: 8px;
+                background: transparent;
+            }
+        
+            QScrollBar::handle:vertical {
+                min-height: 20px;
+                background: rgba(120, 120, 120, 160);
+                border-radius: 4px;
+            }
+            QScrollBar::handle:horizontal {
+                min-width: 20px;
+                background: rgba(120, 120, 120, 160);
+                border-radius: 4px;
+            }
+        
+            QScrollBar::add-line,
+            QScrollBar::sub-line,
+            QScrollBar::add-page,
+            QScrollBar::sub-page {
+                border: none;
+                background: transparent;
+                width: 0px;
+                height: 0px;
+            }
+        """)
 
         body = QWidget()
         body_layout = QVBoxLayout(body)

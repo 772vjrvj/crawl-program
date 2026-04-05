@@ -320,7 +320,39 @@ class RegionSetPop(QDialog):
             QTreeView::indicator:checked {
                 background-color: black;
             }
+    
+            QScrollBar:vertical {
+                width: 8px;
+                background: transparent;
+            }
+            QScrollBar:horizontal {
+                height: 8px;
+                background: transparent;
+            }
+    
+            QScrollBar::handle:vertical {
+                min-height: 20px;
+                background: rgba(120, 120, 120, 160);
+                border-radius: 4px;
+            }
+            QScrollBar::handle:horizontal {
+                min-width: 20px;
+                background: rgba(120, 120, 120, 160);
+                border-radius: 4px;
+            }
+    
+            QScrollBar::add-line,
+            QScrollBar::sub-line,
+            QScrollBar::add-page,
+            QScrollBar::sub-page {
+                border: none;
+                background: transparent;
+                width: 0px;
+                height: 0px;
+            }
         """
+
+
 
     def checkbox_style(self) -> str:
         return """

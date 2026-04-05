@@ -32,7 +32,7 @@
     {
       "name": "정렬방식",
       "code": "articleSortType",
-      "value": "최신순",
+      "value": "",
       "type": "select",
       "options": [
         {

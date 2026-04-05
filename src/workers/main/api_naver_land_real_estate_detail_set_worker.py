@@ -121,7 +121,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 sub_dir=self.out_dir
             )
 
-            self.log_signal_func(f"region {self.region}")
+            self.log_signal_func(f"region : {self.region}")
+            self.log_signal_func(f"setting_detail_all_style : {self.setting_detail_all_style}")
+            self.log_signal_func(f"setting : {self.setting}")
+            self.log_signal_func(f"columns : {self.columns}")
 
 
 
