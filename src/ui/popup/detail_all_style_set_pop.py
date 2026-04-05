@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import json  # === 신규 ===
+import os  # === 신규 ===
 from typing import Any, Dict, List, Optional
 
 from PySide6.QtCore import Qt, Slot
@@ -18,6 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.core.global_state import GlobalState  # === 신규 ===
 from src.ui.style.style import create_common_button
 
 
@@ -50,6 +53,81 @@ class DetailAllStyleSetPop(QDialog):
         if isinstance(rows_any, list):
             return copy.deepcopy(rows_any)
         return []
+
+    # === 신규 === ColumnSetPop 방식 그대로 가져옴
+    def _resolve_site_config_path(self) -> Optional[str]:
+        try:
+            state = GlobalState()
+            app_config = state.get(GlobalState.APP_CONFIG) or {}
+            site = str(state.get(GlobalState.SITE) or "").strip()
+            runtime_dir = str(app_config.get("runtime_dir") or "").strip()
+
+            if not runtime_dir:
+                return None
+
+            if not site:
+                return None
+
+            app_json_path = os.path.join(runtime_dir, "app.json")
+            if not os.path.exists(app_json_path):
+                return None
+
+            try:
+                with open(app_json_path, "r", encoding="utf-8") as f:
+                    app_json = json.load(f)
+            except Exception:
+                return None
+
+            site_list = app_json.get("site_list") or []
+            if not isinstance(site_list, list):
+                return None
+
+            config_rel_path = ""
+            for site_item in site_list:
+                if not isinstance(site_item, dict):
+                    continue
+
+                key = str(site_item.get("key") or "").strip()
+                if key == site:
+                    config_rel_path = str(site_item.get("config_path") or "").strip()
+                    break
+
+            if not config_rel_path:
+                return None
+
+            config_path = os.path.join(runtime_dir, *config_rel_path.split("/"))
+            return os.path.normpath(config_path)
+
+        except Exception:
+            return None
+
+    # === 신규 === setting_detail_all_style 통째로 저장
+    def _save_setting_data_to_runtime_config(self) -> None:
+        try:
+            config_path = self._resolve_site_config_path()
+            if not config_path:
+                return
+
+            if not os.path.exists(config_path):
+                return
+
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config_data = json.load(f)
+            except Exception:
+                return
+
+            config_data[self.setting_attr_name] = copy.deepcopy(self.setting_data)
+
+            try:
+                with open(config_path, "w", encoding="utf-8") as f:
+                    json.dump(config_data, f, ensure_ascii=False, indent=2)
+                    f.write("\n")
+            except Exception:
+                return
+
+        except Exception:
+            return
 
     def init_ui(self) -> None:
         root_layout = QVBoxLayout(self)
@@ -434,6 +512,8 @@ class DetailAllStyleSetPop(QDialog):
 
         if self._parent is not None:
             setattr(self._parent, self.setting_attr_name, self.setting_data)
+
+        self._save_setting_data_to_runtime_config()  # === 신규 ===
 
         self.accept()
 

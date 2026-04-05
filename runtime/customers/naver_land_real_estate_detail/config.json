@@ -78,27 +78,29 @@
           "name": "매매",
           "code": "A1",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "전세",
           "code": "B1",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "월세",
           "code": "B2",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "단기임대",
           "code": "B3",
           "type": "checkbox",
-          "value": false
+          "value": true
         }
-      ]
+      ],
+      "parent_id": "checkbox_multi_group",
+      "checked": true
     },
     {
       "name": "",
@@ -109,19 +111,19 @@
           "name": "아파트",
           "code": "A01",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "재건축",
           "code": "A04",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "오피스텔",
           "code": "A02",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "빌라",
@@ -133,7 +135,7 @@
           "name": "아파트 분양권",
           "code": "B01",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "오피스텔 분양권",
@@ -145,13 +147,13 @@
           "name": "원룸",
           "code": "C01",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "단독/다가구",
           "code": "C03",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "전원주택",
@@ -163,7 +165,7 @@
           "name": "상가주택",
           "code": "D05",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "재개발",
@@ -180,7 +182,7 @@
               "name": "상가",
               "code": "D02",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "토지",
@@ -198,7 +200,7 @@
               "name": "건물",
               "code": "D03-D04-E01-Z00",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "공장/창고",
@@ -214,14 +216,16 @@
             }
           ]
         }
-      ]
+      ],
+      "parent_id": "checkbox_multi_group",
+      "checked": true
     },
     {
       "name": "가격",
       "type": "title",
       "children": [
         {
-          "name": "매매가",
+          "name": "매매가(단위 만원)",
           "code": "dealPrice",
           "type": "two_input",
           "items": [
@@ -229,18 +233,18 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": ""
+              "value": "11"
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": ""
+              "value": "22"
             }
           ]
         },
         {
-          "name": "보증금",
+          "name": "보증금(단위 만원)",
           "code": "warrantyPrice",
           "type": "two_input",
           "items": [
@@ -248,24 +252,26 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": ""
+              "value": "33"
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": ""
+              "value": "44"
             }
           ]
         }
-      ]
+      ],
+      "parent_id": "title",
+      "checked": true
     },
     {
       "name": "면적",
       "type": "title",
       "children": [
         {
-          "name": "평",
+          "name": "평(㎡)",
           "code": "space",
           "type": "two_input",
           "items": [
@@ -273,13 +279,13 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": ""
+              "value": "55"
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": ""
+              "value": "66"
             }
           ]
         },
@@ -289,7 +295,9 @@
           "type": "checkbox",
           "value": false
         }
-      ]
+      ],
+      "parent_id": "title",
+      "checked": true
     },
     {
       "name": "단지정보",
@@ -304,13 +312,13 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": ""
+              "value": "77"
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": ""
+              "value": "88"
             }
           ]
         },
@@ -323,7 +331,7 @@
               "name": "세대당 주차 1대 이상",
               "code": "PKF01",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "세대당 주차 1.5대 이상",
@@ -348,7 +356,7 @@
               "name": "계단식",
               "code": "10",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "복도식",
@@ -372,23 +380,27 @@
               "name": "매물있는단지만보기",
               "code": "hasArticleComplex",
               "type": "checkbox",
-              "value": false
+              "value": true
             }
           ]
         }
-      ]
+      ],
+      "parent_id": "title",
+      "checked": true
     },
     {
       "name": "역세권",
       "type": "title",
       "children": [
         {
-          "name": "도보거리",
+          "name": "도보거리(단위 분)",
           "code": "subwayWalkingMinute",
           "type": "input",
-          "value": ""
+          "value": "99"
         }
-      ]
+      ],
+      "parent_id": "title",
+      "checked": true
     },
     {
       "name": "매물보기 조건",
@@ -398,7 +410,7 @@
           "name": "사진있는 매물만",
           "code": "hasArticlePhoto",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "집주인/소유자 인증만",
@@ -406,7 +418,9 @@
           "type": "checkbox",
           "value": false
         }
-      ]
+      ],
+      "parent_id": "title",
+      "checked": true
     },
     {
       "name": "방/욕실",
@@ -421,7 +435,7 @@
               "name": "1개",
               "code": "RCF01",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "2개",
@@ -452,7 +466,7 @@
               "name": "1개",
               "code": "RCF01",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "2개",
@@ -474,7 +488,9 @@
             }
           ]
         }
-      ]
+      ],
+      "parent_id": "title",
+      "checked": true
     },
     {
       "name": "층/방향",
@@ -489,13 +505,13 @@
               "name": "1층",
               "code": "FLF01",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "저층",
               "code": "FLF02",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "중층",
@@ -526,13 +542,13 @@
               "name": "동향",
               "code": "EE",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "서향",
               "code": "WW",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "남향",
@@ -572,10 +588,12 @@
             }
           ]
         }
-      ]
+      ],
+      "parent_id": "title",
+      "checked": true
     },
     {
-      "name": "사용승인일",
+      "name": "사용승인일(단위 연)",
       "code": "approvalElapsedYear",
       "type": "two_input",
       "items": [
@@ -583,18 +601,20 @@
           "name": "최소",
           "code": "min",
           "type": "input",
-          "value": ""
+          "value": "1010"
         },
         {
           "name": "최대",
           "code": "max",
           "type": "input",
-          "value": ""
+          "value": "1111"
         }
-      ]
+      ],
+      "parent_id": "two_input",
+      "checked": true
     },
     {
-      "name": "관리비",
+      "name": "관리비(단위 만원)",
       "code": "managementFee",
       "type": "two_input",
       "items": [
@@ -602,15 +622,17 @@
           "name": "최소",
           "code": "min",
           "type": "input",
-          "value": ""
+          "value": "1212"
         },
         {
           "name": "최대",
           "code": "max",
           "type": "input",
-          "value": ""
+          "value": "1313"
         }
-      ]
+      ],
+      "parent_id": "two_input",
+      "checked": true
     },
     {
       "name": "계약조건",
@@ -644,17 +666,19 @@
               "name": "바로입주",
               "code": "MVF01",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "90일 내 입주",
               "code": "MVF02",
               "type": "checkbox",
-              "value": false
+              "value": true
             }
           ]
         }
-      ]
+      ],
+      "parent_id": "title",
+      "checked": true
     },
     {
       "name": "시설",
@@ -668,19 +692,19 @@
               "name": "주차 가능",
               "code": "OPF02",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "엘리베이터",
               "code": "OPF01",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "보안시설",
               "code": "OPF03",
               "type": "checkbox",
-              "value": false
+              "value": true
             }
           ]
         },
@@ -692,7 +716,7 @@
               "name": "풀옵션",
               "code": "OPF04",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "에어컨",
@@ -704,7 +728,7 @@
               "name": "복층",
               "code": "OPF09",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "베란다",
@@ -716,13 +740,13 @@
               "name": "테라스",
               "code": "OPF06",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "마당",
               "code": "OPF08",
               "type": "checkbox",
-              "value": false
+              "value": true
             }
           ]
         },
@@ -735,7 +759,7 @@
               "name": "오픈형",
               "code": "10",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "분리형",
@@ -745,14 +769,15 @@
             }
           ]
         }
-      ]
+      ],
+      "checked": true
     }
   ],
   "columns": [
     {
       "code": "article_number",
       "value": "게시번호",
-      "checked": true
+      "checked": false
     },
     {
       "code": "complexName",
@@ -767,212 +792,212 @@
     {
       "code": "price",
       "value": "매매가",
-      "checked": true
+      "checked": false
     },
     {
       "code": "warrantyAmount",
       "value": "보증금",
-      "checked": true
+      "checked": false
     },
     {
       "code": "rentAmount",
       "value": "월세",
-      "checked": true
+      "checked": false
     },
     {
       "code": "supplySpace",
       "value": "공급면적",
-      "checked": true
+      "checked": false
     },
     {
       "code": "pyeongArea",
       "value": "평수",
-      "checked": true
+      "checked": false
     },
     {
       "code": "landSpace",
       "value": "대지면적",
-      "checked": true
+      "checked": false
     },
     {
       "code": "floorSpace",
       "value": "연면적",
-      "checked": true
+      "checked": false
     },
     {
       "code": "buildingSpace",
       "value": "건축면적",
-      "checked": true
+      "checked": false
     },
     {
       "code": "exclusiveSpace",
       "value": "전용면적",
-      "checked": true
+      "checked": false
     },
     {
       "code": "articleFeatureDescription",
       "value": "매물특징",
-      "checked": true
+      "checked": false
     },
     {
       "code": "exposureStartDate",
       "value": "매물확인일",
-      "checked": true
+      "checked": false
     },
     {
       "code": "buildingPrincipalUse",
       "value": "건축물용도",
-      "checked": true
+      "checked": false
     },
     {
       "code": "floorText",
       "value": "층정보",
-      "checked": true
+      "checked": false
     },
     {
       "code": "city",
       "value": "시도",
-      "checked": true
+      "checked": false
     },
     {
       "code": "division",
       "value": "시군구",
-      "checked": true
+      "checked": false
     },
     {
       "code": "sector",
       "value": "읍면동",
-      "checked": true
+      "checked": false
     },
     {
       "code": "jibun",
       "value": "번지",
-      "checked": true
+      "checked": false
     },
     {
       "code": "roadName",
       "value": "도로명주소",
-      "checked": true
+      "checked": false
     },
     {
       "code": "zipCode",
       "value": "우편번호",
-      "checked": true
+      "checked": false
     },
     {
       "code": "full_addr",
       "value": "전체주소",
-      "checked": true
+      "checked": false
     },
     {
       "code": "brokerage_name",
       "value": "중개사무소이름",
-      "checked": true
+      "checked": false
     },
     {
       "code": "broker_name",
       "value": "중개사이름",
-      "checked": true
+      "checked": false
     },
     {
       "code": "broker_address",
       "value": "중개사무소주소",
-      "checked": true
+      "checked": false
     },
     {
       "code": "phone_brokerage",
       "value": "중개사무소번호",
-      "checked": true
+      "checked": false
     },
     {
       "code": "phone_mobile",
       "value": "중개사핸드폰번호",
-      "checked": true
+      "checked": false
     },
     {
       "code": "url",
       "value": "URL",
-      "checked": true
+      "checked": false
     },
     {
       "code": "atclNm",
       "value": "상위매물명",
-      "checked": true
+      "checked": false
     },
     {
       "code": "bildNm",
       "value": "상위매물동",
-      "checked": true
+      "checked": false
     },
     {
       "code": "atclNo",
       "value": "상위매물게시번호",
-      "checked": true
+      "checked": false
     },
     {
       "code": "rletType",
       "value": "매물유형",
-      "checked": true
+      "checked": false
     },
     {
       "code": "tradeType",
       "value": "거래유형",
-      "checked": true
+      "checked": false
     },
     {
       "code": "tagList",
       "value": "매물태그",
-      "checked": true
+      "checked": false
     },
     {
       "code": "atclCfmYmd",
       "value": "등록일자",
-      "checked": true
+      "checked": false
     },
     {
       "code": "lat",
       "value": "위도",
-      "checked": true
+      "checked": false
     },
     {
       "code": "lng",
       "value": "경도",
-      "checked": true
+      "checked": false
     },
     {
       "code": "direction",
       "value": "방향정보",
-      "checked": true
+      "checked": false
     },
     {
       "code": "sameAddrCnt",
       "value": "동일주소매물수",
-      "checked": true
+      "checked": false
     },
     {
       "code": "sameAddrMinPrc",
       "value": "동일주소최소가",
-      "checked": true
+      "checked": false
     },
     {
       "code": "sameAddrMaxPrc",
       "value": "동일주소최대가",
-      "checked": true
+      "checked": false
     },
     {
       "code": "parts",
       "value": "검색 주소",
-      "checked": true
+      "checked": false
     },
     {
       "code": "search_rletType",
       "value": "검색 매물유형",
-      "checked": true
+      "checked": false
     },
     {
       "code": "search_tradeType",
       "value": "검색 거래유형",
-      "checked": true
+      "checked": false
     }
   ]
 }
