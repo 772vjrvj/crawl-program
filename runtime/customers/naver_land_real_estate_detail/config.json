@@ -32,7 +32,7 @@
     {
       "name": "정렬방식",
       "code": "articleSortType",
-      "value": "",
+      "value": "DATE_DESC",
       "type": "select",
       "options": [
         {
@@ -66,6 +66,12 @@
       "code": "eng",
       "value": false,
       "type": "check"
+    },
+    {
+      "name": "부동산 중개사 기준 매물 가져오기",
+      "code": "brokerage_yn",
+      "value": false,
+      "type": "check"
     }
   ],
   "setting_detail_all_style": [
@@ -90,13 +96,13 @@
           "name": "월세",
           "code": "B2",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "단기임대",
           "code": "B3",
           "type": "checkbox",
-          "value": true
+          "value": false
         }
       ],
       "parent_id": "checkbox_multi_group",
@@ -123,7 +129,7 @@
           "name": "오피스텔",
           "code": "A02",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "빌라",
@@ -147,13 +153,13 @@
           "name": "원룸",
           "code": "C01",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "단독/다가구",
           "code": "C03",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "전원주택",
@@ -165,7 +171,7 @@
           "name": "상가주택",
           "code": "D05",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "재개발",
@@ -182,7 +188,7 @@
               "name": "상가",
               "code": "D02",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "토지",
@@ -200,7 +206,7 @@
               "name": "건물",
               "code": "D03-D04-E01-Z00",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "공장/창고",
@@ -233,13 +239,13 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": "11"
+              "value": ""
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": "22"
+              "value": ""
             }
           ]
         },
@@ -252,13 +258,32 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": "33"
+              "value": ""
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": "44"
+              "value": ""
+            }
+          ]
+        },
+        {
+          "name": "월세(단위 만원)",
+          "code": "rentPrice",
+          "type": "two_input",
+          "items": [
+            {
+              "name": "최소",
+              "code": "min",
+              "type": "input",
+              "value": ""
+            },
+            {
+              "name": "최대",
+              "code": "max",
+              "type": "input",
+              "value": ""
             }
           ]
         }
@@ -279,13 +304,13 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": "55"
+              "value": ""
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": "66"
+              "value": ""
             }
           ]
         },
@@ -312,13 +337,13 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": "77"
+              "value": ""
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": "88"
+              "value": ""
             }
           ]
         },
@@ -331,7 +356,7 @@
               "name": "세대당 주차 1대 이상",
               "code": "PKF01",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "세대당 주차 1.5대 이상",
@@ -356,7 +381,7 @@
               "name": "계단식",
               "code": "10",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "복도식",
@@ -380,7 +405,7 @@
               "name": "매물있는단지만보기",
               "code": "hasArticleComplex",
               "type": "checkbox",
-              "value": true
+              "value": false
             }
           ]
         }
@@ -396,7 +421,7 @@
           "name": "도보거리(단위 분)",
           "code": "subwayWalkingMinute",
           "type": "input",
-          "value": "99"
+          "value": ""
         }
       ],
       "parent_id": "title",
@@ -410,7 +435,7 @@
           "name": "사진있는 매물만",
           "code": "hasArticlePhoto",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "집주인/소유자 인증만",
@@ -435,7 +460,7 @@
               "name": "1개",
               "code": "RCF01",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "2개",
@@ -466,7 +491,7 @@
               "name": "1개",
               "code": "RCF01",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "2개",
@@ -505,13 +530,13 @@
               "name": "1층",
               "code": "FLF01",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "저층",
               "code": "FLF02",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "중층",
@@ -542,13 +567,13 @@
               "name": "동향",
               "code": "EE",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "서향",
               "code": "WW",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "남향",
@@ -601,13 +626,13 @@
           "name": "최소",
           "code": "min",
           "type": "input",
-          "value": "1010"
+          "value": ""
         },
         {
           "name": "최대",
           "code": "max",
           "type": "input",
-          "value": "1111"
+          "value": ""
         }
       ],
       "parent_id": "two_input",
@@ -622,13 +647,13 @@
           "name": "최소",
           "code": "min",
           "type": "input",
-          "value": "1212"
+          "value": ""
         },
         {
           "name": "최대",
           "code": "max",
           "type": "input",
-          "value": "1313"
+          "value": ""
         }
       ],
       "parent_id": "two_input",
@@ -647,7 +672,7 @@
               "name": "융자금 없음",
               "code": "00",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "융자금 30% 이하",
@@ -666,13 +691,13 @@
               "name": "바로입주",
               "code": "MVF01",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "90일 내 입주",
               "code": "MVF02",
               "type": "checkbox",
-              "value": true
+              "value": false
             }
           ]
         }
@@ -692,19 +717,19 @@
               "name": "주차 가능",
               "code": "OPF02",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "엘리베이터",
               "code": "OPF01",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "보안시설",
               "code": "OPF03",
               "type": "checkbox",
-              "value": true
+              "value": false
             }
           ]
         },
@@ -716,7 +741,7 @@
               "name": "풀옵션",
               "code": "OPF04",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "에어컨",
@@ -728,7 +753,7 @@
               "name": "복층",
               "code": "OPF09",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "베란다",
@@ -740,13 +765,13 @@
               "name": "테라스",
               "code": "OPF06",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "마당",
               "code": "OPF08",
               "type": "checkbox",
-              "value": true
+              "value": false
             }
           ]
         },
@@ -759,7 +784,7 @@
               "name": "오픈형",
               "code": "10",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "분리형",

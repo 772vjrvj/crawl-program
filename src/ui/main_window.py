@@ -666,7 +666,7 @@ class MainWindow(QWidget):
                 self.on_demand_worker.set_setting_detail(self.setting_detail)
 
             if self.setting_detail_all_style:
-                self.on_demand_worker.set_setting_detail(self.setting_detail_all_style)
+                self.on_demand_worker.set_setting_detail_all_style(self.setting_detail_all_style)
 
             if self.columns:
                 self.on_demand_worker.set_columns(self.columns)
