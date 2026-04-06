@@ -227,7 +227,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             response_json: dict[str, Any] = hook_data.get("responseJson", {})
 
             self.log_signal_func(f"[후킹] 수신 여부={bool(hook_data)}")
-            self.log_signal_func(f"[후킹] bodyText 존재={bool(body_text)}")
+            self.log_signal_func(f"self.fr_date self.to_date은 이미 위에서 yyyymmdd로 값이 세팅된상태로 여기서는 그냥쓰면돼[후킹] bodyText 존재={bool(body_text)}")
             self.log_signal_func(f"[후킹] responseJson 존재={bool(response_json)}")
             base_payload: dict[str, Any] = json.loads(body_text)
 
@@ -487,6 +487,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         for c in self.driver.get_cookies():
             self.api_client.cookie_set(c["name"], c["value"])
 
+
     def set_headers(self):
         self.headers = {
             "User-Agent": self.driver.execute_script("return navigator.userAgent;"),
@@ -504,13 +505,37 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         }
 
 
-
     def collect_next_list_pages(
             self,
             base_payload: dict[str, Any],
     ) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
         seen: set[str] = set()
+
+        use_date_filter: bool = bool(self.fr_date and self.to_date)
+        def normalize_date_yyyymmdd(value: Any) -> str:
+            return str(value or "").replace("-", "").replace(".", "").replace("/", "").strip()
+
+        def get_confirm_date_from_item(item: dict[str, Any]) -> str:
+            info: dict[str, Any] = item.get("representativeArticleInfo", {})
+            verification_info: dict[str, Any] = info.get("verificationInfo", {})
+            return normalize_date_yyyymmdd(verification_info.get("articleConfirmDate", ""))
+
+        def is_target_date(confirm_date: str) -> bool:
+            if not use_date_filter:
+                return True
+            return self.fr_date <= confirm_date <= self.to_date
+
+        def should_stop_by_date(page_list: list[dict[str, Any]]) -> bool:
+            if not use_date_filter:
+                return False
+
+            for item in page_list:
+                confirm_date: str = get_confirm_date_from_item(item)
+                if confirm_date < self.fr_date:
+                    return True
+
+            return False
 
         def add_items(page_list: list[dict[str, Any]]) -> None:
             for item in page_list:
@@ -521,6 +546,14 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     if article_info_list:
                         for article_info in article_info_list:
                             article_no: str = str(article_info.get("articleNumber", "")).strip()
+                            verification_info: dict[str, Any] = article_info.get("verificationInfo", {})
+                            confirm_date: str = normalize_date_yyyymmdd(
+                                verification_info.get("articleConfirmDate", "")
+                            )
+
+                            if not is_target_date(confirm_date):
+                                continue
+
                             if article_no and article_no not in seen:
                                 seen.add(article_no)
                                 items.append(article_info)
@@ -528,6 +561,14 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
                 info: dict[str, Any] = item.get("representativeArticleInfo", {})
                 article_no: str = str(info.get("articleNumber", "")).strip()
+                verification_info: dict[str, Any] = info.get("verificationInfo", {})
+                confirm_date: str = normalize_date_yyyymmdd(
+                    verification_info.get("articleConfirmDate", "")
+                )
+
+                if not is_target_date(confirm_date):
+                    continue
+
                 if article_no and article_no not in seen:
                     seen.add(article_no)
                     items.append(info)
@@ -546,8 +587,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 req["articlePagingRequest"]["seed"] = seed
                 req["articlePagingRequest"]["lastInfo"] = last_info
             else:
-                req["articlePagingRequest"].pop("seed", None)
-                req["articlePagingRequest"].pop("lastInfo", None)
+                req["articlePagingRequest"]["seed"] = None
+                req["articlePagingRequest"]["lastInfo"] = []
 
             self.log_signal_func(f"[목록] page={page} 요청")
 
@@ -574,8 +615,13 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             add_items(page_list)
 
             seed = result.get("seed", seed)
-            last_info = result.get("lastInfo", [])
+            last_info = result.get("lastInfo", []) or []
             has_next = bool(result.get("hasNextPage"))
+
+            if should_stop_by_date(page_list):
+                self.log_signal_func(f"[목록] 시작일({self.fr_date}) 이전 데이터 발견으로 목록 조회 중단")
+                break
+
             page += 1
 
             if has_next:
@@ -583,7 +629,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         self.log_signal_func(f"[목록] 최종 수집 건수={len(items)}")
         return items
-
 
 
     def collect_detail(self, items: list[dict[str, Any]],
@@ -634,6 +679,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         print(f"[상세] 최종 수집 건수={len(details)}")
         return details
+
 
     def detail_map_save(self, details):
         return ""
