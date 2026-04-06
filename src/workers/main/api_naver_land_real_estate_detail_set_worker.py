@@ -1,7 +1,7 @@
 # src/workers/main/api_naver_place_url_all_set_worker.py
 import os
 import time
-from typing import List, Optional
+from typing import List, Optional, Any
 import random
 
 from src.utils.api_utils import APIClient
@@ -9,7 +9,12 @@ from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
 from src.workers.api_base_worker import BaseApiWorker
+import json
+import requests
+import urllib3
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
@@ -41,6 +46,13 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         self.naver_loc_all_real_detail = None
         self.detail_region_article_list = None
+
+        self.list_api_url: str = "https://fin.land.naver.com/front-api/v1/article/boundedArticles"
+        self.agent_detail_url: str = "https://fin.land.naver.com/front-api/v1/article/agent"
+        self.detail_api_url: str = "https://fin.land.naver.com/front-api/v1/article/basicInfo"
+        self.url: str = "https://fin.land.naver.com/"
+        self.headers = None
+
 
 
     # 초기화
@@ -102,13 +114,13 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def driver_set(self) -> None:
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
-        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func, verify=False)
         self.selenium_driver = SeleniumUtils(
             headless=False,
             debug=True,
             log_func=self.log_signal_func,
         )
-        self.driver = self.selenium_driver.start_driver(1200)
+        self.driver = self.selenium_driver.start_driver(timeout=1200, view_mode="browser", window_size=(1600, 1000))
 
     # 프로그램 실행
     def main(self) -> bool:
@@ -164,20 +176,23 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.eng: str = self.get_setting_value(self.setting, "eng")
         self.log_signal_func(f"영어컬럼 여부 : {self.eng}")
 
+        # 5. 영어컬럼 여부
+        self.eng: str = self.get_setting_value(self.setting, "eng")
+        self.log_signal_func(f"영어컬럼 여부 : {self.eng}")
+
+
         # 6. 부동산 중개사 기준 매물 가져오기 여부
-        self.brokerage_yn: str = self.get_setting_value(self.setting, "brokerage_yn")
+        self.brokerage_yn: bool = self.get_setting_value(self.setting, "brokerage_yn")
         self.log_signal_func(f"부동산 중개사 기준 매물 가져오기 여부 : {self.brokerage_yn}")
 
         # 7. 위 세팅에 맞는 매물 목록 크롤링
         self._crawl_article_list()
 
-
-
         return True
 
 
     def _crawl_article_list(self):
-        for index, region_item in enumerate(self.detail_region_article_list,start=1):
+        for index, region_item in enumerate(self.detail_region_article_list, start=1):
             sido = region_item.get("시도")
             sigungu = region_item.get("시군구")
             eup_myeon_dong = region_item.get("읍면동")
@@ -191,14 +206,43 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             y = coordinates.get("yCoordinate")
 
             url = self._build_region_map_url(x, y, self.setting_detail_all_style)
-
             self.log_signal_func(f"[URL] {url}")
+
+            # driver.get
+            self.driver.get(url)
+            time.sleep(5)
+
+            # 목록 후킹 설치
+            self.log_signal_func("[후킹] 목록 후킹 설치")
+            self.inject_list_hook()
+            time.sleep(1)
+
+            # 매물 버튼 클릭
+            self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
+            self.click_article_button(wait_sec=20)
+            time.sleep(3)
+
+            hook_data: dict[str, Any] = self.get_first_list_hook_data(20)
+            body_text: str = hook_data.get("bodyText", "")
+            response_json: dict[str, Any] = hook_data.get("responseJson", {})
+
+            self.log_signal_func(f"[후킹] 수신 여부={bool(hook_data)}")
+            self.log_signal_func(f"[후킹] bodyText 존재={bool(body_text)}")
+            self.log_signal_func(f"[후킹] responseJson 존재={bool(response_json)}")
+            base_payload: dict[str, Any] = json.loads(body_text)
+
+            self.set_cookie()
+            self.set_headers()
+
+            items: list[dict[str, Any]] = self.collect_next_list_pages(base_payload)
+            details: list[dict[str, Any]] = self.collect_detail(items)
+
+            self.detail_map_save(details)
 
             pro_value = (index / max(len(self.detail_region_article_list), 1)) * 1000000
             self.progress_signal.emit(self.before_pro_value, pro_value)
             self.before_pro_value = pro_value
             time.sleep(random.uniform(2, 4))
-
 
 
     def _build_region_map_url(self, x, y, filter_items):
@@ -321,3 +365,276 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             checked_codes.extend(self._collect_checked_codes_from_children(child))
 
         return checked_codes
+
+
+    def qq(self, selector: str, wait_sec: int = 20) -> list[Any]:
+        end = time.time() + wait_sec
+        while time.time() < end:
+            try:
+                els = self.driver.execute_script(
+                    "return Array.from(document.querySelectorAll(arguments[0]));",
+                    selector,
+                )
+                if els:
+                    return els
+            except Exception as e:
+                self.log_signal_func(f"[qq] 조회 실패: {e}")
+            time.sleep(1)
+        return []
+
+
+    def click_article_button(self, wait_sec: int = 20) -> None:
+        end = time.time() + wait_sec
+
+        while time.time() < end:
+            try:
+                buttons = self.driver.execute_script(
+                    "return Array.from(document.querySelectorAll('button.BottomInfoControls_link-item___xLdX'));"
+                )
+
+                if buttons:
+                    self.log_signal_func(f"[매물 버튼] 발견 개수={len(buttons)}")
+                    self.driver.execute_script("arguments[0].click();", buttons[0])
+                    self.log_signal_func("[매물 버튼] 첫 번째 버튼 클릭 완료")
+                    return
+            except Exception as e:
+                self.log_signal_func(f"[매물 버튼] 클릭 실패: {e}")
+
+            time.sleep(1)
+
+        raise Exception("매물 버튼을 찾지 못했습니다.")
+
+
+    def inject_list_hook(self) -> None:
+        self.driver.execute_script(
+            """
+            window.__naverListHookData = null;
+            if (window.__naverListHookInstalled) return;
+            window.__naverListHookInstalled = true;
+    
+            const target = '/front-api/v1/article/boundedArticles';
+    
+            const saveData = async (url, bodyText, response) => {
+                try {
+                    const cloned = response.clone();
+                    const jsonData = await cloned.json();
+                    if (!window.__naverListHookData) {
+                        window.__naverListHookData = {
+                            url: url,
+                            bodyText: bodyText || '',
+                            responseJson: jsonData
+                        };
+                    }
+                } catch (e) {}
+            };
+    
+            const oldFetch = window.fetch;
+            window.fetch = async function(...args) {
+                const res = await oldFetch.apply(this, args);
+                try {d
+                    const req = args[0];
+                    const url = typeof req === 'string' ? req : req.url;
+                    const opts = args[1] || {};
+                    const bodyText = opts && opts.body ? opts.body : '';
+                    if (url && url.includes(target)) saveData(url, bodyText, res);
+                } catch (e) {}
+                return res;
+            };
+    
+            const oldOpen = XMLHttpRequest.prototype.open;
+            const oldSend = XMLHttpRequest.prototype.send;
+    
+            XMLHttpRequest.prototype.open = function(method, url) {
+                this.__hookUrl = url;
+                return oldOpen.apply(this, arguments);
+            };
+    
+            XMLHttpRequest.prototype.send = function(body) {
+                this.addEventListener('load', function() {
+                    try {
+                        if (this.__hookUrl && this.__hookUrl.includes(target) && !window.__naverListHookData) {
+                            window.__naverListHookData = {
+                                url: this.__hookUrl,
+                                bodyText: body || '',
+                                responseJson: JSON.parse(this.responseText)
+                            };
+                        }
+                    } catch (e) {}
+                });
+                return oldSend.apply(this, arguments);
+            };
+            """
+        )
+
+
+    def get_first_list_hook_data(self, wait_sec: int = 20):
+        end = time.time() + wait_sec
+
+        while time.time() < end:
+            try:
+                data = self.driver.execute_script("return window.__naverListHookData;")
+                if data:
+                    return data
+            except Exception as e:
+                self.log_signal_func(f"[후킹] 데이터 조회 실패: {e}")
+
+            time.sleep(1)
+
+        return {}
+
+
+    def set_cookie(self):
+        for c in self.driver.get_cookies():
+            self.api_client.cookie_set(c["name"], c["value"])
+
+    def set_headers(self):
+        self.headers = {
+            "User-Agent": self.driver.execute_script("return navigator.userAgent;"),
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/json",
+            "Origin": self.url,
+            "Referer": self.driver.current_url,
+            "Sec-Fetch-Site": "same-origin",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Dest": "empty",
+            "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
+        }
+
+
+
+    def collect_next_list_pages(
+            self,
+            base_payload: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        seen: set[str] = set()
+
+        def add_items(page_list: list[dict[str, Any]]) -> None:
+            for item in page_list:
+                if self.brokerage_yn:
+                    duplicated_info: dict[str, Any] = item.get("duplicatedArticleInfo", {})
+                    article_info_list: list[dict[str, Any]] = duplicated_info.get("articleInfoList", []) or []
+
+                    if article_info_list:
+                        for article_info in article_info_list:
+                            article_no: str = str(article_info.get("articleNumber", "")).strip()
+                            if article_no and article_no not in seen:
+                                seen.add(article_no)
+                                items.append(article_info)
+                        continue
+
+                info: dict[str, Any] = item.get("representativeArticleInfo", {})
+                article_no: str = str(info.get("articleNumber", "")).strip()
+                if article_no and article_no not in seen:
+                    seen.add(article_no)
+                    items.append(info)
+
+        page: int = 1
+        seed: str | None = None
+        last_info: list[Any] = []
+        has_next: bool = True
+
+        while has_next:
+            req: dict[str, Any] = json.loads(json.dumps(base_payload))
+            req.setdefault("articlePagingRequest", {})
+            req["articlePagingRequest"]["articleSortType"] = self.article_sort_type
+
+            if page >= 2:
+                req["articlePagingRequest"]["seed"] = seed
+                req["articlePagingRequest"]["lastInfo"] = last_info
+            else:
+                req["articlePagingRequest"].pop("seed", None)
+                req["articlePagingRequest"].pop("lastInfo", None)
+
+            self.log_signal_func(f"[목록] page={page} 요청")
+
+            res = self.api_client.post(
+                url=self.list_api_url,
+                headers=self.headers,
+                json=req,
+                timeout=30
+            )
+
+            result: dict[str, Any] = res["result"]
+            page_list: list[dict[str, Any]] = result.get("list", [])
+
+            self.log_signal_func(
+                f"[목록] page={page} "
+                f"count={len(page_list)} "
+                f"hasNext={result.get('hasNextPage')} "
+                f"total={result.get('totalCount')}"
+            )
+
+            if not page_list:
+                break
+
+            add_items(page_list)
+
+            seed = result.get("seed", seed)
+            last_info = result.get("lastInfo", [])
+            has_next = bool(result.get("hasNextPage"))
+            page += 1
+
+            if has_next:
+                time.sleep(random.uniform(0.8, 1.2))
+
+        self.log_signal_func(f"[목록] 최종 수집 건수={len(items)}")
+        return items
+
+
+
+    def collect_detail(self, items: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        details: list[dict[str, Any]] = []
+
+        for i, info in enumerate(items, 1):
+            article_no: str = str(info["articleNumber"])
+            real_estate_type: str = str(info["realEstateType"])
+            trade_type: str = str(info["tradeType"])
+
+            print(f"[상세] {i}/{len(items)} articleNumber={article_no}")
+
+            res = self.api_client.get(
+                self.detail_api_url,
+                headers=self.headers,
+                params={
+                    "articleNumber": article_no,
+                    "realEstateType": real_estate_type,
+                    "tradeType": trade_type,
+                },
+                timeout=1200
+            )
+
+            agent_res = self.api_client.get(
+                self.agent_detail_url,
+                headers=self.headers,
+                params={
+                    "articleNumber": article_no
+                },
+                timeout=1200
+            )
+
+            time.sleep(random.uniform(1.5, 2.2))
+
+            details.append(
+                {
+                    "articleNumber": article_no,
+                    "realEstateType": real_estate_type,
+                    "tradeType": trade_type,
+                    "listItem": info,
+                    "detail": res,
+                    "agent_detail": agent_res
+                }
+            )
+
+            time.sleep(random.uniform(2.2, 3.2))
+
+        print(f"[상세] 최종 수집 건수={len(details)}")
+        return details
+
+    def detail_map_save(self, details):
+        return ""
+
