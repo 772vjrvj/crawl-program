@@ -3,18 +3,13 @@ import os
 import time
 from typing import List, Optional, Any
 import random
+import json
 
-from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
 from src.workers.api_base_worker import BaseApiWorker
-import json
-import requests
-import urllib3
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
@@ -39,7 +34,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.selenium_driver = None
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
-        self.api_client: Optional[APIClient] = None
 
         self.folder_path: str = ""
         self.out_dir: str = "output"
@@ -51,9 +45,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.agent_detail_url: str = "https://fin.land.naver.com/front-api/v1/article/agent"
         self.detail_api_url: str = "https://fin.land.naver.com/front-api/v1/article/basicInfo"
         self.url: str = "https://fin.land.naver.com/"
-        self.headers = None
-
-
 
     # 초기화
     def init(self) -> bool:
@@ -96,13 +87,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         finally:
             self.excel_driver = None
 
-
     def stop(self) -> None:
         self.log_signal_func("✅ stop 시작")
         self.running = False
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
-
 
     def destroy(self) -> None:
         self.progress_signal.emit(self.before_pro_value, 1000000)
@@ -114,7 +103,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def driver_set(self) -> None:
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
-        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func, verify=False)
         self.selenium_driver = SeleniumUtils(
             headless=False,
             debug=True,
@@ -180,7 +168,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.eng: str = self.get_setting_value(self.setting, "eng")
         self.log_signal_func(f"영어컬럼 여부 : {self.eng}")
 
-
         # 6. 부동산 중개사 기준 매물 가져오기 여부
         self.brokerage_yn: bool = self.get_setting_value(self.setting, "brokerage_yn")
         self.log_signal_func(f"부동산 중개사 기준 매물 가져오기 여부 : {self.brokerage_yn}")
@@ -189,7 +176,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self._crawl_article_list()
 
         return True
-
 
     def _crawl_article_list(self):
         for index, region_item in enumerate(self.detail_region_article_list, start=1):
@@ -229,10 +215,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.log_signal_func(f"[후킹] 수신 여부={bool(hook_data)}")
             self.log_signal_func(f"self.fr_date self.to_date은 이미 위에서 yyyymmdd로 값이 세팅된상태로 여기서는 그냥쓰면돼[후킹] bodyText 존재={bool(body_text)}")
             self.log_signal_func(f"[후킹] responseJson 존재={bool(response_json)}")
-            base_payload: dict[str, Any] = json.loads(body_text)
 
-            self.set_cookie()
-            self.set_headers()
+            if not body_text:
+                self.log_signal_func("[후킹] bodyText 없음")
+                continue
+
+            base_payload: dict[str, Any] = json.loads(body_text)
 
             items: list[dict[str, Any]] = self.collect_next_list_pages(base_payload)
             details: list[dict[str, Any]] = self.collect_detail(items)
@@ -243,7 +231,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.progress_signal.emit(self.before_pro_value, pro_value)
             self.before_pro_value = pro_value
             time.sleep(random.uniform(2, 4))
-
 
     def _build_region_map_url(self, x, y, filter_items):
         params = [
@@ -275,7 +262,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         )
 
         return f"https://fin.land.naver.com/map?{query}"
-
 
     def _append_filter_params(self, params, item, parent_code=None):
         item_type = item.get("type")
@@ -353,7 +339,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         for child in item.get("items", []):
             self._append_filter_params(params, child, effective_code)
 
-
     def _collect_checked_codes_from_children(self, item):
         checked_codes = []
 
@@ -365,7 +350,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             checked_codes.extend(self._collect_checked_codes_from_children(child))
 
         return checked_codes
-
 
     def qq(self, selector: str, wait_sec: int = 20) -> list[Any]:
         end = time.time() + wait_sec
@@ -381,7 +365,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 self.log_signal_func(f"[qq] 조회 실패: {e}")
             time.sleep(1)
         return []
-
 
     def click_article_button(self, wait_sec: int = 20) -> None:
         end = time.time() + wait_sec
@@ -404,16 +387,15 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         raise Exception("매물 버튼을 찾지 못했습니다.")
 
-
     def inject_list_hook(self) -> None:
         self.driver.execute_script(
             """
             window.__naverListHookData = null;
             if (window.__naverListHookInstalled) return;
             window.__naverListHookInstalled = true;
-    
+
             const target = '/front-api/v1/article/boundedArticles';
-    
+
             const saveData = async (url, bodyText, response) => {
                 try {
                     const cloned = response.clone();
@@ -427,11 +409,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     }
                 } catch (e) {}
             };
-    
+
             const oldFetch = window.fetch;
             window.fetch = async function(...args) {
                 const res = await oldFetch.apply(this, args);
-                try {d
+                try {
                     const req = args[0];
                     const url = typeof req === 'string' ? req : req.url;
                     const opts = args[1] || {};
@@ -440,15 +422,15 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 } catch (e) {}
                 return res;
             };
-    
+
             const oldOpen = XMLHttpRequest.prototype.open;
             const oldSend = XMLHttpRequest.prototype.send;
-    
+
             XMLHttpRequest.prototype.open = function(method, url) {
                 this.__hookUrl = url;
                 return oldOpen.apply(this, arguments);
             };
-    
+
             XMLHttpRequest.prototype.send = function(body) {
                 this.addEventListener('load', function() {
                     try {
@@ -466,7 +448,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             """
         )
 
-
     def get_first_list_hook_data(self, wait_sec: int = 20):
         end = time.time() + wait_sec
 
@@ -482,28 +463,93 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         return {}
 
+    def browser_fetch_json(
+            self,
+            url: str,
+            method: str = "GET",
+            payload: dict[str, Any] | None = None,
+            params: dict[str, Any] | None = None,
+            wait_sec: int = 30,
+    ) -> dict[str, Any]:
+        script = """
+        const url = arguments[0];
+        const method = arguments[1];
+        const payload = arguments[2];
+        const params = arguments[3];
+        const done = arguments[arguments.length - 1];
 
-    def set_cookie(self):
-        for c in self.driver.get_cookies():
-            self.api_client.cookie_set(c["name"], c["value"])
+        try {
+            const u = new URL(url);
 
+            if (params) {
+                Object.keys(params).forEach((key) => {
+                    const value = params[key];
+                    if (value !== undefined && value !== null) {
+                        u.searchParams.set(key, String(value));
+                    }
+                });
+            }
 
-    def set_headers(self):
-        self.headers = {
-            "User-Agent": self.driver.execute_script("return navigator.userAgent;"),
-            "Accept": "application/json, text/plain, */*",
-            "Content-Type": "application/json",
-            "Origin": self.url,
-            "Referer": self.driver.current_url,
-            "Sec-Fetch-Site": "same-origin",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Dest": "empty",
-            "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-            "sec-ch-ua-platform": '"Windows"',
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
+            const options = {
+                method: method,
+                credentials: "include",
+                headers: {
+                    "Accept": "application/json, text/plain, */*"
+                }
+            };
+
+            if (method !== "GET") {
+                options.headers["Content-Type"] = "application/json";
+            }
+
+            if (payload) {
+                options.body = JSON.stringify(payload);
+            }
+
+            fetch(u.toString(), options)
+                .then(async (res) => {
+                    let text = "";
+                    try {
+                        text = await res.text();
+                    } catch (e) {}
+
+                    let jsonData = null;
+                    try {
+                        jsonData = text ? JSON.parse(text) : null;
+                    } catch (e) {}
+
+                    done({
+                        ok: res.ok,
+                        status: res.status,
+                        statusText: res.statusText,
+                        url: res.url,
+                        text: text,
+                        json: jsonData
+                    });
+                })
+                .catch((e) => {
+                    done({
+                        ok: false,
+                        status: -1,
+                        statusText: String(e),
+                        url: "",
+                        text: "",
+                        json: null
+                    });
+                });
+        } catch (e) {
+            done({
+                ok: false,
+                status: -1,
+                statusText: String(e),
+                url: "",
+                text: "",
+                json: null
+            });
         }
-
+        """
+        self.driver.set_script_timeout(wait_sec)
+        return self.driver.execute_async_script(script, url, method, payload, params)
 
     def collect_next_list_pages(
             self,
@@ -513,6 +559,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         seen: set[str] = set()
 
         use_date_filter: bool = bool(self.fr_date and self.to_date)
+
         def normalize_date_yyyymmdd(value: Any) -> str:
             return str(value or "").replace("-", "").replace(".", "").replace("/", "").strip()
 
@@ -592,14 +639,25 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
             self.log_signal_func(f"[목록] page={page} 요청")
 
-            res = self.api_client.post(
+            fetch_res = self.browser_fetch_json(
                 url=self.list_api_url,
-                headers=self.headers,
-                json=req,
-                timeout=30
+                method="POST",
+                payload=req,
+                wait_sec=30,
             )
 
-            result: dict[str, Any] = res["result"]
+            status = fetch_res.get("status")
+            json_res = fetch_res.get("json") or {}
+
+            self.log_signal_func(
+                f"[목록] page={page} status={status} ok={fetch_res.get('ok')}"
+            )
+
+            if status != 200:
+                self.log_signal_func(f"[목록] page={page} 실패 body={fetch_res.get('text', '')[:500]}")
+                break
+
+            result: dict[str, Any] = json_res.get("result", {})
             page_list: list[dict[str, Any]] = result.get("list", [])
 
             self.log_signal_func(
@@ -630,9 +688,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.log_signal_func(f"[목록] 최종 수집 건수={len(items)}")
         return items
 
-
-    def collect_detail(self, items: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
+    def collect_detail(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         details: list[dict[str, Any]] = []
 
         for i, info in enumerate(items, 1):
@@ -642,25 +698,39 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
             print(f"[상세] {i}/{len(items)} articleNumber={article_no}")
 
-            res = self.api_client.get(
-                self.detail_api_url,
-                headers=self.headers,
+            detail_fetch_res = self.browser_fetch_json(
+                url=self.detail_api_url,
+                method="GET",
                 params={
                     "articleNumber": article_no,
                     "realEstateType": real_estate_type,
                     "tradeType": trade_type,
                 },
-                timeout=1200
+                wait_sec=120,
             )
 
-            agent_res = self.api_client.get(
-                self.agent_detail_url,
-                headers=self.headers,
+            if detail_fetch_res.get("status") != 200:
+                self.log_signal_func(
+                    f"[상세] basicInfo 실패 articleNumber={article_no} "
+                    f"status={detail_fetch_res.get('status')} "
+                    f"body={detail_fetch_res.get('text', '')[:500]}"
+                )
+
+            agent_fetch_res = self.browser_fetch_json(
+                url=self.agent_detail_url,
+                method="GET",
                 params={
                     "articleNumber": article_no
                 },
-                timeout=1200
+                wait_sec=120,
             )
+
+            if agent_fetch_res.get("status") != 200:
+                self.log_signal_func(
+                    f"[상세] agent 실패 articleNumber={article_no} "
+                    f"status={agent_fetch_res.get('status')} "
+                    f"body={agent_fetch_res.get('text', '')[:500]}"
+                )
 
             time.sleep(random.uniform(1.5, 2.2))
 
@@ -670,8 +740,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     "realEstateType": real_estate_type,
                     "tradeType": trade_type,
                     "listItem": info,
-                    "detail": res,
-                    "agent_detail": agent_res
+                    "detail": detail_fetch_res.get("json"),
+                    "agent_detail": agent_fetch_res.get("json")
                 }
             )
 
@@ -680,7 +750,5 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         print(f"[상세] 최종 수집 건수={len(details)}")
         return details
 
-
     def detail_map_save(self, details):
         return ""
-
