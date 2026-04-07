@@ -107,7 +107,7 @@ def parse_datetime_to_yyyymmdd(s: Optional[str]) -> str:
     return ""
 
 
-def format_yyyymmdd_to_yyyy_mm_dd(s: Optional[str]) -> str:
+def yyyy_mm_dd_to(s: Optional[str]) -> str:
     """'20251123' → '2025-11-23'"""
     t = (s or "").strip()
     if not t:
@@ -125,5 +125,15 @@ def ms_to_yyyy_mm_dd(ms: Union[int, str, None]) -> str:
     try:
         v = int(ms)
         return datetime.fromtimestamp(v / 1000, SEOUL_TZ).strftime("%Y-%m-%d")
+    except Exception:
+        return ""
+
+def yyyy_mm_dd_dot(s: Optional[str]) -> str:
+    """'20251123' → '2025.11.23'"""
+    t = (s or "").strip()
+    if not t:
+        return ""
+    try:
+        return datetime.strptime(t, "%Y%m%d").strftime("%Y.%m.%d")
     except Exception:
         return ""

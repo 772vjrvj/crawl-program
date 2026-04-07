@@ -12,7 +12,6 @@ from src.utils.time_utils import yyyy_mm_dd_to
 
 class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
-    # 초기화
     def __init__(self) -> None:
         super().__init__()
 
@@ -49,14 +48,18 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.complex_api_url: str = "https://fin.land.naver.com/front-api/v1/complex"
         self.url: str = "https://fin.land.naver.com"
 
-    # 초기화
+        self.list_hook_js = None
+        self.browser_fetch_json_js = None
+        self.click_sort_button_js = None
+        self.click_article_button_js = None
+
+
     def init(self) -> bool:
         self.driver_set()
         self.log_signal_func(f"선택 항목 : {self.columns}")
         self.log_signal_func("✅ init 완료")
         return True
 
-    # 정지
     def cleanup(self) -> None:
         try:
             self.excel_driver.convert_csv_to_excel_and_delete(
@@ -100,13 +103,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         finally:
             self.excel_driver = None
 
-
     def stop(self) -> None:
         self.log_signal_func("✅ stop 시작")
         self.running = False
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
-
 
     def destroy(self) -> None:
         self.progress_signal.emit(self.before_pro_value, 1000000)
@@ -114,7 +115,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         time.sleep(2.5)
         self.progress_end_signal.emit()
 
-    # 드라이버 세팅
     def driver_set(self) -> None:
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
@@ -146,6 +146,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "filter_data.json",
             "customers/naver_land_real_estate_detail",
         )
+
+        self._load_js_assets()
 
         # 1. 지역세팅
         self.naver_loc_all_real_detail = self.file_driver.read_json_array_from_resources(
@@ -195,6 +197,13 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self._crawl_article_list()
 
         return True
+
+    def _load_js_assets(self) -> None:
+        js_dir = "customers/naver_land_real_estate_detail/js"
+        self.list_hook_js = self.file_driver.read_text_from_resources("list_hook.js", js_dir)
+        self.browser_fetch_json_js = self.file_driver.read_text_from_resources("browser_fetch_json.js", js_dir)
+        self.click_sort_button_js = self.file_driver.read_text_from_resources("click_sort_button.js", js_dir)
+        self.click_article_button_js = self.file_driver.read_text_from_resources("click_article_button.js", js_dir)
 
     def _split_codes(self, code_value: Any) -> list[str]:
         code_text = str(code_value or "").strip()
@@ -441,9 +450,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         while time.time() < end:
             try:
-                buttons = self.driver.execute_script(
-                    "return Array.from(document.querySelectorAll('button.BottomInfoControls_link-item___xLdX'));"
-                )
+                buttons = self.driver.execute_script(self.click_article_button_js)
 
                 if buttons:
                     self.log_signal_func(f"[매물 버튼] 발견 개수={len(buttons)}")
@@ -473,32 +480,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         while time.time() < end:
             try:
-                clicked = self.driver.execute_script(
-                    """
-                    const sortId = arguments[0];
-                    const clickCount = arguments[1];
-
-                    const input = document.getElementById(sortId);
-                    if (!input) return { ok: false, message: "input 없음" };
-
-                    let label = document.querySelector(`label[for="${sortId}"]`);
-                    if (!label && input.nextElementSibling && input.nextElementSibling.tagName === "LABEL") {
-                        label = input.nextElementSibling;
-                    }
-                    if (!label) return { ok: false, message: "label 없음" };
-
-                    for (let i = 0; i < clickCount; i++) {
-                        label.click();
-                    }
-
-                    return {
-                        ok: true,
-                        labelText: (label.innerText || label.textContent || "").trim()
-                    };
-                    """,
-                    sort_id,
-                    click_count,
-                )
+                clicked = self.driver.execute_script(self.click_sort_button_js, sort_id, click_count)
 
                 if clicked and clicked.get("ok"):
                     self.log_signal_func(f"[정렬] 클릭 완료 : {clicked.get('labelText')}")
@@ -511,65 +493,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         raise Exception(f"정렬 버튼 클릭 실패: {self.article_sort_type}")
 
     def inject_list_hook(self) -> None:
-        self.driver.execute_script(
-            """
-            window.__naverListHookData = null;
-            if (window.__naverListHookInstalled) return;
-            window.__naverListHookInstalled = true;
-
-            const target = '/front-api/v1/article/boundedArticles';
-
-            const saveData = async (url, bodyText, response) => {
-                try {
-                    const cloned = response.clone();
-                    const jsonData = await cloned.json();
-                    if (!window.__naverListHookData) {
-                        window.__naverListHookData = {
-                            url: url,
-                            bodyText: bodyText || '',
-                            responseJson: jsonData
-                        };
-                    }
-                } catch (e) {}
-            };
-
-            const oldFetch = window.fetch;
-            window.fetch = async function(...args) {
-                const res = await oldFetch.apply(this, args);
-                try {
-                    const req = args[0];
-                    const url = typeof req === 'string' ? req : req.url;
-                    const opts = args[1] || {};
-                    const bodyText = opts && opts.body ? opts.body : '';
-                    if (url && url.includes(target)) saveData(url, bodyText, res);
-                } catch (e) {}
-                return res;
-            };
-
-            const oldOpen = XMLHttpRequest.prototype.open;
-            const oldSend = XMLHttpRequest.prototype.send;
-
-            XMLHttpRequest.prototype.open = function(method, url) {
-                this.__hookUrl = url;
-                return oldOpen.apply(this, arguments);
-            };
-
-            XMLHttpRequest.prototype.send = function(body) {
-                this.addEventListener('load', function() {
-                    try {
-                        if (this.__hookUrl && this.__hookUrl.includes(target) && !window.__naverListHookData) {
-                            window.__naverListHookData = {
-                                url: this.__hookUrl,
-                                bodyText: body || '',
-                                responseJson: JSON.parse(this.responseText)
-                            };
-                        }
-                    } catch (e) {}
-                });
-                return oldSend.apply(this, arguments);
-            };
-            """
-        )
+        script = self.list_hook_js.replace("__TARGET__", "/front-api/v1/article/boundedArticles")
+        self.driver.execute_script(script)
 
     def get_first_list_hook_data(self, wait_sec: int = 20):
         end = time.time() + wait_sec
@@ -586,84 +511,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         return {}
 
-    def browser_fetch_json(self, url: str, method: str = "GET", payload: dict[str, Any]= None, params: dict[str, Any] = None, wait_sec: int = 30) -> dict[str, Any]:
-        script = """
-        const url = arguments[0];
-        const method = arguments[1];
-        const payload = arguments[2];
-        const params = arguments[3];
-        const done = arguments[arguments.length - 1];
-
-        try {
-            const u = new URL(url);
-
-            if (params) {
-                Object.keys(params).forEach((key) => {
-                    const value = params[key];
-                    if (value !== undefined && value !== null) {
-                        u.searchParams.set(key, String(value));
-                    }
-                });
-            }
-
-            const options = {
-                method: method,
-                credentials: "include",
-                headers: {
-                    "Accept": "application/json, text/plain, */*"
-                }
-            };
-
-            if (method != "GET") {
-                options.headers["Content-Type"] = "application/json";
-            }
-
-            if (payload) {
-                options.body = JSON.stringify(payload);
-            }
-
-            fetch(u.toString(), options)
-                .then(async (res) => {
-                    let text = "";
-                    try {
-                        text = await res.text();
-                    } catch (e) {}
-
-                    let jsonData = null;
-                    try {
-                        jsonData = text ? JSON.parse(text) : null;
-                    } catch (e) {}
-
-                    done({
-                        ok: res.ok,
-                        status: res.status,
-                        statusText: res.statusText,
-                        url: res.url,
-                        text: text,
-                        json: jsonData
-                    });
-                })
-                .catch((e) => {
-                    done({
-                        ok: false,
-                        status: -1,
-                        statusText: String(e),
-                        url: "",
-                        text: "",
-                        json: null
-                    });
-                });
-        } catch (e) {
-            done({
-                ok: false,
-                status: -1,
-                statusText: String(e),
-                url: "",
-                text: "",
-                json: null
-            });
-        }
-        """
+    def browser_fetch_json(self,url: str, method: str = "GET", payload: dict[str, Any] = None, params: dict[str, Any] = None,wait_sec: int = 30) -> dict[str, Any]:
+        script = self.browser_fetch_json_js
         self.driver.set_script_timeout(wait_sec)
         return self.driver.execute_async_script(script, url, method, payload, params)
 

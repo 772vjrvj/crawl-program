@@ -263,6 +263,37 @@ class FileUtils:
             self._log(f"❌ JSON 읽기 실패: {file_path} / 오류: {e}")
             return []
 
+
+    def read_text_from_resources(self, filename: str, sub_dir: str = "") -> str:
+        """
+        resources 폴더 기준으로 sub_dir 하위의 텍스트 파일을 읽어 문자열로 반환
+        ex)
+        - read_text_from_resources("list_hook.js", "customers/naver_land_real_estate_detail/js")
+        - read_text_from_resources("sample.txt")
+        """
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        resources_dir = os.path.join(base_dir, "resources")
+
+        if sub_dir:
+            file_path = os.path.join(resources_dir, sub_dir, filename)
+        else:
+            file_path = os.path.join(resources_dir, filename)
+
+        if not os.path.exists(file_path):
+            self._log(f"❌ 텍스트 파일이 존재하지 않습니다: {file_path}")
+            return ""
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                text = f.read()
+
+            return text
+
+        except Exception as e:
+            self._log(f"❌ 텍스트 파일 읽기 실패: {file_path} / 오류: {e}")
+            return ""
+
+
     def safe_name(self, s: Any, max_len: int = 40) -> str:
         s2 = "" if s is None else str(s)
         s2 = s2.strip()

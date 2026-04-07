@@ -5,11 +5,9 @@ import json
 import random
 import re
 import time
-import urllib3
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
-import requests
 from selenium.webdriver.common.keys import Keys
 
 from src.utils.selenium_utils import SeleniumUtils
@@ -19,8 +17,6 @@ URL: str = "https://fin.land.naver.com/"
 LIST_API_URL: str = "https://fin.land.naver.com/front-api/v1/article/boundedArticles"
 DETAIL_API_URL: str = "https://fin.land.naver.com/front-api/v1/article/basicInfo"
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 # =========================
 # 테스트용 전역값
 # =========================
@@ -29,37 +25,8 @@ TEST_KEYWORDS: list[str] = [
 ]
 
 # 필터 안 보낼 거면 None 또는 {}
-# TEST_FILTERS: dict[str, Any] | None = {}
-TEST_FILTERS: dict[str, Any] | None = {
-    "trade_types": ["매매", "전세", "월세", "단기임대"],
-    "real_estate_types": [
-        "아파트", "재건축", "오피스텔", "빌라", "아파트 분양권", "오피스텔 분양권",
-        "원룸", "단독/다가구", "전원주택", "상가주택", "재개발",
-        "상가", "토지", "사무실", "건물", "공장/창고", "지식산업센터",
-    ],
-    "deal_price": (790000000, 3240000000),
-    "warranty_price": (330000000, 2090000000),
-    "rent_price": (750000, 4250000),
-    "space": (16.529, 142.1494),
-    "exclusive_space_mode": True, # 전용면적 기준으로 찾기
-    "household_number": (500, 3400),
-    "parking_types": ["세대당 주차1대 이상", "세대당 주차 1.5대 이상", "전기차충전소"],
-    "entrance_types": ["계단식", "복도식", "복합식"],
-    "has_article_complex": True,  # 매물있는 단지만 보기
-    "subway_walking_minute": 20,
-    "has_article_photo": True, # 사진있는 매물만
-    "is_authorized_by_owner": True, # 집주인/소유자 인증만
-    "room_counts": ["1개", "2개", "3개", "4개 이상"],
-    "bathroom_counts": ["1개", "2개", "3개", "4개 이상"],
-    "floor_types": ["1층", "저층", "중층", "고층", "탑층"],
-    "direction_types": ["동향", "서향", "남향", "북향", "북동향", "남동향", "북서향", "남서향"],
-    "approval_elapsed_year": (5, 20),
-    "management_fee": (120000, 440000),
-    "loan_ratio_type": "융자금 없음",
-    "move_in_types": ["바로입주", "90일 내 입주"],
-    "option_types": ["테라스", "마당", "풀옵션", "에어컨", "복층", "베란다", "보안시설", "엘리베이터", "주차 가능"],
-    "one_room_shape_types": ["오픈형", "분리형"],
-}
+TEST_FILTERS: dict[str, Any] | None = {}
+
 
 TRADE_TYPE_MAP: dict[str, str] = {
     "매매": "A1",
@@ -209,6 +176,8 @@ def zoom_out(driver: Any, count: int = 2) -> None:
     for i in range(count):
         print(f"[지도 축소] {i + 1}/{count}")
         buttons: list[Any] = qq(driver, "button.MapZoomControls_button-control__fgFdq")
+        if len(buttons) < 2:
+            break
         driver.execute_script("arguments[0].click();", buttons[1])
         sleep_rand(1.2, 1.8)
 
@@ -224,30 +193,6 @@ def click_article_button(driver: Any, wait_sec: int = 20) -> None:
             driver.execute_script("arguments[0].click();", buttons[0])
             return
         time.sleep(1)
-
-
-def make_session(driver: Any) -> requests.Session:
-    s: requests.Session = requests.Session()
-    for c in driver.get_cookies():
-        s.cookies.set(c["name"], c["value"])
-    return s
-
-
-def make_headers(driver: Any) -> dict[str, str]:
-    return {
-        "User-Agent": driver.execute_script("return navigator.userAgent;"),
-        "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json",
-        "Origin": "https://fin.land.naver.com",
-        "Referer": driver.current_url,
-        "Sec-Fetch-Site": "same-origin",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Dest": "empty",
-        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-        "sec-ch-ua-platform": '"Windows"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
-    }
 
 
 def inject_list_hook(driver: Any) -> None:
@@ -536,9 +481,125 @@ def build_payload_from_current_url(current_url: str) -> dict[str, Any]:
     return payload
 
 
-def collect_next_list_pages(
-        session: requests.Session,
-        headers: dict[str, str],
+def browser_fetch_bounded_articles(
+        driver: Any,
+        payload: dict[str, Any],
+        wait_sec: int = 30,
+) -> dict[str, Any]:
+    script: str = """
+    const payload = arguments[0];
+    const done = arguments[arguments.length - 1];
+
+    (async () => {
+        try {
+            const res = await fetch("https://fin.land.naver.com/front-api/v1/article/boundedArticles", {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Accept": "application/json, text/plain, */*",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+
+            let text = "";
+            try {
+                text = await res.text();
+            } catch (e) {}
+
+            let jsonData = null;
+            try {
+                jsonData = text ? JSON.parse(text) : null;
+            } catch (e) {}
+
+            done({
+                ok: res.ok,
+                status: res.status,
+                statusText: res.statusText,
+                url: res.url,
+                text: text,
+                json: jsonData
+            });
+        } catch (e) {
+            done({
+                ok: false,
+                status: -1,
+                statusText: String(e),
+                url: "",
+                text: "",
+                json: null
+            });
+        }
+    })();
+    """
+    driver.set_script_timeout(wait_sec)
+    return driver.execute_async_script(script, payload)
+
+
+def browser_fetch_basic_info(
+        driver: Any,
+        article_no: str,
+        real_estate_type: str,
+        trade_type: str,
+        wait_sec: int = 30,
+) -> dict[str, Any]:
+    script: str = """
+    const articleNo = arguments[0];
+    const realEstateType = arguments[1];
+    const tradeType = arguments[2];
+    const done = arguments[arguments.length - 1];
+
+    const url = new URL("https://fin.land.naver.com/front-api/v1/article/basicInfo");
+    url.searchParams.set("articleNumber", articleNo);
+    url.searchParams.set("realEstateType", realEstateType);
+    url.searchParams.set("tradeType", tradeType);
+
+    (async () => {
+        try {
+            const res = await fetch(url.toString(), {
+                method: "GET",
+                credentials: "include",
+                headers: {
+                    "Accept": "application/json, text/plain, */*"
+                }
+            });
+
+            let text = "";
+            try {
+                text = await res.text();
+            } catch (e) {}
+
+            let jsonData = null;
+            try {
+                jsonData = text ? JSON.parse(text) : null;
+            } catch (e) {}
+
+            done({
+                ok: res.ok,
+                status: res.status,
+                statusText: res.statusText,
+                url: res.url,
+                text: text,
+                json: jsonData
+            });
+        } catch (e) {
+            done({
+                ok: false,
+                status: -1,
+                statusText: String(e),
+                url: "",
+                text: "",
+                json: null
+            });
+        }
+    })();
+    """
+    driver.set_script_timeout(wait_sec)
+    return driver.execute_async_script(script, article_no, real_estate_type, trade_type)
+
+
+def collect_next_list_pages_by_browser(
+        driver: Any,
         base_payload: dict[str, Any],
         first_result: dict[str, Any],
 ) -> list[dict[str, Any]]:
@@ -574,15 +635,21 @@ def collect_next_list_pages(
         req["articlePagingRequest"]["seed"] = seed
         req["articlePagingRequest"]["lastInfo"] = last_info
 
-        print(f"[목록] page={page} 요청")
-        res: requests.Response = session.post(
-            LIST_API_URL,
-            headers=headers,
-            json=req,
-            timeout=30,
-            verify=False,
+        print(f"[목록] page={page} 브라우저 fetch 요청")
+        res_data: dict[str, Any] = browser_fetch_bounded_articles(driver, req, 30)
+
+        print(
+            f"[목록] page={page} "
+            f"status={res_data.get('status')} "
+            f"ok={res_data.get('ok')}"
         )
-        result: dict[str, Any] = res.json()["result"]
+
+        if res_data.get("status") != 200:
+            print(f"[목록] page={page} 실패 body={res_data.get('text', '')[:500]}")
+            break
+
+        json_data: dict[str, Any] = res_data.get("json") or {}
+        result: dict[str, Any] = json_data.get("result", {})
         page_list: list[dict[str, Any]] = result.get("list", [])
 
         print(
@@ -607,9 +674,8 @@ def collect_next_list_pages(
     return items
 
 
-def collect_detail(
-        session: requests.Session,
-        headers: dict[str, str],
+def collect_detail_by_browser(
+        driver: Any,
         items: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     details: list[dict[str, Any]] = []
@@ -622,16 +688,18 @@ def collect_detail(
 
         print(f"[상세] {i}/{len(items)} articleNumber={article_no}")
 
-        res: requests.Response = session.get(
-            DETAIL_API_URL,
-            headers=headers,
-            params={
-                "articleNumber": article_no,
-                "realEstateType": real_estate_type,
-                "tradeType": trade_type,
-            },
-            timeout=30,
-            verify=False,
+        res_data: dict[str, Any] = browser_fetch_basic_info(
+            driver,
+            article_no,
+            real_estate_type,
+            trade_type,
+            30,
+        )
+
+        print(
+            f"[상세] {i}/{len(items)} "
+            f"status={res_data.get('status')} "
+            f"ok={res_data.get('ok')}"
         )
 
         details.append(
@@ -640,7 +708,14 @@ def collect_detail(
                 "realEstateType": real_estate_type,
                 "tradeType": trade_type,
                 "listItem": item,
-                "detail": res.json(),
+                "detail": res_data.get("json"),
+                "detailFetchMeta": {
+                    "status": res_data.get("status"),
+                    "ok": res_data.get("ok"),
+                    "statusText": res_data.get("statusText"),
+                    "url": res_data.get("url"),
+                    "text": res_data.get("text"),
+                },
             }
         )
 
@@ -668,7 +743,10 @@ def run_one_keyword(driver: Any, keyword: str, filters: dict[str, Any] | None) -
     search_input.send_keys(Keys.ENTER)
 
     print("[4] 첫 번째 지역 클릭")
-    driver.execute_script("arguments[0].click();", qq(driver, "button.SearchResultList_link__0yl8W")[0])
+    region_buttons: list[Any] = qq(driver, "button.SearchResultList_link__0yl8W")
+    if not region_buttons:
+        raise Exception("첫 번째 지역 버튼을 찾지 못했습니다.")
+    driver.execute_script("arguments[0].click();", region_buttons[0])
     time.sleep(5)
 
     current_url: str = driver.current_url
@@ -706,19 +784,28 @@ def run_one_keyword(driver: Any, keyword: str, filters: dict[str, Any] | None) -
         print("[후킹] bodyText 없음 -> 현재 URL 기준 payload 복구")
         base_payload = build_payload_from_current_url(driver.current_url)
 
-    first_result: dict[str, Any] = response_json["result"]
+    first_result: dict[str, Any] = response_json.get("result", {})
 
-    print("[12] 세션 / 헤더 준비")
-    session: requests.Session = make_session(driver)
-    headers: dict[str, str] = make_headers(driver)
+    if not first_result:
+        print("[후킹] 첫 응답 result 없음 -> 브라우저 fetch로 첫 페이지 재요청")
+        retry_res: dict[str, Any] = browser_fetch_bounded_articles(driver, base_payload, 30)
+        print(
+            f"[후킹 재요청] status={retry_res.get('status')} "
+            f"ok={retry_res.get('ok')}"
+        )
+        retry_json: dict[str, Any] = retry_res.get("json") or {}
+        first_result = retry_json.get("result", {})
 
-    print("[13] 목록 수집")
-    items: list[dict[str, Any]] = collect_next_list_pages(session, headers, base_payload, first_result)
+    if not first_result:
+        raise Exception("첫 목록 result를 확보하지 못했습니다.")
+
+    print("[12] 목록 수집")
+    items: list[dict[str, Any]] = collect_next_list_pages_by_browser(driver, base_payload, first_result)
     with open(f"{slug(keyword)}_list.json", "w", encoding="utf-8") as f:
         json.dump(items, f, ensure_ascii=False, indent=2)
 
-    print("[14] 상세 수집")
-    details: list[dict[str, Any]] = collect_detail(session, headers, items)
+    print("[13] 상세 수집")
+    details: list[dict[str, Any]] = collect_detail_by_browser(driver, items)
     with open(f"{slug(keyword)}_detail.json", "w", encoding="utf-8") as f:
         json.dump(details, f, ensure_ascii=False, indent=2)
 
