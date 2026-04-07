@@ -1,3 +1,22 @@
+
+■ 고객
+    크몽ID : 단정한사계759
+    가격 : 250,000
+    날짜 : 2026.03.25
+    특징 : 동일매물정렬, 날짜, 
+
+
+
+■ 요구사항
+    동일매물정렬
+    해당 날짜에 있는 것만
+
+
+
+■ 요구사항
+
+
+
 ■ 상세 지역 목록 데이터
     korea_eup_myeon_dong_list.py 
     korea_eup_myeon_dong.json: 위도 경도 지역번호가 있는 상세 데이터
@@ -10,40 +29,48 @@
         화면에서는 지역 keyword들이 배열로 올 것이고 그거에 맞게 상세지역 데이터를 찾는다.
         korea_eup_myeon_dong.json를 사용한다.
         그걸로 URL을 만든다.
-    
-       
-    2. 목록조회 : 메인
+
+    2. 화면에서 filter정보를 받아서 queryString을 만들어서
+        https://fin.land.naver.com/map? 으로 화면을 열면 해당 filter가 적용된 화면이 나온다. 
+        (zoom, filter, 등 모든 정보가 setting된 화면이 나온다.)
+
+    3. 클릭 및 후킹은 js파일로 별도로 뺐다.
+
+    4. 목록조회 : 메인
         https://fin.land.naver.com/front-api/v1/article/boundedArticles
         URL 로딩후 첫목록은 "매물 100개" 버튼을 눌러서 후킹을 해서 가져온다. (Fiddler로 network 잡아냄)
-        후킹시 Post요청 데이터는 저장해놓는다. 응답에 articlePagingRequest 가 핵심이다. 
-    
-    3. 목록조회 : 첫 목록 다시 조회
-        클릭해서 요청은 정렬방식이 없기 대문에 캐시한 post 요청 데이터에 정렬부분을 추가해서 1페이지 부터 마지막 페이지까지 요청한다.
+        후킹시 Post요청 데이터는 저장해놓는다. 응답에 articlePagingRequest 가 핵심이다.
 
     4. 상세조회
         https://fin.land.naver.com/front-api/v1/article/basicInfo
 
+    5. 주소 key 를 가져오기위한 api 
+        https://fin.land.naver.com/front-api/v1/article/key
+
+    6. 주소를 가져오기 위한 api 주소key 필요
+        https://fin.land.naver.com/front-api/v1/complex
 
 
 
+■ 빌드후
+    resources/customers/naver_land_real_estate_detail/filter_data.json
+    resources/customers/naver_land_real_estate_detail/region/korea_eup_myeon_dong.json
+    resources/customers/naver_land_real_estate_detail/js/list_hook.js
+    resources/customers/naver_land_real_estate_detail/js/browser_fetch_json.js
+    resources/customers/naver_land_real_estate_detail/js/click_sort_button.js
+    resources/customers/naver_land_real_estate_detail/js/click_article_button.js
+    resources/customers/naver_place_loc_all/naver_loc_all_real.json
+
+    자료가 있어야함
 
 
+■ 빌드
 
-
-
-단정한사계759
-25만
-2026.03.25
-
-
-
-
-
+--add-data "원본경로;실행시경로"
 
 pyinstaller .\main.py `
 --noconfirm `
 --clean `
---console `
 --windowed `
 --name "naver_land_real_estate_detail" `
 --icon ".\resources\icons\crawling.ico" `
@@ -57,4 +84,12 @@ pyinstaller .\main.py `
 --exclude-module _tkinter `
 --exclude-module tk `
 --exclude-module Tcl `
---exclude-module tcl
+--exclude-module tcl `
+--add-data ".\resources\customers\naver_land_real_estate_detail\filter_data.json;resources\customers\naver_land_real_estate_detail" `
+--add-data ".\resources\customers\naver_land_real_estate_detail\region\korea_eup_myeon_dong.json;resources\customers\naver_land_real_estate_detail\region" `
+--add-data ".\resources\customers\naver_land_real_estate_detail\js\list_hook.js;resources\customers\naver_land_real_estate_detail\js" `
+--add-data ".\resources\customers\naver_land_real_estate_detail\js\browser_fetch_json.js;resources\customers\naver_land_real_estate_detail\js" `
+--add-data ".\resources\customers\naver_land_real_estate_detail\js\click_sort_button.js;resources\customers\naver_land_real_estate_detail\js" `
+--add-data ".\resources\customers\naver_land_real_estate_detail\js\click_article_button.js;resources\customers\naver_land_real_estate_detail\js" `
+--add-data ".\resources\customers\naver_place_loc_all\naver_loc_all_real.json;resources\customers\naver_place_loc_all"
+--add-data ".\resources\icons\crawling.ico;resources\icons\crawling.ico"

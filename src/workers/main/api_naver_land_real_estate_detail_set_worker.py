@@ -49,7 +49,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.url: str = "https://fin.land.naver.com"
 
         self.list_hook_js = None
-        self._browser_fetch_json_js = None
+        self.browser_fetch_json_js = None
         self.click_sort_button_js = None
         self.click_article_button_js = None
 
@@ -199,7 +199,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def _load_js_assets(self) -> None:
         js_dir = "customers/naver_land_real_estate_detail/js"
         self.list_hook_js = self.file_driver.read_text_from_resources("list_hook.js", js_dir)
-        self._browser_fetch_json_js = self.file_driver.read_text_from_resources("_browser_fetch_json.js", js_dir)
+        self.browser_fetch_json_js = self.file_driver.read_text_from_resources("browser_fetch_json.js", js_dir)
         self.click_sort_button_js = self.file_driver.read_text_from_resources("click_sort_button.js", js_dir)
         self.click_article_button_js = self.file_driver.read_text_from_resources("click_article_button.js", js_dir)
 
@@ -259,7 +259,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
             success = False
 
-            for attempt in range(1, 4):
+            for attempt in range(1, 2):
                 try:
                     self.log_signal_func(f"[지역 진입] 시도 {attempt}/3")
 
@@ -534,7 +534,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         return {}
 
     def _browser_fetch_json(self,url: str, method: str = "GET", payload: dict[str, Any] = None, params: dict[str, Any] = None,wait_sec: int = 30) -> dict[str, Any]:
-        script = self._browser_fetch_json_js
+        script = self.browser_fetch_json_js
         self.driver.set_script_timeout(wait_sec)
         return self.driver.execute_async_script(script, url, method, payload, params)
 
@@ -789,7 +789,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     },
                     wait_sec=120,
                 )
-
                 if detail_fetch_res.get("status") != 200:
                     self.log_signal_func(
                         f"[상세] basicInfo 실패 articleNumber={article_no} "

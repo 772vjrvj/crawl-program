@@ -23,7 +23,7 @@ _internal/resources/bin/ffmpeg.exe
 
 크롬 로그인 2개 되어 있으면 안됨
 
-
+--add-data "원본경로;실행시경로"
 pyinstaller .\main.py `
 --noconfirm `
 --clean `
