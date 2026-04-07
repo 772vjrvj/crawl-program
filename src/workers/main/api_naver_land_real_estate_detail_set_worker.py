@@ -1,6 +1,6 @@
 import os
 import time
-from typing import List, Optional, Any
+from typing import Any, Dict, List, Optional, Tuple
 import random
 import json
 
@@ -15,6 +15,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
+        self.eng_yn = None
         self.remove_duplicate_yn = None
         self.filter_data = None
         self.brokerage_yn = None
@@ -133,6 +134,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         # 파일명
         self.csv_filename = os.path.basename(self.file_driver.get_csv_filename(self.site_name))
 
+        # 영어컬럼 여부
+        self.eng_yn: bool = self.get_setting_value(self.setting, "eng_yn")
+        self.log_signal_func(f"영어컬럼 여부 : {self.eng_yn}")
+        if self.eng_yn:
+            self.columns = self._get_eng_columns()
+
         # 초기 파일 생성
         self.excel_driver.init_csv(
             self.csv_filename,
@@ -195,6 +202,118 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self._crawl_article_list()
 
         return True
+
+
+    def _get_eng_columns(self) -> List[str]:
+        return [
+            "date",
+            "atclNo",
+            "atclNm",
+            "tradTpNm",
+            "hanPrc",
+            "rentPrc",
+            "ho",
+            "flrInfo",
+            "spc1",
+            "spc2",
+            "jibun",
+            "atclFetrDesc",
+            "tagList",
+            "rltrNm",
+            "phone",
+            "direction",
+            "ipjuday",
+            "keyword",
+            "atclUrl",
+            "id",
+            "searchRequirement",
+            "atclCfmYmd",
+            "rletTpNm",
+            "articlePriceInfo",
+            "supplySpaceName",
+            "bildNm",
+            "sameAddrMinPrc",
+            "sameAddrMaxPrc",
+            "sameAddrCnt",
+            "vrfcTpCd",
+            "rank",
+            "lat",
+            "lng",
+        ]
+
+    def _build_article_price_info(self, out: Dict[str, Any]) -> str:
+        price = str(out.get("매매가") or "").strip()
+        warranty = str(out.get("보증금") or "").strip()
+        rent = str(out.get("월세") or "").strip()
+
+        if price:
+            return price
+        if warranty and rent:
+            return f"{warranty}/{rent}"
+        if warranty:
+            return warranty
+        if rent:
+            return rent
+        return ""
+
+
+    def _build_search_requirement_text(self, out: Dict[str, Any]) -> str:
+        parts: List[str] = []
+
+        search_addr = str(out.get("검색 주소") or "").strip()
+        search_rlet = str(out.get("검색 매물유형") or out.get("매물유형") or "").strip()
+        search_trade = str(out.get("검색 거래유형") or out.get("거래유형") or "").strip()
+
+        if search_addr:
+            parts.append(search_addr)
+        if search_rlet:
+            parts.append(f"매물유형:{search_rlet}")
+        if search_trade:
+            parts.append(f"거래유형:{search_trade}")
+
+        return " / ".join(parts)
+
+
+    def _map_out_to_eng(self, out: Dict[str, Any]) -> Dict[str, Any]:
+        eng_out: Dict[str, Any] = {
+            "date": str(out.get("매물확인일") or ""),
+            "atclNo": str(out.get("매물번호") or ""),
+            "atclNm": str(out.get("상위매물명") or ""),
+            "tradTpNm": str(out.get("거래유형") or ""),
+            "hanPrc": str(out.get("매매가") or out.get("보증금") or ""),
+            "rentPrc": str(out.get("월세") or ""),
+            "ho": "",
+            "flrInfo": str(out.get("층정보") or ""),
+            "spc1": str(out.get("공급면적") or ""),
+            "spc2": str(out.get("전용면적") or ""),
+            "jibun": str(out.get("번지") or ""),
+            "atclFetrDesc": str(out.get("간략설명") or ""),
+            "tagList": "",
+            "rltrNm": str(out.get("중개사무소이름") or ""),
+            "phone": str(out.get("중개사무소번호") or out.get("중개사핸드폰번호") or ""),
+            "direction": str(out.get("방향정보") or ""),
+            "ipjuday": str(out.get("매물확인일") or ""),
+            "keyword": str(out.get("검색 주소") or ""),
+            "atclUrl": str(out.get("URL") or ""),
+            "id": "",
+            "searchRequirement": self._build_search_requirement_text(out),
+            "atclCfmYmd": str(out.get("등록일자") or ""),
+            "rletTpNm": str(out.get("매물유형") or ""),
+            "articlePriceInfo": self._build_article_price_info(out),
+            "supplySpaceName": str(out.get("평수") or ""),
+            "bildNm": str(out.get("동이름") or out.get("상위매물동") or ""),
+            "sameAddrMinPrc": str(out.get("동일주소최소가") or ""),
+            "sameAddrMaxPrc": str(out.get("동일주소최대가") or ""),
+            "sameAddrCnt": str(out.get("동일주소매물수") or ""),
+            "vrfcTpCd": "",
+            "rank": "",
+            "lat": str(out.get("위도") or ""),
+            "lng": str(out.get("경도") or ""),
+        }
+
+        return eng_out
+
+
 
     def _load_js_assets(self) -> None:
         js_dir = "customers/naver_land_real_estate_detail/js"
@@ -1002,9 +1121,13 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "검색 주소": sido + " " + sigungu + " " + eup_myeon_dong,
         }
 
+        save_row = rs
+        if self.eng_yn:
+            save_row = self._map_out_to_eng(rs)
+
         self.excel_driver.append_to_csv(
             self.csv_filename,
-            [rs],
+            [save_row],
             self.columns,
             folder_path=self.folder_path,
             sub_dir=self.out_dir,

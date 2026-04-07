@@ -63,8 +63,8 @@
     },
     {
       "name": "영어컬럼",
-      "code": "eng",
-      "value": false,
+      "code": "eng_yn",
+      "value": true,
       "type": "check"
     },
     {
@@ -76,7 +76,7 @@
     {
       "name": "중복제거",
       "code": "remove_duplicate_yn",
-      "value": false,
+      "value": true,
       "type": "check"
     }
   ],
