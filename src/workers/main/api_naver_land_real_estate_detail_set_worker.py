@@ -1,4 +1,3 @@
-# src/workers/main/api_naver_place_url_all_set_worker.py
 import os
 import time
 from typing import List, Optional, Any
@@ -157,8 +156,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.log_signal_func(f"등록 종료일 : {self.to_date}")
 
         # 4. 정렬방식
-        self.article_sort_type: str = self.get_setting_value(self.setting, "articleSortType")
-        self.log_signal_func(f"정렬 방식 : {self.to_date}")
+        self.article_sort_type: str = str(self.get_setting_value(self.setting, "articleSortType") or "").strip()
+        self.log_signal_func(f"정렬 방식 : {self.article_sort_type}")
 
         # 5. 영어컬럼 여부
         self.eng: str = self.get_setting_value(self.setting, "eng")
@@ -208,22 +207,57 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.click_article_button(wait_sec=20)
             time.sleep(3)
 
+            # 정렬 버튼 클릭
+            self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
+            self.click_sort_button_by_setting(wait_sec=20)
+            time.sleep(3)
+
             hook_data: dict[str, Any] = self.get_first_list_hook_data(20)
             body_text: str = hook_data.get("bodyText", "")
-            response_json: dict[str, Any] = hook_data.get("responseJson", {})
+            response_json: dict[str, Any] = hook_data.get("responseJson", {}) or {}
 
             self.log_signal_func(f"[후킹] 수신 여부={bool(hook_data)}")
-            self.log_signal_func(f"self.fr_date self.to_date은 이미 위에서 yyyymmdd로 값이 세팅된상태로 여기서는 그냥쓰면돼[후킹] bodyText 존재={bool(body_text)}")
+            self.log_signal_func(f"[후킹] bodyText 존재={bool(body_text)}")
             self.log_signal_func(f"[후킹] responseJson 존재={bool(response_json)}")
 
             if not body_text:
                 self.log_signal_func("[후킹] bodyText 없음")
                 continue
 
-            base_payload: dict[str, Any] = json.loads(body_text)
+            try:
+                base_payload: dict[str, Any] = json.loads(body_text)
+            except Exception as e:
+                self.log_signal_func(f"[후킹] bodyText json 파싱 실패: {e}")
+                continue
 
-            items: list[dict[str, Any]] = self.collect_next_list_pages(base_payload)
-            details: list[dict[str, Any]] = self.collect_detail(items)
+            first_result: dict[str, Any] = response_json.get("result", {}) or {}
+
+            if not first_result:
+                self.log_signal_func("[후킹] 첫 응답 result 없음 -> 첫 페이지 재요청")
+                retry_res = self.browser_fetch_json(
+                    url=self.list_api_url,
+                    method="POST",
+                    payload=base_payload,
+                    wait_sec=30,
+                )
+
+                self.log_signal_func(
+                    f"[후킹 재요청] status={retry_res.get('status')} ok={retry_res.get('ok')}"
+                )
+
+                retry_json: dict[str, Any] = retry_res.get("json") or {}
+                first_result = retry_json.get("result", {}) or {}
+
+            if not first_result:
+                self.log_signal_func("[목록] 첫 페이지 result 확보 실패")
+                continue
+
+            items: list[dict[str, Any]] = self.collect_next_list_pages(
+                base_payload=base_payload,
+                first_result=first_result,
+            )
+
+            details: list[dict[str, Any]] = self.collect_detail(items, region_item)
 
             self.detail_map_save(details)
 
@@ -387,6 +421,62 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         raise Exception("매물 버튼을 찾지 못했습니다.")
 
+    def click_sort_button_by_setting(self, wait_sec: int = 20) -> None:
+        click_map: dict[str, tuple[str, int]] = {
+            "RANKING_DESC": ("filterOrder1", 1),
+            "PRICE_DESC": ("filterOrder2", 1),
+            "PRICE_ASC": ("filterOrder2", 2),
+            "DATE_DESC": ("filterOrder3", 1),
+            "SPACE_DESC": ("filterOrder4", 1),
+            "SPACE_ASC": ("filterOrder4", 2),
+        }
+
+        sort_id, click_count = click_map.get(self.article_sort_type or "", ("filterOrder1", 1))
+        self.log_signal_func(
+            f"[정렬] articleSortType={self.article_sort_type} sort_id={sort_id} click_count={click_count}"
+        )
+
+        end = time.time() + wait_sec
+
+        while time.time() < end:
+            try:
+                clicked = self.driver.execute_script(
+                    """
+                    const sortId = arguments[0];
+                    const clickCount = arguments[1];
+
+                    const input = document.getElementById(sortId);
+                    if (!input) return { ok: false, message: "input 없음" };
+
+                    let label = document.querySelector(`label[for="${sortId}"]`);
+                    if (!label && input.nextElementSibling && input.nextElementSibling.tagName === "LABEL") {
+                        label = input.nextElementSibling;
+                    }
+                    if (!label) return { ok: false, message: "label 없음" };
+
+                    for (let i = 0; i < clickCount; i++) {
+                        label.click();
+                    }
+
+                    return {
+                        ok: true,
+                        labelText: (label.innerText || label.textContent || "").trim()
+                    };
+                    """,
+                    sort_id,
+                    click_count,
+                )
+
+                if clicked and clicked.get("ok"):
+                    self.log_signal_func(f"[정렬] 클릭 완료 : {clicked.get('labelText')}")
+                    return
+            except Exception as e:
+                self.log_signal_func(f"[정렬] 클릭 실패: {e}")
+
+            time.sleep(1)
+
+        raise Exception(f"정렬 버튼 클릭 실패: {self.article_sort_type}")
+
     def inject_list_hook(self) -> None:
         self.driver.execute_script(
             """
@@ -498,7 +588,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 }
             };
 
-            if (method !== "GET") {
+            if (method != "GET") {
                 options.headers["Content-Type"] = "application/json";
             }
 
@@ -554,6 +644,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def collect_next_list_pages(
             self,
             base_payload: dict[str, Any],
+            first_result: dict[str, Any],
     ) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
         seen: set[str] = set()
@@ -563,14 +654,19 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         def normalize_date_yyyymmdd(value: Any) -> str:
             return str(value or "").replace("-", "").replace(".", "").replace("/", "").strip()
 
-        def get_confirm_date_from_item(item: dict[str, Any]) -> str:
-            info: dict[str, Any] = item.get("representativeArticleInfo", {})
-            verification_info: dict[str, Any] = info.get("verificationInfo", {})
+        def get_confirm_date_from_info(info: dict[str, Any]) -> str:
+            verification_info: dict[str, Any] = info.get("verificationInfo", {}) or {}
             return normalize_date_yyyymmdd(verification_info.get("articleConfirmDate", ""))
+
+        def get_confirm_date_from_item(item: dict[str, Any]) -> str:
+            info: dict[str, Any] = item.get("representativeArticleInfo", {}) or {}
+            return get_confirm_date_from_info(info)
 
         def is_target_date(confirm_date: str) -> bool:
             if not use_date_filter:
                 return True
+            if not confirm_date:
+                return False
             return self.fr_date <= confirm_date <= self.to_date
 
         def should_stop_by_date(page_list: list[dict[str, Any]]) -> bool:
@@ -579,7 +675,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
             for item in page_list:
                 confirm_date: str = get_confirm_date_from_item(item)
-                if confirm_date < self.fr_date:
+                if confirm_date and confirm_date < self.fr_date:
                     return True
 
             return False
@@ -587,16 +683,13 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         def add_items(page_list: list[dict[str, Any]]) -> None:
             for item in page_list:
                 if self.brokerage_yn:
-                    duplicated_info: dict[str, Any] = item.get("duplicatedArticleInfo", {})
+                    duplicated_info: dict[str, Any] = item.get("duplicatedArticleInfo", {}) or {}
                     article_info_list: list[dict[str, Any]] = duplicated_info.get("articleInfoList", []) or []
 
                     if article_info_list:
                         for article_info in article_info_list:
                             article_no: str = str(article_info.get("articleNumber", "")).strip()
-                            verification_info: dict[str, Any] = article_info.get("verificationInfo", {})
-                            confirm_date: str = normalize_date_yyyymmdd(
-                                verification_info.get("articleConfirmDate", "")
-                            )
+                            confirm_date: str = get_confirm_date_from_info(article_info)
 
                             if not is_target_date(confirm_date):
                                 continue
@@ -606,12 +699,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                                 items.append(article_info)
                         continue
 
-                info: dict[str, Any] = item.get("representativeArticleInfo", {})
+                info: dict[str, Any] = item.get("representativeArticleInfo", {}) or {}
                 article_no: str = str(info.get("articleNumber", "")).strip()
-                verification_info: dict[str, Any] = info.get("verificationInfo", {})
-                confirm_date: str = normalize_date_yyyymmdd(
-                    verification_info.get("articleConfirmDate", "")
-                )
+                confirm_date: str = get_confirm_date_from_info(info)
 
                 if not is_target_date(confirm_date):
                     continue
@@ -620,24 +710,39 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     seen.add(article_no)
                     items.append(info)
 
-        page: int = 1
-        seed: str | None = None
-        last_info: list[Any] = []
-        has_next: bool = True
+        first_list: list[dict[str, Any]] = first_result.get("list", []) or []
 
-        while has_next:
+        self.log_signal_func(
+            f"[목록] first "
+            f"count={len(first_list)} "
+            f"hasNext={first_result.get('hasNextPage')} "
+            f"total={first_result.get('totalCount')}"
+        )
+
+        if not first_list:
+            self.log_signal_func("[목록] 첫 페이지 list 비어있음")
+            return items
+
+        add_items(first_list)
+
+        if should_stop_by_date(first_list):
+            self.log_signal_func(f"[목록] 시작일({self.fr_date}) 이전 데이터 발견으로 목록 조회 중단")
+            self.log_signal_func(f"[목록] 최종 수집 건수={len(items)}")
+            return items
+
+        seed: str | None = first_result.get("seed")
+        last_info: list[Any] = first_result.get("lastInfo", []) or []
+        has_next: bool = bool(first_result.get("hasNextPage"))
+        page: int = 2
+
+        while has_next and last_info:
             req: dict[str, Any] = json.loads(json.dumps(base_payload))
-            req.setdefault("articlePagingRequest", {})
-            req["articlePagingRequest"]["articleSortType"] = self.article_sort_type
+            req["articlePagingRequest"]["seed"] = seed
+            req["articlePagingRequest"]["lastInfo"] = last_info
 
-            if page >= 2:
-                req["articlePagingRequest"]["seed"] = seed
-                req["articlePagingRequest"]["lastInfo"] = last_info
-            else:
-                req["articlePagingRequest"]["seed"] = None
-                req["articlePagingRequest"]["lastInfo"] = []
-
-            self.log_signal_func(f"[목록] page={page} 요청")
+            self.log_signal_func(
+                f"[목록] page={page} 요청 seed={'Y' if seed else 'N'} lastInfo={len(last_info)}"
+            )
 
             fetch_res = self.browser_fetch_json(
                 url=self.list_api_url,
@@ -657,8 +762,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 self.log_signal_func(f"[목록] page={page} 실패 body={fetch_res.get('text', '')[:500]}")
                 break
 
-            result: dict[str, Any] = json_res.get("result", {})
-            page_list: list[dict[str, Any]] = result.get("list", [])
+            result: dict[str, Any] = json_res.get("result", {}) or {}
+            page_list: list[dict[str, Any]] = result.get("list", []) or []
 
             self.log_signal_func(
                 f"[목록] page={page} "
@@ -688,7 +793,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.log_signal_func(f"[목록] 최종 수집 건수={len(items)}")
         return items
 
-    def collect_detail(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def collect_detail(self, items: list[dict[str, Any]], region_item) -> list[dict[str, Any]]:
         details: list[dict[str, Any]] = []
 
         for i, info in enumerate(items, 1):
@@ -696,7 +801,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             real_estate_type: str = str(info["realEstateType"])
             trade_type: str = str(info["tradeType"])
 
-            print(f"[상세] {i}/{len(items)} articleNumber={article_no}")
+            self.log_signal_func(f"[상세] {i}/{len(items)} articleNumber={article_no} 시작")
 
             detail_fetch_res = self.browser_fetch_json(
                 url=self.detail_api_url,
@@ -734,21 +839,112 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
             time.sleep(random.uniform(1.5, 2.2))
 
-            details.append(
-                {
-                    "articleNumber": article_no,
-                    "realEstateType": real_estate_type,
-                    "tradeType": trade_type,
-                    "listItem": info,
-                    "detail": detail_fetch_res.get("json"),
-                    "agent_detail": agent_fetch_res.get("json")
-                }
-            )
+            detail = {
+                "articleNumber": article_no,
+                "realEstateType": real_estate_type,
+                "tradeType": trade_type,
+                "listItem": info,
+                "detail": detail_fetch_res.get("json"),
+                "agent_detail": agent_fetch_res.get("json")
+            }
+
+            self.detail_map_save(detail,region_item)
+
+
 
             time.sleep(random.uniform(2.2, 3.2))
 
-        print(f"[상세] 최종 수집 건수={len(details)}")
+        self.log_signal_func(f"[상세] 최종 수집 건수={len(details)}")
         return details
 
-    def detail_map_save(self, details):
+
+
+    def detail_map_save(self, detail, region_item):
+
+        sido = region_item.get("시도")
+        sigungu = region_item.get("시군구")
+        eup_myeon_dong = region_item.get("읍면동")
+
+        list_item = (detail or {}).get("listItem") or {}
+        detail_result = ((detail or {}).get("detail") or {}).get("result") or {}
+        agent_result = ((detail or {}).get("agent_detail") or {}).get("result") or {}
+
+        list_space = list_item.get("spaceInfo") or {}
+        list_building = list_item.get("buildingInfo") or {}
+        list_verification = list_item.get("verificationInfo") or {}
+        list_broker = list_item.get("brokerInfo") or {}
+        list_article_detail = list_item.get("articleDetail") or {}
+        list_address = list_item.get("address") or {}
+        list_price = list_item.get("priceInfo") or {}
+        list_coords = list_address.get("coordinates") or {}
+
+        detail_price = detail_result.get("priceInfo") or {}
+        detail_info = detail_result.get("detailInfo") or {}
+        detail_article = detail_info.get("articleDetailInfo") or {}
+        detail_verification = detail_info.get("verificationInfo") or {}
+        detail_space = detail_info.get("spaceInfo") or {}
+        detail_floor = detail_space.get("floorInfo") or {}
+        detail_size = detail_info.get("sizeInfo") or {}
+        detail_complex = detail_result.get("communalComplexInfo") or {}
+        detail_coords = detail_article.get("coordinates") or {}
+
+        phone = agent_result.get("phone") or {}
+
+        floor_text = list_article_detail.get("floorInfo", "")
+        if not floor_text:
+            target_floor = detail_floor.get("targetFloor", "")
+            total_floor = detail_floor.get("totalFloor", "")
+            if target_floor or total_floor:
+                floor_text = f"{target_floor}/{total_floor}".strip("/")
+
+        x = list_coords.get("xCoordinate", "")
+        y = list_coords.get("yCoordinate", "")
+        if x == "":
+            x = detail_coords.get("xCoordinate", "")
+        if y == "":
+            y = detail_coords.get("yCoordinate", "")
+
+        rs = {
+            "게시번호": list_item.get("articleNumber", "") or detail_article.get("articleNumber", ""),
+            "단지명": list_item.get("complexName", "") or detail_complex.get("complexName", ""),
+            "동이름": list_item.get("dongName", "") or detail_complex.get("dongName", ""),
+            "매매가": list_price.get("dealPrice", "") if list_price.get("dealPrice", "") != "" else detail_price.get("price", ""),
+            "보증금": list_price.get("warrantyPrice", ""),
+            "월세": list_price.get("rentPrice", ""),
+            "공급면적": list_space.get("supplySpace", "") or detail_size.get("supplySpace", ""),
+            "평수": detail_size.get("pyeongArea", ""),
+            "대지면적": list_space.get("landSpace", ""),
+            "연면적": list_space.get("floorSpace", ""),
+            "건축면적": list_space.get("buildingSpace", ""),
+            "전용면적": list_space.get("exclusiveSpace", "") or detail_size.get("exclusiveSpace", ""),
+            "매물특징": list_article_detail.get("articleFeatureDescription", "") or detail_article.get("articleFeatureDescription", ""),
+            "매물확인일": list_verification.get("articleConfirmDate", "") or detail_verification.get("articleConfirmDate", ""),
+            "건축물용도": detail_article.get("buildingPrincipalUse", ""),
+            "층정보": floor_text,
+            "시도": list_address.get("city", ""),
+            "시군구": list_address.get("division", ""),
+            "읍면동": list_address.get("sector", ""),
+            "중개사무소이름": agent_result.get("brokerageName", "") or list_broker.get("brokerageName", ""),
+            "중개사이름": agent_result.get("brokerName", "") or list_broker.get("brokerName", ""),
+            "중개사무소주소": agent_result.get("address", ""),
+            "중개사무소번호": phone.get("brokerage", ""),
+            "중개사핸드폰번호": phone.get("mobile", ""),
+            "상위매물명": list_item.get("articleName", ""),
+            "매물유형": list_item.get("realEstateType", ""),
+            "거래유형": list_item.get("tradeType", ""),
+            "등록일자": list_verification.get("exposureStartDate", "") or detail_verification.get("exposureStartDate", ""),
+            "위도": y,
+            "경도": x,
+            "방향정보": list_article_detail.get("direction", "") or detail_space.get("direction", ""),
+            "검색 주소": sido + " " + sigungu + " " + eup_myeon_dong,
+        }
+
+        self.excel_driver.append_to_csv(
+            self.csv_filename,
+            [rs],
+            self.columns,
+            folder_path=self.folder_path,
+            sub_dir=self.out_dir,
+        )
+
         return ""
