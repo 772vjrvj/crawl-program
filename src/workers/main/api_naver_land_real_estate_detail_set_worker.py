@@ -258,27 +258,46 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             url = self._build_region_map_url(x, y, self.setting_detail_all_style)
             self.log_signal_func(f"[URL] {url}")
 
-            try:
-                self.driver.get(url)
-                time.sleep(5)
+            success = False
 
-                self.log_signal_func("[후킹] 목록 후킹 설치")
-                self._inject_list_hook()
-                time.sleep(1)
+            for attempt in range(1, 4):
+                try:
+                    self.log_signal_func(f"[지역 진입] 시도 {attempt}/3")
 
-                self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
-                self._click_article_button(wait_sec=20)
-                time.sleep(3)
+                    self.driver.get(url)
+                    time.sleep(5)
 
-                self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
-                self._click_sort_button_by_setting(wait_sec=20)
-                time.sleep(3)
+                    self.log_signal_func("[후킹] 목록 후킹 설치")
+                    self._inject_list_hook()
+                    time.sleep(1)
 
-            except Exception as e:
-                self.log_signal_func(f"[지역 처리 실패] {sido} {sigungu} {eup_myeon_dong} / {e}")
+                    self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
+                    self._click_article_button(wait_sec=20)
+                    time.sleep(3)
+
+                    self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
+                    self._click_sort_button_by_setting(wait_sec=20)
+                    time.sleep(3)
+
+                    success = True
+                    break
+
+                except Exception as e:
+                    self.log_signal_func(
+                        f"[지역 처리 실패] {sido} {sigungu} {eup_myeon_dong} "
+                        f"/ 시도 {attempt}/3 / {e}"
+                    )
+
+                    if attempt < 3:
+                        self.log_signal_func("[재시도] 화면 새로 로드 후 다시 시도")
+                        time.sleep(2)
+                    else:
+                        self.log_signal_func("[재시도 실패] 3회 모두 실패하여 다음 지역으로 이동")
+
+            if not success:
                 continue
 
-            hook_data: dict[str, Any] = self._get_first_list_hook_data(20)
+            hook_data: dict[str, Any] = self.get_first_list_hook_data(20)
             body_text: str = hook_data.get("bodyText", "")
             response_json: dict[str, Any] = hook_data.get("responseJson", {}) or {}
 
@@ -329,7 +348,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.progress_signal.emit(self.before_pro_value, pro_value)
             self.before_pro_value = pro_value
             time.sleep(random.uniform(2, 4))
-
 
     def _build_region_map_url(self, x, y, filter_items):
         params = [
