@@ -53,7 +53,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.click_sort_button_js = None
         self.click_article_button_js = None
 
-
     def init(self) -> bool:
         self.driver_set()
         self.log_signal_func(f"선택 항목 : {self.columns}")
