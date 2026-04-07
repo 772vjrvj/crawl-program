@@ -297,7 +297,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             if not success:
                 continue
 
-            hook_data: dict[str, Any] = self.get_first_list_hook_data(20)
+            hook_data: dict[str, Any] = self._get_first_list_hook_data(20)
             body_text: str = hook_data.get("bodyText", "")
             response_json: dict[str, Any] = hook_data.get("responseJson", {}) or {}
 
