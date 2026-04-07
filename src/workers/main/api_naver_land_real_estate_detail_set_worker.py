@@ -49,7 +49,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.url: str = "https://fin.land.naver.com"
 
         self.list_hook_js = None
-        self.browser_fetch_json_js = None
+        self._browser_fetch_json_js = None
         self.click_sort_button_js = None
         self.click_article_button_js = None
 
@@ -188,12 +188,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.brokerage_yn: bool = self.get_setting_value(self.setting, "brokerage_yn")
         self.log_signal_func(f"부동산 중개사 기준 매물 가져오기 여부 : {self.brokerage_yn}")
 
+        # 7. 중복제거 여부
         self.remove_duplicate_yn: bool = self.get_setting_value(self.setting, "remove_duplicate_yn")
         self.log_signal_func(f"중복제거 여부 : {self.remove_duplicate_yn}")
 
-
-
-        # 7. 위 세팅에 맞는 매물 목록 크롤링
+        # 8. 위 세팅에 맞는 매물 목록 크롤링
         self._crawl_article_list()
 
         return True
@@ -201,7 +200,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def _load_js_assets(self) -> None:
         js_dir = "customers/naver_land_real_estate_detail/js"
         self.list_hook_js = self.file_driver.read_text_from_resources("list_hook.js", js_dir)
-        self.browser_fetch_json_js = self.file_driver.read_text_from_resources("browser_fetch_json.js", js_dir)
+        self._browser_fetch_json_js = self.file_driver.read_text_from_resources("_browser_fetch_json.js", js_dir)
         self.click_sort_button_js = self.file_driver.read_text_from_resources("click_sort_button.js", js_dir)
         self.click_article_button_js = self.file_driver.read_text_from_resources("click_article_button.js", js_dir)
 
@@ -259,22 +258,27 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             url = self._build_region_map_url(x, y, self.setting_detail_all_style)
             self.log_signal_func(f"[URL] {url}")
 
-            self.driver.get(url)
-            time.sleep(5)
+            try:
+                self.driver.get(url)
+                time.sleep(5)
 
-            self.log_signal_func("[후킹] 목록 후킹 설치")
-            self.inject_list_hook()
-            time.sleep(1)
+                self.log_signal_func("[후킹] 목록 후킹 설치")
+                self._inject_list_hook()
+                time.sleep(1)
 
-            self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
-            self.click_article_button(wait_sec=20)
-            time.sleep(3)
+                self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
+                self._click_article_button(wait_sec=20)
+                time.sleep(3)
 
-            self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
-            self.click_sort_button_by_setting(wait_sec=20)
-            time.sleep(3)
+                self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
+                self._click_sort_button_by_setting(wait_sec=20)
+                time.sleep(3)
 
-            hook_data: dict[str, Any] = self.get_first_list_hook_data(20)
+            except Exception as e:
+                self.log_signal_func(f"[지역 처리 실패] {sido} {sigungu} {eup_myeon_dong} / {e}")
+                continue
+
+            hook_data: dict[str, Any] = self._get_first_list_hook_data(20)
             body_text: str = hook_data.get("bodyText", "")
             response_json: dict[str, Any] = hook_data.get("responseJson", {}) or {}
 
@@ -296,7 +300,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
             if not first_result:
                 self.log_signal_func("[후킹] 첫 응답 result 없음 -> 첫 페이지 재요청")
-                retry_res = self.browser_fetch_json(
+                retry_res = self._browser_fetch_json(
                     url=self.list_api_url,
                     method="POST",
                     payload=base_payload,
@@ -314,17 +318,18 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 self.log_signal_func("[목록] 첫 페이지 result 확보 실패")
                 continue
 
-            items: list[dict[str, Any]] = self.collect_next_list_pages(
+            items: list[dict[str, Any]] = self._collect_next_list_pages(
                 base_payload=base_payload,
                 first_result=first_result,
             )
 
-            self.collect_detail(items, region_item)
+            self._collect_detail(items, region_item)
 
             pro_value = (index / max(len(self.detail_region_article_list), 1)) * 1000000
             self.progress_signal.emit(self.before_pro_value, pro_value)
             self.before_pro_value = pro_value
             time.sleep(random.uniform(2, 4))
+
 
     def _build_region_map_url(self, x, y, filter_items):
         params = [
@@ -445,7 +450,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         return checked_codes
 
-    def click_article_button(self, wait_sec: int = 20) -> None:
+    def _click_article_button(self, wait_sec: int = 20) -> None:
         end = time.time() + wait_sec
 
         while time.time() < end:
@@ -464,7 +469,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         raise Exception("매물 버튼을 찾지 못했습니다.")
 
-    def click_sort_button_by_setting(self, wait_sec: int = 20) -> None:
+    def _click_sort_button_by_setting(self, wait_sec: int = 20) -> None:
         click_map: dict[str, tuple[str, int]] = {
             "RANKING_DESC": ("filterOrder1", 1),
             "PRICE_DESC": ("filterOrder2", 1),
@@ -492,11 +497,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         raise Exception(f"정렬 버튼 클릭 실패: {self.article_sort_type}")
 
-    def inject_list_hook(self) -> None:
+    def _inject_list_hook(self) -> None:
         script = self.list_hook_js.replace("__TARGET__", "/front-api/v1/article/boundedArticles")
         self.driver.execute_script(script)
 
-    def get_first_list_hook_data(self, wait_sec: int = 20):
+    def _get_first_list_hook_data(self, wait_sec: int = 20):
         end = time.time() + wait_sec
 
         while time.time() < end:
@@ -511,12 +516,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         return {}
 
-    def browser_fetch_json(self,url: str, method: str = "GET", payload: dict[str, Any] = None, params: dict[str, Any] = None,wait_sec: int = 30) -> dict[str, Any]:
-        script = self.browser_fetch_json_js
+    def _browser_fetch_json(self,url: str, method: str = "GET", payload: dict[str, Any] = None, params: dict[str, Any] = None,wait_sec: int = 30) -> dict[str, Any]:
+        script = self._browser_fetch_json_js
         self.driver.set_script_timeout(wait_sec)
         return self.driver.execute_async_script(script, url, method, payload, params)
 
-    def collect_next_list_pages(self, base_payload: dict[str, Any], first_result: dict[str, Any]) -> list[dict[str, Any]]:
+    def _collect_next_list_pages(self, base_payload: dict[str, Any], first_result: dict[str, Any]) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
         seen: set[str] = set()
 
@@ -697,7 +702,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 f"[목록] page={page} 요청 seed={'Y' if seed else 'N'} lastInfo={len(last_info)}"
             )
 
-            fetch_res = self.browser_fetch_json(
+            fetch_res = self._browser_fetch_json(
                 url=self.list_api_url,
                 method="POST",
                 payload=req,
@@ -746,112 +751,117 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.log_signal_func(f"[목록] 최종 수집 건수={len(items)}")
         return items
 
-    def collect_detail(self, items: list[dict[str, Any]], region_item) -> list[dict[str, Any]]:
+    def _collect_detail(self, items: list[dict[str, Any]], region_item) -> list[dict[str, Any]]:
         details: list[dict[str, Any]] = []
 
         for i, info in enumerate(items, 1):
-            article_no: str = str(info["articleNumber"])
-            real_estate_type: str = str(info["realEstateType"])
-            trade_type: str = str(info["tradeType"])
+            try:
+                article_no: str = str(info["articleNumber"])
+                real_estate_type: str = str(info["realEstateType"])
+                trade_type: str = str(info["tradeType"])
 
-            self.log_signal_func(f"[상세] {i}/{len(items)} articleNumber={article_no} 시작")
+                self.log_signal_func(f"[상세] {i}/{len(items)} articleNumber={article_no} 시작")
 
-            detail_fetch_res = self.browser_fetch_json(
-                url=self.detail_api_url,
-                method="GET",
-                params={
-                    "articleNumber": article_no,
-                    "realEstateType": real_estate_type,
-                    "tradeType": trade_type,
-                },
-                wait_sec=120,
-            )
-
-            if detail_fetch_res.get("status") != 200:
-                self.log_signal_func(
-                    f"[상세] basicInfo 실패 articleNumber={article_no} "
-                    f"status={detail_fetch_res.get('status')} "
-                    f"body={detail_fetch_res.get('text', '')[:500]}"
-                )
-
-            agent_fetch_res = self.browser_fetch_json(
-                url=self.agent_detail_url,
-                method="GET",
-                params={
-                    "articleNumber": article_no
-                },
-                wait_sec=120,
-            )
-
-            if agent_fetch_res.get("status") != 200:
-                self.log_signal_func(
-                    f"[상세] agent 실패 articleNumber={article_no} "
-                    f"status={agent_fetch_res.get('status')} "
-                    f"body={agent_fetch_res.get('text', '')[:500]}"
-                )
-
-            article_key_res = self.browser_fetch_json(
-                url=self.article_key_url,
-                method="GET",
-                params={
-                    "articleNumber": article_no
-                },
-                wait_sec=120,
-            )
-
-            if article_key_res.get("status") != 200:
-                self.log_signal_func(
-                    f"[상세] article key 실패 articleNumber={article_no} "
-                    f"status={article_key_res.get('status')} "
-                    f"body={article_key_res.get('text', '')[:500]}"
-                )
-
-            article_key_json = article_key_res.get("json") or {}
-            article_key_result = article_key_json.get("result", {}) or {}
-            key_info = article_key_result.get("key", {}) or {}
-            complex_no = key_info.get("complexNumber", "")
-
-            complex_fetch_res = {}
-            if complex_no not in [None, ""]:
-                complex_fetch_res = self.browser_fetch_json(
-                    url=self.complex_api_url,
+                detail_fetch_res = self._browser_fetch_json(
+                    url=self.detail_api_url,
                     method="GET",
                     params={
-                        "complexNumber": complex_no
+                        "articleNumber": article_no,
+                        "realEstateType": real_estate_type,
+                        "tradeType": trade_type,
                     },
                     wait_sec=120,
                 )
 
-                if complex_fetch_res.get("status") != 200:
+                if detail_fetch_res.get("status") != 200:
                     self.log_signal_func(
-                        f"[상세] complex 실패 articleNumber={article_no} complexNumber={complex_no} "
-                        f"status={complex_fetch_res.get('status')} "
-                        f"body={complex_fetch_res.get('text', '')[:500]}"
+                        f"[상세] basicInfo 실패 articleNumber={article_no} "
+                        f"status={detail_fetch_res.get('status')} "
+                        f"body={detail_fetch_res.get('text', '')[:500]}"
                     )
 
-            time.sleep(random.uniform(1.5, 2.2))
+                agent_fetch_res = self._browser_fetch_json(
+                    url=self.agent_detail_url,
+                    method="GET",
+                    params={
+                        "articleNumber": article_no
+                    },
+                    wait_sec=120,
+                )
 
-            detail = {
-                "articleNumber": article_no,
-                "realEstateType": real_estate_type,
-                "tradeType": trade_type,
-                "listItem": info,
-                "detail": detail_fetch_res.get("json"),
-                "agent_detail": agent_fetch_res.get("json"),
-                "article_key": article_key_json,
-                "complex_detail": complex_fetch_res.get("json"),
-            }
+                if agent_fetch_res.get("status") != 200:
+                    self.log_signal_func(
+                        f"[상세] agent 실패 articleNumber={article_no} "
+                        f"status={agent_fetch_res.get('status')} "
+                        f"body={agent_fetch_res.get('text', '')[:500]}"
+                    )
 
-            self.detail_map_save(detail, region_item)
+                article_key_res = self._browser_fetch_json(
+                    url=self.article_key_url,
+                    method="GET",
+                    params={
+                        "articleNumber": article_no
+                    },
+                    wait_sec=120,
+                )
 
-            details.append(detail)
+                if article_key_res.get("status") != 200:
+                    self.log_signal_func(
+                        f"[상세] article key 실패 articleNumber={article_no} "
+                        f"status={article_key_res.get('status')} "
+                        f"body={article_key_res.get('text', '')[:500]}"
+                    )
 
-            time.sleep(random.uniform(2.2, 3.2))
+                article_key_json = article_key_res.get("json") or {}
+                article_key_result = article_key_json.get("result", {}) or {}
+                key_info = article_key_result.get("key", {}) or {}
+                complex_no = key_info.get("complexNumber", "")
+
+                complex_fetch_res = {}
+                if complex_no not in [None, ""]:
+                    complex_fetch_res = self._browser_fetch_json(
+                        url=self.complex_api_url,
+                        method="GET",
+                        params={
+                            "complexNumber": complex_no
+                        },
+                        wait_sec=120,
+                    )
+
+                    if complex_fetch_res.get("status") != 200:
+                        self.log_signal_func(
+                            f"[상세] complex 실패 articleNumber={article_no} complexNumber={complex_no} "
+                            f"status={complex_fetch_res.get('status')} "
+                            f"body={complex_fetch_res.get('text', '')[:500]}"
+                        )
+
+                time.sleep(random.uniform(1.5, 2.2))
+
+                detail = {
+                    "articleNumber": article_no,
+                    "realEstateType": real_estate_type,
+                    "tradeType": trade_type,
+                    "listItem": info,
+                    "detail": detail_fetch_res.get("json"),
+                    "agent_detail": agent_fetch_res.get("json"),
+                    "article_key": article_key_json,
+                    "complex_detail": complex_fetch_res.get("json"),
+                }
+
+                self._detail_map_save(detail, region_item)
+
+                details.append(detail)
+
+                time.sleep(random.uniform(2.2, 3.2))
+
+            except Exception as e:
+                self.log_signal_func(f"[상세] 실패 {i}/{len(items)} articleNumber={info.get('articleNumber')} / {e}")
+                continue
 
         self.log_signal_func(f"[상세] 최종 수집 건수={len(details)}")
         return details
 
-    def detail_map_save(self, detail, region_item):
+    def _detail_map_save(self, detail, region_item):
 
         sido = region_item.get("시도")
         sigungu = region_item.get("시군구")
