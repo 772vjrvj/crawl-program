@@ -16,6 +16,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
+        self.filter_data = None
         self.brokerage_yn = None
         self.eng = None
         self.article_sort_type = None
@@ -43,6 +44,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.list_api_url: str = "https://fin.land.naver.com/front-api/v1/article/boundedArticles"
         self.agent_detail_url: str = "https://fin.land.naver.com/front-api/v1/article/agent"
         self.detail_api_url: str = "https://fin.land.naver.com/front-api/v1/article/basicInfo"
+        self.article_key_url: str = "https://fin.land.naver.com/front-api/v1/article/key"
+        self.complex_api_url: str = "https://fin.land.naver.com/front-api/v1/complex"
         self.url: str = "https://fin.land.naver.com/"
 
     # 초기화
@@ -54,6 +57,16 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     # 정지
     def cleanup(self) -> None:
+        try:
+            self.excel_driver.convert_csv_to_excel_and_delete(
+                csv_filename=self.csv_filename,
+                folder_path=self.folder_path,
+                sub_dir=self.out_dir,
+            )
+            self.log_signal_func("✅ [엑셀 변환] 성공")
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
+
         try:
             if self.driver:
                 self.driver.quit()
@@ -126,19 +139,23 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             folder_path=self.folder_path,
             sub_dir=self.out_dir
         )
+        
+        self.filter_data = self.file_driver.read_json_array_from_resources(
+            "filter_data.json",
+            "customers/naver_land_real_estate_detail",
+        )
 
         # 1. 지역세팅
-        # [전체 상세 지역] 목록
         self.naver_loc_all_real_detail = self.file_driver.read_json_array_from_resources(
             "korea_eup_myeon_dong.json",
             "customers/naver_land_real_estate_detail/region",
         )
-        # [선택한 지역] 목록
+
         region_key_set = {
             (item.get("시도"), item.get("시군구"), item.get("읍면동"))
             for item in self.region
         }
-        # [선택한 상세 지역] 목록
+
         self.detail_region_article_list = [
             item
             for item in self.naver_loc_all_real_detail
@@ -158,10 +175,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         # 4. 정렬방식
         self.article_sort_type: str = str(self.get_setting_value(self.setting, "articleSortType") or "").strip()
         self.log_signal_func(f"정렬 방식 : {self.article_sort_type}")
-
-        # 5. 영어컬럼 여부
-        self.eng: str = self.get_setting_value(self.setting, "eng")
-        self.log_signal_func(f"영어컬럼 여부 : {self.eng}")
 
         # 5. 영어컬럼 여부
         self.eng: str = self.get_setting_value(self.setting, "eng")
@@ -193,21 +206,17 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             url = self._build_region_map_url(x, y, self.setting_detail_all_style)
             self.log_signal_func(f"[URL] {url}")
 
-            # driver.get
             self.driver.get(url)
             time.sleep(5)
 
-            # 목록 후킹 설치
             self.log_signal_func("[후킹] 목록 후킹 설치")
             self.inject_list_hook()
             time.sleep(1)
 
-            # 매물 버튼 클릭
             self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
             self.click_article_button(wait_sec=20)
             time.sleep(3)
 
-            # 정렬 버튼 클릭
             self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
             self.click_sort_button_by_setting(wait_sec=20)
             time.sleep(3)
@@ -257,9 +266,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 first_result=first_result,
             )
 
-            details: list[dict[str, Any]] = self.collect_detail(items, region_item)
-
-            self.detail_map_save(details)
+            self.collect_detail(items, region_item)
 
             pro_value = (index / max(len(self.detail_region_article_list), 1)) * 1000000
             self.progress_signal.emit(self.before_pro_value, pro_value)
@@ -680,13 +687,52 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
             return False
 
+        def build_same_addr_meta(dup_info: dict[str, Any]) -> dict[str, Any]:
+            article_info_list: list[dict[str, Any]] = dup_info.get("articleInfoList", []) or []
+            rep_price_info: dict[str, Any] = dup_info.get("representativePriceInfo", {}) or {}
+            rep_deal_price: dict[str, Any] = rep_price_info.get("dealPrice", {}) or {}
+
+            deal_prices = []
+            for row in article_info_list:
+                price_info = row.get("priceInfo", {}) or {}
+                deal_price = price_info.get("dealPrice")
+                if deal_price not in [None, ""]:
+                    deal_prices.append(deal_price)
+
+            same_addr_cnt = len(article_info_list)
+            same_addr_min = ""
+            same_addr_max = ""
+
+            if deal_prices:
+                same_addr_min = min(deal_prices)
+                same_addr_max = max(deal_prices)
+            else:
+                same_addr_min = rep_deal_price.get("minPrice", "")
+                same_addr_max = rep_deal_price.get("maxPrice", "")
+
+            return {
+                "sameAddrCnt": same_addr_cnt,
+                "sameAddrMinPrc": same_addr_min,
+                "sameAddrMaxPrc": same_addr_max,
+            }
+
+        def apply_same_addr_meta(info: dict[str, Any], meta: dict[str, Any]) -> dict[str, Any]:
+            rs = dict(info or {})
+            rs.update(meta or {})
+            return rs
+
         def add_items(page_list: list[dict[str, Any]]) -> None:
             for item in page_list:
-                if self.brokerage_yn:
-                    duplicated_info: dict[str, Any] = item.get("duplicatedArticleInfo", {}) or {}
-                    article_info_list: list[dict[str, Any]] = duplicated_info.get("articleInfoList", []) or []
+                representative_info: dict[str, Any] = item.get("representativeArticleInfo", {}) or {}
+                duplicated_info: dict[str, Any] = item.get("duplicatedArticleInfo", {}) or {}
+                article_info_list: list[dict[str, Any]] = duplicated_info.get("articleInfoList", []) or []
 
+                # 1) 부동산 중개사 기준으로 가져오는 경우
+                if self.brokerage_yn:
+                    # 중복 목록이 있으면 목록 기준으로 처리
                     if article_info_list:
+                        same_addr_meta = build_same_addr_meta(duplicated_info)
+
                         for article_info in article_info_list:
                             article_no: str = str(article_info.get("articleNumber", "")).strip()
                             confirm_date: str = get_confirm_date_from_info(article_info)
@@ -696,19 +742,53 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
                             if article_no and article_no not in seen:
                                 seen.add(article_no)
-                                items.append(article_info)
+                                items.append(apply_same_addr_meta(article_info, same_addr_meta))
                         continue
 
-                info: dict[str, Any] = item.get("representativeArticleInfo", {}) or {}
-                article_no: str = str(info.get("articleNumber", "")).strip()
-                confirm_date: str = get_confirm_date_from_info(info)
+                    # 중복 목록이 없으면 단건 처리
+                    article_no: str = str(representative_info.get("articleNumber", "")).strip()
+                    confirm_date: str = get_confirm_date_from_info(representative_info)
+
+                    if not is_target_date(confirm_date):
+                        continue
+
+                    if article_no and article_no not in seen:
+                        seen.add(article_no)
+
+                        single_info = dict(representative_info)
+                        deal_price = ((single_info.get("priceInfo") or {}).get("dealPrice", ""))
+                        single_info.update({
+                            "sameAddrCnt": 1,
+                            "sameAddrMinPrc": deal_price,
+                            "sameAddrMaxPrc": deal_price,
+                        })
+
+                        items.append(single_info)
+                    continue
+
+                # 2) 부동산 중개사 기준이 아닌 경우 -> 무조건 대표 1개만
+                article_no: str = str(representative_info.get("articleNumber", "")).strip()
+                confirm_date: str = get_confirm_date_from_info(representative_info)
 
                 if not is_target_date(confirm_date):
                     continue
 
                 if article_no and article_no not in seen:
                     seen.add(article_no)
-                    items.append(info)
+
+                    # duplicated 정보가 있으면 대표에도 동일주소 정보만 붙임
+                    if article_info_list:
+                        same_addr_meta = build_same_addr_meta(duplicated_info)
+                        items.append(apply_same_addr_meta(representative_info, same_addr_meta))
+                    else:
+                        single_info = dict(representative_info)
+                        deal_price = ((single_info.get("priceInfo") or {}).get("dealPrice", ""))
+                        single_info.update({
+                            "sameAddrCnt": 1,
+                            "sameAddrMinPrc": deal_price,
+                            "sameAddrMaxPrc": deal_price,
+                        })
+                        items.append(single_info)
 
         first_list: list[dict[str, Any]] = first_result.get("list", []) or []
 
@@ -837,6 +917,45 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     f"body={agent_fetch_res.get('text', '')[:500]}"
                 )
 
+            article_key_res = self.browser_fetch_json(
+                url=self.article_key_url,
+                method="GET",
+                params={
+                    "articleNumber": article_no
+                },
+                wait_sec=120,
+            )
+
+            if article_key_res.get("status") != 200:
+                self.log_signal_func(
+                    f"[상세] article key 실패 articleNumber={article_no} "
+                    f"status={article_key_res.get('status')} "
+                    f"body={article_key_res.get('text', '')[:500]}"
+                )
+
+            article_key_json = article_key_res.get("json") or {}
+            article_key_result = article_key_json.get("result", {}) or {}
+            key_info = article_key_result.get("key", {}) or {}
+            complex_no = key_info.get("complexNumber", "")
+
+            complex_fetch_res = {}
+            if complex_no not in [None, ""]:
+                complex_fetch_res = self.browser_fetch_json(
+                    url=self.complex_api_url,
+                    method="GET",
+                    params={
+                        "complexNumber": complex_no
+                    },
+                    wait_sec=120,
+                )
+
+                if complex_fetch_res.get("status") != 200:
+                    self.log_signal_func(
+                        f"[상세] complex 실패 articleNumber={article_no} complexNumber={complex_no} "
+                        f"status={complex_fetch_res.get('status')} "
+                        f"body={complex_fetch_res.get('text', '')[:500]}"
+                    )
+
             time.sleep(random.uniform(1.5, 2.2))
 
             detail = {
@@ -845,19 +964,19 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 "tradeType": trade_type,
                 "listItem": info,
                 "detail": detail_fetch_res.get("json"),
-                "agent_detail": agent_fetch_res.get("json")
+                "agent_detail": agent_fetch_res.get("json"),
+                "article_key": article_key_json,
+                "complex_detail": complex_fetch_res.get("json"),
             }
 
-            self.detail_map_save(detail,region_item)
+            self.detail_map_save(detail, region_item)
 
-
+            details.append(detail)
 
             time.sleep(random.uniform(2.2, 3.2))
 
         self.log_signal_func(f"[상세] 최종 수집 건수={len(details)}")
         return details
-
-
 
     def detail_map_save(self, detail, region_item):
 
@@ -868,14 +987,15 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         list_item = (detail or {}).get("listItem") or {}
         detail_result = ((detail or {}).get("detail") or {}).get("result") or {}
         agent_result = ((detail or {}).get("agent_detail") or {}).get("result") or {}
+        article_key_result = ((detail or {}).get("article_key") or {}).get("result") or {}
+        complex_result = ((detail or {}).get("complex_detail") or {}).get("result") or {}
 
         list_space = list_item.get("spaceInfo") or {}
-        list_building = list_item.get("buildingInfo") or {}
-        list_verification = list_item.get("verificationInfo") or {}
         list_broker = list_item.get("brokerInfo") or {}
         list_article_detail = list_item.get("articleDetail") or {}
         list_address = list_item.get("address") or {}
         list_price = list_item.get("priceInfo") or {}
+        list_verification = list_item.get("verificationInfo") or {}
         list_coords = list_address.get("coordinates") or {}
 
         detail_price = detail_result.get("priceInfo") or {}
@@ -890,6 +1010,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         phone = agent_result.get("phone") or {}
 
+        key_address = article_key_result.get("address") or {}
+        complex_address = complex_result.get("address") or {}
+        complex_coords = complex_result.get("coordinates") or {}
+
         floor_text = list_article_detail.get("floorInfo", "")
         if not floor_text:
             target_floor = detail_floor.get("targetFloor", "")
@@ -903,10 +1027,29 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             x = detail_coords.get("xCoordinate", "")
         if y == "":
             y = detail_coords.get("yCoordinate", "")
+        if x == "":
+            x = complex_coords.get("xCoordinate", "")
+        if y == "":
+            y = complex_coords.get("yCoordinate", "")
+
+        city = list_address.get("city", "") or complex_address.get("city", "")
+        division = list_address.get("division", "") or complex_address.get("division", "")
+        sector = list_address.get("sector", "") or complex_address.get("sector", "")
+        jibun = key_address.get("jibun", "") or complex_address.get("jibun", "")
+        road_name = complex_address.get("roadName", "")
+        zip_code = complex_address.get("zipCode", "")
+
+        full_addr_parts = [city, division, sector]
+        if road_name:
+            full_addr_parts.append(road_name)
+        elif jibun:
+            full_addr_parts.append(jibun)
+
+        full_addr = " ".join([str(v).strip() for v in full_addr_parts if str(v).strip()])
 
         rs = {
             "게시번호": list_item.get("articleNumber", "") or detail_article.get("articleNumber", ""),
-            "단지명": list_item.get("complexName", "") or detail_complex.get("complexName", ""),
+            "단지명": list_item.get("complexName", "") or detail_complex.get("complexName", "") or complex_result.get("name", ""),
             "동이름": list_item.get("dongName", "") or detail_complex.get("dongName", ""),
             "매매가": list_price.get("dealPrice", "") if list_price.get("dealPrice", "") != "" else detail_price.get("price", ""),
             "보증금": list_price.get("warrantyPrice", ""),
@@ -919,23 +1062,30 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "전용면적": list_space.get("exclusiveSpace", "") or detail_size.get("exclusiveSpace", ""),
             "매물특징": list_article_detail.get("articleFeatureDescription", "") or detail_article.get("articleFeatureDescription", ""),
             "매물확인일": list_verification.get("articleConfirmDate", "") or detail_verification.get("articleConfirmDate", ""),
-            "건축물용도": detail_article.get("buildingPrincipalUse", ""),
+            "건축물용도": detail_article.get("buildingPrincipalUse", "") or complex_result.get("buildingUse", ""),
             "층정보": floor_text,
-            "시도": list_address.get("city", ""),
-            "시군구": list_address.get("division", ""),
-            "읍면동": list_address.get("sector", ""),
+            "시도": city,
+            "시군구": division,
+            "읍면동": sector,
+            "번지": jibun,
+            "도로명주소": road_name,
+            "우편번호": zip_code,
+            "전체주소": full_addr,
             "중개사무소이름": agent_result.get("brokerageName", "") or list_broker.get("brokerageName", ""),
             "중개사이름": agent_result.get("brokerName", "") or list_broker.get("brokerName", ""),
             "중개사무소주소": agent_result.get("address", ""),
             "중개사무소번호": phone.get("brokerage", ""),
             "중개사핸드폰번호": phone.get("mobile", ""),
             "상위매물명": list_item.get("articleName", ""),
-            "매물유형": list_item.get("realEstateType", ""),
-            "거래유형": list_item.get("tradeType", ""),
+            "매물유형": list_item.get("realEstateType", "") or (article_key_result.get("type") or {}).get("realEstateType", ""),
+            "거래유형": list_item.get("tradeType", "") or (article_key_result.get("type") or {}).get("tradeType", ""),
             "등록일자": list_verification.get("exposureStartDate", "") or detail_verification.get("exposureStartDate", ""),
             "위도": y,
             "경도": x,
             "방향정보": list_article_detail.get("direction", "") or detail_space.get("direction", ""),
+            "동일주소매물수": list_item.get("sameAddrCnt", ""),
+            "동일주소최소가": list_item.get("sameAddrMinPrc", ""),
+            "동일주소최대가": list_item.get("sameAddrMaxPrc", ""),
             "검색 주소": sido + " " + sigungu + " " + eup_myeon_dong,
         }
 
