@@ -276,7 +276,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def _map_out_to_eng(self, out: Dict[str, Any]) -> Dict[str, Any]:
         eng_out: Dict[str, Any] = {
-            "date": str(out.get("매물확인일") or ""),
+            "date": str(out.get("매물노출시작일") or ""),
             "atclNo": str(out.get("매물번호") or ""),
             "atclNm": str(out.get("상위매물명") or ""),
             "tradTpNm": str(out.get("거래유형") or ""),
@@ -668,7 +668,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         def get_confirm_date_from_info(info: dict[str, Any]) -> str:
             verification_info: dict[str, Any] = info.get("verificationInfo", {}) or {}
-            return normalize_date_yyyymmdd(verification_info.get("articleConfirmDate", ""))
+            return normalize_date_yyyymmdd(verification_info.get("exposureStartDate", ""))
 
         def get_confirm_date_from_item(item: dict[str, Any]) -> str:
             info: dict[str, Any] = item.get("representativeArticleInfo", {}) or {}
@@ -1091,6 +1091,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "매물설명": detail_article.get("articleDescription", ""),
             "사용승인일": yyyy_mm_dd_to(list_building.get("buildingConjunctionDate", "")),
             "매물확인일": list_verification.get("articleConfirmDate", "") or detail_verification.get("articleConfirmDate", ""),
+            "매물노출시작일": list_verification.get("articleConfirmDate", "") or detail_verification.get("exposureStartDate", ""),
             "건축물용도": detail_article.get("buildingPrincipalUse", "") or complex_result.get("buildingUse", ""),
             "층정보": floor_text,
             "시도": city,

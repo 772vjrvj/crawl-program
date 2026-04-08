@@ -142,6 +142,17 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         finally:
             self.excel_driver = None
 
+
+    def _log_and_return_true(self, message: str) -> bool:
+        self.log_signal_func(message)
+        return True
+
+    def _sleep_or_stop(self, sec: float, message: str) -> bool:
+        if not self.sleep_s(sec):
+            self.log_signal_func(message)
+            return False
+        return True
+
     # =========================================================
     # main (수집 실행 로직)
     # =========================================================
@@ -165,6 +176,10 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         self.current_cnt = 0
         self.before_pro_value = 0.0
 
+        self.log_signal_func(
+            f"🚀 작업 시작 | 키워드수={len(keywords)} | 페이지={start_p}~{end_p} | 총 작업단위={self.total_cnt}"
+        )
+
         # 파일명은 이름만 보관하고 실제 저장경로는 ExcelUtils 에 맡김
         self.csv_filename = os.path.basename(self.file_driver.get_csv_filename(self.site_name))
 
@@ -175,28 +190,43 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             sub_dir=self.out_dir,
         )
 
-        for kw in keywords:
+        completed_keywords = 0
+
+        for kw_idx, kw in enumerate(keywords, start=1):
             if not self.running:
-                return True
+                return self._log_and_return_true(
+                    f"🛑 사용자 중단 감지(main-키워드 시작 전) | 마지막완료키워드수={completed_keywords} | 다음키워드={kw}"
+                )
+
+            keyword_start_cnt = self.current_cnt
+            self.log_signal_func(
+                f"🔎 [키워드 시작 {kw_idx}/{len(keywords)}] {kw} | page={start_p}~{end_p}"
+            )
 
             all_pages = list(range(start_p, end_p + 1))
             chunk_size = 10
 
-            for i in range(0, len(all_pages), chunk_size): # 0, 10
+            for i in range(0, len(all_pages), chunk_size):  # 0, 10
                 if not self.running:
-                    return True
-
-                self.log_signal_func("🌐 새 브라우저 세션을 시작합니다. (Chunk 시작)")
-                pyautogui.hotkey("win", "r")
-                if not self.sleep_s(0.5):
-                    return True
-                pyautogui.write("chrome")
-                pyautogui.press("enter")
-                if not self.sleep_s(3):
-                    return True
+                    return self._log_and_return_true(
+                        f"🛑 사용자 중단 감지(chunk 시작 전) | 키워드={kw} | chunk_index={i}"
+                    )
 
                 current_chunk = all_pages[i: i + chunk_size]
                 chunk_items_queue = []
+
+                self.log_signal_func(
+                    f"🌐 [브라우저 시작] 키워드={kw} | chunk={current_chunk[0]}p~{current_chunk[-1]}p"
+                )
+
+                pyautogui.hotkey("win", "r")
+                if not self._sleep_or_stop(0.5, f"🛑 중단 또는 sleep 실패 | chrome 실행 전 대기 | 키워드={kw}"):
+                    return True
+
+                pyautogui.write("chrome")
+                pyautogui.press("enter")
+                if not self._sleep_or_stop(3, f"🛑 중단 또는 sleep 실패 | chrome 실행 후 대기 | 키워드={kw}"):
+                    return True
 
                 self.log_signal_func(
                     f"📂 [{kw}] {current_chunk[0]}p ~ {current_chunk[-1]}p 리스트 확보 중..."
@@ -204,7 +234,9 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
                 for page in current_chunk:
                     if not self.running:
-                        return True
+                        return self._log_and_return_true(
+                            f"🛑 사용자 중단 감지(페이지 시작 전) | 키워드={kw} | page={page}"
+                        )
 
                     target_url = (
                         f"https://msearch.shopping.naver.com/search/all?"
@@ -213,31 +245,59 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                         f"query={kw}&sort=date&viewType=list"
                     )
 
+                    page_success = False
+
                     for retry in range(1, 4):
                         if not self.running:
-                            return True
+                            return self._log_and_return_true(
+                                f"🛑 사용자 중단 감지(리스트 재시도 중) | 키워드={kw} | page={page} | retry={retry}"
+                            )
+
+                        self.log_signal_func(
+                            f"📄 [리스트 페이지 시도] 키워드={kw} | page={page} | retry={retry}/3"
+                        )
 
                         pyautogui.hotkey("ctrl", "l")
-                        if not self.sleep_s(random.uniform(0.2, 0.5)):
+                        if not self._sleep_or_stop(
+                                random.uniform(0.2, 0.5),
+                                f"🛑 중단 또는 sleep 실패 | 주소창 이동 후 대기 | 키워드={kw} | page={page} | retry={retry}",
+                        ):
                             return True
+
                         pyperclip.copy(target_url)
                         pyautogui.hotkey("ctrl", "v")
                         pyautogui.press("enter")
-                        if not self.sleep_s(random.uniform(4.0, 5.5)):
+                        if not self._sleep_or_stop(
+                                random.uniform(4.0, 5.5),
+                                f"🛑 중단 또는 sleep 실패 | 페이지 이동 후 대기 | 키워드={kw} | page={page} | retry={retry}",
+                        ):
                             return True
 
-                        if self.handle_captcha_with_retry() == 0:
-                            self.log_signal_func("❌ 캡차 해결 실패: 작업을 중단하고 브라우저를 닫습니다.")
+                        captcha_result = self.handle_captcha_with_retry()
+                        if captcha_result == 0:
+                            self.log_signal_func(
+                                f"❌ 캡차 해결 실패: 작업 중단 | 키워드={kw} | page={page} | retry={retry}"
+                            )
                             pyautogui.hotkey("alt", "f4")
-                            return True
+                            return self._log_and_return_true(
+                                f"🛑 조기 종료 | 캡차 실패로 중단 | 마지막키워드={kw} | 마지막페이지={page}"
+                            )
 
                         pyautogui.hotkey("ctrl", "u")
-                        if not self.sleep_s(random.uniform(3, 4)):
+                        if not self._sleep_or_stop(
+                                random.uniform(3, 4),
+                                f"🛑 중단 또는 sleep 실패 | 소스보기 대기 | 키워드={kw} | page={page} | retry={retry}",
+                        ):
                             return True
+
                         pyautogui.hotkey("ctrl", "a")
                         pyautogui.hotkey("ctrl", "c")
-                        if not self.sleep_s(1.5):
+                        if not self._sleep_or_stop(
+                                1.5,
+                                f"🛑 중단 또는 sleep 실패 | HTML 복사 대기 | 키워드={kw} | page={page} | retry={retry}",
+                        ):
                             return True
+
                         pyautogui.hotkey("ctrl", "w")
 
                         extracted = self.extract_items_from_html(pyperclip.paste())
@@ -245,11 +305,25 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                             for item in extracted:
                                 item["_page_num"] = page
                             chunk_items_queue.extend(extracted)
-                            self.log_signal_func(f"📄 {page}페이지 수집 완료: 상품 {len(extracted)}개 확보")
+                            self.log_signal_func(
+                                f"📄 {page}페이지 수집 완료: 상품 {len(extracted)}개 확보 | 키워드={kw} | retry={retry}"
+                            )
+                            page_success = True
                             break
                         else:
-                            if not self.sleep_s(random.uniform(2.0, 3.5)):
+                            self.log_signal_func(
+                                f"⚠️ 리스트 추출 실패 | 키워드={kw} | page={page} | retry={retry}/3"
+                            )
+                            if not self._sleep_or_stop(
+                                    random.uniform(2.0, 3.5),
+                                    f"🛑 중단 또는 sleep 실패 | 리스트 재시도 전 대기 | 키워드={kw} | page={page} | retry={retry}",
+                            ):
                                 return True
+
+                    if not page_success:
+                        self.log_signal_func(
+                            f"❌ 페이지 최종 실패 | 키워드={kw} | page={page} | 3회 재시도 후 추출 실패"
+                        )
 
                     self.current_cnt += 1
 
@@ -274,44 +348,78 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                         seen_store_names.add(mall_name)
                         dedup_items_queue.append(item_data)
 
+                    self.log_signal_func(
+                        f"🧮 상세 대상 정리 완료 | 원본={len(chunk_items_queue)} | 중복제거후={len(dedup_items_queue)} | 키워드={kw}"
+                    )
+
                     chunk_items_queue = dedup_items_queue
                     chunk_results = []
 
                     for idx, item_data in enumerate(chunk_items_queue):
                         if not self.running:
-                            return True
+                            return self._log_and_return_true(
+                                f"🛑 사용자 중단 감지(상세 수집 중) | 키워드={kw} | 상세순번={idx + 1}/{len(chunk_items_queue)}"
+                            )
 
                         item = item_data.get("item", {})
                         pc_url = item.get("mallPcUrl")
                         p_num = item_data.get("_page_num")
 
                         if pc_url:
-                            self.log_signal_func(f"🔗 [{kw}] {p_num}p - {idx + 1}/{len(chunk_items_queue)} 상세 이동")
+                            self.log_signal_func(
+                                f"🔗 [{kw}] {p_num}p - {idx + 1}/{len(chunk_items_queue)} 상세 이동"
+                            )
+
                             pyautogui.hotkey("ctrl", "l")
                             pyperclip.copy(pc_url)
                             pyautogui.hotkey("ctrl", "v")
                             pyautogui.press("enter")
-                            if not self.sleep_s(random.uniform(3.5, 5.0)):
+                            if not self._sleep_or_stop(
+                                    random.uniform(3.5, 5.0),
+                                    f"🛑 중단 또는 sleep 실패 | 상세 이동 후 대기 | 키워드={kw} | page={p_num} | idx={idx + 1}",
+                            ):
                                 return True
 
                             pyautogui.scroll(random.randint(-600, -300))
-                            if not self.sleep_s(random.uniform(0.5, 1.0)):
+                            if not self._sleep_or_stop(
+                                    random.uniform(0.5, 1.0),
+                                    f"🛑 중단 또는 sleep 실패 | 상세 스크롤1 후 대기 | 키워드={kw} | page={p_num} | idx={idx + 1}",
+                            ):
                                 return True
+
                             pyautogui.scroll(random.randint(300, 600))
 
-                            if self.handle_captcha_with_retry() == 2:
+                            captcha_result = self.handle_captcha_with_retry()
+                            if captcha_result == 2:
+                                self.log_signal_func(
+                                    f"🔄 상세 캡차 해결 후 재진입 | 키워드={kw} | page={p_num} | idx={idx + 1}"
+                                )
                                 pyautogui.hotkey("ctrl", "l")
                                 pyperclip.copy(pc_url)
                                 pyautogui.hotkey("ctrl", "v")
                                 pyautogui.press("enter")
-                                if not self.sleep_s(random.uniform(3.0, 4.5)):
+                                if not self._sleep_or_stop(
+                                        random.uniform(3.0, 4.5),
+                                        f"🛑 중단 또는 sleep 실패 | 상세 재진입 후 대기 | 키워드={kw} | page={p_num} | idx={idx + 1}",
+                                ):
                                     return True
+                            elif captcha_result == 0:
+                                return self._log_and_return_true(
+                                    f"🛑 조기 종료 | 상세 캡차 실패 | 키워드={kw} | page={p_num} | idx={idx + 1}"
+                                )
 
                             pyautogui.hotkey("ctrl", "a")
-                            if not self.sleep_s(random.uniform(0.8, 1.2)):
+                            if not self._sleep_or_stop(
+                                    random.uniform(0.8, 1.2),
+                                    f"🛑 중단 또는 sleep 실패 | 상세 전체선택 후 대기 | 키워드={kw} | page={p_num} | idx={idx + 1}",
+                            ):
                                 return True
+
                             pyautogui.hotkey("ctrl", "c")
-                            if not self.sleep_s(0.6):
+                            if not self._sleep_or_stop(
+                                    0.6,
+                                    f"🛑 중단 또는 sleep 실패 | 상세 복사 후 대기 | 키워드={kw} | page={p_num} | idx={idx + 1}",
+                            ):
                                 return True
 
                             detail_text = pyperclip.paste()
@@ -320,70 +428,99 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                             if v_match:
                                 total_visit = v_match.group(1).replace(",", "")
 
-                                categories = [
-                                    item.get("category1Name"),
-                                    item.get("category2Name"),
-                                    item.get("category3Name"),
-                                    item.get("category4Name"),
-                                ]
-                                category_str = "/".join([c for c in categories if c])
+                            categories = [
+                                item.get("category1Name"),
+                                item.get("category2Name"),
+                                item.get("category3Name"),
+                                item.get("category4Name"),
+                            ]
+                            category_str = "/".join([c for c in categories if c])
 
-                                rs = {
-                                    "키워드": kw,
-                                    "수집일시": time.strftime("%Y-%m-%d %H:%M:%S"),
-                                    "상품명": item.get("productName"),
-                                    "카테고리": category_str,
-                                    "상품번호": item.get("id"),
-                                    "원가": item.get("listPrice"),
-                                    "최소가": item.get("lowPrice"),
-                                    "판매가격": item.get("price"),
-                                    "배송비": item.get("dlvryFee"),
-                                    "할인률": item.get("discountRatio"),
-                                    "브랜드": item.get("brand"),
-                                    "리뷰수": item.get("reviewCount"),
-                                    "구매건수": item.get("purchaseCnt"),
-                                    "찜하기수": item.get("keepCnt"),
-                                    "스토어명": item.get("mallName"),
-                                    "스토어모바일주소": item.get("mallProdMblUrl"),
-                                    "스토어PC주소": item.get("mallProductUrl"),
-                                    "PC주소": pc_url,
-                                    "전체방문자수": total_visit,
-                                    "페이지": p_num,
-                                    "번호": idx + 1,
-                                }
+                            rs = {
+                                "키워드": kw,
+                                "수집일시": time.strftime("%Y-%m-%d %H:%M:%S"),
+                                "상품명": item.get("productName"),
+                                "카테고리": category_str,
+                                "상품번호": item.get("id"),
+                                "원가": item.get("listPrice"),
+                                "최소가": item.get("lowPrice"),
+                                "판매가격": item.get("price"),
+                                "배송비": item.get("dlvryFee"),
+                                "할인률": item.get("discountRatio"),
+                                "브랜드": item.get("brand"),
+                                "리뷰수": item.get("reviewCount"),
+                                "구매건수": item.get("purchaseCnt"),
+                                "찜하기수": item.get("keepCnt"),
+                                "스토어명": item.get("mallName"),
+                                "스토어모바일주소": item.get("mallProdMblUrl"),
+                                "스토어PC주소": item.get("mallProductUrl"),
+                                "PC주소": pc_url,
+                                "전체방문자수": total_visit,
+                                "페이지": p_num,
+                                "번호": idx + 1,
+                            }
 
-                                chunk_results.append(rs)
+                            chunk_results.append(rs)
 
-                                if site_total_cnt >= int(total_visit):
-                                    if not self.running:
-                                        return True
-
-                                    self.excel_driver.append_to_csv(
-                                        self.csv_filename,
-                                        [rs],
-                                        self.columns,
-                                        folder_path=self.folder_path,
-                                        sub_dir=self.out_dir,
+                            if site_total_cnt >= int(total_visit):
+                                if not self.running:
+                                    return self._log_and_return_true(
+                                        f"🛑 사용자 중단 감지(CSV 저장 직전) | 키워드={kw} | page={p_num} | idx={idx + 1}"
                                     )
+
+                                self.excel_driver.append_to_csv(
+                                    self.csv_filename,
+                                    [rs],
+                                    self.columns,
+                                    folder_path=self.folder_path,
+                                    sub_dir=self.out_dir,
+                                )
+                                self.log_signal_func(
+                                    f"💾 CSV 저장 대상 추가 | 키워드={kw} | page={p_num} | 방문자={total_visit} | 기준={site_total_cnt}"
+                                )
 
                             self.log_signal_func(
                                 f"📦 [수집 완료] {kw} - {p_num}p | {item.get('mallName')} | 방문자: {total_visit}"
                             )
-                            if not self.sleep_s(random.uniform(1.0, 2.5)):
+
+                            if not self._sleep_or_stop(
+                                    random.uniform(1.0, 2.5),
+                                    f"🛑 중단 또는 sleep 실패 | 상세 간 대기 | 키워드={kw} | page={p_num} | idx={idx + 1}",
+                            ):
                                 return True
+                        else:
+                            self.log_signal_func(
+                                f"⚠️ 상세 URL 없음 스킵 | 키워드={kw} | page={p_num} | idx={idx + 1}"
+                            )
+                else:
+                    self.log_signal_func(
+                        f"⚠️ chunk_items_queue 비어있음 | 키워드={kw} | chunk={current_chunk[0]}p~{current_chunk[-1]}p"
+                    )
 
                 self.log_signal_func("🧹 묶음 작업 완료. 브라우저를 정리합니다.")
                 pyautogui.hotkey("alt", "f4")
-                if not self.sleep_s(2):
+                if not self._sleep_or_stop(
+                        2,
+                        f"🛑 중단 또는 sleep 실패 | 브라우저 종료 후 대기 | 키워드={kw} | chunk={current_chunk[0]}~{current_chunk[-1]}",
+                ):
                     return True
 
                 pro_value = (self.current_cnt / self.total_cnt) * 1000000
                 self.progress_signal.emit(self.before_pro_value, pro_value)
                 self.before_pro_value = pro_value
                 self.log_signal_func(
-                    f"📊 {current_chunk[-1]}p 묶음 처리 완료 ({self.current_cnt}/{self.total_cnt})"
+                    f"📊 {current_chunk[-1]}p 묶음 처리 완료 ({self.current_cnt}/{self.total_cnt}) | 키워드={kw}"
                 )
 
+            completed_keywords += 1
+            processed_pages = self.current_cnt - keyword_start_cnt
+            self.log_signal_func(
+                f"✅ [키워드 종료 {kw_idx}/{len(keywords)}] {kw} | 처리페이지수={processed_pages} | 누적진행={self.current_cnt}/{self.total_cnt}"
+            )
+
+        self.log_signal_func(
+            f"🏁 전체 작업 완료 | 완료키워드수={completed_keywords}/{len(keywords)} | 총진행={self.current_cnt}/{self.total_cnt}"
+        )
         return True
 
     # =========================================================
@@ -441,6 +578,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
         for attempt in range(1, max_tries + 1):
             if not self.running:
+                self.log_signal_func("🛑 handle_captcha_with_retry 중단: running=False")
                 return 0
 
             self.log_signal_func(f"🔍 [시도 {attempt}/{max_tries}] 화면 상태 체크 중...")
@@ -448,14 +586,18 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             if attempt > 1:
                 pyautogui.press("tab")
                 if not self.sleep_s(0.5):
+                    self.log_signal_func("🛑 캡차 처리 중단: tab 이후 sleep 실패")
                     return 0
 
             pyperclip.copy("")
             pyautogui.hotkey("ctrl", "a")
             if not self.sleep_s(random.uniform(0.6, 0.9)):
+                self.log_signal_func("🛑 캡차 처리 중단: 전체선택 후 sleep 실패")
                 return 0
+
             pyautogui.hotkey("ctrl", "c")
             if not self.sleep_s(random.uniform(0.5, 0.8)):
+                self.log_signal_func("🛑 캡차 처리 중단: 복사 후 sleep 실패")
                 return 0
 
             page_content = pyperclip.paste()
@@ -463,6 +605,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
             if target_text not in page_content:
                 if attempt == 1:
+                    self.log_signal_func("✅ 캡차 없음")
                     return 1
                 self.log_signal_func("✅ 캡차 해결 성공!")
                 return 2
@@ -473,12 +616,14 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                 for _ in range(5):
                     pyautogui.press("tab")
                     if not self.sleep_s(random.uniform(0.1, 0.2)):
+                        self.log_signal_func("🛑 캡차 처리 중단: 첫 진입 tab 이동 중 sleep 실패")
                         return 0
                 pyautogui.press("enter")
             else:
                 pyautogui.press("enter")
 
             if not self.sleep_s(2):
+                self.log_signal_func("🛑 캡차 처리 중단: 음성재생 대기 sleep 실패")
                 return 0
 
             filename = "captcha_audio_final.wav"
@@ -488,17 +633,19 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
                 if not code:
                     code = "123456"
-                    self.log_signal_func("⚠️ AI 인식 실패 (숫자 없음). 기본값 '123456'을 입력하여 화면을 갱신합니다.")
+                    self.log_signal_func("⚠️ AI 인식 실패 (숫자 없음). 기본값 '123456' 입력")
                 else:
                     self.log_signal_func(f"📝 AI 인식 코드: {code}")
 
                 if attempt == 1:
                     pyautogui.press("tab")
                     if not self.sleep_s(0.5):
+                        self.log_signal_func("🛑 캡차 처리 중단: 입력칸 이동 후 sleep 실패")
                         return 0
                 else:
                     pyautogui.hotkey("shift", "tab")
                     if not self.sleep_s(0.5):
+                        self.log_signal_func("🛑 캡차 처리 중단: shift+tab 후 sleep 실패")
                         return 0
 
                 pyautogui.write(code, interval=random.uniform(0.1, 0.2))
@@ -510,8 +657,12 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
                 self.log_signal_func("⏳ 결과 검증 대기 중...")
                 if not self.sleep_s(random.uniform(5.0, 6.0)):
+                    self.log_signal_func("🛑 캡차 처리 중단: 결과 검증 대기 sleep 실패")
                     return 0
+            else:
+                self.log_signal_func("❌ 캡차 음성 녹음 실패")
 
+        self.log_signal_func(f"❌ 캡차 최대 재시도 초과: {max_tries}회")
         return 0
 
     def extract_items_from_html(self, html_source):

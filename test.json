@@ -1,0 +1,724 @@
+[
+  {
+    'name': '',
+    'code': 'tradeTypes',
+    'type': 'checkbox_multi_group',
+    'items': [
+      {
+        'name': '매매',
+        'code': 'A1',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '전세',
+        'code': 'B1',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '월세',
+        'code': 'B2',
+        'type': 'checkbox',
+        'value': True
+      },
+      {
+        'name': '단기임대',
+        'code': 'B3',
+        'type': 'checkbox',
+        'value': True
+      }
+    ],
+    'parent_id': 'checkbox_multi_group',
+    'checked': True
+  },
+  {
+    'name': '',
+    'code': 'realEstateTypes',
+    'type': 'checkbox_multi_group',
+    'items': [
+      {
+        'name': '아파트',
+        'code': 'A01',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '재건축',
+        'code': 'A04',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '오피스텔',
+        'code': 'A02',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '빌라',
+        'code': 'A05-A06-A07-C02',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '아파트 분양권',
+        'code': 'B01',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '오피스텔 분양권',
+        'code': 'B02',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '원룸',
+        'code': 'C01',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '단독/다가구',
+        'code': 'C03',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '전원주택',
+        'code': 'C04',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '상가주택',
+        'code': 'D05',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '재개발',
+        'code': 'F01',
+        'type': 'checkbox',
+        'value': False
+      }
+    ],
+    'children': [
+      {
+        'name': '상가·업무·토지',
+        'items': [
+          {
+            'name': '상가',
+            'code': 'D02',
+            'type': 'checkbox',
+            'value': True
+          },
+          {
+            'name': '토지',
+            'code': 'E03',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '사무실',
+            'code': 'D01',
+            'type': 'checkbox',
+            'value': True
+          },
+          {
+            'name': '건물',
+            'code': 'D03-D04-E01-Z00',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '공장/창고',
+            'code': 'E02',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '지식산업센터',
+            'code': 'E04',
+            'type': 'checkbox',
+            'value': True
+          }
+        ]
+      }
+    ],
+    'parent_id': 'checkbox_multi_group',
+    'checked': True
+  },
+  {
+    'name': '가격',
+    'type': 'title',
+    'children': [
+      {
+        'name': '매매가(단위 만원)',
+        'code': 'dealPrice',
+        'type': 'two_input',
+        'items': [
+          {
+            'name': '최소',
+            'code': 'min',
+            'type': 'input',
+            'value': ''
+          },
+          {
+            'name': '최대',
+            'code': 'max',
+            'type': 'input',
+            'value': ''
+          }
+        ]
+      },
+      {
+        'name': '보증금(단위 만원)',
+        'code': 'warrantyPrice',
+        'type': 'two_input',
+        'items': [
+          {
+            'name': '최소',
+            'code': 'min',
+            'type': 'input',
+            'value': ''
+          },
+          {
+            'name': '최대',
+            'code': 'max',
+            'type': 'input',
+            'value': ''
+          }
+        ]
+      },
+      {
+        'name': '월세(단위 만원)',
+        'code': 'rentPrice',
+        'type': 'two_input',
+        'items': [
+          {
+            'name': '최소',
+            'code': 'min',
+            'type': 'input',
+            'value': ''
+          },
+          {
+            'name': '최대',
+            'code': 'max',
+            'type': 'input',
+            'value': ''
+          }
+        ]
+      }
+    ],
+    'parent_id': 'title',
+    'checked': True
+  },
+  {
+    'name': '면적',
+    'type': 'title',
+    'children': [
+      {
+        'name': '평(㎡)',
+        'code': 'space',
+        'type': 'two_input',
+        'items': [
+          {
+            'name': '최소',
+            'code': 'min',
+            'type': 'input',
+            'value': ''
+          },
+          {
+            'name': '최대',
+            'code': 'max',
+            'type': 'input',
+            'value': ''
+          }
+        ]
+      },
+      {
+        'name': '전용면적 기준으로 찾기',
+        'code': 'exclusiveSpaceMode',
+        'type': 'checkbox',
+        'value': False
+      }
+    ],
+    'parent_id': 'title',
+    'checked': True
+  },
+  {
+    'name': '단지정보',
+    'type': 'title',
+    'children': [
+      {
+        'name': '세대수',
+        'code': 'householdNumber',
+        'type': 'two_input',
+        'items': [
+          {
+            'name': '최소',
+            'code': 'min',
+            'type': 'input',
+            'value': ''
+          },
+          {
+            'name': '최대',
+            'code': 'max',
+            'type': 'input',
+            'value': ''
+          }
+        ]
+      },
+      {
+        'name': '주차/차량시설',
+        'code': 'parkingTypes',
+        'type': 'checkbox_multi_group',
+        'items': [
+          {
+            'name': '세대당 주차 1대 이상',
+            'code': 'PKF01',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '세대당 주차 1.5대 이상',
+            'code': 'PKF02',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '전기차충전소',
+            'code': 'PKF03',
+            'type': 'checkbox',
+            'value': False
+          }
+        ]
+      },
+      {
+        'name': '현관 구조',
+        'code': 'entranceTypes',
+        'type': 'checkbox_multi_group',
+        'items': [
+          {
+            'name': '계단식',
+            'code': '10',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '복도식',
+            'code': '20',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '복합식',
+            'code': '30',
+            'type': 'checkbox',
+            'value': False
+          }
+        ]
+      },
+      {
+        'name': '탐색 조건',
+        'type': 'title',
+        'items': [
+          {
+            'name': '매물있는단지만보기',
+            'code': 'hasArticleComplex',
+            'type': 'checkbox',
+            'value': False
+          }
+        ]
+      }
+    ],
+    'parent_id': 'title',
+    'checked': True
+  },
+  {
+    'name': '역세권',
+    'type': 'title',
+    'children': [
+      {
+        'name': '도보거리(단위 분)',
+        'code': 'subwayWalkingMinute',
+        'type': 'input',
+        'value': ''
+      }
+    ],
+    'parent_id': 'title',
+    'checked': True
+  },
+  {
+    'name': '매물보기 조건',
+    'type': 'title',
+    'items': [
+      {
+        'name': '사진있는 매물만',
+        'code': 'hasArticlePhoto',
+        'type': 'checkbox',
+        'value': False
+      },
+      {
+        'name': '집주인/소유자 인증만',
+        'code': 'isAuthorizedByOwner',
+        'type': 'checkbox',
+        'value': False
+      }
+    ],
+    'parent_id': 'title',
+    'checked': True
+  },
+  {
+    'name': '방/욕실',
+    'type': 'title',
+    'children': [
+      {
+        'name': '방 개수',
+        'code': 'roomCount',
+        'type': 'checkbox_multi_group',
+        'items': [
+          {
+            'name': '1개',
+            'code': 'RCF01',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '2개',
+            'code': 'RCF02',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '3개',
+            'code': 'RCF03',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '4개',
+            'code': 'RCF04',
+            'type': 'checkbox',
+            'value': False
+          }
+        ]
+      },
+      {
+        'name': '욕실 개수',
+        'code': 'bathRoomCount',
+        'type': 'checkbox_multi_group',
+        'items': [
+          {
+            'name': '1개',
+            'code': 'RCF01',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '2개',
+            'code': 'RCF02',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '3개',
+            'code': 'RCF03',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '4개',
+            'code': 'RCF04',
+            'type': 'checkbox',
+            'value': False
+          }
+        ]
+      }
+    ],
+    'parent_id': 'title',
+    'checked': True
+  },
+  {
+    'name': '층/방향',
+    'type': 'title',
+    'children': [
+      {
+        'name': '층',
+        'code': 'floor',
+        'type': 'checkbox_multi_group',
+        'items': [
+          {
+            'name': '1층',
+            'code': 'FLF01',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '저층',
+            'code': 'FLF02',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '중층',
+            'code': 'FLF03',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '고층',
+            'code': 'FLF04',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '탑층',
+            'code': 'FLF05',
+            'type': 'checkbox',
+            'value': False
+          }
+        ]
+      },
+      {
+        'name': '방향',
+        'code': 'direction',
+        'type': 'checkbox_multi_group',
+        'items': [
+          {
+            'name': '동향',
+            'code': 'EE',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '서향',
+            'code': 'WW',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '남향',
+            'code': 'SS',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '북향',
+            'code': 'NN',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '북동향',
+            'code': 'EN',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '남동향',
+            'code': 'ES',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '북서향',
+            'code': 'WN',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '남서향',
+            'code': 'WS',
+            'type': 'checkbox',
+            'value': False
+          }
+        ]
+      }
+    ],
+    'parent_id': 'title',
+    'checked': True
+  },
+  {
+    'name': '사용승인일(단위 연)',
+    'code': 'approvalElapsedYear',
+    'type': 'two_input',
+    'items': [
+      {
+        'name': '최소',
+        'code': 'min',
+        'type': 'input',
+        'value': ''
+      },
+      {
+        'name': '최대',
+        'code': 'max',
+        'type': 'input',
+        'value': ''
+      }
+    ],
+    'parent_id': 'two_input',
+    'checked': True
+  },
+  {
+    'name': '관리비(단위 만원)',
+    'code': 'managementFee',
+    'type': 'two_input',
+    'items': [
+      {
+        'name': '최소',
+        'code': 'min',
+        'type': 'input',
+        'value': ''
+      },
+      {
+        'name': '최대',
+        'code': 'max',
+        'type': 'input',
+        'value': ''
+      }
+    ],
+    'parent_id': 'two_input',
+    'checked': True
+  },
+  {
+    'name': '계약조건',
+    'type': 'title',
+    'children': [
+      {
+        'name': '융자금',
+        'code': 'loanRatioType',
+        'type': 'checkbox_single_group',
+        'items': [
+          {
+            'name': '융자금 없음',
+            'code': '00',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '융자금 30% 이하',
+            'code': '10',
+            'type': 'checkbox',
+            'value': False
+          }
+        ]
+      },
+      {
+        'name': '입주가능일',
+        'code': 'moveInTypes',
+        'type': 'checkbox_multi_group',
+        'items': [
+          {
+            'name': '바로입주',
+            'code': 'MVF01',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '90일 내 입주',
+            'code': 'MVF02',
+            'type': 'checkbox',
+            'value': False
+          }
+        ]
+      }
+    ],
+    'parent_id': 'title',
+    'checked': True
+  },
+  {
+    'name': '시설',
+    'code': 'facilities',
+    'children': [
+      {
+        'name': '건물 시설',
+        'type': 'checkbox_multi_group',
+        'items': [
+          {
+            'name': '주차 가능',
+            'code': 'OPF02',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '엘리베이터',
+            'code': 'OPF01',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '보안시설',
+            'code': 'OPF03',
+            'type': 'checkbox',
+            'value': False
+          }
+        ]
+      },
+      {
+        'name': '내부 시설',
+        'type': 'checkbox_multi_group',
+        'items': [
+          {
+            'name': '풀옵션',
+            'code': 'OPF04',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '에어컨',
+            'code': 'OPF05',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '복층',
+            'code': 'OPF09',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '베란다',
+            'code': 'OPF07',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '테라스',
+            'code': 'OPF06',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '마당',
+            'code': 'OPF08',
+            'type': 'checkbox',
+            'value': False
+          }
+        ]
+      },
+      {
+        'name': '원룸 구조',
+        'code': 'oneRoomShapeTypes',
+        'type': 'checkbox_multi_group',
+        'items': [
+          {
+            'name': '오픈형',
+            'code': '10',
+            'type': 'checkbox',
+            'value': False
+          },
+          {
+            'name': '분리형',
+            'code': '20',
+            'type': 'checkbox',
+            'value': False
+          }
+        ]
+      }
+    ],
+    'checked': True
+  }
+]

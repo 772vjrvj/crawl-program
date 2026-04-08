@@ -20,13 +20,13 @@
     {
       "name": "등록일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": 20260406,
+      "value": 20260402,
       "type": "input"
     },
     {
       "name": "등록일(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": 20260407,
+      "value": 20260408,
       "type": "input"
     },
     {
@@ -64,7 +64,7 @@
     {
       "name": "영어컬럼",
       "code": "eng_yn",
-      "value": true,
+      "value": false,
       "type": "check"
     },
     {
@@ -90,25 +90,25 @@
           "name": "매매",
           "code": "A1",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "전세",
           "code": "B1",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "월세",
           "code": "B2",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "단기임대",
           "code": "B3",
           "type": "checkbox",
-          "value": false
+          "value": true
         }
       ],
       "parent_id": "checkbox_multi_group",
@@ -123,7 +123,7 @@
           "name": "아파트",
           "code": "A01",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "재건축",
@@ -194,7 +194,7 @@
               "name": "상가",
               "code": "D02",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "토지",
@@ -206,7 +206,7 @@
               "name": "사무실",
               "code": "D01",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "건물",
@@ -224,7 +224,7 @@
               "name": "지식산업센터",
               "code": "E04",
               "type": "checkbox",
-              "value": false
+              "value": true
             }
           ]
         }
@@ -866,8 +866,13 @@
       "checked": true
     },
     {
-      "code": "exposureStartDate",
+      "code": "articleConfirmDate",
       "value": "매물확인일",
+      "checked": true
+    },
+    {
+      "code": "exposureStartDate",
+      "value": "매물노출시작일",
       "checked": true
     },
     {
@@ -1013,27 +1018,27 @@
     {
       "code": "articleFeatureDescription",
       "value": "간략설명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "articleDescription",
       "value": "매물설명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "currentBusinessType",
       "value": "현재업종",
-      "checked": false
+      "checked": true
     },
     {
       "code": "recommendedBusinessType",
       "value": "추천업종",
-      "checked": false
+      "checked": true
     },
     {
       "code": "buildingConjunctionDate",
       "value": "사용승인일",
-      "checked": false
+      "checked": true
     },
     {
       "code": "parts",
