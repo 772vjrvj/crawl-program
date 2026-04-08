@@ -76,7 +76,7 @@
     {
       "name": "중복제거",
       "code": "remove_duplicate_yn",
-      "value": true,
+      "value": false,
       "type": "check"
     }
   ],
@@ -961,8 +961,13 @@
       "checked": true
     },
     {
+      "code": "parentYn",
+      "value": "부모여부",
+      "checked": true
+    },
+    {
       "code": "atclNo",
-      "value": "상위매물게시번호",
+      "value": "상위매물번호",
       "checked": true
     },
     {
@@ -1018,12 +1023,17 @@
     {
       "code": "articleFeatureDescription",
       "value": "간략설명",
-      "checked": true
+      "checked": false
     },
     {
       "code": "articleDescription",
       "value": "매물설명",
-      "checked": true
+      "checked": false
+    },
+    {
+      "code": "vrfctpcd",
+      "value": "매물확인코드",
+      "checked": false
     },
     {
       "code": "currentBusinessType",

@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 import random
 import json
 
@@ -9,6 +9,7 @@ from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
 from src.workers.api_base_worker import BaseApiWorker
 from src.utils.time_utils import yyyy_mm_dd_to
+
 
 class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
@@ -203,7 +204,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         return True
 
-
     def _get_eng_columns(self) -> List[str]:
         return [
             "date",
@@ -232,6 +232,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "articlePriceInfo",
             "supplySpaceName",
             "bildNm",
+            "upperAtclNo",
+            "parentYn",
             "sameAddrMinPrc",
             "sameAddrMaxPrc",
             "sameAddrCnt",
@@ -256,7 +258,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             return rent
         return ""
 
-
     def _build_search_requirement_text(self, out: Dict[str, Any]) -> str:
         parts: List[str] = []
 
@@ -272,7 +273,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             parts.append(f"거래유형:{search_trade}")
 
         return " / ".join(parts)
-
 
     def _map_out_to_eng(self, out: Dict[str, Any]) -> Dict[str, Any]:
         eng_out: Dict[str, Any] = {
@@ -301,19 +301,19 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "rletTpNm": str(out.get("매물유형") or ""),
             "articlePriceInfo": self._build_article_price_info(out),
             "supplySpaceName": str(out.get("평수") or ""),
-            "bildNm": str(out.get("동이름") or out.get("상위매물동") or ""),
+            "bildNm": str(out.get("상위매물동") or out.get("동이름") or ""),
+            "upperAtclNo": str(out.get("상위매물번호") or ""),
+            "parentYn": str(out.get("부모여부") or ""),
             "sameAddrMinPrc": str(out.get("동일주소최소가") or ""),
             "sameAddrMaxPrc": str(out.get("동일주소최대가") or ""),
             "sameAddrCnt": str(out.get("동일주소매물수") or ""),
-            "vrfcTpCd": "",
+            "vrfcTpCd": str(out.get("매물확인코드") or ""),
             "rank": "",
             "lat": str(out.get("위도") or ""),
             "lng": str(out.get("경도") or ""),
         }
 
         return eng_out
-
-
 
     def _load_js_assets(self) -> None:
         js_dir = "customers/naver_land_real_estate_detail/js"
@@ -378,7 +378,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
             success = False
 
-            for attempt in range(1, 2):
+            for attempt in range(1, 4):
                 try:
                     self.log_signal_func(f"[지역 진입] 시도 {attempt}/3")
 
@@ -393,10 +393,16 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     self._click_article_button(wait_sec=20)
                     time.sleep(3)
 
+                    # 정렬 전에 기존 hook 데이터 초기화
+                    try:
+                        self.driver.execute_script("window.__naverListHookData = null;")
+                        self.log_signal_func("[후킹] 기존 목록 hook 데이터 초기화")
+                    except Exception as e:
+                        self.log_signal_func(f"[후킹] 초기화 실패: {e}")
+
                     self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
                     self._click_sort_button_by_setting(wait_sec=20)
                     time.sleep(3)
-
 
                     success = True
                     break
@@ -653,7 +659,14 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         return {}
 
-    def _browser_fetch_json(self,url: str, method: str = "GET", payload: dict[str, Any] = None, params: dict[str, Any] = None,wait_sec: int = 30) -> dict[str, Any]:
+    def _browser_fetch_json(
+            self,
+            url: str,
+            method: str = "GET",
+            payload: dict[str, Any] = None,
+            params: dict[str, Any] = None,
+            wait_sec: int = 30,
+    ) -> dict[str, Any]:
         script = self.browser_fetch_json_js
         self.driver.set_script_timeout(wait_sec)
         return self.driver.execute_async_script(script, url, method, payload, params)
@@ -669,7 +682,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         def get_confirm_date_from_info(info: dict[str, Any]) -> str:
             verification_info: dict[str, Any] = info.get("verificationInfo", {}) or {}
-            return normalize_date_yyyymmdd(verification_info.get("exposureStartDate", ""))
+            return normalize_date_yyyymmdd(verification_info.get("articleConfirmDate", ""))
 
         def get_confirm_date_from_item(item: dict[str, Any]) -> str:
             info: dict[str, Any] = item.get("representativeArticleInfo", {}) or {}
@@ -727,6 +740,18 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             rs.update(meta or {})
             return rs
 
+        def enrich_parent_meta(
+                info: dict[str, Any],
+                representative_info: dict[str, Any],
+                parent_yn: str,
+        ) -> dict[str, Any]:
+            rs = dict(info or {})
+            rs["parentYn"] = parent_yn
+            rs["upperArticleNumber"] = str(representative_info.get("articleNumber", "")).strip()
+            rs["upperArticleName"] = str(representative_info.get("articleName", "")).strip()
+            rs["upperDongName"] = str(representative_info.get("dongName", "")).strip()
+            return rs
+
         def add_items(page_list: list[dict[str, Any]]) -> int:
             added_count = 0
 
@@ -749,13 +774,16 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                             article_no: str = str(article_info.get("articleNumber", "")).strip()
 
                             if article_no:
+                                row = apply_same_addr_meta(article_info, same_addr_meta)
+                                row = enrich_parent_meta(row, representative_info, "N")
+
                                 if self.remove_duplicate_yn:
                                     if article_no not in seen:
                                         seen.add(article_no)
-                                        items.append(apply_same_addr_meta(article_info, same_addr_meta))
+                                        items.append(row)
                                         added_count += 1
                                 else:
-                                    items.append(apply_same_addr_meta(article_info, same_addr_meta))
+                                    items.append(row)
                                     added_count += 1
                         continue
 
@@ -778,6 +806,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                             "sameAddrMinPrc": deal_price,
                             "sameAddrMaxPrc": deal_price,
                         })
+
+                        single_info = enrich_parent_meta(single_info, representative_info, "Y")
                         items.append(single_info)
                         added_count += 1
                     continue
@@ -793,7 +823,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
                     if article_info_list:
                         same_addr_meta = build_same_addr_meta(duplicated_info)
-                        items.append(apply_same_addr_meta(representative_info, same_addr_meta))
+                        row = apply_same_addr_meta(representative_info, same_addr_meta)
+                        row = enrich_parent_meta(row, representative_info, "Y")
+                        items.append(row)
                         added_count += 1
                     else:
                         single_info = dict(representative_info)
@@ -803,6 +835,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                             "sameAddrMinPrc": deal_price,
                             "sameAddrMaxPrc": deal_price,
                         })
+                        single_info = enrich_parent_meta(single_info, representative_info, "Y")
                         items.append(single_info)
                         added_count += 1
 
@@ -940,8 +973,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.log_signal_func(f"[목록] 최종 수집 건수={len(items)}")
         return items
 
-
-
     def _collect_detail(self, items: list[dict[str, Any]], region_item) -> list[dict[str, Any]]:
         details: list[dict[str, Any]] = []
 
@@ -1052,7 +1083,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         return details
 
     def _detail_map_save(self, detail, region_item):
-
         sido = region_item.get("시도")
         sigungu = region_item.get("시군구")
         eup_myeon_dong = region_item.get("읍면동")
@@ -1144,6 +1174,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "전용면적": list_space.get("exclusiveSpace", "") or detail_size.get("exclusiveSpace", ""),
             "간략설명": detail_article.get("articleFeatureDescription", ""),
             "매물설명": detail_article.get("articleDescription", ""),
+            "매물확인코드": detail_verification.get("verificationType", ""),
             "사용승인일": yyyy_mm_dd_to(list_building.get("buildingConjunctionDate", "")),
             "매물확인일": list_verification.get("articleConfirmDate", "") or detail_verification.get("articleConfirmDate", ""),
             "매물노출시작일": list_verification.get("articleConfirmDate", "") or detail_verification.get("exposureStartDate", ""),
@@ -1163,10 +1194,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "중개사무소주소": agent_result.get("address", ""),
             "중개사무소번호": phone.get("brokerage", ""),
             "중개사핸드폰번호": phone.get("mobile", ""),
-            "상위매물명": list_item.get("articleName", ""),
+            "상위매물명": list_item.get("upperArticleName", "") or list_item.get("articleName", ""),
+            "상위매물동": list_item.get("upperDongName", "") or list_item.get("dongName", ""),
+            "상위매물번호": list_item.get("upperArticleNumber", "") or list_item.get("articleNumber", ""),
+            "부모여부": list_item.get("parentYn", "Y"),
             "매물유형": real_estate_type_name or real_estate_type_code,
             "거래유형": trade_type_name or trade_type_code,
-            "등록일자": list_verification.get("exposureStartDate", "") or detail_verification.get("exposureStartDate", ""),
             "위도": y,
             "경도": x,
             "URL": f"{self.url}/article/{list_item.get('articleNumber', '')}",
