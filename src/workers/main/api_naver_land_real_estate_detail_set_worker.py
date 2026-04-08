@@ -397,6 +397,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     self._click_sort_button_by_setting(wait_sec=20)
                     time.sleep(3)
 
+
                     success = True
                     break
 
@@ -726,37 +727,40 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             rs.update(meta or {})
             return rs
 
-        def add_items(page_list: list[dict[str, Any]]) -> None:
+        def add_items(page_list: list[dict[str, Any]]) -> int:
+            added_count = 0
+
             for item in page_list:
                 representative_info: dict[str, Any] = item.get("representativeArticleInfo", {}) or {}
                 duplicated_info: dict[str, Any] = item.get("duplicatedArticleInfo", {}) or {}
                 article_info_list: list[dict[str, Any]] = duplicated_info.get("articleInfoList", []) or []
 
+                confirm_date: str = get_confirm_date_from_info(representative_info)
+
+                if not is_target_date(confirm_date):
+                    continue
+
                 # 1) 부동산 중개사 기준으로 가져오는 경우
                 if self.brokerage_yn:
-                    # 중복 목록이 있으면 목록 기준으로 처리
                     if article_info_list:
                         same_addr_meta = build_same_addr_meta(duplicated_info)
 
                         for article_info in article_info_list:
                             article_no: str = str(article_info.get("articleNumber", "")).strip()
-                            confirm_date: str = get_confirm_date_from_info(article_info)
-
-                            if not is_target_date(confirm_date):
-                                continue
 
                             if article_no:
                                 if self.remove_duplicate_yn:
                                     if article_no not in seen:
                                         seen.add(article_no)
                                         items.append(apply_same_addr_meta(article_info, same_addr_meta))
+                                        added_count += 1
                                 else:
                                     items.append(apply_same_addr_meta(article_info, same_addr_meta))
+                                    added_count += 1
                         continue
 
-                    # 중복 목록이 없으면 단건 처리
                     article_no: str = str(representative_info.get("articleNumber", "")).strip()
-                    confirm_date: str = get_confirm_date_from_info(representative_info)
+                    confirm_date = get_confirm_date_from_info(representative_info)
 
                     if not is_target_date(confirm_date):
                         continue
@@ -766,6 +770,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                             continue
                         if self.remove_duplicate_yn:
                             seen.add(article_no)
+
                         single_info = dict(representative_info)
                         deal_price = ((single_info.get("priceInfo") or {}).get("dealPrice", ""))
                         single_info.update({
@@ -774,15 +779,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                             "sameAddrMaxPrc": deal_price,
                         })
                         items.append(single_info)
+                        added_count += 1
                     continue
 
                 # 2) 부동산 중개사 기준이 아닌 경우 -> 무조건 대표 1개만
                 article_no: str = str(representative_info.get("articleNumber", "")).strip()
-                confirm_date: str = get_confirm_date_from_info(representative_info)
-
-                if not is_target_date(confirm_date):
-                    continue
-
                 if article_no:
                     if self.remove_duplicate_yn and article_no in seen:
                         continue
@@ -790,10 +791,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     if self.remove_duplicate_yn:
                         seen.add(article_no)
 
-                    # duplicated 정보가 있으면 대표에도 동일주소 정보만 붙임
                     if article_info_list:
                         same_addr_meta = build_same_addr_meta(duplicated_info)
                         items.append(apply_same_addr_meta(representative_info, same_addr_meta))
+                        added_count += 1
                     else:
                         single_info = dict(representative_info)
                         deal_price = ((single_info.get("priceInfo") or {}).get("dealPrice", ""))
@@ -803,14 +804,18 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                             "sameAddrMaxPrc": deal_price,
                         })
                         items.append(single_info)
+                        added_count += 1
+
+            return added_count
 
         first_list: list[dict[str, Any]] = first_result.get("list", []) or []
+        total_count: int = int(first_result.get("totalCount") or 0)
 
         self.log_signal_func(
             f"[목록] first "
             f"count={len(first_list)} "
             f"hasNext={first_result.get('hasNextPage')} "
-            f"total={first_result.get('totalCount')}"
+            f"total={total_count}"
         )
 
         if not first_list:
@@ -818,6 +823,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             return items
 
         add_items(first_list)
+
+        if total_count > 0 and len(items) >= total_count:
+            self.log_signal_func(f"[목록] totalCount 도달로 중단 collected={len(items)} total={total_count}")
+            return items
 
         if should_stop_by_date(first_list):
             self.log_signal_func(f"[목록] 시작일({self.fr_date}) 이전 데이터 발견으로 목록 조회 중단")
@@ -828,8 +837,28 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         last_info: list[Any] = first_result.get("lastInfo", []) or []
         has_next: bool = bool(first_result.get("hasNextPage"))
         page: int = 2
+        max_page: int = 300
 
-        while has_next and last_info:
+        prev_seed = seed
+        prev_last_info_text = json.dumps(last_info, ensure_ascii=False, sort_keys=True)
+
+        while True:
+            if not has_next:
+                self.log_signal_func("[목록] hasNextPage=false 로 종료")
+                break
+
+            if not last_info:
+                self.log_signal_func("[목록] lastInfo 없음으로 종료")
+                break
+
+            if total_count > 0 and len(items) >= total_count:
+                self.log_signal_func(f"[목록] totalCount 도달로 종료 collected={len(items)} total={total_count}")
+                break
+
+            if page > max_page:
+                self.log_signal_func(f"[목록] max_page({max_page}) 초과로 강제 종료")
+                break
+
             req: dict[str, Any] = json.loads(json.dumps(base_payload))
             req["articlePagingRequest"]["seed"] = seed
             req["articlePagingRequest"]["lastInfo"] = last_info
@@ -842,7 +871,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 url=self.list_api_url,
                 method="POST",
                 payload=req,
-                wait_sec=30,
+                wait_sec=200,
             )
 
             status = fetch_res.get("status")
@@ -867,17 +896,41 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             )
 
             if not page_list:
+                self.log_signal_func(f"[목록] page={page} list 없음으로 종료")
                 break
 
+            before_len = len(items)
             add_items(page_list)
+            added_now = len(items) - before_len
 
-            seed = result.get("seed", seed)
-            last_info = result.get("lastInfo", []) or []
-            has_next = bool(result.get("hasNextPage"))
+            if total_count > 0 and len(items) >= total_count:
+                self.log_signal_func(f"[목록] totalCount 도달로 종료 collected={len(items)} total={total_count}")
+                break
+
+            next_seed = result.get("seed", seed)
+            next_last_info = result.get("lastInfo", []) or []
+            next_has_next = bool(result.get("hasNextPage"))
+
+            next_last_info_text = json.dumps(next_last_info, ensure_ascii=False, sort_keys=True)
+
+            if next_has_next and next_seed == prev_seed and next_last_info_text == prev_last_info_text:
+                self.log_signal_func("[목록] seed/lastInfo 변화 없음으로 무한루프 방지 종료")
+                break
+
+            if added_now == 0 and self.remove_duplicate_yn:
+                self.log_signal_func("[목록] 이번 페이지 신규 추가 0건으로 종료")
+                break
+
+            seed = next_seed
+            last_info = next_last_info
+            has_next = next_has_next
 
             if should_stop_by_date(page_list):
                 self.log_signal_func(f"[목록] 시작일({self.fr_date}) 이전 데이터 발견으로 목록 조회 중단")
                 break
+
+            prev_seed = seed
+            prev_last_info_text = json.dumps(last_info, ensure_ascii=False, sort_keys=True)
 
             page += 1
 
@@ -886,6 +939,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         self.log_signal_func(f"[목록] 최종 수집 건수={len(items)}")
         return items
+
+
 
     def _collect_detail(self, items: list[dict[str, Any]], region_item) -> list[dict[str, Any]]:
         details: list[dict[str, Any]] = []
