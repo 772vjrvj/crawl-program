@@ -20,13 +20,13 @@
     {
       "name": "등록일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": "",
+      "value": 20260402,
       "type": "input"
     },
     {
       "name": "등록일(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": "",
+      "value": 20260409,
       "type": "input"
     },
     {
