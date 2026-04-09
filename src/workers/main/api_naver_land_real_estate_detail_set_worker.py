@@ -394,6 +394,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     time.sleep(3)
 
                     # 정렬 전에 기존 hook 데이터 초기화
+                    try:
+                        self.driver.execute_script("window.__naverListHookData = null;")
+                        self.log_signal_func("[후킹] 기존 목록 hook 데이터 초기화")
+                    except Exception as e:
+                        self.log_signal_func(f"[후킹] 초기화 실패: {e}")
 
                     self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
                     self._click_sort_button_by_setting(wait_sec=20)

@@ -271,13 +271,24 @@ class FileUtils:
         - read_text_from_resources("list_hook.js", "customers/naver_land_real_estate_detail/js")
         - read_text_from_resources("sample.txt")
         """
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+        # === 신규 ===
+        if getattr(sys, "frozen", False):
+            # PyInstaller 빌드 후
+            base_dir = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+        else:
+            # 개발 환경
+            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
         resources_dir = os.path.join(base_dir, "resources")
 
         if sub_dir:
             file_path = os.path.join(resources_dir, sub_dir, filename)
         else:
             file_path = os.path.join(resources_dir, filename)
+
+        self._log(f"[read_text_from_resources] base_dir={base_dir}")
+        self._log(f"[read_text_from_resources] file_path={file_path}")
 
         if not os.path.exists(file_path):
             self._log(f"❌ 텍스트 파일이 존재하지 않습니다: {file_path}")
@@ -287,12 +298,12 @@ class FileUtils:
             with open(file_path, "r", encoding="utf-8") as f:
                 text = f.read()
 
+            self._log(f"[read_text_from_resources] 읽기 성공: {filename} / length={len(text)}")
             return text
 
         except Exception as e:
             self._log(f"❌ 텍스트 파일 읽기 실패: {file_path} / 오류: {e}")
             return ""
-
 
     def safe_name(self, s: Any, max_len: int = 40) -> str:
         s2 = "" if s is None else str(s)
