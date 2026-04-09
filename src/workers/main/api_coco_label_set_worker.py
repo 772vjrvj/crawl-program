@@ -638,6 +638,9 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
         price: str = self.to_price_str(data.get("price"))
         price_org: str = self.to_price_str(data.get("price_org"))
 
+        # === 신규 ===
+        basic_product: str = str(data.get("simple_content_plain") or "").strip()
+
         self.log_signal_func(f"[상품] idx={idx_number} / {brand} / {name}")
 
         basic_code: str = str(base_obj.get("기본분류") or "").strip()
@@ -686,6 +689,8 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
         option1, option2, option3 = self.build_option_columns(data)
         product_url: str = f"{self.shop_url}{href}/?idx={idx_number}"
 
+        if not option1 and basic_product:
+            option1 = f"옵션1|{basic_product}"
         row: Dict[str, Any] = self.make_empty_row()
         row["상품코드"] = idx_number
         row["기본분류"] = basic_code
@@ -693,6 +698,7 @@ class ApiCocoLabelSetWorker(BaseApiWorker):
         row["분류3"] = ""
         row["상품명"] = name
         row["브랜드"] = brand
+        row["기본상품"] = basic_product
         row["상품옵션1"] = option1
         row["상품옵션2"] = option2
         row["상품옵션3"] = option3
