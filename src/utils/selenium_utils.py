@@ -1003,13 +1003,29 @@ class SeleniumUtils:
 
         self.cleanup_old_profiles(older_than_hours=24)
 
+        # === 신규 === quit 후 재시작 가능하도록 초기화
+        self._quit_done = False
+
         # 실행마다 새 프로필(세션/락 충돌 방지)
         self._profile_dir = self._new_tmp_profile()
 
         chrome_exe = self._find_chrome_exe_windows()
 
-        # NOTE: 원본 코드 로직 유지(없으면 145 기본)
-        major = int(force_major) if force_major else 145
+        # === 수정 === 실제 설치된 Chrome major 우선 사용
+        detected_major = self._detect_chrome_major(chrome_exe)
+        major = int(force_major) if force_major else detected_major
+
+        self._log(
+            "chrome_exe:",
+            chrome_exe,
+            "detected_major:",
+            detected_major,
+            "force_major:",
+            force_major,
+            "use_major:",
+            major,
+            force=True,
+        )
 
         # === 신규 === 최종 화면 설정값 계산
         final_cfg = self._resolve_view_config(
@@ -1027,12 +1043,17 @@ class SeleniumUtils:
         def _create_driver(opts_any: uc.ChromeOptions) -> WebDriver:
             """
             uc.Chrome 생성 래퍼.
-            - version_main에 major를 지정하여 chromedriver 매칭을 유도한다.
+            - version_main에 감지된 major를 지정하여 chromedriver 매칭을 유도한다.
+            - major를 못 찾으면 version_main 없이 생성 시도한다.
             """
-            return uc.Chrome(
-                options=opts_any,
-                version_main=int(major),
-            )
+            kwargs: Dict[str, Any] = {
+                "options": opts_any,
+            }
+
+            if major:
+                kwargs["version_main"] = int(major)
+
+            return uc.Chrome(**kwargs)
 
         try:
             # 1차 생성 시도
@@ -1052,9 +1073,8 @@ class SeleniumUtils:
                     height=final_mobile_metrics[1],
                     user_agent=final_mobile_user_agent,
                 )
-            self._log("driver create time:", time.time() - t)
+            self._log("driver create time:", time.time() - t, force=True)
 
-            # 페이지 로드 타임아웃 설정(지원 안 되면 무시)
             try:
                 self.driver.set_page_load_timeout(timeout)
             except Exception:
@@ -1063,18 +1083,30 @@ class SeleniumUtils:
             return self.driver
 
         except Exception as e:
-            # 실패 기록 + 안전 종료
-            self._log("start failed:", str(e))
+            self._log("start failed:", str(e), force=True)
             self.last_error = e
             self._safe_quit_driver()
 
-            # uc 캐시 삭제(깨진 캐시/패치 파일 방어)
             try:
                 self.wipe_uc_driver_cache()
             except Exception:
                 pass
 
-            # 2차 재시도
+            # === 신규 === 캐시 삭제 후 한 번 더 현재 Chrome major 재확인
+            chrome_exe = self._find_chrome_exe_windows()
+            detected_major = self._detect_chrome_major(chrome_exe)
+            major = int(force_major) if force_major else detected_major
+
+            self._log(
+                "retry chrome_exe:",
+                chrome_exe,
+                "retry detected_major:",
+                detected_major,
+                "retry use_major:",
+                major,
+                force=True,
+            )
+
             try:
                 opts = self._build_options(
                     chrome_exe=chrome_exe,
@@ -1092,7 +1124,7 @@ class SeleniumUtils:
                         height=final_mobile_metrics[1],
                         user_agent=final_mobile_user_agent,
                     )
-                self._log("driver create time:", time.time() - t)
+                self._log("driver create time:", time.time() - t, force=True)
 
                 try:
                     self.driver.set_page_load_timeout(timeout)
@@ -1102,7 +1134,6 @@ class SeleniumUtils:
                 return self.driver
 
             except Exception as e2:
-                # 재시도도 실패하면 최종 raise
                 self.last_error = e2
                 self._safe_quit_driver()
                 raise e2

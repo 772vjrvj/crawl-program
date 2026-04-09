@@ -394,11 +394,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     time.sleep(3)
 
                     # 정렬 전에 기존 hook 데이터 초기화
-                    try:
-                        self.driver.execute_script("window.__naverListHookData = null;")
-                        self.log_signal_func("[후킹] 기존 목록 hook 데이터 초기화")
-                    except Exception as e:
-                        self.log_signal_func(f"[후킹] 초기화 실패: {e}")
 
                     self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
                     self._click_sort_button_by_setting(wait_sec=20)
@@ -921,9 +916,15 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             result: dict[str, Any] = json_res.get("result", {}) or {}
             page_list: list[dict[str, Any]] = result.get("list", []) or []
 
+            before_len = len(items)
+            add_items(page_list)
+            added_now = len(items) - before_len
+
             self.log_signal_func(
                 f"[목록] page={page} "
-                f"count={len(page_list)} "
+                f"페이지건수={len(page_list)} "
+                f"추가건수={added_now} "
+                f"누적건수={len(items)} "
                 f"hasNext={result.get('hasNextPage')} "
                 f"total={result.get('totalCount')}"
             )
