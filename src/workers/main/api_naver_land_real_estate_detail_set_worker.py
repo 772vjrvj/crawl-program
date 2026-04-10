@@ -377,8 +377,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.log_signal_func(f"[URL] {url}")
 
             success = False
+            base_payload: dict[str, Any] = {}
+            first_result: dict[str, Any] = {}
 
-            for attempt in range(1, 4):
+            for attempt in range(1, 5):
                 try:
                     self.log_signal_func(f"[지역 진입] 시도 {attempt}/3")
 
@@ -389,20 +391,65 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     self._inject_list_hook()
                     time.sleep(1)
 
+                    # === 신규 === 후킹 데이터 먼저 초기화
+                    try:
+                        self.driver.execute_script("window.__naverListHookData = null;")
+                        self.log_signal_func("[후킹] 지역 진입 후 hook 데이터 초기화")
+                    except Exception as e:
+                        self.log_signal_func(f"[후킹] 초기화 실패: {e}")
+
                     self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
                     self._click_article_button(wait_sec=20)
                     time.sleep(3)
 
-                    # 정렬 전에 기존 hook 데이터 초기화
+                    # === 신규 === 정렬 전에 한 번 더 초기화
                     try:
                         self.driver.execute_script("window.__naverListHookData = null;")
-                        self.log_signal_func("[후킹] 기존 목록 hook 데이터 초기화")
+                        self.log_signal_func("[후킹] 정렬 전 hook 데이터 초기화")
                     except Exception as e:
                         self.log_signal_func(f"[후킹] 초기화 실패: {e}")
 
                     self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
                     self._click_sort_button_by_setting(wait_sec=20)
                     time.sleep(3)
+
+                    # === 신규 === 성공 판정 전에 hook 데이터 검증
+                    hook_data: dict[str, Any] = self._get_first_list_hook_data(12)
+                    body_text: str = hook_data.get("bodyText", "")
+                    response_json: dict[str, Any] = hook_data.get("responseJson", {}) or {}
+
+                    self.log_signal_func(f"[후킹] 수신 여부={bool(hook_data)}")
+                    self.log_signal_func(f"[후킹] bodyText 존재={bool(body_text)}")
+                    self.log_signal_func(f"[후킹] responseJson 존재={bool(response_json)}")
+
+                    if not body_text:
+                        raise Exception("목록 후킹 bodyText 없음")
+
+                    try:
+                        base_payload = json.loads(body_text)
+                    except Exception as e:
+                        raise Exception(f"bodyText json 파싱 실패: {e}")
+
+                    first_result = response_json.get("result", {}) or {}
+
+                    if not first_result:
+                        self.log_signal_func("[후킹] 첫 응답 result 없음 -> 첫 페이지 재요청")
+                        retry_res = self._browser_fetch_json(
+                            url=self.list_api_url,
+                            method="POST",
+                            payload=base_payload,
+                            wait_sec=30,
+                        )
+
+                        self.log_signal_func(
+                            f"[후킹 재요청] status={retry_res.get('status')} ok={retry_res.get('ok')}"
+                        )
+
+                        retry_json: dict[str, Any] = retry_res.get("json") or {}
+                        first_result = retry_json.get("result", {}) or {}
+
+                    if not first_result:
+                        raise Exception("첫 페이지 result 확보 실패")
 
                     success = True
                     break
@@ -420,46 +467,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                         self.log_signal_func("[재시도 실패] 3회 모두 실패하여 다음 지역으로 이동")
 
             if not success:
-                continue
-
-            hook_data: dict[str, Any] = self._get_first_list_hook_data(20)
-            body_text: str = hook_data.get("bodyText", "")
-            response_json: dict[str, Any] = hook_data.get("responseJson", {}) or {}
-
-            self.log_signal_func(f"[후킹] 수신 여부={bool(hook_data)}")
-            self.log_signal_func(f"[후킹] bodyText 존재={bool(body_text)}")
-            self.log_signal_func(f"[후킹] responseJson 존재={bool(response_json)}")
-
-            if not body_text:
-                self.log_signal_func("[후킹] bodyText 없음")
-                continue
-
-            try:
-                base_payload: dict[str, Any] = json.loads(body_text)
-            except Exception as e:
-                self.log_signal_func(f"[후킹] bodyText json 파싱 실패: {e}")
-                continue
-
-            first_result: dict[str, Any] = response_json.get("result", {}) or {}
-
-            if not first_result:
-                self.log_signal_func("[후킹] 첫 응답 result 없음 -> 첫 페이지 재요청")
-                retry_res = self._browser_fetch_json(
-                    url=self.list_api_url,
-                    method="POST",
-                    payload=base_payload,
-                    wait_sec=30,
-                )
-
-                self.log_signal_func(
-                    f"[후킹 재요청] status={retry_res.get('status')} ok={retry_res.get('ok')}"
-                )
-
-                retry_json: dict[str, Any] = retry_res.get("json") or {}
-                first_result = retry_json.get("result", {}) or {}
-
-            if not first_result:
-                self.log_signal_func("[목록] 첫 페이지 result 확보 실패")
                 continue
 
             items: list[dict[str, Any]] = self._collect_next_list_pages(
@@ -937,10 +944,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             if not page_list:
                 self.log_signal_func(f"[목록] page={page} list 없음으로 종료")
                 break
-
-            before_len = len(items)
-            add_items(page_list)
-            added_now = len(items) - before_len
 
             if total_count > 0 and len(items) >= total_count:
                 self.log_signal_func(f"[목록] totalCount 도달로 종료 collected={len(items)} total={total_count}")
