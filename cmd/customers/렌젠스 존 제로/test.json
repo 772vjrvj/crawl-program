@@ -1,0 +1,4078 @@
+{
+  "code": 200,
+  "message": null,
+  "content": {
+    "offset": 2,
+    "count": 25,
+    "totalCount": 11928,
+    "feeds": [
+      {
+        "feed": {
+          "feedId": 7490059,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7490059",
+          "title": "만우절 나 게임 로그인 40일 정도 못함",
+          "feedType": "FEED",
+          "buff": 1,
+          "nerf": 0,
+          "repImageUrl": "",
+          "attachCount": 0,
+          "attachIconType": null,
+          "createdDate": "20260401094051",
+          "updatedDate": "20260401094109",
+          "contents": {
+            "document": {
+              "version": "2.8.11",
+              "theme": "default",
+              "language": "ko-KR",
+              "id": "01KN37QV6ZNF1KW9FG9J1KPXY5",
+              "di": {
+                "dif": false,
+                "dio": [
+                  {
+                    "dis": "N",
+                    "dia": {
+                      "t": 0,
+                      "p": 0,
+                      "st": 41,
+                      "sk": 0
+                    }
+                  }
+                ]
+              },
+              "components": [
+                {
+                  "id": "SE-24c32572-1097-4118-a646-da134708fe47",
+                  "layout": "default",
+                  "packCode": "ogq_58a2f0f7850eb",
+                  "seq": 24,
+                  "thumbnail": {
+                    "src": "https://storep-phinf.pstatic.net/ogq_58a2f0f7850eb/original_24.png",
+                    "width": 185,
+                    "height": 160,
+                    "@ctype": "thumbnail"
+                  },
+                  "format": "normal",
+                  "@ctype": "sticker"
+                },
+                {
+                  "id": "SE-0fd86c69-15b4-4f64-a45e-6206eaa654cf",
+                  "layout": "default",
+                  "value": [
+                    {
+                      "id": "SE-4cd4472d-d41a-45c4-8ee4-ea3f0a3e5064",
+                      "nodes": [
+                        {
+                          "id": "SE-59b15fb5-fdd6-4d3a-8c1b-918a7ecdc2af",
+                          "value": "",
+                          "@ctype": "textNode"
+                        }
+                      ],
+                      "@ctype": "paragraph"
+                    }
+                  ],
+                  "@ctype": "text"
+                }
+              ]
+            },
+            "documentId": ""
+          },
+          "bodyExposureYN": "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "MOBILE",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "56aaf58a6545e1aee927c8633f2787b2",
+          "nickname": "수인 퍼리 특공대",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNDA3MTNfMjgw/MDAxNzIwODAzMzgzMjQy.dwTIPmqrO7wWefh4XI8Xw1eTtTWe9etYbf1vujA1Iswg.WQq-8J_fZHBX0LsKQeStjHO0JzxbGlWX7AMc8km5yCQg.PNG/%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8_1_%2820240713014744%29.png",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 12
+        },
+        "comment": {
+          "totalCount": 1,
+          "commentCount": 1,
+          "replyCount": 0,
+          "exposeCount": 1
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7490059",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7490059"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 1,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 30,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7490059
+      },
+      {
+        "feed": {
+          "feedId": 7489746,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7489746",
+          "title": "만우절인거요 머요",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjA0MDFfNzMg/MDAxNzc0OTk1NDUwMjM4.Gr-zIiY_TSEm9BssSX_0GIgTBl_WVg_oe7qe7HJE0Pgg.jXZQEFWwqJD7xdOsyBzWOm4bZa0KvA04E6xBojXEN0og.JPEG/1000006045.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260401071746",
+          "updatedDate": "20260401071746",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KN2ZHGZKVWHKEBCF1Q1X3Z20
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-20ef4c3b-a1a7-437a-b5a3-b389bc50cff2
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjA0MDFfNzMg/MDAxNzc0OTk1NDUwMjM4.Gr-zIiY_TSEm9BssSX_0GIgTBl_WVg_oe7qe7HJE0Pgg.jXZQEFWwqJD7xdOsyBzWOm4bZa0KvA04E6xBojXEN0og.JPEG/1000006045.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjA0MDFfNzMg/MDAxNzc0OTk1NDUwMjM4.Gr-zIiY_TSEm9BssSX_0GIgTBl_WVg_oe7qe7HJE0Pgg.jXZQEFWwqJD7xdOsyBzWOm4bZa0KvA04E6xBojXEN0og.JPEG/1000006045.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":589357,"width":700,"widthPercentage":0,"height":1718,"originalWidth":968,"originalHeight":2376,"fileName":"1000006045.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-4b367c4d-02d5-40c7-ba56-167c7a3ca026","layout":"default","value":[{"id":"SE-83c2b24f-0c24-41f3-8410-801c47af2a12","nodes":[{"id":"SE-d8f7f7c8-146b-45ef-9929-df7b4bee0660","value":"하면 좋은거임?","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":42,"sk":6}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "MOBILE",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "2ad2bc184b2fb1f6ec146fa47372c626",
+          "nickname": "오늘가입한 삼촌 5061",
+          "profileImageUrl": "https://ssl.pstatic.net/cmstatic/nng/img/img_default_user.png",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 2
+        },
+        "comment": {
+          "totalCount": 2,
+          "commentCount": 1,
+          "replyCount": 1,
+          "exposeCount": 2
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7489746",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7489746"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 76,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7489746
+      },
+      {
+        "feed": {
+          "feedId": 7489411,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7489411",
+          "title": "조이어스 존버 331일차",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjA0MDFfMTYy/MDAxNzc0OTcyNDg2NTk5.ri0TaLsxLB6dFhJuBQRMwafIRne_L3CkLy-6rWz2yNgg.SeCM_6tJpbqhCMZYaBxKP28Gne_GQ4C7b5U79U41rNEg.JPEG/Screenshot_20250505_010742_YouTube.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260401005454",
+          "updatedDate": "20260401005454",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KN29N2PRMDSGAS0P9EACBNVV
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-a4b93f93-a045-4cc9-b250-5ab3f641e27a
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjA0MDFfMTYy/MDAxNzc0OTcyNDg2NTk5.ri0TaLsxLB6dFhJuBQRMwafIRne_L3CkLy-6rWz2yNgg.SeCM_6tJpbqhCMZYaBxKP28Gne_GQ4C7b5U79U41rNEg.JPEG/Screenshot_20250505_010742_YouTube.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjA0MDFfMTYy/MDAxNzc0OTcyNDg2NTk5.ri0TaLsxLB6dFhJuBQRMwafIRne_L3CkLy-6rWz2yNgg.SeCM_6tJpbqhCMZYaBxKP28Gne_GQ4C7b5U79U41rNEg.JPEG/Screenshot_20250505_010742_YouTube.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":200431,"width":700,"widthPercentage":0,"height":293,"originalWidth":1898,"originalHeight":795,"fileName":"Screenshot_20250505_010742_YouTube.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-b37c165f-8de6-4438-9734-94669a9b4dba","layout":"default","value":[{"id":"SE-ec0b0237-047d-42fd-a115-6c656a2e2f24","nodes":[{"id":"SE-e6982e3b-b225-450d-bb07-3169c99fbc22","value":"라미엘보다 먼저..","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":22,"sk":5}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "fc84ce489ba289d6332ee398226808a3",
+          "nickname": "남캐",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTAxMDRfMjEw/MDAxNzM1OTc1NTA4NjMx.q1VopDET41Vau8poSjIpxQf8QRlmOlEViX1mtOX4x_Eg.IKdzcMFzIb4zqHJ6ytmGFzCCxPZet0V18vowC-Rgyjwg.JPEG/NNG-17359755109574709421135093161019.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 13
+        },
+        "comment": {
+          "totalCount": 0,
+          "commentCount": 0,
+          "replyCount": 0,
+          "exposeCount": 0
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7489411",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7489411"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 9,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7489411
+      },
+      {
+        "feed": {
+          "feedId": 7488937,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7488937",
+          "title": "이환이란 게임인데.. 의현 인줄..?",
+          "iconTypes": [
+            "VIDEO"
+          ],
+          "feedType": "FEED",
+          "buff": 1,
+          "nerf": 0,
+          "repImageUrl": "https://video-phinf.pstatic.net/20260331_27/17749637059133eqfC_JPEG/Tnt1NMoneA_01.jpg",
+          "attachCount": 1,
+          "attachIconType": "VIDEO",
+          "createdDate": "20260331223010",
+          "updatedDate": "20260331223010",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KN218MEM3VHKNNGST0NJ6FH7
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-44c4eeaa-d21e-46cb-be08-90cbacba623a
+          ","
+          layout
+          ":"
+          default
+          ","
+          contentMode
+          ":"
+          fit
+          ","
+          fileSize
+          ":19370723,"
+          playTime
+          ":24.58099937438965,"
+          internalResource
+          ":true,"
+          thumbnail
+          ":{"
+          src
+          ":"
+          https: //video-phinf.pstatic.net/20260331_27/17749637059133eqfC_JPEG/Tnt1NMoneA_01.jpg","@ctype":"thumbnail"},"originalWidth":1080,"originalHeight":1626,"width":700,"height":1053,"caption":null,"format":"normal","represent":true,"vid":"AE17171991884B3FC5FBFC00F15DF45674A3","mediaMeta":{"tags":[],"@ctype":"mediaMeta"},"videoInfraServiceId":"2012","origin":{"srcFrom":"local","@ctype":"videoOrigin"},"ai":false,"@ctype":"video"},{"id":"SE-a7cf9c49-aa06-477f-91ad-29ff6cfe6116","layout":"default","value":[{"id":"SE-5e46b600-cc3a-408d-ae80-e4bd243f054a","nodes":[{"id":"SE-fa5a74ae-6310-42c1-80c2-aa8f2c03bdd0","value":"의상이랑 두갈레 머리 스킬쓸때 기모아서 한쪽 날개 나오는 스킬 의현이랑 컨셉 되게 비슷해보임...🙄","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":135,"sk":85}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "MOBILE",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "14dff1d39c4660e5acc930cfe5577227",
+          "nickname": "복복",
+          "profileImageUrl": "https://ssl.pstatic.net/cmstatic/nng/img/img_default_user.png",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 9
+        },
+        "comment": {
+          "totalCount": 4,
+          "commentCount": 3,
+          "replyCount": 1,
+          "exposeCount": 4
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7488937",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7488937"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 1,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 124,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7488937
+      },
+      {
+        "feed": {
+          "feedId": 7488524,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7488524",
+          "title": "코린 이격 출시 기원 433일차",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMzFfMjc1/MDAxNzc0OTU2OTc1MTAz.7OkXsnNQcHmuR52YlpCaGQ_S6RIRHyHlK0zcl4lSVaEg.--pqbJoUS0duejuC4Ogfi2oiIupLRfFnzBudJYeR_PAg.JPEG/__corin_wickes_and_aria_zenless_zone_zero_drawn_by_itigoukijp__45860fc35c4e1.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260331203623",
+          "updatedDate": "20260331203623",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KN1TVTDDFJZT2XJTHF18RZ2Q
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-e972dc48-4570-49ad-a486-8b72be3b440d
+          ","
+          layout
+          ":"
+          default
+          ","
+          packCode
+          ":"
+          ogq_62d4bafad0f42
+          ","
+          seq
+          ":12,"
+          thumbnail
+          ":{"
+          src
+          ":"
+          https: //storep-phinf.pstatic.net/ogq_62d4bafad0f42/original_12.png","width":185,"height":160,"@ctype":"thumbnail"},"format":"normal","@ctype":"sticker"},{"id":"SE-b5beab91-0419-4823-9f6f-eb95ed38c544","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMzFfMjc1/MDAxNzc0OTU2OTc1MTAz.7OkXsnNQcHmuR52YlpCaGQ_S6RIRHyHlK0zcl4lSVaEg.--pqbJoUS0duejuC4Ogfi2oiIupLRfFnzBudJYeR_PAg.JPEG/__corin_wickes_and_aria_zenless_zone_zero_drawn_by_itigoukijp__45860fc35c4e1.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMzFfMjc1/MDAxNzc0OTU2OTc1MTAz.7OkXsnNQcHmuR52YlpCaGQ_S6RIRHyHlK0zcl4lSVaEg.--pqbJoUS0duejuC4Ogfi2oiIupLRfFnzBudJYeR_PAg.JPEG/__corin_wickes_and_aria_zenless_zone_zero_drawn_by_itigoukijp__45860fc35c4e1.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":514295,"width":700,"widthPercentage":0,"height":1049,"originalWidth":1327,"originalHeight":1990,"fileName":"__corin_wickes_and_aria_zenless_zone_zero_drawn_by_itigoukijp__45860fc35c4e1.jpg","caption":null,"link":"https://www.pixiv.net/artworks/142513439","format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-c3b50353-eace-44a1-b371-b2c7f5caac4d","layout":"default","value":[{"id":"SE-a674ae5c-4392-4ed6-b618-328dd59c9a17","nodes":[{"id":"SE-fbf67981-fe0d-4f76-be2f-457c780c55c5","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":18,"sk":0}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "74da80e4f5b1bfcdd5a6a0fb8f5dc9e5",
+          "nickname": "코린",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTA2MDJfMjY2/MDAxNzQ4ODQ3NDQ2NDY2.WdNcGS9IvQ3sarJc9N6P5K0voMdVRsJ0h_IfKXnsiRUg.tpm5VQg-7bzHcMaZOuQGK1R4gsFHIjhS76VQnj4YYTcg.JPEG/NNG-17488474462998733758180128405047.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 18
+        },
+        "comment": {
+          "totalCount": 0,
+          "commentCount": 0,
+          "replyCount": 0,
+          "exposeCount": 0
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7488524",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7488524"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 9,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7488524
+      },
+      {
+        "feed": {
+          "feedId": 7487560,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7487560",
+          "title": "입문2일차 뉴비 방향성 제시 부탁드려요",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMzFfMTg1/MDAxNzc0OTQzNjUxOTMy.b92Kj1ZDViYTlMcE9fnY6JK3HxY9U4FiEiMA9iD3Fagg.MgGcOQHT8kUa48v9M7SkujpcyV6JC_GsBzqCRp-KOI8g.PNG/IMG_1332.png",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260331165853",
+          "updatedDate": "20260331165853",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KN1E4J65YP2AXRX88A3Y08M3
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-a73c3921-f709-4bee-9a6f-e66985ed4b8c
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMzFfMTg1/MDAxNzc0OTQzNjUxOTMy.b92Kj1ZDViYTlMcE9fnY6JK3HxY9U4FiEiMA9iD3Fagg.MgGcOQHT8kUa48v9M7SkujpcyV6JC_GsBzqCRp-KOI8g.PNG/IMG_1332.png?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMzFfMTg1/MDAxNzc0OTQzNjUxOTMy.b92Kj1ZDViYTlMcE9fnY6JK3HxY9U4FiEiMA9iD3Fagg.MgGcOQHT8kUa48v9M7SkujpcyV6JC_GsBzqCRp-KOI8g.PNG/IMG_1332.png","domain":"https://nng-phinf.pstatic.net","fileSize":2825798,"width":700,"widthPercentage":0,"height":322,"originalWidth":2556,"originalHeight":1179,"fileName":"IMG_1332.png","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-3943b9f2-a806-418a-83aa-724bf389714e","layout":"default","value":[{"id":"SE-bf568935-9f39-49f5-be42-5cb14c523ae7","nodes":[{"id":"SE-86ad481b-247d-4115-9cab-62bb316a2f34","value":"","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-315e5475-9855-4a76-878a-0bb3f3283b08","nodes":[{"id":"SE-dbc95582-1058-4764-b84b-c961cf5c9727","value":"안녕하세요!","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-dfa7d0ec-9f37-4529-80ef-c1e84477a543","nodes":[{"id":"SE-3cb27bdc-56dc-487f-ad8c-195669b093b6","value":"어제 입문해서 나오는 스토리만 하는 중인데 에이전트 조합, 엔진, 파츠 등등 여러가지 어렵네요..","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-aafa5d32-6f90-4478-a7cb-098567d00e91","nodes":[{"id":"SE-b44bff1b-f39f-49bc-8010-899a13a9ad6c","value":"오리지널 테이프만 돌려서 보유 중인 에이전트입니다.","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-94cd09bd-d623-4885-8f95-fb0e8443c4cd","nodes":[{"id":"SE-7f54fc4f-ac91-415d-b452-a540e1831bc8","value":"리두펀드, 월간 회원은 꾸준히 구매할 예정인데 앞으로 육성해야할 에이전트나 조합에 대해 방향성 조언 부탁드려요!","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":314,"sk":196}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "MOBILE",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "626571585c7227ac51876f1420b0e05d",
+          "nickname": "만쉐이",
+          "profileImageUrl": "https://ssl.pstatic.net/cmstatic/nng/img/img_default_user.png",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 3
+        },
+        "comment": {
+          "totalCount": 8,
+          "commentCount": 1,
+          "replyCount": 7,
+          "exposeCount": 8
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7487560",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7487560"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 55,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7487560
+      },
+      {
+        "feed": {
+          "feedId": 7487278,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7487278",
+          "title": "빌리 이격 대박",
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "",
+          "attachCount": 0,
+          "attachIconType": null,
+          "createdDate": "20260331160258",
+          "updatedDate": "20260331160258",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KN1B6Z7XACXK8WWMY2NF6H3X
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-15439d9c-b77a-4970-9e7f-02553885eb53
+          ","
+          layout
+          ":"
+          default
+          ","
+          value
+          ":[{"
+          id
+          ":"
+          SE-595ae762-b149-4aee-960b-39673a889014
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-9f81f684-3547-4d61-83f7-01fa2963ccfd
+          ","
+          value
+          ":"
+          이거땜에
+          복귀함
+          ㅇㅅㅇ
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "}],"
+          @ctype
+          ":"
+          text
+          "},{"
+          id
+          ":"
+          SE-75e00c9a-b548-4f67-8e6c-17adaf0813b8
+          ","
+          layout
+          ":"
+          default
+          ","
+          packCode
+          ":"
+          ogq_597757094f3a8
+          ","
+          seq
+          ":21,"
+          thumbnail
+          ":{"
+          src
+          ":"
+          https: //storep-phinf.pstatic.net/ogq_597757094f3a8/original_21.png","width":185,"height":160,"@ctype":"thumbnail"},"format":"normal","@ctype":"sticker"},{"id":"SE-cdde5433-c142-4d60-92f7-6129d8d5f416","layout":"default","value":[{"id":"SE-5fa1705a-3d50-4b95-92be-b4ca197da929","nodes":[{"id":"SE-558fabea-cc8d-49d9-b9ff-853f04f71c50","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":25,"sk":17}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "IOS",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "18781a127b95c23e7511ec46fb57ddce",
+          "nickname": "블치치",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTEwMjhfMTg0/MDAxNzYxNjMyOTQxNjYy.iP4MBsl9NnGmGqQmEgBjxiOJe-Mu7vYV6mWaSYUmiuMg.FikouaZwkXnzGPTJDVx4FYLHUhNPBPtYAifZQ6dwLkEg.PNG/image.png",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 6
+        },
+        "comment": {
+          "totalCount": 1,
+          "commentCount": 1,
+          "replyCount": 0,
+          "exposeCount": 1
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7487278",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7487278"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 67,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7487278
+      },
+      {
+        "feed": {
+          "feedId": 7486210,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7486210",
+          "title": "아니ㅜㅜ 진짜로 확률조작 있는거 아님?",
+          "feedType": "FEED",
+          "buff": 1,
+          "nerf": 0,
+          "repImageUrl": "",
+          "attachCount": 0,
+          "attachIconType": null,
+          "createdDate": "20260331111750",
+          "updatedDate": "20260331111750",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KN0TN11NP29CB8TJ84HYRGYP
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-2c3f0327-ec57-4071-b8da-4b200b5c5e36
+          ","
+          layout
+          ":"
+          default
+          ","
+          value
+          ":[{"
+          id
+          ":"
+          SE-a0d4a58c-1c38-4eed-b19e-4720ceb04dea
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-45ceb3bd-c54a-46b4-aea1-a69a5ad8722f
+          ","
+          value
+          ":"
+          배포
+          제외하고
+          총
+          픽업캐
+          16개
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-df795aec-45a9-40c5-85e3-f87c60522012
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-1c9824dc-2fc5-4c5f-a196-a484b4aa2194
+          ","
+          value
+          ":"
+          상시
+          총
+          17개
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-1191d18b-f1b0-4f06-8a4f-5c7264631d4f
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-68b3829b-d876-4be7-a9ef-269fa643e0b6
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-37baaf69-71c8-48b9-82f0-50232e97f9dd
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-227a5050-6cc2-4e8e-a213-86ce32c55922
+          ","
+          value
+          ":"
+          상시뽑(거의무기)이나
+          무료배포
+          ?
+          1개였던가
+          제외해도
+          너무한거
+          아닌가ㅜ
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-a9483435-f7b7-4f1e-8bdf-0c79d391fa0c
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-40cb28d8-5257-415a-a13f-4e70508201a2
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-058f6354-d12b-43d6-ac91-0c099c4d8866
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-5250bc27-4616-43c6-8374-3d2a5b2dfc73
+          ","
+          value
+          ":"
+          오픈때부터
+          한
+          애정이라
+          매번
+          픽뚫나도
+          그려려니
+          하고
+          넘어갔는데
+          가챠
+          할때마다
+          80넘어가고
+          넘어가서
+          뜬게
+          픽뚫이니까
+          기운
+          쫙
+          빠지네요..
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-e1a61051-356e-4a65-9dd8-f6c1f06571a7
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-ab1e24a0-8c61-4e42-931f-d370d96b5e8b
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-554a248f-728c-494b-a75f-991a5189bb29
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-a49a9383-6ccb-46d3-b102-fc0dbd91cb2b
+          ","
+          value
+          ":"
+          어디
+          하소연할곳이
+          없어서ㅜ
+          글
+          써보네요...ㅜ
+          더도말고
+          덜도말고
+          그냥
+          반천
+          한번만
+          보고싶어여ㅜㅜ
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "}],"
+          @ctype
+          ":"
+          text
+          "}],"
+          di
+          ":{"
+          dif
+          ":false,"
+          dio
+          ":[{"
+          dis
+          ":"
+          N
+          ","
+          dia
+          ":{"
+          t
+          ":0,"
+          p
+          ":0,"
+          st
+          ":283,"
+          sk
+          ":239}}]}},"
+          documentId
+          ":"
+          "}",
+          "bodyExposureYN": "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "f36250fc070356f91543010f0c37ae83",
+          "nickname": "화아",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTA2MDVfMjg1/MDAxNzQ5MDk2NjExMTE2.Yc7ViMmH7gblGZZHTrq5N3PhVBzOy3ougoJh2-App7wg.X1JhR3yCtU0h51PvW9adeEtsA-vPje_uVZyAVPF9gxYg.JPEG/NNG-17490966112304767778169162250622.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 6
+        },
+        "comment": {
+          "totalCount": 4,
+          "commentCount": 4,
+          "replyCount": 0,
+          "exposeCount": 4
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7486210",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7486210"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 1,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 92,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7486210
+      },
+      {
+        "feed": {
+          "feedId": 7485706,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7485706",
+          "title": "자오 눈토끼4셋 운규2셋 ",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMzFfNDMg/MDAxNzc0OTExNTkyNjA5.PHNdhRdgibzfbrjvxrYi9mOjxTiXKphWzhA2gS2pmyEg.N14IXodDdynZI0qiCuF32CCEWxKBwzp_gkxdi5aiNMwg.PNG/1000071565.png",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260331080049",
+          "updatedDate": "20260331080049",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KN0FFP2KATBJD5VJ761WYCVK
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-0b94f314-747a-48a0-83fe-89050ee92bdc
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMzFfNDMg/MDAxNzc0OTExNTkyNjA5.PHNdhRdgibzfbrjvxrYi9mOjxTiXKphWzhA2gS2pmyEg.N14IXodDdynZI0qiCuF32CCEWxKBwzp_gkxdi5aiNMwg.PNG/1000071565.png?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMzFfNDMg/MDAxNzc0OTExNTkyNjA5.PHNdhRdgibzfbrjvxrYi9mOjxTiXKphWzhA2gS2pmyEg.N14IXodDdynZI0qiCuF32CCEWxKBwzp_gkxdi5aiNMwg.PNG/1000071565.png","domain":"https://nng-phinf.pstatic.net","fileSize":1778460,"width":700,"widthPercentage":0,"height":1169,"originalWidth":1591,"originalHeight":2657,"fileName":"1000071565.png","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":170,"sk":3}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "MOBILE",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "2da19de43c605e261adb4fdd05879ddc",
+          "nickname": "느릿슬라임",
+          "profileImageUrl": "https://ssl.pstatic.net/cmstatic/nng/img/img_anonymous_square_gray_opacity2x.png",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 8
+        },
+        "comment": {
+          "totalCount": 0,
+          "commentCount": 0,
+          "replyCount": 0,
+          "exposeCount": 0
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7485706",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7485706"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 32,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7485706
+      },
+      {
+        "feed": {
+          "feedId": 7485192,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7485192",
+          "title": "조이어스 존버 330일차",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMzBfOTMg/MDAxNzc0ODgyNzI5MzIx.hjWnxKnXdJ8NjNMidnBCnyx8p_4fYEO7PAIFNRrEW2Yg.eUmyrY59F1Sed4S17GlUcy0wJTTUiTNy8y3tETAKp78g.JPEG/Screenshot_20250505_010742_YouTube.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260331000029",
+          "updatedDate": "20260331000029",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMZM1SP21WRFTWYJY9B35FK6
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-11df076c-9cbd-4754-b4b8-07b283adb646
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMzBfOTMg/MDAxNzc0ODgyNzI5MzIx.hjWnxKnXdJ8NjNMidnBCnyx8p_4fYEO7PAIFNRrEW2Yg.eUmyrY59F1Sed4S17GlUcy0wJTTUiTNy8y3tETAKp78g.JPEG/Screenshot_20250505_010742_YouTube.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMzBfOTMg/MDAxNzc0ODgyNzI5MzIx.hjWnxKnXdJ8NjNMidnBCnyx8p_4fYEO7PAIFNRrEW2Yg.eUmyrY59F1Sed4S17GlUcy0wJTTUiTNy8y3tETAKp78g.JPEG/Screenshot_20250505_010742_YouTube.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":200431,"width":700,"widthPercentage":0,"height":293,"originalWidth":1898,"originalHeight":795,"fileName":"Screenshot_20250505_010742_YouTube.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-86fa5314-d611-4ffb-8b9a-7ab1b4b94210","layout":"default","value":[{"id":"SE-f4f81e96-5b75-4d97-a8c2-4cdcbc716cd2","nodes":[{"id":"SE-66d47a94-99de-4105-a124-88a0cd645706","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":117,"sk":0}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "fc84ce489ba289d6332ee398226808a3",
+          "nickname": "남캐",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTAxMDRfMjEw/MDAxNzM1OTc1NTA4NjMx.q1VopDET41Vau8poSjIpxQf8QRlmOlEViX1mtOX4x_Eg.IKdzcMFzIb4zqHJ6ytmGFzCCxPZet0V18vowC-Rgyjwg.JPEG/NNG-17359755109574709421135093161019.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 13
+        },
+        "comment": {
+          "totalCount": 0,
+          "commentCount": 0,
+          "replyCount": 0,
+          "exposeCount": 0
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7485192",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7485192"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 5,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7485192
+      },
+      {
+        "feed": {
+          "feedId": 7484751,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7484751",
+          "title": "코린 이격 출시 기원 432일차",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 2,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMzBfMjc1/MDAxNzc0ODc1MDUxOTk5.Mua8KvIA7qjqrW3IS8GxNfcQ5NK7Z7LpIxqzt865auIg.tYbmhbCNsOgkXA7agxpVg8cp9gt0b9inagoqhp3vrjYg.JPEG/__corin_wickes_zenless_zone_zero_drawn_by_rinsyou__4e786251f7899e2f33cac7a6f.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260330215102",
+          "updatedDate": "20260330215102",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMZCQR47NE2ZSQWKEAH8NWC2
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-fc4a6055-0357-455a-9f99-08ccda272709
+          ","
+          layout
+          ":"
+          default
+          ","
+          packCode
+          ":"
+          ogq_62d4bafad0f42
+          ","
+          seq
+          ":12,"
+          thumbnail
+          ":{"
+          src
+          ":"
+          https: //storep-phinf.pstatic.net/ogq_62d4bafad0f42/original_12.png","width":185,"height":160,"@ctype":"thumbnail"},"format":"normal","@ctype":"sticker"},{"id":"SE-9ff90e39-31b5-42c9-9ad3-df9e0c9cdb88","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMzBfMjc1/MDAxNzc0ODc1MDUxOTk5.Mua8KvIA7qjqrW3IS8GxNfcQ5NK7Z7LpIxqzt865auIg.tYbmhbCNsOgkXA7agxpVg8cp9gt0b9inagoqhp3vrjYg.JPEG/__corin_wickes_zenless_zone_zero_drawn_by_rinsyou__4e786251f7899e2f33cac7a6f.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMzBfMjc1/MDAxNzc0ODc1MDUxOTk5.Mua8KvIA7qjqrW3IS8GxNfcQ5NK7Z7LpIxqzt865auIg.tYbmhbCNsOgkXA7agxpVg8cp9gt0b9inagoqhp3vrjYg.JPEG/__corin_wickes_zenless_zone_zero_drawn_by_rinsyou__4e786251f7899e2f33cac7a6f.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":321311,"width":700,"widthPercentage":0,"height":995,"originalWidth":1440,"originalHeight":2048,"fileName":"__corin_wickes_zenless_zone_zero_drawn_by_rinsyou__4e786251f7899e2f33cac7a6f.jpg","caption":null,"link":"https://x.com/i/status/2037857783853494348","format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-a8cbdb17-c984-45c4-a557-4ea32fee716c","layout":"default","value":[{"id":"SE-30f0176f-3c0e-4b25-bf33-984bc60dac1e","nodes":[{"id":"SE-3fae74ae-e70d-4965-8a34-02ac29b90008","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":20,"sk":0}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "74da80e4f5b1bfcdd5a6a0fb8f5dc9e5",
+          "nickname": "코린",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTA2MDJfMjY2/MDAxNzQ4ODQ3NDQ2NDY2.WdNcGS9IvQ3sarJc9N6P5K0voMdVRsJ0h_IfKXnsiRUg.tpm5VQg-7bzHcMaZOuQGK1R4gsFHIjhS76VQnj4YYTcg.JPEG/NNG-17488474462998733758180128405047.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 18
+        },
+        "comment": {
+          "totalCount": 0,
+          "commentCount": 0,
+          "replyCount": 0,
+          "exposeCount": 0
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7484751",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7484751"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 2,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 9,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7484751
+      },
+      {
+        "feed": {
+          "feedId": 7481435,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7481435",
+          "title": "조이어스 존버 329일차",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMzBfNjUg/MDAxNzc0Nzk2OTQ4OTA5.IxJFxT9vSzsaImjQk7GMvmDiPtKjmNdVteqf6ixFh8gg.Isjv40NSMBMPXxa4cFfDnSizU8oT_BNYbExONAVN0Y8g.JPEG/Screenshot_20250505_010742_YouTube.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260330000912",
+          "updatedDate": "20260330000912",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMX283TFEQCCESD418HEBCGX
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-7415b4ee-9e32-4029-bb5d-d4534c7e7ef5
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMzBfNjUg/MDAxNzc0Nzk2OTQ4OTA5.IxJFxT9vSzsaImjQk7GMvmDiPtKjmNdVteqf6ixFh8gg.Isjv40NSMBMPXxa4cFfDnSizU8oT_BNYbExONAVN0Y8g.JPEG/Screenshot_20250505_010742_YouTube.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMzBfNjUg/MDAxNzc0Nzk2OTQ4OTA5.IxJFxT9vSzsaImjQk7GMvmDiPtKjmNdVteqf6ixFh8gg.Isjv40NSMBMPXxa4cFfDnSizU8oT_BNYbExONAVN0Y8g.JPEG/Screenshot_20250505_010742_YouTube.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":200431,"width":700,"widthPercentage":0,"height":293,"originalWidth":1898,"originalHeight":795,"fileName":"Screenshot_20250505_010742_YouTube.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-97f34d2f-d87c-48d7-b9cb-0bc10a33d636","layout":"default","value":[{"id":"SE-2e8d346e-5e14-4015-9eba-68db71c284e1","nodes":[{"id":"SE-f3cb13b8-d16b-4971-a2c5-47e9eaff4f52","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":17,"sk":0}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "fc84ce489ba289d6332ee398226808a3",
+          "nickname": "남캐",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTAxMDRfMjEw/MDAxNzM1OTc1NTA4NjMx.q1VopDET41Vau8poSjIpxQf8QRlmOlEViX1mtOX4x_Eg.IKdzcMFzIb4zqHJ6ytmGFzCCxPZet0V18vowC-Rgyjwg.JPEG/NNG-17359755109574709421135093161019.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 13
+        },
+        "comment": {
+          "totalCount": 0,
+          "commentCount": 0,
+          "replyCount": 0,
+          "exposeCount": 0
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7481435",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7481435"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 9,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7481435
+      },
+      {
+        "feed": {
+          "feedId": 7480726,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7480726",
+          "title": "코린 이격 출시 기원 431일차",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 1,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjlfMjkx/MDAxNzc0Nzg3NDMyNjcz.ne8D16QPOl03R8UAmcf8l7iF7n8tZjb2xh46xZDE5BYg.htM4SYL0FRFL4lfW4zy4y2PW_4EkACq_EAQASN07k3Eg.JPEG/__ellen_joe_and_corin_wickes_zenless_zone_zero_drawn_by_yger__8173c2c2e9e791.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260329213041",
+          "updatedDate": "20260329213041",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMWS5SVF7ZFG96VB6WD5YXY7
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-3a59b899-9b1f-453a-830b-aefdde65ff25
+          ","
+          layout
+          ":"
+          default
+          ","
+          packCode
+          ":"
+          ogq_62d4bafad0f42
+          ","
+          seq
+          ":12,"
+          thumbnail
+          ":{"
+          src
+          ":"
+          https: //storep-phinf.pstatic.net/ogq_62d4bafad0f42/original_12.png","width":185,"height":160,"@ctype":"thumbnail"},"format":"normal","@ctype":"sticker"},{"id":"SE-9657f8ed-0dab-4358-99df-5ed17a1994a0","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMjlfMjkx/MDAxNzc0Nzg3NDMyNjcz.ne8D16QPOl03R8UAmcf8l7iF7n8tZjb2xh46xZDE5BYg.htM4SYL0FRFL4lfW4zy4y2PW_4EkACq_EAQASN07k3Eg.JPEG/__ellen_joe_and_corin_wickes_zenless_zone_zero_drawn_by_yger__8173c2c2e9e791.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMjlfMjkx/MDAxNzc0Nzg3NDMyNjcz.ne8D16QPOl03R8UAmcf8l7iF7n8tZjb2xh46xZDE5BYg.htM4SYL0FRFL4lfW4zy4y2PW_4EkACq_EAQASN07k3Eg.JPEG/__ellen_joe_and_corin_wickes_zenless_zone_zero_drawn_by_yger__8173c2c2e9e791.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":1565194,"width":700,"widthPercentage":0,"height":493,"originalWidth":3034,"originalHeight":2138,"fileName":"__ellen_joe_and_corin_wickes_zenless_zone_zero_drawn_by_yger__8173c2c2e9e791.jpg","caption":null,"link":"https://x.com/i/status/2037778267500089617","format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-35e69d9a-b543-4b54-be27-c0c28913d4ea","layout":"default","value":[{"id":"SE-93d901f7-68b4-488c-9c42-d3a7e262aa84","nodes":[{"id":"SE-774a4a36-44ed-4587-b892-81bcb5756758","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":19,"sk":0}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "74da80e4f5b1bfcdd5a6a0fb8f5dc9e5",
+          "nickname": "코린",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTA2MDJfMjY2/MDAxNzQ4ODQ3NDQ2NDY2.WdNcGS9IvQ3sarJc9N6P5K0voMdVRsJ0h_IfKXnsiRUg.tpm5VQg-7bzHcMaZOuQGK1R4gsFHIjhS76VQnj4YYTcg.JPEG/NNG-17488474462998733758180128405047.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 18
+        },
+        "comment": {
+          "totalCount": 0,
+          "commentCount": 0,
+          "replyCount": 0,
+          "exposeCount": 0
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7480726",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7480726"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 1,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 13,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7480726
+      },
+      {
+        "feed": {
+          "feedId": 7480061,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7480061",
+          "title": "이격빌리 토끼굴소속이네..",
+          "feedType": "FEED",
+          "buff": 1,
+          "nerf": 0,
+          "repImageUrl": "",
+          "attachCount": 0,
+          "attachIconType": null,
+          "createdDate": "20260329185023",
+          "updatedDate": "20260329185023",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMWFWF9SJSSTSMWVD3V1Y4SA
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-938cf1be-ae00-48b9-9c77-3a7e35815764
+          ","
+          layout
+          ":"
+          default
+          ","
+          value
+          ":[{"
+          id
+          ":"
+          SE-647963bd-eaa2-401a-bd08-da879cf3966a
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-9ebd4cfc-428b-41e2-b2d0-b69b9553377d
+          ","
+          value
+          ":"
+          누구처럼
+          배신때리고
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-f1f642a3-3fd3-472e-8703-5193a4c74471
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-ff35ec26-60b0-44e5-959b-885f43dc7f35
+          ","
+          value
+          ":"
+          (배신자
+          아님)
+          ","
+          style
+          ":{"
+          strikeThrough
+          ":true,"
+          @ctype
+          ":"
+          nodeStyle
+          "},"
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-7466044c-eb39-48d6-9f6d-d365b2f84888
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-7410feec-dfee-42ae-af3d-384d91795e86
+          ","
+          value
+          ":"
+          ","
+          style
+          ":{"
+          strikeThrough
+          ":true,"
+          @ctype
+          ":"
+          nodeStyle
+          "},"
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-536cece0-1bb7-4a89-a479-6b97b9c49ee8
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-6ee4bb30-f85c-4b45-b48c-578388848c0b
+          ","
+          value
+          ":"
+          칼리돈
+          갈거라
+          예상했는데..
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-8cdf0947-4b7a-4f44-9968-6c2c854323cf
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-20e391f9-933f-473e-a441-f665f5d08983
+          ","
+          value
+          ":"
+          진짜
+          예상밖이네..
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "}],"
+          @ctype
+          ":"
+          text
+          "},{"
+          id
+          ":"
+          SE-8388268b-0808-448e-9bfd-85fedbb664ba
+          ","
+          layout
+          ":"
+          default
+          ","
+          packCode
+          ":"
+          ogq_5f6fd8cb4720c
+          ","
+          seq
+          ":13,"
+          thumbnail
+          ":{"
+          src
+          ":"
+          https: //storep-phinf.pstatic.net/ogq_5f6fd8cb4720c/original_13.png","width":185,"height":160,"@ctype":"thumbnail"},"format":"normal","@ctype":"sticker"},{"id":"SE-0df87378-73dd-4e65-8172-55dfd5421b42","layout":"default","value":[{"id":"SE-853a522a-9f8f-4d25-83fc-e0a8d496ad44","nodes":[{"id":"SE-f686d5ff-cb51-4f42-bc16-2005e518f4e3","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":143,"sk":95}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "MOBILE",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "aa914f1ba6e61b6641bac51194d0269e",
+          "nickname": "부지런한 마법사 4697",
+          "profileImageUrl": "https://ssl.pstatic.net/cmstatic/nng/img/img_default_user.png",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 20
+        },
+        "comment": {
+          "totalCount": 1,
+          "commentCount": 1,
+          "replyCount": 0,
+          "exposeCount": 1
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7480061",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7480061"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 1,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 94,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7480061
+      },
+      {
+        "feed": {
+          "feedId": 7479985,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7479985",
+          "title": "이상캐 전부 걸러짐 당하는 중 ㅋㅋㅋㅋ",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 2,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjlfMjM4/MDAxNzc0Nzc2MzQ0MzIy.zEXUio9yZBODWxDUIXxwvg4e5CgfU4lLgNTNJjJnZr8g.pWHwEN3GRJciIJ6Zz9uBtJj7rcr4j4HyIwMZGitMN3kg.JPEG/Screenshot_20260329_174850_Zenless_Zone_Zero.jpg",
+          "attachCount": 2,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260329182931",
+          "updatedDate": "20260329183320",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMWEJ7G3PAQYW7EBGM5PCNW0
+          ","
+          di
+          ":{"
+          dif
+          ":false,"
+          dio
+          ":[{"
+          dis
+          ":"
+          N
+          ","
+          dia
+          ":{"
+          t
+          ":0,"
+          p
+          ":0,"
+          st
+          ":347,"
+          sk
+          ":258}}]},"
+          components
+          ":[{"
+          id
+          ":"
+          SE-0e62acde-b9a7-4831-a630-e2f3e453a9aa
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMjlfMjM4/MDAxNzc0Nzc2MzQ0MzIy.zEXUio9yZBODWxDUIXxwvg4e5CgfU4lLgNTNJjJnZr8g.pWHwEN3GRJciIJ6Zz9uBtJj7rcr4j4HyIwMZGitMN3kg.JPEG/Screenshot_20260329_174850_Zenless_Zone_Zero.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMjlfMjM4/MDAxNzc0Nzc2MzQ0MzIy.zEXUio9yZBODWxDUIXxwvg4e5CgfU4lLgNTNJjJnZr8g.pWHwEN3GRJciIJ6Zz9uBtJj7rcr4j4HyIwMZGitMN3kg.JPEG/Screenshot_20260329_174850_Zenless_Zone_Zero.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":989254,"width":2340,"widthPercentage":0,"height":1080,"originalWidth":2340,"originalHeight":1080,"fileName":"Screenshot_20260329_174850_Zenless_Zone_Zero.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-5b40432b-3664-410b-afd3-15fecb049564","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMjlfMTQw/MDAxNzc0Nzc2NDE0Mzk2.2jyIzGr8itKl22iiwHCHiHAkwxLTrEAYclPqV7RnpSEg.LpV3PVgOTqt-oyRJorANS8DG6tRbePKx09lmFHuOYrIg.JPEG/Screenshot_20260329_174826_Zenless_Zone_Zero.jpg?type=w1678","internalResource":true,"represent":false,"path":"/MjAyNjAzMjlfMTQw/MDAxNzc0Nzc2NDE0Mzk2.2jyIzGr8itKl22iiwHCHiHAkwxLTrEAYclPqV7RnpSEg.LpV3PVgOTqt-oyRJorANS8DG6tRbePKx09lmFHuOYrIg.JPEG/Screenshot_20260329_174826_Zenless_Zone_Zero.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":1357028,"width":2340,"widthPercentage":0,"height":1080,"originalWidth":2340,"originalHeight":1080,"fileName":"Screenshot_20260329_174826_Zenless_Zone_Zero.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-b8e272d7-bbed-4239-a521-4ee457aa795a","layout":"default","value":[{"id":"SE-d80c7f0b-9122-48ba-95dc-de0a4b32d374","nodes":[{"id":"SE-9a322a74-8520-4470-a95d-5d0081ffd527","value":"미야비 파츠로 궁우가 아주 좋다는 얘기를 들어서 반천 도전을 했지만","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-478c3e5a-9472-431b-9987-2d7b31fb68cd","nodes":[{"id":"SE-60d58b35-87f1-4ba0-b70b-36cd4486d124","value":"바로 실패!!!!  ","@ctype":"textNode"},{"id":"SE-83de6039-0bde-4dc2-be03-8fa11b405520","value":"그래서 콜레다 2돌 어디다 쓰죠?","style":{"strikeThrough":true,"@ctype":"nodeStyle"},"@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"},{"id":"SE-5b4f37bb-334e-4b45-92db-c5ae555d59ac","layout":"default","packCode":"ogq_615a5cf1f30b7","seq":13,"thumbnail":{"src":"https://storep-phinf.pstatic.net/ogq_615a5cf1f30b7/original_13.png","width":185,"height":160,"@ctype":"thumbnail"},"format":"normal","@ctype":"sticker"},{"id":"SE-a0fbb5b4-ee1d-4435-9e0d-b800e379f933","layout":"default","value":[{"id":"SE-039a1523-3edd-4f6c-9fcb-948924a1856d","nodes":[{"id":"SE-faa0f70c-165d-4603-a4e8-3115c37d8f53","value":"궁우에게는 정말 미안하지만 후반 시시아 뽑아야해서 여기까지만 뽑겠습니다...","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-8d4ff459-1b31-4ca8-a37b-a97d0fa4c4a9","nodes":[{"id":"SE-d412af93-638d-4ed0-9bf7-c7eea65e7a94","value":"","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-710be6e4-0b86-46c5-a080-cd6fa865761b","nodes":[{"id":"SE-6995fa94-a1ca-4218-bb18-ce6a057f0f9c","value":"어쩌다보니 이상캐 파츠들이 전부 걸러짐을(?) 당하고 있네요 ㅋㅋㅋㅋ... 제 마지막 이상캐는 미야비입니다...","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}]},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "fef450e83e8cce1ff450e9bbc90a07f3",
+          "nickname": "갖고싶은 쪼렙 1036",
+          "profileImageUrl": "https://ssl.pstatic.net/cmstatic/nng/img/img_default_user.png",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 8
+        },
+        "comment": {
+          "totalCount": 6,
+          "commentCount": 3,
+          "replyCount": 3,
+          "exposeCount": 6
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7479985",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7479985"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 2,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 164,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7479985
+      },
+      {
+        "feed": {
+          "feedId": 7479059,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7479059",
+          "title": "홍대역 엔젤디 광고",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 3,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjlfMTEy/MDAxNzc0NzYxNDUyNjgy.ljB4selYUBP96vNOQyMU7yF2R7cupTrzT8rffC_iq3wg.tgnx6xbqEtB3KZg7dZ_Tk80wM_GFhiQJzo7ETMyEPlAg.JPEG/20260329_141641.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260329141751",
+          "updatedDate": "20260329141751",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMW0D0CFDE18A9HN77J3CNHD
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-c2f68dfa-5450-4fff-988b-25c36d7172e2
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMjlfMTEy/MDAxNzc0NzYxNDUyNjgy.ljB4selYUBP96vNOQyMU7yF2R7cupTrzT8rffC_iq3wg.tgnx6xbqEtB3KZg7dZ_Tk80wM_GFhiQJzo7ETMyEPlAg.JPEG/20260329_141641.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMjlfMTEy/MDAxNzc0NzYxNDUyNjgy.ljB4selYUBP96vNOQyMU7yF2R7cupTrzT8rffC_iq3wg.tgnx6xbqEtB3KZg7dZ_Tk80wM_GFhiQJzo7ETMyEPlAg.JPEG/20260329_141641.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":3092352,"width":700,"widthPercentage":0,"height":525,"originalWidth":4000,"originalHeight":3000,"fileName":"20260329_141641.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-7c0e00ab-a421-4145-b1ef-fb11ea6c6c6a","layout":"default","value":[{"id":"SE-40040ef8-2ddc-483a-8193-1ad784ee1046","nodes":[{"id":"SE-c8cfb584-0d4c-4d77-923d-d10d733be88f","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":27,"sk":0}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "56f3f212023e359f9f061a46e4a2ec80",
+          "nickname": "젠레스 존 ZERO",
+          "profileImageUrl": "https://ssl.pstatic.net/cmstatic/nng/img/img_default_user.png",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 19
+        },
+        "comment": {
+          "totalCount": 1,
+          "commentCount": 1,
+          "replyCount": 0,
+          "exposeCount": 1
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7479059",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7479059"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 3,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 53,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7479059
+      },
+      {
+        "feed": {
+          "feedId": 7478266,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7478266",
+          "title": "생각해보니 빌리뽑기 애매하겠네?",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 1,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjlfMjQx/MDAxNzc0NzQ4OTg4MTc4.acgD2fr5mTTRp5dgSvNm9jXtstevV2Uihkq0BhWwkpIg.ClR1qXcGky36imYBmw-OG89KwXH9cGpSWsf2AckQkOAg.JPEG/HEY2qKsbUAEG9FF.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260329105258",
+          "updatedDate": "20260329105320",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMVKP5R6B56DWM8T80BFSEA0
+          ","
+          di
+          ":{"
+          dif
+          ":false,"
+          dio
+          ":[{"
+          dis
+          ":"
+          N
+          ","
+          dia
+          ":{"
+          t
+          ":0,"
+          p
+          ":0,"
+          st
+          ":1078,"
+          sk
+          ":419}}]},"
+          components
+          ":[{"
+          id
+          ":"
+          SE-8346a01b-f0fa-4b16-b101-e51b25cdd28c
+          ","
+          layout
+          ":"
+          default
+          ","
+          value
+          ":[{"
+          id
+          ":"
+          SE-b4d88afc-f011-4165-9617-e3dd1828d2e1
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-e410eeac-bd15-4aa6-83c2-6530e0d3260d
+          ","
+          value
+          ":"
+          빛나
+          명전으로도
+          미야즈마
+          실드
+          그냥
+          녹이는데
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-ed300325-d860-4195-9721-2c0d7da99498
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-55d5e8a0-fa6d-48c5-8df2-d126c7f6a85b
+          ","
+          value
+          ":"
+          명파
+          물리
+          ?
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-549b9022-6b36-4157-9da9-36d2df6c5c54
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-f5130acb-b015-45f5-aba8-7fc736e99f12
+          ","
+          value
+          ":"
+          명파라서
+          루시아랑
+          다이아린
+          쓰는건
+          똑같을텐데...
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-13f8bf00-3e39-4ae1-9571-e9cc5cfb73c8
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-7cc2a350-a18b-4bc8-b741-7cb154631f39
+          ","
+          value
+          ":"
+          아
+          이게
+          이렇게
+          되나
+          ㅠㅠ
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-6c47a82c-bae3-42dc-a626-0f6e02df7564
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-3130480b-a849-482d-ba4c-bdb70fbed84d
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-491dfca6-56ed-461f-8c4a-32bec7f3d89f
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-0a2a374d-849c-4572-b6c3-23b2a504d19e
+          ","
+          value
+          ":"
+          솔직히
+          실비도
+          처음나왔을때
+          복장이
+          맘에
+          안들어서
+          넘긴게
+          아쉬웠는데
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-84538c11-b0fa-4582-8f2e-456ee8eeb113
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-bc5a6e87-97ce-4f94-9dd0-0130e287d876
+          ","
+          value
+          ":"
+          빌리는
+          포지션이
+          애매하네...
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-07440494-992b-42a9-8973-419fb44090b2
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-ae2b1298-f437-4bbf-bf3d-8537eddce5ae
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-6eeb6698-22a7-4489-926c-acd7e6dc7a7f
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-cc191989-3afa-4f61-80f9-65b4029f01c3
+          ","
+          value
+          ":"
+          번개는
+          이번에
+          시시아
+          뽑으면
+          시드랑
+          같이
+          번개
+          속성
+          커버하고
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-e5fa3dcd-3188-4634-9301-f6cf43cafae5
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-27a189da-b668-4343-b458-5f19a6b2516e
+          ","
+          value
+          ":"
+          물리는
+          이미
+          빛나가
+          확실하게
+          캐리해주고있어서
+          다른
+          파티보다
+          만족도가
+          높은데
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-3424f3f7-63f2-4908-8e41-ca6b4136bfa8
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-54d5e6a7-184e-4763-a722-916fdab361f5
+          ","
+          value
+          ":"
+          하필
+          물리라니
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-4f0697b3-2a67-4e21-8358-d490a936a8d0
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-755f315b-43bd-480b-9fd5-6b97a7bf1333
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-d017885f-b5c9-476b-a74d-21b9b2d7b072
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-9c7030a5-d9dc-44c7-b98e-f5dc05d40dd8
+          ","
+          value
+          ":"
+          젠존제
+          처음
+          입문한
+          계기가
+          교활한
+          토끼굴
+          캐릭터들이
+          맘에
+          들어서
+          찍먹한건데
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-d8124276-adbd-473b-abf9-1ab046de3ee7
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-be65b136-eb09-47b2-96df-79fc4ff48d28
+          ","
+          value
+          ":"
+          정작
+          본게임에선
+          이격하나도
+          안뽑고
+          성능만
+          쫓고있네
+          ㅋㅋㅋㅋㅋㅋㅋㅠㅠ
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-22ff02dc-7a11-45dd-bc74-f903a5b04835
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-bd19d976-88d7-4f3f-a565-a9ab462fabc0
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-eeb36450-3494-42ca-889f-5c2131f3cf08
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-920cba30-2e7d-45b4-9f93-c4d50aefc0b0
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-de1c4cf3-c603-4438-b10f-607f75507b6f
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-5d57c653-8e4c-4230-8a56-e2c9307fe84a
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-c5264f41-f899-437b-bd92-9829712e1509
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-91f9e8ea-2ee3-4745-985c-eba2110f997c
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-dca253cd-053c-4ef4-ad50-cb560d67e878
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-c936cab2-3f9d-4a9a-88a5-0e0727f1fea1
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-9d837bb5-10c1-4a5b-9e97-9c3251938029
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-30bfe552-1f97-4984-b1e5-f5a54444630c
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-e4648bc0-b986-47e8-861f-5a3ff7c0d1ea
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-2401665a-9373-4b79-a1d3-32842e445e84
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-dfb1d98d-e0c9-42ca-9a90-e1031e17b53a
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-282713c9-e152-48f1-8a84-dc66af4a90f8
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-fcbffb30-aad2-4e26-9c87-29798021e9aa
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-5a827d9b-0ccf-4c7d-bba5-dba24c568bbe
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-fe7af845-df85-403c-903b-e7a553a818ff
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-c0800a14-def6-4440-8a84-bd97a0464ad6
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-5c51ab22-eddb-4e4a-9f1c-6fe08f425706
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-a1386ddf-2dd3-4f38-8263-e02598acbd06
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-5ae4bead-a88a-47a2-a8dc-82bf1ae8f32a
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-b824f255-735d-4c7a-bec5-8ca63e8d76c2
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-95fc5aae-6ceb-49e7-8dbc-7171429f7094
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-a7ef46c8-b933-41b9-a2bd-b21f10892b0d
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "},{"
+          id
+          ":"
+          SE-6f121aaf-e20d-4618-9fee-484a38ab8995
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-6e3a05d2-dd97-4532-87e8-7dc7c0fa532d
+          ","
+          value
+          ":"
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "}],"
+          @ctype
+          ":"
+          text
+          "},{"
+          id
+          ":"
+          SE-11e4514c-2381-4285-919c-5a4cfb73f309
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMjlfMjQx/MDAxNzc0NzQ4OTg4MTc4.acgD2fr5mTTRp5dgSvNm9jXtstevV2Uihkq0BhWwkpIg.ClR1qXcGky36imYBmw-OG89KwXH9cGpSWsf2AckQkOAg.JPEG/HEY2qKsbUAEG9FF.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMjlfMjQx/MDAxNzc0NzQ4OTg4MTc4.acgD2fr5mTTRp5dgSvNm9jXtstevV2Uihkq0BhWwkpIg.ClR1qXcGky36imYBmw-OG89KwXH9cGpSWsf2AckQkOAg.JPEG/HEY2qKsbUAEG9FF.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":40598,"width":368,"widthPercentage":0,"height":679,"originalWidth":368,"originalHeight":679,"fileName":"HEY2qKsbUAEG9FF.jpg","caption":null,"link":"https://x.com/AiartYasshy/status/2037409281528488063?s=20","format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"normal","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-376082a6-bd60-4520-9785-96860990676e","layout":"default","value":[{"id":"SE-57dc8afe-ade5-4e39-8c4d-57e6015da4af","nodes":[{"id":"SE-17c6a154-c81d-4b35-a0cb-5c5f582d3e42","value":"","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-ab8b9930-a252-4c18-b009-2a04b5cf5bd8","nodes":[{"id":"SE-2acbaa78-c9eb-4461-a8ff-08e22758124c","value":"이렇게된거 못뽑은 토끼굴 몫까지 이뻐해줄게 라미엘 ㅎㅎㅎㅎㅎㅎ","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-9171c7bd-487c-467a-b837-23d20c4968e9","nodes":[{"id":"SE-6d6bf39e-9b30-4129-94b1-ec7488ff5dfa","value":"","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-07edd56b-8148-4acd-b33b-2fa7db4f4a8f","nodes":[{"id":"SE-4d54f31d-03f5-4c5d-9b56-ebb4ab2d4960","value":"","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-cabd6dd1-8e18-4cd2-92fc-fe8f1ddbc4a7","nodes":[{"id":"SE-d1fda5ae-5c78-4104-877b-35d68b7d95b7","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}]},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "PC",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "fac0352478db6ea3ec96f561707c2368",
+          "nickname": "스마힐",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTEwMjBfMTE1/MDAxNzYwODkzNjgwNTU5.qyBQ5ZyR3cYroFVCEx7-F6hkJ6nBADBLp5iB1FZ06ukg.YgrtNqhun60NTyuPKf95fTm3dwsjiE4lCiCpOuHrYBsg.JPEG/image.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 9
+        },
+        "comment": {
+          "totalCount": 1,
+          "commentCount": 1,
+          "replyCount": 0,
+          "exposeCount": 1
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7478266",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7478266"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 1,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 115,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7478266
+      },
+      {
+        "feed": {
+          "feedId": 7477355,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7477355",
+          "title": "AOD 호감도",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjlfMjYz/MDAxNzc0NzIwOTIwMzg2.x22od1lbBPyv_J9dUKn2oPdCSGP5-YTk8edfnI9RU0og.ezBqnm54nXn4g29y-7fxy0bRcx0uv5dbn82gJb9BzSEg.JPEG/Screenshot_20260328_110057_Zenless_Zone_Zero.jpg",
+          "attachCount": 3,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260329030330",
+          "updatedDate": "20260329030330",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMTSR705BSBQD0W94DWGFD5Y
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-abb7ef43-4102-4256-97a0-2c7e205da9b0
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMjlfMjYz/MDAxNzc0NzIwOTIwMzg2.x22od1lbBPyv_J9dUKn2oPdCSGP5-YTk8edfnI9RU0og.ezBqnm54nXn4g29y-7fxy0bRcx0uv5dbn82gJb9BzSEg.JPEG/Screenshot_20260328_110057_Zenless_Zone_Zero.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMjlfMjYz/MDAxNzc0NzIwOTIwMzg2.x22od1lbBPyv_J9dUKn2oPdCSGP5-YTk8edfnI9RU0og.ezBqnm54nXn4g29y-7fxy0bRcx0uv5dbn82gJb9BzSEg.JPEG/Screenshot_20260328_110057_Zenless_Zone_Zero.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":1709650,"width":700,"widthPercentage":0,"height":323,"originalWidth":3120,"originalHeight":1440,"fileName":"Screenshot_20260328_110057_Zenless_Zone_Zero.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-fc7cd455-26cb-43e8-82fd-825d8d309bbd","layout":"default","value":[{"id":"SE-2ac04a5e-a07a-4ffa-81ae-ff953be7245a","nodes":[{"id":"SE-17fd81f0-2a14-4215-baf7-b2b0d3eae1c9","value":"파에톤 남매 코멘트 귀여움","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"},{"id":"SE-422d840e-182e-4297-b015-24acab77a27b","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMjlfMjk4/MDAxNzc0NzIwOTIzODIx.zZLAOHYW_G1rugZ4CizIN2ELnC7rJ4WsDtFsJLBntzQg.hcmruopiI90CWjXCfiHbbGeX3VIkYeZFL2Z7orc9Evsg.JPEG/Screenshot_20260328_110333_Zenless_Zone_Zero.jpg?type=w1678","internalResource":true,"represent":false,"path":"/MjAyNjAzMjlfMjk4/MDAxNzc0NzIwOTIzODIx.zZLAOHYW_G1rugZ4CizIN2ELnC7rJ4WsDtFsJLBntzQg.hcmruopiI90CWjXCfiHbbGeX3VIkYeZFL2Z7orc9Evsg.JPEG/Screenshot_20260328_110333_Zenless_Zone_Zero.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":1682994,"width":700,"widthPercentage":0,"height":323,"originalWidth":3120,"originalHeight":1440,"fileName":"Screenshot_20260328_110333_Zenless_Zone_Zero.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-adf67288-4515-482c-94c5-ef58a560ff15","layout":"default","value":[{"id":"SE-1425877f-e31d-4188-9fe5-166f0c290fd4","nodes":[{"id":"SE-0ec981ef-0266-4ca0-9b90-bcd162bdb1d3","value":"와이즈는 참 사람이 좋아","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"},{"id":"SE-4dde51f3-2eb8-4897-bec1-e90f59c194ad","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMjlfMjMx/MDAxNzc0NzIwOTI4OTEz.AImfDQO4k0HAOeyx1FpJgrgxxOtnp4mUeS6CqwSZCMog.4o_EKknuB1Me0KXl4eu436j5ilnr6YCVhkpd88RH0lMg.JPEG/Screenshot_20260328_103649_Zenless_Zone_Zero.jpg?type=w1678","internalResource":true,"represent":false,"path":"/MjAyNjAzMjlfMjMx/MDAxNzc0NzIwOTI4OTEz.AImfDQO4k0HAOeyx1FpJgrgxxOtnp4mUeS6CqwSZCMog.4o_EKknuB1Me0KXl4eu436j5ilnr6YCVhkpd88RH0lMg.JPEG/Screenshot_20260328_103649_Zenless_Zone_Zero.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":1422563,"width":700,"widthPercentage":0,"height":323,"originalWidth":3120,"originalHeight":1440,"fileName":"Screenshot_20260328_103649_Zenless_Zone_Zero.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-43c3a88c-408c-471d-b734-069d9b78b2d4","layout":"default","value":[{"id":"SE-6546b450-7c2f-4125-ae44-f8dbce27c225","nodes":[{"id":"SE-26ded397-ad13-43d8-97e1-777fbc988e11","value":"칭호작 남은 것들","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":93,"sk":59}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "74ba7d1daf998bf63031c6f9ed830545",
+          "nickname": "미호요",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNDEyMTlfMTQg/MDAxNzM0NTQ2NjUzMTQz.uh-AhVJJN98ezVBiZjLiQiErQecNKZMxu768l0yYa_4g.R-1KvEVX6x912inUlwjSz_sP7-BR0FkyYB_aPDjUF00g.JPEG/NNG-17345466523533792015506049683931.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 14
+        },
+        "comment": {
+          "totalCount": 0,
+          "commentCount": 0,
+          "replyCount": 0,
+          "exposeCount": 0
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7477355",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7477355"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 42,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7477355
+      },
+      {
+        "feed": {
+          "feedId": 7477296,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7477296",
+          "title": "궁우와 물회",
+          "iconTypes": [
+            "PHOTO",
+            "VIDEO"
+          ],
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "https://video-phinf.pstatic.net/20260329_239/1774717973352H5CMa_JPEG/HDGZfRYvyW_10.jpg",
+          "attachCount": 2,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260329021407",
+          "updatedDate": "20260329021407",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMTPX4QW3FE4W0NJSGHG9156
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-628665ba-71bc-4fc1-92b0-188c3d940cc6
+          ","
+          layout
+          ":"
+          default
+          ","
+          contentMode
+          ":"
+          fit
+          ","
+          fileSize
+          ":47023267,"
+          playTime
+          ":12.168000221252441,"
+          internalResource
+          ":true,"
+          thumbnail
+          ":{"
+          src
+          ":"
+          https: //video-phinf.pstatic.net/20260329_239/1774717973352H5CMa_JPEG/HDGZfRYvyW_10.jpg","@ctype":"thumbnail"},"originalWidth":2360,"originalHeight":1640,"width":700,"height":486,"caption":null,"format":"normal","represent":true,"vid":"E217A1817FEE5ECDB246FC00F15DF45674A3","mediaMeta":{"tags":[],"@ctype":"mediaMeta"},"videoInfraServiceId":"2012","origin":{"srcFrom":"local","@ctype":"videoOrigin"},"ai":false,"@ctype":"video"},{"id":"SE-a9350aa6-ccfa-4773-97e3-42e342615ff1","layout":"default","value":[{"id":"SE-9a8c4bc7-d16b-455f-bc58-71e24876fdcc","nodes":[{"id":"SE-b16a828e-d28e-41a0-b5da-9a2b5c876eb8","value":"엔젤디 뽑으면 가장 해보고 싶었던 길거리 직캠","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"},{"id":"SE-a3e032be-0fc7-40e8-9bb4-c25852f642c3","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMjlfMjYz/MDAxNzc0NzE4MDEyMDcz.kTdA9RuofViJf0HzIdJgFLoZjxkMa3SPzvcFUqFp5LUg.nUW1ljnOO_z6GIt8596mS6cskYP2wjmJtYt0gMCa99Ag.PNG/IMG_1973.png?type=w1678","internalResource":true,"represent":false,"path":"/MjAyNjAzMjlfMjYz/MDAxNzc0NzE4MDEyMDcz.kTdA9RuofViJf0HzIdJgFLoZjxkMa3SPzvcFUqFp5LUg.nUW1ljnOO_z6GIt8596mS6cskYP2wjmJtYt0gMCa99Ag.PNG/IMG_1973.png","domain":"https://nng-phinf.pstatic.net","fileSize":3198421,"width":700,"widthPercentage":0,"height":486,"originalWidth":2360,"originalHeight":1640,"fileName":"IMG_1973.png","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-011ce7f2-3d15-4f8c-bc22-d6063aa417a5","layout":"default","value":[{"id":"SE-c3a6bed9-1fc4-4f47-a8b7-2f3389e555ce","nodes":[{"id":"SE-fbaf2dbc-eb87-4eee-92b8-c80464a505e6","value":"훠거집에서 물회를 주문했지만, 물려서 리트 엔딩 ㅠ","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":115,"sk":36}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "MOBILE",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "5d96749b5c23fe29696f88d2142a7cdf",
+          "nickname": "유즈하최애캐",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNjA0MDdfODQg/MDAxNzc1NDkxOTE3OTI3.ZAfqUpJwJZgGAWQ4yCFu9mia9H95WHfAQxgF4W1LG10g.cEgx37TWxz1pRP_LslzEVmu75PUi-UvLO8zswa5pcPsg.JPEG/image.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 12
+        },
+        "comment": {
+          "totalCount": 0,
+          "commentCount": 0,
+          "replyCount": 0,
+          "exposeCount": 0
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7477296",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7477296"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 25,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7477296
+      },
+      {
+        "feed": {
+          "feedId": 7477284,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7477284",
+          "title": "앤톤으로 신 탑 1000층까지 올랐어요",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 6,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjlfMTMx/MDAxNzc0NzE3NTY5NzUw.vZ2y2hWVG4Kpb1Pt9tm3RQ7uDB-4C_4eZkVXyTiduC0g.4hJHT4d-A5DHnYFq9xeBaHXkjjLs4LO1_vVUFaefRncg.PNG/%ED%99%94%EB%A9%B4_%EC%BA%A1%EC%B2%98_2026-03-28_231600.png",
+          "attachCount": 3,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260329020813",
+          "updatedDate": "20260329020813",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMTPHHENG44CTGY3802DV33R
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-aaa40ce5-b958-41c6-a43a-420af982d3d1
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMjlfMTMx/MDAxNzc0NzE3NTY5NzUw.vZ2y2hWVG4Kpb1Pt9tm3RQ7uDB-4C_4eZkVXyTiduC0g.4hJHT4d-A5DHnYFq9xeBaHXkjjLs4LO1_vVUFaefRncg.PNG/%ED%99%94%EB%A9%B4_%EC%BA%A1%EC%B2%98_2026-03-28_231600.png?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMjlfMTMx/MDAxNzc0NzE3NTY5NzUw.vZ2y2hWVG4Kpb1Pt9tm3RQ7uDB-4C_4eZkVXyTiduC0g.4hJHT4d-A5DHnYFq9xeBaHXkjjLs4LO1_vVUFaefRncg.PNG/%ED%99%94%EB%A9%B4_%EC%BA%A1%EC%B2%98_2026-03-28_231600.png","domain":"https://nng-phinf.pstatic.net","fileSize":1977639,"width":840,"widthPercentage":0,"height":472,"originalWidth":1919,"originalHeight":1079,"fileName":"화면_캡처_2026-03-28_231600.png","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-348bb8ce-11b3-4891-abd2-5c6e4b6f743f","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMjlfODAg/MDAxNzc0NzE3NTczNDI3.sB9gHxaBahI1XI49uFz8IK4VYz13jS6jBBv35K6XAlMg.bLXOnR3-aD4hsPLqyOdremKABnaunBVq7ZVIGp4Hbgog.PNG/image_(65).png?type=w1678","internalResource":true,"represent":false,"path":"/MjAyNjAzMjlfODAg/MDAxNzc0NzE3NTczNDI3.sB9gHxaBahI1XI49uFz8IK4VYz13jS6jBBv35K6XAlMg.bLXOnR3-aD4hsPLqyOdremKABnaunBVq7ZVIGp4Hbgog.PNG/image_(65).png","domain":"https://nng-phinf.pstatic.net","fileSize":1522966,"width":840,"widthPercentage":0,"height":472,"originalWidth":1919,"originalHeight":1079,"fileName":"image_(65).png","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-6c22ccc8-ab5c-42dc-a511-f71e0a2f6859","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMjlfMjY5/MDAxNzc0NzE3Njg4NzQ4.4AJf794ci36kLePvjepfN_EFx0mUsCnA7jmTXjegO4Yg.LCJt_Eun4R3M1AiXUmGrRXCbjzaHRpZMs01Cx7lnvAog.PNG/%ED%99%94%EB%A9%B4_%EC%BA%A1%EC%B2%98_2026-03-29_020801.png?type=w1678","internalResource":true,"represent":false,"path":"/MjAyNjAzMjlfMjY5/MDAxNzc0NzE3Njg4NzQ4.4AJf794ci36kLePvjepfN_EFx0mUsCnA7jmTXjegO4Yg.LCJt_Eun4R3M1AiXUmGrRXCbjzaHRpZMs01Cx7lnvAog.PNG/%ED%99%94%EB%A9%B4_%EC%BA%A1%EC%B2%98_2026-03-29_020801.png","domain":"https://nng-phinf.pstatic.net","fileSize":515386,"width":840,"widthPercentage":0,"height":153,"originalWidth":1725,"originalHeight":315,"fileName":"화면_캡처_2026-03-29_020801.png","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-c8b60dd7-cd20-4e78-a798-0f6b965c48f3","layout":"default","value":[{"id":"SE-c4da1653-5333-44a6-8990-6e2e5cfbbb9a","nodes":[{"id":"SE-3a18fe9b-758f-4308-a7ea-64c5098b1240","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":141,"sk":0}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "PC",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "98137d7459598631b99f3a79b5ff4965",
+          "nickname": "유령헤드",
+          "profileImageUrl": "https://ssl.pstatic.net/cmstatic/nng/img/img_default_user.png",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 3
+        },
+        "comment": {
+          "totalCount": 10,
+          "commentCount": 6,
+          "replyCount": 4,
+          "exposeCount": 10
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7477284",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7477284"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 6,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 76,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7477284
+      },
+      {
+        "feed": {
+          "feedId": 7476950,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7476950",
+          "title": "조이어스 존버 328일차",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjlfMjYg/MDAxNzc0NzExMDMwODI0.zm0fEIEuKsr3nnjIKs7CoNcattu3Iu5_xKZQLC2cZzkg.wKyjkTQ6pCO7rOMqGmzFuEnMZNw8WEwICGZOWGScglMg.JPEG/Screenshot_20250505_010742_YouTube.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260329001713",
+          "updatedDate": "20260329001713",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMTG9R300R61FFHAXCVSDQXQ
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-be97f455-500d-4513-b848-e9241d0d801d
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMjlfMjYg/MDAxNzc0NzExMDMwODI0.zm0fEIEuKsr3nnjIKs7CoNcattu3Iu5_xKZQLC2cZzkg.wKyjkTQ6pCO7rOMqGmzFuEnMZNw8WEwICGZOWGScglMg.JPEG/Screenshot_20250505_010742_YouTube.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMjlfMjYg/MDAxNzc0NzExMDMwODI0.zm0fEIEuKsr3nnjIKs7CoNcattu3Iu5_xKZQLC2cZzkg.wKyjkTQ6pCO7rOMqGmzFuEnMZNw8WEwICGZOWGScglMg.JPEG/Screenshot_20250505_010742_YouTube.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":200431,"width":700,"widthPercentage":0,"height":293,"originalWidth":1898,"originalHeight":795,"fileName":"Screenshot_20250505_010742_YouTube.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-9424b250-5e90-4c61-86ae-aecf6cb15e78","layout":"default","value":[{"id":"SE-3151c253-4b7f-49f3-a564-32ae09e071f7","nodes":[{"id":"SE-74d2b51f-c251-468c-a425-52f84a87535a","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":27,"sk":0}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "fc84ce489ba289d6332ee398226808a3",
+          "nickname": "남캐",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTAxMDRfMjEw/MDAxNzM1OTc1NTA4NjMx.q1VopDET41Vau8poSjIpxQf8QRlmOlEViX1mtOX4x_Eg.IKdzcMFzIb4zqHJ6ytmGFzCCxPZet0V18vowC-Rgyjwg.JPEG/NNG-17359755109574709421135093161019.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 13
+        },
+        "comment": {
+          "totalCount": 0,
+          "commentCount": 0,
+          "replyCount": 0,
+          "exposeCount": 0
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7476950",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7476950"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 8,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7476950
+      },
+      {
+        "feed": {
+          "feedId": 7476819,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7476819",
+          "title": "갤러리 뒤적하다 찾은 마코토&#x1f525;",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 4,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjhfMTE1/MDAxNzc0NzA4MDc5MDU3.70ib6ixS4h2hIm3McJNbnyA6s2pRWhMgayAdr7bhpisg.iXsD7lf4StdsgBVtcIYOPM-Bv4xpGvcJOoiMeJ1D8WUg.PNG/IMG_0780.png",
+          "attachCount": 4,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260328233631",
+          "updatedDate": "20260328233631",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMTDERMK5P97XNTDH5WMR5VQ
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-a285b756-06f1-4768-8d47-903f9309ec54
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMjhfMTI0/MDAxNzc0NzA4MTU5MTY0.s4dBFXsL4JmtuRfBSAvRSM9cqUeDGSr_f4iTHkousMgg.tnMllBNEAa_PqKHU_16O4hGxmJNSr1asIXWChhDkQN0g.PNG/IMG_0778.png?type=w1678","internalResource":true,"represent":false,"path":"/MjAyNjAzMjhfMTI0/MDAxNzc0NzA4MTU5MTY0.s4dBFXsL4JmtuRfBSAvRSM9cqUeDGSr_f4iTHkousMgg.tnMllBNEAa_PqKHU_16O4hGxmJNSr1asIXWChhDkQN0g.PNG/IMG_0778.png","domain":"https://nng-phinf.pstatic.net","fileSize":2928020,"width":700,"widthPercentage":0,"height":369,"originalWidth":1855,"originalHeight":980,"fileName":"IMG_0778.png","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-5613871b-d2af-41c5-adfd-6bf1836f1932","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMjhfMTE1/MDAxNzc0NzA4MDc5MDU3.70ib6ixS4h2hIm3McJNbnyA6s2pRWhMgayAdr7bhpisg.iXsD7lf4StdsgBVtcIYOPM-Bv4xpGvcJOoiMeJ1D8WUg.PNG/IMG_0780.png?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMjhfMTE1/MDAxNzc0NzA4MDc5MDU3.70ib6ixS4h2hIm3McJNbnyA6s2pRWhMgayAdr7bhpisg.iXsD7lf4StdsgBVtcIYOPM-Bv4xpGvcJOoiMeJ1D8WUg.PNG/IMG_0780.png","domain":"https://nng-phinf.pstatic.net","fileSize":3330797,"width":700,"widthPercentage":0,"height":369,"originalWidth":1855,"originalHeight":980,"fileName":"IMG_0780.png","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-7d881b48-336f-4c96-85ae-addf95a6ef50","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMjhfMTcw/MDAxNzc0NzA4Mjk3MDUx.HpU2ei_-9tOFgb2PTVgj3nOOYsMvOdT6NVmQqZUjQpAg.udAKv6_RDLEfM2_NjAN4xhqJ4j0volWQG3FDqQX4TH8g.PNG/IMG_0776.png?type=w1678","internalResource":true,"represent":false,"path":"/MjAyNjAzMjhfMTcw/MDAxNzc0NzA4Mjk3MDUx.HpU2ei_-9tOFgb2PTVgj3nOOYsMvOdT6NVmQqZUjQpAg.udAKv6_RDLEfM2_NjAN4xhqJ4j0volWQG3FDqQX4TH8g.PNG/IMG_0776.png","domain":"https://nng-phinf.pstatic.net","fileSize":3380110,"width":700,"widthPercentage":0,"height":369,"originalWidth":1855,"originalHeight":980,"fileName":"IMG_0776.png","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-45003a5d-f464-43e5-a662-1b351b48a0fc","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMjhfMjgw/MDAxNzc0NzA4MTYwNTk4.7AwFQW8ZQh02KGiNfWdLZuKFClSiDbX98_HjfGIuX9Qg.e85U7uvRjPW34gV5I_5f1Vw7pz9D4VSsRISSoZvZuKcg.PNG/IMG_0774.png?type=w1678","internalResource":true,"represent":false,"path":"/MjAyNjAzMjhfMjgw/MDAxNzc0NzA4MTYwNTk4.7AwFQW8ZQh02KGiNfWdLZuKFClSiDbX98_HjfGIuX9Qg.e85U7uvRjPW34gV5I_5f1Vw7pz9D4VSsRISSoZvZuKcg.PNG/IMG_0774.png","domain":"https://nng-phinf.pstatic.net","fileSize":3244572,"width":700,"widthPercentage":0,"height":369,"originalWidth":1855,"originalHeight":980,"fileName":"IMG_0774.png","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-b8526a47-1855-4690-af70-e8fcffb22e72","layout":"default","value":[{"id":"SE-779186ec-31d5-4d00-bef4-c2dcf5e08ad0","nodes":[{"id":"SE-8d6e4db5-0477-4a33-bddf-4e6da7c870e8","value":"멋-짐이란게 폭발한다✨ ","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-55761aa5-cd6e-4cf3-b3fc-70f3910423d5","nodes":[{"id":"SE-6f6d4547-269c-4337-92f5-4e89baf081ac","value":"정리하다가 나만 보기 아쉬워서 올려용","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":567,"sk":265}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "IOS",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "abbd8c6682a1502affc9a5412ac60f1d",
+          "nickname": "스타벅스zero",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTAzMDlfMjc2/MDAxNzQxNTIzNTk5Nzcx.iis2B-CmqCXlBlVWChVMslI98V3o7Iy7UrkimKoAOsIg.TPplEytH1oS11FZfWCrjXjF5G_J9zrrm6J_9YKKq9KIg.PNG/4A88BE98-0FC5-44C3-B411-C80AB296F912-1741523596.png",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 13
+        },
+        "comment": {
+          "totalCount": 2,
+          "commentCount": 2,
+          "replyCount": 0,
+          "exposeCount": 2
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7476819",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7476819"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 4,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 42,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7476819
+      },
+      {
+        "feed": {
+          "feedId": 7476262,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7476262",
+          "title": "코린 이격 출시 기원 430일차",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjhfMjI0/MDAxNzc0NzAxMTc3ODc5.p9UMXGiMK5vVR_-8rK8t2M0ZipgmyM0kqQgAoOMbtL4g.pqGF9xMzKvZSD4O-yaOREIycyj4Hb-ajkF_UYTjgIuMg.JPEG/__corin_wickes_zenless_zone_zero_and_1_more_drawn_by_kageira__d2d53bc05e7541.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260328213310",
+          "updatedDate": "20260328213328",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMT6XFP8MXP505Y68D4DWGHA
+          ","
+          di
+          ":{"
+          dif
+          ":false,"
+          dio
+          ":[{"
+          dis
+          ":"
+          N
+          ","
+          dia
+          ":{"
+          t
+          ":0,"
+          p
+          ":0,"
+          st
+          ":27,"
+          sk
+          ":0}}]},"
+          components
+          ":[{"
+          id
+          ":"
+          SE-89822bdc-f37f-41c7-90ca-71e584783bde
+          ","
+          layout
+          ":"
+          default
+          ","
+          packCode
+          ":"
+          ogq_62d4bafad0f42
+          ","
+          seq
+          ":12,"
+          thumbnail
+          ":{"
+          src
+          ":"
+          https: //storep-phinf.pstatic.net/ogq_62d4bafad0f42/original_12.png","width":185,"height":160,"@ctype":"thumbnail"},"format":"normal","@ctype":"sticker"},{"id":"SE-9b7c6aef-34e6-4815-9524-74df2e1981a2","layout":"default","src":"https://nng-phinf.pstatic.net/MjAyNjAzMjhfMjI0/MDAxNzc0NzAxMTc3ODc5.p9UMXGiMK5vVR_-8rK8t2M0ZipgmyM0kqQgAoOMbtL4g.pqGF9xMzKvZSD4O-yaOREIycyj4Hb-ajkF_UYTjgIuMg.JPEG/__corin_wickes_zenless_zone_zero_and_1_more_drawn_by_kageira__d2d53bc05e7541.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMjhfMjI0/MDAxNzc0NzAxMTc3ODc5.p9UMXGiMK5vVR_-8rK8t2M0ZipgmyM0kqQgAoOMbtL4g.pqGF9xMzKvZSD4O-yaOREIycyj4Hb-ajkF_UYTjgIuMg.JPEG/__corin_wickes_zenless_zone_zero_and_1_more_drawn_by_kageira__d2d53bc05e7541.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":1732480,"width":2000,"widthPercentage":0,"height":2000,"originalWidth":2000,"originalHeight":2000,"fileName":"__corin_wickes_zenless_zone_zero_and_1_more_drawn_by_kageira__d2d53bc05e7541.jpg","caption":null,"link":"https://x.com/i/status/2036358054195896568","format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-3e5f2d13-fc39-4384-ba3b-9942fcfb2662","layout":"default","value":[{"id":"SE-367f52cd-2ca1-418c-b6fa-5e0a9ab50986","nodes":[{"id":"SE-d81a1dd2-6df8-4ef7-9a18-5a34e591088d","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}]},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "74da80e4f5b1bfcdd5a6a0fb8f5dc9e5",
+          "nickname": "코린",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTA2MDJfMjY2/MDAxNzQ4ODQ3NDQ2NDY2.WdNcGS9IvQ3sarJc9N6P5K0voMdVRsJ0h_IfKXnsiRUg.tpm5VQg-7bzHcMaZOuQGK1R4gsFHIjhS76VQnj4YYTcg.JPEG/NNG-17488474462998733758180128405047.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 18
+        },
+        "comment": {
+          "totalCount": 2,
+          "commentCount": 1,
+          "replyCount": 1,
+          "exposeCount": 2
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7476262",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7476262"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 20,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7476262
+      },
+      {
+        "feed": {
+          "feedId": 7475580,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7475580",
+          "title": "미야비는 어디까지 쌀먹가능할까?",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 0,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjhfMTQ3/MDAxNzc0NjkwMDE1MDY1.3WiICFUK-Q53764jtCeeqf2L0BLjpP2eGNhAq48i5zEg.CGvclA_7XCujcCP8chOS3Ld17iG9aQKirlmBav6P9sgg.JPEG/Screenshot_20260328_182621.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260328182912",
+          "updatedDate": "20260328182912",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMSW88NR4FQ76SK16G2FSE2P
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-3ee0c6ed-c0f1-404b-9893-cd164194c3a7
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMjhfMTQ3/MDAxNzc0NjkwMDE1MDY1.3WiICFUK-Q53764jtCeeqf2L0BLjpP2eGNhAq48i5zEg.CGvclA_7XCujcCP8chOS3Ld17iG9aQKirlmBav6P9sgg.JPEG/Screenshot_20260328_182621.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMjhfMTQ3/MDAxNzc0NjkwMDE1MDY1.3WiICFUK-Q53764jtCeeqf2L0BLjpP2eGNhAq48i5zEg.CGvclA_7XCujcCP8chOS3Ld17iG9aQKirlmBav6P9sgg.JPEG/Screenshot_20260328_182621.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":984758,"width":700,"widthPercentage":0,"height":548,"originalWidth":1856,"originalHeight":1454,"fileName":"Screenshot_20260328_182621.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-ff2d14ee-c68a-450f-a446-e45086028e62","layout":"default","value":[{"id":"SE-35ad3a88-2adb-479b-8a5a-32c636302574","nodes":[{"id":"SE-83ae37ee-003f-46af-9adb-11b51fecd6a3","value":"결국 나와버린 동일속성 동일 역할군 신캐...","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-7651a3ff-05df-4069-9b42-9f683ac54e55","nodes":[{"id":"SE-b749d016-1b28-42a9-b122-10ac5814aa0e","value":"","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-0cdf14bd-b648-4beb-b41d-4724a8d02534","nodes":[{"id":"SE-683aed22-87b2-401b-9644-2b7855bd667c","value":"이번에도 미야비로 쌀먹 가능하면 ","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-fd37c20d-b8f1-4861-ad9d-842c4f215a71","nodes":[{"id":"SE-53d0a093-5ebd-4346-b3ab-f8c82c11a9c8","value":"공사급 캐릭터는 진짜 거르는게 바보된다는게 증명되는거고","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-45eb4640-8701-4343-92e0-d26425e1dda1","nodes":[{"id":"SE-c3a7ce87-292e-42c5-8bb1-27ffc9e769d4","value":"쌀먹실패하면 as존버하는수밖에 ㅠㅠ","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-e5b620be-03ca-446f-b51c-066cbcd390b8","nodes":[{"id":"SE-0affc6c3-ec0c-48e9-bc6b-035135df5be4","value":"","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-fe2a93d5-2363-4e05-a665-f7823fc2caac","nodes":[{"id":"SE-7af45d63-3d2a-418c-8973-f37b2f850d77","value":"근데 솔직히 오래 버티긴했음 ㅋㅋㅋ","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":167,"sk":134}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "fac0352478db6ea3ec96f561707c2368",
+          "nickname": "스마힐",
+          "profileImageUrl": "https://nng-phinf.pstatic.net/MjAyNTEwMjBfMTE1/MDAxNzYwODkzNjgwNTU5.qyBQ5ZyR3cYroFVCEx7-F6hkJ6nBADBLp5iB1FZ06ukg.YgrtNqhun60NTyuPKf95fTm3dwsjiE4lCiCpOuHrYBsg.JPEG/image.jpg",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 9
+        },
+        "comment": {
+          "totalCount": 1,
+          "commentCount": 1,
+          "replyCount": 0,
+          "exposeCount": 1
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7475580",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7475580"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 0,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 80,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7475580
+      },
+      {
+        "feed": {
+          "feedId": 7474609,
+          "originalLoungeId": "ZZZ",
+          "loungeId": "ZZZ",
+          "gameId": "GM_NCR_007033",
+          "contentId": "nng-ZZZ-7474609",
+          "title": "후훟",
+          "iconTypes": [
+            "PHOTO"
+          ],
+          "feedType": "FEED",
+          "buff": 1,
+          "nerf": 0,
+          "repImageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjhfMTE1/MDAxNzc0Njc0NzQ3NDE5.8lYPtxgJHZnRrnT0YVBXYvKALOTMpUhhA2R1bUxWbQYg.iujyI_BH-d6aUyTuVeWDaLiCKcZoNz3F1rWDX7h-H7cg.JPEG/Screenshot_20260328_141119_Zenless_Zone_Zero.jpg",
+          "attachCount": 1,
+          "attachIconType": "PHOTO",
+          "createdDate": "20260328141422",
+          "updatedDate": "20260328141422",
+          "contents": "{"
+          document
+          ":{"
+          version
+          ":"
+          2.8.11
+          ","
+          theme
+          ":"
+          default
+          ","
+          language
+          ":"
+          ko-KR
+          ","
+          id
+          ":"
+          01KMSDPJMP08XVB2DHDK9D3KP5
+          ","
+          components
+          ":[{"
+          id
+          ":"
+          SE-cbfd6510-a517-48a6-a919-a3e60291831b
+          ","
+          layout
+          ":"
+          default
+          ","
+          value
+          ":[{"
+          id
+          ":"
+          SE-82f29f0f-f1fb-4040-86a2-fa4eaa56d545
+          ","
+          nodes
+          ":[{"
+          id
+          ":"
+          SE-956e5ddf-bbaa-49f8-bdcb-3bb88e96aade
+          ","
+          value
+          ":"
+          드디어
+          ..
+          ","
+          @ctype
+          ":"
+          textNode
+          "}],"
+          @ctype
+          ":"
+          paragraph
+          "}],"
+          @ctype
+          ":"
+          text
+          "},{"
+          id
+          ":"
+          SE-2f57fb08-4c1d-4a86-9314-56015ffac1ee
+          ","
+          layout
+          ":"
+          default
+          ","
+          src
+          ":"
+          https: //nng-phinf.pstatic.net/MjAyNjAzMjhfMTE1/MDAxNzc0Njc0NzQ3NDE5.8lYPtxgJHZnRrnT0YVBXYvKALOTMpUhhA2R1bUxWbQYg.iujyI_BH-d6aUyTuVeWDaLiCKcZoNz3F1rWDX7h-H7cg.JPEG/Screenshot_20260328_141119_Zenless_Zone_Zero.jpg?type=w1678","internalResource":true,"represent":true,"path":"/MjAyNjAzMjhfMTE1/MDAxNzc0Njc0NzQ3NDE5.8lYPtxgJHZnRrnT0YVBXYvKALOTMpUhhA2R1bUxWbQYg.iujyI_BH-d6aUyTuVeWDaLiCKcZoNz3F1rWDX7h-H7cg.JPEG/Screenshot_20260328_141119_Zenless_Zone_Zero.jpg","domain":"https://nng-phinf.pstatic.net","fileSize":1257261,"width":700,"widthPercentage":0,"height":315,"originalWidth":2400,"originalHeight":1080,"fileName":"Screenshot_20260328_141119_Zenless_Zone_Zero.jpg","caption":null,"format":"normal","displayFormat":"normal","imageLoaded":true,"contentMode":"fit","origin":{"srcFrom":"local","@ctype":"imageOrigin"},"ai":false,"@ctype":"image"},{"id":"SE-bd810886-96e0-4938-b0e8-b733b7b3dd46","layout":"default","value":[{"id":"SE-d4cfb1b3-a589-447d-8783-3062694cb282","nodes":[{"id":"SE-90db775a-9446-416b-adff-36d130d38f13","value":"이 계정을 쓸일이 오다니...  빛나가 명파라고 해서","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-c3e10251-f21c-4347-a753-db7cdec050ea","nodes":[{"id":"SE-40ef6866-cbae-4c23-9eaa-67b4984819c2","value":"루시아 명전해놓고 존버타다 버린계정","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-0967fb31-0a03-49d3-bce0-e4b54f96818c","nodes":[{"id":"SE-0ea9e5d7-5e4d-4987-9387-e275dd16488c","value":"대황빌리에게 쓸 운명이였던것이 였구나...","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-86874d37-e3cc-4d56-92ef-d39985ff2b6c","nodes":[{"id":"SE-23083335-a309-4234-a08c-27c0fd964548","value":"빌리 모션보면 걍 공사급이던데 딱대라...","@ctype":"textNode"}],"@ctype":"paragraph"},{"id":"SE-2efc9e4f-434c-4549-bf6f-a69c5e4bbeac","nodes":[{"id":"SE-7cc7c445-c771-4b9c-8e35-36bf6c1c48b2","value":"","@ctype":"textNode"}],"@ctype":"paragraph"}],"@ctype":"text"}],"di":{"dif":false,"dio":[{"dis":"N","dia":{"t":0,"p":0,"st":136,"sk":120}}]}},"documentId":""}",
+          "bodyExposureYN"
+          :
+          "N",
+          "readOnlyJoinUser": "N",
+          "allowComment": "Y",
+          "deviceType": "ANDROID",
+          "menuId": 12,
+          "boardType": "BOARD",
+          "pinned": false,
+          "hideByCleanBot": false
+        },
+        "user": {
+          "userIdHash": "26fa541c503257e2d73802f294fd0612",
+          "nickname": "치즈먹는 로보트 1340056",
+          "profileImageUrl": "https://ssl.pstatic.net/cmstatic/nng/img/img_default_user.png",
+          "userRoleCode": "common_user",
+          "badge": null,
+          "title": null,
+          "verifiedMark": false,
+          "level": 6
+        },
+        "comment": {
+          "totalCount": 2,
+          "commentCount": 1,
+          "replyCount": 1,
+          "exposeCount": 2
+        },
+        "clientBuffStatus": {
+          "vote": 0
+        },
+        "feedLink": {
+          "pc": "https://game.naver.com/lounge/ZZZ/board/detail/7474609",
+          "mobile": "https://m.game.naver.com/lounge/ZZZ/board/detail/7474609"
+        },
+        "lounge": {
+          "loungeName": "젠레스 존 제로",
+          "loungeEnglishName": "Zenless Zone Zero",
+          "logoImageSquareUrl": "https://nng-phinf.pstatic.net/MjAyNjAxMzBfODgg/MDAxNzY5Nzc2NjI0OTIz.CmRr6ugkb5J5cOOdL-aj7RKKRnouD_XQ3GTsumxSs9sg.QOsQBohN43Gpv2ZHZguF34KIZlz7Lmu0BL0WMAFBWWgg.PNG/%E9%80%9A%E7%94%A8-%E5%AE%BD%E6%A0%87-%E6%AD%A3%E6%96%B9%E5%BD%A2-HoYoverse-512x512.png"
+        },
+        "board": {
+          "boardId": 4,
+          "boardName": "자유 게시판",
+          "exposure": true,
+          "type": "COMMON"
+        },
+        "series": null,
+        "season": null,
+        "buff": {
+          "buffCount": 1,
+          "nerfCount": 0,
+          "vote": 0
+        },
+        "score": 0.0,
+        "readCount": 62,
+        "bookmark": {
+          "bookmarked": false,
+          "bookmarkedDate": null
+        },
+        "privateUserBlock": false,
+        "feedId": 7474609
+      }
+    ]
+  }
+}
