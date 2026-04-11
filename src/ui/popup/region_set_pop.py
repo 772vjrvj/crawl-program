@@ -207,6 +207,9 @@ class RegionSetPop(QDialog):
                 (r["시도"], r["시군구"], r["읍면동"]) for r in self.selected_regions
             )
 
+            expand_sido_names: Set[str] = set()
+            expand_sigungu_keys: Set[Tuple[str, str]] = set()
+
             for item in self.loc_all:
                 sido = str(item.get("시도", "")).strip()
                 sigungu = str(item.get("시군구", "")).strip()
@@ -239,7 +242,25 @@ class RegionSetPop(QDialog):
 
                 dong_item.setCheckState(0, Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
 
+                if checked:
+                    expand_sido_names.add(sido)
+                    expand_sigungu_keys.add((sido, sigungu))
+
                 children[sigungu]["item"].addChild(dong_item)
+
+            # true 있는 시군구 / 시도 자동 펼침
+            for sido, data in region_dict.items():
+                sido_item = data["item"]
+                children = data["children"]
+
+                for sigungu, child_data in children.items():
+                    sigungu_item = child_data["item"]
+
+                    if (sido, sigungu) in expand_sigungu_keys:
+                        sigungu_item.setExpanded(True)
+
+                if sido in expand_sido_names:
+                    sido_item.setExpanded(True)
 
         finally:
             self.tree.blockSignals(False)
@@ -249,16 +270,23 @@ class RegionSetPop(QDialog):
         self.select_all_checkbox.blockSignals(True)
         try:
             total = self.tree.topLevelItemCount()
-            checked = sum(
-                1
-                for i in range(total)
-                if self.tree.topLevelItem(i) is not None
-                and self.tree.topLevelItem(i).checkState(0) == Qt.CheckState.Checked
-            )
+            checked_count = 0
+            partial_count = 0
 
-            if total > 0 and checked == total:
+            for i in range(total):
+                top_item = self.tree.topLevelItem(i)
+                if top_item is None:
+                    continue
+
+                state = top_item.checkState(0)
+                if state == Qt.CheckState.Checked:
+                    checked_count += 1
+                elif state == Qt.CheckState.PartiallyChecked:
+                    partial_count += 1
+
+            if total > 0 and checked_count == total:
                 self.select_all_checkbox.setCheckState(Qt.CheckState.Checked)
-            elif checked == 0:
+            elif checked_count == 0 and partial_count == 0:
                 self.select_all_checkbox.setCheckState(Qt.CheckState.Unchecked)
             else:
                 self.select_all_checkbox.setCheckState(Qt.CheckState.PartiallyChecked)

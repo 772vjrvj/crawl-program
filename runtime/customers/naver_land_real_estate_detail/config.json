@@ -78,6 +78,12 @@
       "code": "remove_duplicate_yn",
       "value": false,
       "type": "check"
+    },
+    {
+      "name": "링크(주소,매물번호)",
+      "code": "link_yn",
+      "value": true,
+      "type": "check"
     }
   ],
   "setting_detail_all_style": [
@@ -90,25 +96,25 @@
           "name": "매매",
           "code": "A1",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "전세",
           "code": "B1",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "월세",
           "code": "B2",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "단기임대",
           "code": "B3",
           "type": "checkbox",
-          "value": true
+          "value": false
         }
       ],
       "parent_id": "checkbox_multi_group",
@@ -123,7 +129,7 @@
           "name": "아파트",
           "code": "A01",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "재건축",
@@ -194,7 +200,7 @@
               "name": "상가",
               "code": "D02",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "토지",
@@ -206,7 +212,7 @@
               "name": "사무실",
               "code": "D01",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "건물",
@@ -224,7 +230,7 @@
               "name": "지식산업센터",
               "code": "E04",
               "type": "checkbox",
-              "value": true
+              "value": false
             }
           ]
         }
@@ -1023,7 +1029,7 @@
     {
       "code": "articleFeatureDescription",
       "value": "간략설명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "articleDescription",

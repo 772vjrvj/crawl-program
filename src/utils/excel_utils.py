@@ -1,10 +1,10 @@
 import pandas as pd
 import os
 from openpyxl import load_workbook, Workbook
-from openpyxl.utils import get_column_letter
 import csv
 import re
-
+from openpyxl.styles import PatternFill, Font
+from openpyxl.utils import get_column_letter
 
 class ExcelUtils:
     def __init__(self, log_func=None):
@@ -104,7 +104,70 @@ class ExcelUtils:
 
         return text
 
-    def convert_csv_to_excel_and_delete(self, csv_filename, sheet_name="Sheet1", folder_path=None, sub_dir=None, keep_csv=False):
+
+    def _apply_header_style_and_filter(self, ws):
+        max_col = ws.max_column
+        max_row = ws.max_row
+
+        if max_col <= 0 or max_row <= 0:
+            return
+
+        header_fill = PatternFill(fill_type="solid", fgColor="BFBFBF")
+        header_font = Font(color="FFFFFF", bold=True)
+
+        for cell in ws[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+
+        ws.auto_filter.ref = ws.dimensions
+        ws.freeze_panes = "A2"
+
+
+    def _apply_hyperlink_cells(self, ws):
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+            for cell in row:
+                if cell.value is None:
+                    continue
+
+                text = str(cell.value).strip()
+                if not text:
+                    continue
+
+                if text.startswith("=HYPERLINK("):
+                    cell.value = text
+                    cell.style = "Hyperlink"
+                    continue
+
+                if text.startswith("http://") or text.startswith("https://"):
+                    cell.hyperlink = text
+                    cell.style = "Hyperlink"
+
+
+    def _apply_column_widths(self, ws, column_widths=None, default_width=16):
+        width_map = {}
+
+        for item in column_widths or []:
+            col_name = str(item.get("컬럼", "")).strip()
+            width = item.get("너비", "")
+
+            if not col_name:
+                continue
+
+            try:
+                width_map[col_name] = float(width)
+            except Exception:
+                continue
+
+        for col_idx in range(1, ws.max_column + 1):
+            header_value = ws.cell(row=1, column=col_idx).value
+            header_text = str(header_value or "").strip()
+
+            width = width_map.get(header_text, default_width)
+            col_letter = get_column_letter(col_idx)
+            ws.column_dimensions[col_letter].width = width
+
+
+    def convert_csv_to_excel_and_delete(self, csv_filename, sheet_name="Sheet1", folder_path=None, sub_dir=None, keep_csv=False, column_widths=None, default_width=16):
         csv_filename = self.build_file_path(csv_filename, folder_path, sub_dir)
 
         if not os.path.exists(csv_filename):
@@ -113,7 +176,7 @@ class ExcelUtils:
             return False
 
         try:
-            df = pd.read_csv(csv_filename, encoding="utf-8-sig", dtype=str)
+            df = pd.read_csv(csv_filename, encoding="utf-8-sig", dtype=str, keep_default_na=False)
 
             if df.empty:
                 if self.log_func:
@@ -133,6 +196,9 @@ class ExcelUtils:
                     for cell in r:
                         if cell.value is not None:
                             cell.value = self._clean_excel_cell_value(cell.value)
+                self._apply_header_style_and_filter(ws)
+                self._apply_hyperlink_cells(ws)
+                self._apply_column_widths(ws, column_widths=column_widths, default_width=default_width)
 
             if not keep_csv:
                 os.remove(csv_filename)
