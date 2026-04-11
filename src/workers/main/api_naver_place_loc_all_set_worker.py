@@ -627,16 +627,19 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
             # 사이트 리스트
             urls: List[str] = []
-            homepages = place_detail_obj.get("shopWindow", {}).get("homepages", "")
+            shop_window = place_detail_obj.get("shopWindow") or {}
+            homepages = shop_window.get("homepages") or {}
             if homepages:
-                for item in homepages.get("etc", []):
-                    urls.append(item.get("url", ""))
+                for item in homepages.get("etc", []) or []:
+                    url = (item or {}).get("url", "")
+                    if url:
+                        urls.append(url)
 
-                repr_data = homepages.get("repr")
-                if repr_data:
-                    repr_url = repr_data.get("url", "")
-                    if repr_url:
-                        urls.append(repr_url)
+                repr_data = homepages.get("repr") or {}
+                repr_url = repr_data.get("url", "")
+                if repr_url:
+                    urls.append(repr_url)
+
 
             category_list = category.split(",") if category else ["", ""]
             main_category = category_list[0] if len(category_list) > 0 else ""
@@ -651,9 +654,11 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             img_origin = ""
             for key in place_detail_obj:
                 if key.startswith("images"):
-                    images = place_detail_obj.get(key, {}).get("images", [])
+                    image_obj = place_detail_obj.get(key) or {}
+                    images = image_obj.get("images", []) or []
                     if images:
-                        img_origin = images[0].get("origin", "")
+                        first_image = images[0] or {}
+                        img_origin = first_image.get("origin", "")
                     break
 
             # 소개
@@ -670,14 +675,16 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             keywordList = []
             for key in place_detail_obj:
                 if key.startswith("informationTab"):
-                    keywordList = place_detail_obj.get(key, {}).get("keywordList", [])
+                    info_tab = place_detail_obj.get(key) or {}
+                    keywordList = info_tab.get("keywordList", []) or []
                     break
 
             ## ========== 주차 [시작] ==========
             parking_info = {}
             for key in place_detail_obj:
                 if key.startswith("informationTab"):
-                    parking_info = place_detail_obj.get(key, {}).get("parkingInfo", {})
+                    info_tab = place_detail_obj.get(key) or {}
+                    parking_info = info_tab.get("parkingInfo", {}) or {}
                     break
 
             # 주차가능
@@ -716,6 +723,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             menu_lines = []
             for key, value in data.items():
                 if key.startswith("Menu:"):
+                    value = value or {}
                     menu_name = str(value.get("name", "")).strip()
                     price = str(value.get("price", "")).strip()
 
@@ -733,6 +741,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             seat_lines = []
             for key, value in data.items():
                 if key.startswith("RestaurantSeatItems:"):
+                    value = value or {}
                     seat_name = str(value.get("name", "")).strip()
                     description = str(value.get("description", "")).strip()
 
@@ -750,6 +759,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             facility_names = []
             for key, value in data.items():
                 if key.startswith("InformationFacilities:"):
+                    value = value or {}
                     facility_name = str(value.get("name", "")).strip()
                     if facility_name:
                         facility_names.append(facility_name)
@@ -779,7 +789,8 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 if key.startswith("VisitorReview"):
                     review = data.get(key, {}) or {}
 
-                    visitorReviewsScore = review.get("review", {}).get("avgRating", "")
+                    review_info = review.get("review", {}) or {}
+                    visitorReviewsScore = review_info.get("avgRating", "")
 
                     analysis = review.get("analysis", {}) or {}
                     votedKeyword = analysis.get("votedKeyword", {}) or {}
@@ -819,7 +830,8 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             # 블로그 리뷰수
             for key in place_detail_obj:
                 if "fsasReviews" in key:
-                    blogReviewTotal = place_detail_obj.get(key, {}).get("total", "")
+                    fsas_reviews = place_detail_obj.get(key) or {}
+                    blogReviewTotal = fsas_reviews.get("total", "")
                     break
 
             # 출력용으로 0이면 공백 처리하고 싶으면 마지막에만
