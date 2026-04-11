@@ -1,11 +1,6 @@
 키워드와 지역 선택해서 네이버 플레이스 정보를 엑셀로 추출해주는 프로그램
 
 
-
-
-
-
-
 pyinstaller .\main.py `
 --noconfirm `
 --clean `
