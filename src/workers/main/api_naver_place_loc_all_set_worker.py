@@ -1001,6 +1001,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
     # 영업시간 함수2
     def _format_new_business_hours(self, new_business_hours: List[Dict[str, Any]]) -> str:
         formatted_hours: List[str] = []
+
         try:
             if new_business_hours:
                 for item in new_business_hours:
@@ -1012,33 +1013,45 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
                     for info in item.get("businessHours", []) or []:
                         day = info.get("day", "") or ""
+                        info_description = info.get("description", "") or ""
+
                         business_hours = info.get("businessHours", {}) or {}
                         start_time = business_hours.get("start", "") or ""
                         end_time = business_hours.get("end", "") or ""
 
                         break_hours = info.get("breakHours", []) or []
-                        break_times = [
-                            f"{bh.get('start', '') or ''} - {bh.get('end', '') or ''}"
-                            for bh in break_hours
-                        ]
+                        break_times = []
+                        for bh in break_hours:
+                            bh_start = bh.get("start", "") or ""
+                            bh_end = bh.get("end", "") or ""
+                            if bh_start and bh_end:
+                                break_times.append(f"{bh_start} - {bh_end}")
                         break_times_str = ", ".join(break_times) + " 브레이크타임" if break_times else ""
 
                         last_order_times = info.get("lastOrderTimes", []) or []
-                        last_order_times_str = ", ".join(
-                            [f"{lo.get('time', '')}" for lo in last_order_times]
-                        ) + " 라스트오더" if last_order_times else ""
+                        last_order_list = []
+                        for lo in last_order_times:
+                            lo_time = lo.get("time", "") or ""
+                            if lo_time:
+                                last_order_list.append(lo_time)
+                        last_order_times_str = ", ".join(last_order_list) + " 라스트오더" if last_order_list else ""
 
                         if day:
                             formatted_hours.append(day)
+
                         if start_time and end_time:
                             formatted_hours.append(f"{start_time} - {end_time}")
+                        elif info_description:
+                            formatted_hours.append(info_description)
+
                         if break_times_str:
                             formatted_hours.append(break_times_str)
+
                         if last_order_times_str:
                             formatted_hours.append(last_order_times_str)
 
-        except Exception as e:
-            self.log_signal_func(f"영업시간 에러: {e}")
-            return ""
+            return "\n".join(formatted_hours).strip()
 
-        return "\n".join(formatted_hours).strip() if formatted_hours else ""
+        except Exception as e:
+            self._log(f"❌ 영업시간 포맷 실패: {e}")
+            return ""

@@ -10,7 +10,7 @@
     {
       "name": "1. 키워드(콤마(,)로 구분해주세요)",
       "code": "keyword",
-      "value": "자연산 해담일식 대게마을",
+      "value": "논현 맛집",
       "type": "input"
     },
     {
@@ -145,7 +145,6 @@
       "value": "주차",
       "checked": true
     },
-
     {
       "code": "keywordList",
       "value": "연관 키워드",
