@@ -212,10 +212,8 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 self.log_signal_func(f"목록: {result}")
                 page += 1
 
-            new_ids: List[str] = list(dict.fromkeys(result_ids))
-            results: List[Dict[str, Any]] = []
 
-            for idx, place_id in enumerate(new_ids, start=1):
+            for idx, place_id in enumerate(result_ids, start=1):
                 if not self.running:
                     self.log_signal_func("크롤링이 중지되었습니다.")
                     break
@@ -223,7 +221,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 if place_id in self.saved_ids:
                     self.log_signal_func(
                         f"전국: {locs_index} / {total_locs}, 키워드: {current_query_index} / {total_queries}, "
-                        f"검색어: {query}, 수집: {idx} / {len(new_ids)}, 중복 아이디: {place_id}"
+                        f"검색어: {query}, 수집: {idx} / {len(result_ids)}, 중복 아이디: {place_id}"
                     )
                     continue
 
@@ -236,19 +234,16 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
                 self.log_signal_func(
                     f"전국: {locs_index} / {total_locs}, 키워드: {current_query_index} / {total_queries}, "
-                    f"검색어: {query}, 수집: {idx} / {len(new_ids)}, 아이디: {place_id}, 이름: {place_info['이름']}"
+                    f"검색어: {query}, 수집: {idx} / {len(result_ids)}, 아이디: {place_id}, 이름: {place_info['이름']}"
                 )
-                results.append(place_info)
 
-            self.saved_ids.update(new_ids)
-
-            self.excel_driver.append_to_csv(
-                filename=self.csv_filename,
-                data_list=results,
-                columns=self.columns,
-                folder_path=self.folder_path,
-                sub_dir=self.out_dir
-            )
+                self.excel_driver.append_to_csv(
+                    filename=self.csv_filename,
+                    data_list=[place_info],
+                    columns=self.columns,
+                    folder_path=self.folder_path,
+                    sub_dir=self.out_dir
+                )
 
             self.current_cnt = locs_index * current_query_index * 300
             pro_value = (self.current_cnt / self.total_cnt) * 1000000 if self.total_cnt > 0 else 0
@@ -871,11 +866,11 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 "주차": parkingDesc,
                 "결제수단": ", ".join(paymentInfo) if paymentInfo else "",
                 "연관 키워드": ", ".join(keywordList) if keywordList else "",
-                "테마": themes,
+                "테마": ", ".join(themes) if themes else "",
                 "소개": main_description,
                 "가상번호": virtualPhone,
                 "전화번호": phone,
-                "사이트": urls,
+                "사이트": ", ".join(urls) if urls else "",
                 "주소지정보": road,
                 "시도(검색)": loc.get("시도", ""),
                 "시군구(검색)": loc.get("시군구", ""),
