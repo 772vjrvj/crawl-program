@@ -10,13 +10,13 @@
     {
       "name": "1. 키워드(콤마(,)로 구분해주세요)",
       "code": "keyword",
-      "value": "발레, 유도",
+      "value": "자연산 해담일식 대게마을",
       "type": "input"
     },
     {
       "name": "저장 폴더",
       "code": "folder_path",
-      "value": "",
+      "value": "E:\\git\\crawl-program",
       "type": "folder",
       "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
       "button_text": "폴더 선택",
@@ -56,18 +56,28 @@
       "checked": true
     },
     {
-      "code": "rating",
-      "value": "별점",
+      "code": "visitorReviewsScore",
+      "value": "방문자 리뷰 평점",
       "checked": true
     },
     {
-      "code": "review_visitors",
-      "value": "방문자리뷰수",
+      "code": "visitorReviewsTotal",
+      "value": "방문자 리뷰 수",
       "checked": true
     },
     {
-      "code": "review_blogs",
-      "value": "블로그리뷰수",
+      "code": "ratingReviewsTotal",
+      "value": "키워드·별점 리뷰",
+      "checked": true
+    },
+    {
+      "code": "blogReviewTotal",
+      "value": "블로그 리뷰 수",
+      "checked": true
+    },
+    {
+      "code": "votedKeywordReviewCount",
+      "value": "영수증 리뷰 수",
       "checked": true
     },
     {
@@ -91,6 +101,11 @@
       "checked": true
     },
     {
+      "code": "img_origin",
+      "value": "대표이미지URL",
+      "checked": true
+    },
+    {
       "code": "map",
       "value": "지도",
       "checked": true
@@ -98,6 +113,57 @@
     {
       "code": "amenities",
       "value": "편의시설",
+      "checked": true
+    },
+    {
+      "code": "themes",
+      "value": "테마",
+      "checked": true
+    },
+    {
+      "code": "menuText",
+      "value": "메뉴",
+      "checked": true
+    },
+    {
+      "code": "seatText",
+      "value": "좌석·공간",
+      "checked": true
+    },
+    {
+      "code": "parkingAvailable",
+      "value": "주차가능",
+      "checked": true
+    },
+    {
+      "code": "valetAvailable",
+      "value": "발렛가능",
+      "checked": true
+    },
+    {
+      "code": "parkingDesc",
+      "value": "주차",
+      "checked": true
+    },
+
+    {
+      "code": "keywordList",
+      "value": "연관 키워드",
+      "checked": true
+    },
+    {
+      "code": "microReviews",
+      "value": "AI요약",
+      "checked": true
+    },
+    {
+      "code": "description",
+      "value": "소개",
+      "checked": true
+    },
+    {
+      "code": "paymentInfo",
+      "value": "결제수단",
       "checked": true
     },
     {

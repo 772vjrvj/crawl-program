@@ -195,7 +195,10 @@ SALE (당일발송)     -> SALE (당일발송)
 	find /opt/bitnami/apache/htdocs/data/item/lucidshop/mensclothing -type d -exec chmod 2775 {} \;
 	find /opt/bitnami/apache/htdocs/data/item/lucidshop/mensclothing -type f -exec chmod 644 {} \;
 
-	
+   
+   sudo chown -R bitnami:daemon /opt/bitnami/apache/htdocs/data/item
+   sudo chmod -R 775 /opt/bitnami/apache/htdocs/data/item
+
 	
 
 	확인

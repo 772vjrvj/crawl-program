@@ -69,7 +69,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             self.log_signal_func("파일 드라이버가 초기화되지 않았습니다.")
             return False
 
-        self.csv_filename = self.get_csv_filename()
+        self.csv_filename = os.path.basename(self.file_driver.get_csv_filename(self.site_name))
 
         self.excel_driver.init_csv(
             filename=self.csv_filename,
@@ -79,195 +79,11 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         )
 
         if self.region:
-            self.loc_all_keyword_list()
+            self._loc_all_keyword_list()
         else:
-            self.only_keywords_keyword_list()
+            self._only_keywords_keyword_list()
 
         return True
-
-    def safe_filename(self, name: str) -> str:
-        name = re.sub(r'[\\/:*?"<>|]+', "_", str(name or "").strip())
-        return (name or "output")[:120]
-
-    def now_stamp(self) -> str:
-        return time.strftime("%Y%m%d_%H%M%S")
-
-    def get_csv_filename(self) -> str:
-        return f"{self.safe_filename(self.site_name)}_{self.now_stamp()}.csv"
-
-
-    # 전국 키워드 조회
-    def loc_all_keyword_list(self) -> None:
-        if not self.region or not self.keyword_list:
-            self.log_signal_func("지역 또는 키워드 정보가 없습니다.")
-            return
-
-        loc_all_len: int = len(self.region)
-        keyword_list_len: int = len(self.keyword_list)
-        self.total_cnt = loc_all_len * keyword_list_len * 300
-        self.total_pages = loc_all_len * keyword_list_len * 15
-
-        self.log_signal_func(f"예상 전체 수 {self.total_cnt} 개")
-        self.log_signal_func(f"예상 전체 페이지수 {self.total_pages} 개")
-
-        for index, loc in enumerate(self.region, start=1):
-            if not self.running:
-                self.log_signal_func("크롤링이 중지되었습니다.")
-                break
-
-            name = f'{loc["시도"]} {loc["시군구"]} {loc["읍면동"]} '
-
-            for idx, query_keyword in enumerate(self.keyword_list, start=1):
-                if not self.running:
-                    self.log_signal_func("크롤링이 중지되었습니다.")
-                    break
-
-                full_name = name + query_keyword
-                self.log_signal_func(
-                    f"전국: {index} / {loc_all_len}, 키워드: {idx} / {keyword_list_len}, 검색어: {full_name}"
-                )
-                self.loc_all_keyword_list_detail(
-                    full_name,
-                    keyword_list_len,
-                    idx,
-                    loc_all_len,
-                    index,
-                    loc,
-                    query_keyword
-                )
-
-    # 전국 상세
-    def loc_all_keyword_list_detail(
-            self,
-            query: str,
-            total_queries: int,
-            current_query_index: int,
-            total_locs: int,
-            locs_index: int,
-            loc: Dict[str, str],
-            query_keyword: str
-    ) -> None:
-        try:
-            page: int = 1
-            result_ids: List[str] = []
-
-            while True:
-                if not self.running:
-                    self.log_signal_func("크롤링이 중지되었습니다.")
-                    break
-
-                time.sleep(random.uniform(1, 2))
-
-                result = self.fetch_search_results(query, page)
-                if not result:
-                    break
-
-                result_ids.extend(result)
-                self.log_signal_func(
-                    f"전국: {locs_index} / {total_locs}, 키워드: {current_query_index} / {total_queries}, 검색어: {query}, 페이지: {page}"
-                )
-                self.log_signal_func(f"목록: {result}")
-                page += 1
-
-            new_ids: List[str] = list(dict.fromkeys(result_ids))
-            results: List[Dict[str, Any]] = []
-
-            for idx, place_id in enumerate(new_ids, start=1):
-                if not self.running:
-                    self.log_signal_func("크롤링이 중지되었습니다.")
-                    break
-
-                if place_id in self.saved_ids:
-                    self.log_signal_func(
-                        f"전국: {locs_index} / {total_locs}, 키워드: {current_query_index} / {total_queries}, "
-                        f"검색어: {query}, 수집: {idx} / {len(new_ids)}, 중복 아이디: {place_id}"
-                    )
-                    continue
-
-                time.sleep(random.uniform(2, 4))
-
-                place_info = self.fetch_place_info(place_id, loc, query_keyword, query)
-                if not place_info:
-                    self.log_signal_func(f"⚠️ ID {place_id}의 상세 정보를 가져오지 못했습니다.")
-                    continue
-
-                self.log_signal_func(
-                    f"전국: {locs_index} / {total_locs}, 키워드: {current_query_index} / {total_queries}, "
-                    f"검색어: {query}, 수집: {idx} / {len(new_ids)}, 아이디: {place_id}, 이름: {place_info['이름']}"
-                )
-                results.append(place_info)
-
-            self.saved_ids.update(new_ids)
-
-            self.excel_driver.append_to_csv(
-                filename=self.csv_filename,
-                data_list=results,
-                columns=self.columns,
-                folder_path=self.folder_path,
-                sub_dir=self.out_dir
-            )
-
-            self.current_cnt = locs_index * current_query_index * 300
-            pro_value = (self.current_cnt / self.total_cnt) * 1000000 if self.total_cnt > 0 else 0
-            self.progress_signal.emit(self.before_pro_value, pro_value)
-            self.before_pro_value = pro_value
-
-        except Exception as e:
-            self.log_signal_func(f"loc_all_keyword_list_detail 크롤링 에러: {e}")
-
-    # 키워드만 조회
-    def only_keywords_keyword_list(self) -> None:
-        result_list: List[Any] = []
-        all_ids_list = self.total_cnt_cal()
-
-        if not all_ids_list:
-            self.log_signal_func("수집할 ID가 없습니다.")
-            return
-
-        self.log_signal_func(f"전체 항목 수 {self.total_cnt} 개")
-        self.log_signal_func(f"전체 페이지 수 {self.total_pages} 개")
-
-        for index, place_id in enumerate(all_ids_list, start=1):
-            if not self.running:
-                self.log_signal_func("크롤링이 중지되었습니다.")
-                break
-
-            loc: Dict[str, str] = {
-                "시도": "",
-                "시군구": "",
-                "읍면동": "",
-            }
-
-            obj = self.fetch_place_info(place_id, loc, "", "")
-            if obj:
-                result_list.append(obj)
-
-            if index % 5 == 0:
-                self.excel_driver.append_to_csv(
-                    filename=self.csv_filename,
-                    data_list=result_list,
-                    columns=self.columns,
-                    folder_path=self.folder_path,
-                    sub_dir=self.out_dir
-                )
-
-            self.current_cnt = self.current_cnt + 1
-            pro_value = (self.current_cnt / self.total_cnt) * 1000000 if self.total_cnt > 0 else 0
-            self.progress_signal.emit(self.before_pro_value, pro_value)
-            self.before_pro_value = pro_value
-
-            self.log_signal_func(f"현재 페이지 {self.current_cnt}/{self.total_cnt} : {obj}")
-            time.sleep(random.uniform(1, 2))
-
-        if result_list:
-            self.excel_driver.append_to_csv(
-                filename=self.csv_filename,
-                data_list=result_list,
-                columns=self.columns,
-                folder_path=self.folder_path,
-                sub_dir=self.out_dir
-            )
-
 
     # 드라이버 세팅
     def driver_set(self) -> None:
@@ -332,8 +148,171 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
 
+    # 전국 키워드 조회
+    def _loc_all_keyword_list(self) -> None:
+        if not self.region or not self.keyword_list:
+            self.log_signal_func("지역 또는 키워드 정보가 없습니다.")
+            return
+
+        loc_all_len: int = len(self.region)
+        keyword_list_len: int = len(self.keyword_list)
+        self.total_cnt = loc_all_len * keyword_list_len * 300
+        self.total_pages = loc_all_len * keyword_list_len * 15
+
+        self.log_signal_func(f"예상 전체 수 {self.total_cnt} 개")
+        self.log_signal_func(f"예상 전체 페이지수 {self.total_pages} 개")
+
+        for index, loc in enumerate(self.region, start=1):
+            if not self.running:
+                self.log_signal_func("크롤링이 중지되었습니다.")
+                break
+
+            name = f'{loc["시도"]} {loc["시군구"]} {loc["읍면동"]} '
+
+            for idx, query_keyword in enumerate(self.keyword_list, start=1):
+                if not self.running:
+                    self.log_signal_func("크롤링이 중지되었습니다.")
+                    break
+
+                full_name = name + query_keyword
+                self.log_signal_func(
+                    f"전국: {index} / {loc_all_len}, 키워드: {idx} / {keyword_list_len}, 검색어: {full_name}"
+                )
+                self._loc_all_keyword_list_detail(
+                    full_name,
+                    keyword_list_len,
+                    idx,
+                    loc_all_len,
+                    index,
+                    loc,
+                    query_keyword
+                )
+
+    # 전국 상세
+    def _loc_all_keyword_list_detail(self, query: str, total_queries: int, current_query_index: int, total_locs: int, locs_index: int, loc: Dict[str, str], query_keyword: str) -> None:
+        try:
+            page: int = 1
+            result_ids: List[str] = []
+
+            while True:
+                if not self.running:
+                    self.log_signal_func("크롤링이 중지되었습니다.")
+                    break
+
+                time.sleep(random.uniform(1, 2))
+
+                result = self._fetch_search_results(query, page)
+                if not result:
+                    break
+
+                result_ids.extend(result)
+                self.log_signal_func(
+                    f"전국: {locs_index} / {total_locs}, 키워드: {current_query_index} / {total_queries}, 검색어: {query}, 페이지: {page}"
+                )
+                self.log_signal_func(f"목록: {result}")
+                page += 1
+
+            new_ids: List[str] = list(dict.fromkeys(result_ids))
+            results: List[Dict[str, Any]] = []
+
+            for idx, place_id in enumerate(new_ids, start=1):
+                if not self.running:
+                    self.log_signal_func("크롤링이 중지되었습니다.")
+                    break
+
+                if place_id in self.saved_ids:
+                    self.log_signal_func(
+                        f"전국: {locs_index} / {total_locs}, 키워드: {current_query_index} / {total_queries}, "
+                        f"검색어: {query}, 수집: {idx} / {len(new_ids)}, 중복 아이디: {place_id}"
+                    )
+                    continue
+
+                time.sleep(random.uniform(2, 4))
+
+                place_info = self._fetch_place_info(place_id, loc, query_keyword, query)
+                if not place_info:
+                    self.log_signal_func(f"⚠️ ID {place_id}의 상세 정보를 가져오지 못했습니다.")
+                    continue
+
+                self.log_signal_func(
+                    f"전국: {locs_index} / {total_locs}, 키워드: {current_query_index} / {total_queries}, "
+                    f"검색어: {query}, 수집: {idx} / {len(new_ids)}, 아이디: {place_id}, 이름: {place_info['이름']}"
+                )
+                results.append(place_info)
+
+            self.saved_ids.update(new_ids)
+
+            self.excel_driver.append_to_csv(
+                filename=self.csv_filename,
+                data_list=results,
+                columns=self.columns,
+                folder_path=self.folder_path,
+                sub_dir=self.out_dir
+            )
+
+            self.current_cnt = locs_index * current_query_index * 300
+            pro_value = (self.current_cnt / self.total_cnt) * 1000000 if self.total_cnt > 0 else 0
+            self.progress_signal.emit(self.before_pro_value, pro_value)
+            self.before_pro_value = pro_value
+
+        except Exception as e:
+            self.log_signal_func(f"loc_all_keyword_list_detail 크롤링 에러: {e}")
+
+    # 키워드만 조회
+    def _only_keywords_keyword_list(self) -> None:
+        result_list: List[Any] = []
+        all_ids_list = self._total_cnt_cal()
+
+        if not all_ids_list:
+            self.log_signal_func("수집할 ID가 없습니다.")
+            return
+
+        self.log_signal_func(f"전체 항목 수 {self.total_cnt} 개")
+        self.log_signal_func(f"전체 페이지 수 {self.total_pages} 개")
+
+        for index, place_id in enumerate(all_ids_list, start=1):
+            if not self.running:
+                self.log_signal_func("크롤링이 중지되었습니다.")
+                break
+
+            loc: Dict[str, str] = {
+                "시도": "",
+                "시군구": "",
+                "읍면동": "",
+            }
+
+            obj = self._fetch_place_info(place_id, loc, "", "")
+            if obj:
+                result_list.append(obj)
+
+            if index % 5 == 0:
+                self.excel_driver.append_to_csv(
+                    filename=self.csv_filename,
+                    data_list=result_list,
+                    columns=self.columns,
+                    folder_path=self.folder_path,
+                    sub_dir=self.out_dir
+                )
+
+            self.current_cnt = self.current_cnt + 1
+            pro_value = (self.current_cnt / self.total_cnt) * 1000000 if self.total_cnt > 0 else 0
+            self.progress_signal.emit(self.before_pro_value, pro_value)
+            self.before_pro_value = pro_value
+
+            self.log_signal_func(f"현재 페이지 {self.current_cnt}/{self.total_cnt} : {obj}")
+            time.sleep(random.uniform(1, 2))
+
+        if result_list:
+            self.excel_driver.append_to_csv(
+                filename=self.csv_filename,
+                data_list=result_list,
+                columns=self.columns,
+                folder_path=self.folder_path,
+                sub_dir=self.out_dir
+            )
+
     # 전체 갯수 조회
-    def total_cnt_cal(self) -> Optional[List[str]]:
+    def _total_cnt_cal(self) -> Optional[List[str]]:
         try:
             if not self.keyword_list:
                 self.log_signal_func("키워드 정보가 없습니다.")
@@ -356,7 +335,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                     time.sleep(random.uniform(1, 2))
                     self.log_signal_func(f"전체 {index}/{len(self.keyword_list)}, keyword: {keyword}, page: {page}")
 
-                    result = self.fetch_search_results(keyword, page)
+                    result = self._fetch_search_results(keyword, page)
                     if not result:
                         break
 
@@ -375,7 +354,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             return None
 
     # 플레이스 목록
-    def fetch_search_results(self, keyword: str, page: int) -> List[str]:
+    def _fetch_search_results(self, keyword: str, page: int) -> List[str]:
         url = "https://pcmap-api.place.naver.com/graphql"
 
         headers: Dict[str, str] = {
@@ -433,14 +412,6 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             self.log_signal_func(f"[에러] fetch_search_results 실패: {e}")
             return []
 
-    # 숫자 체크
-    def clean_number(self, value: Any) -> Any:
-        try:
-            num = float(value)
-            return "" if num == 0 else num
-        except (ValueError, TypeError):
-            return ""
-
     # placeDetail ROOT_QUERY key 유연하게 찾기
     def _find_place_detail_key(self, root_query: Dict[str, Any], place_id: str) -> str:
         if not isinstance(root_query, dict):
@@ -483,7 +454,8 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
         return ""
 
-    def fetch_booking_agency_info(self, booking_business_id: str) -> Dict[str, str]:
+    # 대행사 정보
+    def _fetch_booking_agency_info(self, booking_business_id: str) -> Dict[str, str]:
         try:
             if not booking_business_id:
                 return {}
@@ -550,13 +522,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             return {}
 
     # 상세조회
-    def fetch_place_info(
-            self,
-            place_id: str,
-            loc: Dict[str, str],
-            query_keyword: str,
-            query: str
-    ) -> Optional[Dict[str, Any]]:
+    def _fetch_place_info(self, place_id: str, loc: Dict[str, str], query_keyword: str, query: str) -> Optional[Dict[str, Any]]:
         try:
             if self.api_client is None:
                 self.log_signal_func("[에러] api_client 가 초기화되지 않았습니다.")
@@ -623,23 +589,19 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 return None
 
             base = data.get(f"PlaceDetailBase:{place_id}", {})
-            name = base.get("name", "")
+            main_name = base.get("name", "")
             road = base.get("road", "")
             address = base.get("address", "")
             roadAddress = base.get("roadAddress", "")
             category = base.get("category", "")
-            conveniences = base.get("conveniences", [])
+
+            # AI요약
+            microReviews = base.get("microReviews", [])
+
+            # 결제수단
+            paymentInfo = base.get("paymentInfo", [])
             phone = base.get("phone", "")
             virtualPhone = base.get("virtualPhone", "")
-
-            review_stats = data.get(f"VisitorReviewStatsResult:{place_id}", {})
-            review = review_stats.get("review", {}) or {}
-            analysis = review_stats.get("analysis", {}) or {}
-
-            visitorReviewsScore = self.clean_number(review.get("avgRating", ""))
-            visitorReviewsTotal = self.clean_number(review.get("totalCount", ""))
-            voted_keyword = analysis.get("votedKeyword") or {}
-            fsasReviewsTotal = self.clean_number(voted_keyword.get("userCount", ""))
 
             root_query = data.get("ROOT_QUERY", {})
             place_detail_key = self._find_place_detail_key(root_query, place_id)
@@ -649,21 +611,21 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
             place_detail_obj = root_query.get(place_detail_key, {}) or {}
 
-            business_hours = place_detail_obj.get(
-                'businessHours({"source":["tpirates","shopWindow"]})', []
-            )
-            if not business_hours:
-                business_hours = place_detail_obj.get(
-                    'businessHours({"source":["tpirates","jto","shopWindow"]})', []
-                )
 
-            new_business_hours_json = place_detail_obj.get("newBusinessHours", [])
-            if not new_business_hours_json:
-                new_business_hours_json = place_detail_obj.get(
-                    'newBusinessHours({"format":"restaurant"})',
-                    []
-                )
+            # 영업시간
+            business_hours = []
+            new_business_hours_json = []
+            for key in place_detail_obj:
+                if not business_hours and key.startswith("businessHours"):
+                    business_hours = place_detail_obj.get(key, [])
 
+                if not new_business_hours_json and key.startswith("newBusinessHours"):
+                    new_business_hours_json = place_detail_obj.get(key, [])
+
+                if business_hours and new_business_hours_json:
+                    break
+
+            # 사이트 리스트
             urls: List[str] = []
             homepages = place_detail_obj.get("shopWindow", {}).get("homepages", "")
             if homepages:
@@ -682,25 +644,223 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
             zipCode = ""
             if self.columns and "우편번호" in self.columns:
-                zipCode = self.fetch_zipcode_by_addr(address, roadAddress)
+                zipCode = self._fetch_zipcode_by_addr(address, roadAddress)
+            
+            # 대표 이미지
+            images = []
+            img_origin = ""
+            for key in place_detail_obj:
+                if key.startswith("images"):
+                    images = place_detail_obj.get(key, {}).get("images", [])
+                    if images:
+                        img_origin = images[0].get("origin", "")
+                    break
+
+            # 소개
+            main_description = ""
+            for key in place_detail_obj:
+                if key.startswith("description"):
+                    main_description = place_detail_obj.get(key) or ""
+                    break
+
+            # 테마
+            themes = place_detail_obj.get("themes") or ""
+
+            # 연관 키워드
+            keywordList = []
+            for key in place_detail_obj:
+                if key.startswith("informationTab"):
+                    keywordList = place_detail_obj.get(key, {}).get("keywordList", [])
+                    break
+
+            ## ========== 주차 [시작] ==========
+            parking_info = {}
+            for key in place_detail_obj:
+                if key.startswith("informationTab"):
+                    parking_info = place_detail_obj.get(key, {}).get("parkingInfo", {})
+                    break
+
+            # 주차가능
+            basic_parking = parking_info.get("basicParking", {})
+            parkingAvailable = ""
+
+            if basic_parking:
+                parking_pay = "무료" if basic_parking.get("isFree") else "유료"
+                parking_fee = str(basic_parking.get("normalFeeDescription", "") or "").strip()
+
+                if parking_fee:
+                    parkingAvailable = f"{parking_pay} : {parking_fee}"
+                else:
+                    parkingAvailable = parking_pay
+
+            # 발렛가능
+            valet_parking = parking_info.get("valetParking", {})
+            valetAvailable = ""
+
+            if valet_parking:
+                valet_pay = "무료" if valet_parking.get("isFree") else "유료"
+                valet_fee = str(valet_parking.get("valetFeeDescription", "") or "").strip()
+
+                if valet_fee:
+                    valetAvailable = f"{valet_pay} : {valet_fee}"
+                else:
+                    valetAvailable = valet_pay
+
+            # 주차
+            parkingDesc = parking_info.get("description", "")
+
+            ## ========== 주차 [끝] ==========
+
+            # 메뉴
+            menuText = ""
+            menu_lines = []
+            for key, value in data.items():
+                if key.startswith("Menu:"):
+                    menu_name = str(value.get("name", "")).strip()
+                    price = str(value.get("price", "")).strip()
+
+                    if price.isdigit():
+                        price = format(int(price), ",")
+
+                    if menu_name:
+                        line = f"메뉴명 : {menu_name}, 가격 : {price}"
+                        menu_lines.append(line)
+            menuText = "\n".join(menu_lines)
+
+
+            # 좌석·공간
+            seatText = ""
+            seat_lines = []
+            for key, value in data.items():
+                if key.startswith("RestaurantSeatItems:"):
+                    seat_name = str(value.get("name", "")).strip()
+                    description = str(value.get("description", "")).strip()
+
+                    if seat_name:
+                        if description:
+                            seat_lines.append(f"{seat_name} : {description}")
+                        else:
+                            seat_lines.append(seat_name)
+
+            seatText = "\n".join(seat_lines)
+
+
+            # 편의시설 및 서비스
+            conveniences = ""
+            facility_names = []
+            for key, value in data.items():
+                if key.startswith("InformationFacilities:"):
+                    facility_name = str(value.get("name", "")).strip()
+                    if facility_name:
+                        facility_names.append(facility_name)
+            conveniences = ", ".join(facility_names)
+            if not conveniences:
+                conveniences = base.get("conveniences", [])
+
+
+            # ========== 리뷰 평점[시작] ==========
+
+            # 방문자 리뷰 평점
+            visitorReviewsScore = ""
+
+            # 방문자 리뷰 수
+            visitorReviewsTotal = ""
+
+            # 영수증 리뷰 수
+            votedKeywordReviewCount = ""
+
+            # 키워드·별점 리뷰
+            ratingReviewsTotal = ""
+
+            # 블로그 리뷰수
+            blogReviewTotal = ""
+
+            for key in data:
+                if key.startswith("VisitorReview"):
+                    review = data.get(key, {}) or {}
+
+                    visitorReviewsScore = review.get("review", {}).get("avgRating", "")
+
+                    analysis = review.get("analysis", {}) or {}
+                    votedKeyword = analysis.get("votedKeyword", {}) or {}
+                    votedKeywordReviewCount = votedKeyword.get("reviewCount", "")
+
+                    rating_total = int(review.get("ratingReviewsTotal", 0) or 0)
+                    visitor_total = int(review.get("visitorReviewsTotal", 0) or 0)
+
+                    ratingReviewsTotal = rating_total
+                    visitorReviewsTotal = visitor_total - rating_total
+                    break
+
+            # 없는 경우 대비
+            review_stats = data.get(f"VisitorReviewStatsResult:{place_id}", {}) or {}
+            review = review_stats.get("review", {}) or {}
+            analysis = review_stats.get("analysis", {}) or {}
+            voted_keyword = analysis.get("votedKeyword", {}) or {}
+
+            # 방문자 리뷰 평점
+            if not visitorReviewsScore:
+                visitorReviewsScore = review.get("avgRating", "")
+
+            # 방문자 리뷰 수
+            if visitorReviewsTotal == "":
+                visitor_total = int(review_stats.get("visitorReviewsTotal", 0) or 0)
+                rating_total = int(ratingReviewsTotal or 0)
+                visitorReviewsTotal = visitor_total - rating_total
+
+            # 키워드·별점 리뷰
+            if not ratingReviewsTotal:
+                ratingReviewsTotal = int(review_stats.get("ratingReviewsTotal", 0) or 0)
+
+            # 영수증 리뷰 수
+            if not votedKeywordReviewCount:
+                votedKeywordReviewCount = voted_keyword.get("reviewCount", "")
+
+            # 블로그 리뷰수
+            for key in place_detail_obj:
+                if "fsasReviews" in key:
+                    blogReviewTotal = place_detail_obj.get(key, {}).get("total", "")
+                    break
+
+            # 출력용으로 0이면 공백 처리하고 싶으면 마지막에만
+            if visitorReviewsTotal == 0:
+                visitorReviewsTotal = ""
+
+            if ratingReviewsTotal == 0:
+                ratingReviewsTotal = ""
+
+            # ========== 리뷰 평점[끝] ==========
 
             result: Dict[str, Any] = {
                 "아이디": place_id,
-                "이름": name,
+                "이름": main_name,
                 "주소(지번)": address,
                 "주소(도로명)": roadAddress,
                 "우편번호": zipCode,
                 "대분류": main_category,
                 "소분류": sub_category,
-                "별점": visitorReviewsScore,
-                "방문자리뷰수": visitorReviewsTotal,
-                "블로그리뷰수": fsasReviewsTotal,
-                "이용시간1": self.format_new_business_hours(new_business_hours_json),
-                "이용시간2": self.format_business_hours(business_hours),
+                "방문자 리뷰 평점": visitorReviewsScore,
+                "방문자 리뷰 수": visitorReviewsTotal,
+                "키워드·별점 리뷰": ratingReviewsTotal,
+                "블로그 리뷰 수": blogReviewTotal,
+                "영수증 리뷰 수": votedKeywordReviewCount,
+                "이용시간1": self._format_new_business_hours(new_business_hours_json),
+                "이용시간2": self._format_business_hours(business_hours),
                 "카테고리": category,
                 "URL": f"https://m.place.naver.com/place/{place_id}/home",
                 "지도": f"https://map.naver.com/p/entry/place/{place_id}",
-                "편의시설": ", ".join(conveniences) if conveniences else "",
+                "대표이미지URL": img_origin,
+                "AI요약": ", ".join(microReviews) if microReviews else "",
+                "편의시설 및 서비스": conveniences,
+                "좌석·공간": seatText,
+                "메뉴": menuText,
+                "주차가능": parkingAvailable,
+                "발렛가능": valetAvailable,
+                "주차": parkingDesc,
+                "결제수단": ", ".join(paymentInfo) if paymentInfo else "",
+                "연관 키워드": ", ".join(keywordList) if keywordList else "",
+                "테마": themes,
+                "소개": main_description,
                 "가상번호": virtualPhone,
                 "전화번호": phone,
                 "사이트": urls,
@@ -728,7 +888,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 booking_business_id = self._extract_booking_business_id(place_detail_obj)
                 if booking_business_id:
                     time.sleep(random.uniform(2, 4))
-                    agency_info = self.fetch_booking_agency_info(booking_business_id)
+                    agency_info = self._fetch_booking_agency_info(booking_business_id)
 
                     if isinstance(agency_info, dict):
                         for col in AGENCY_COLS:
@@ -744,7 +904,8 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
         return None
 
-    def fetch_zipcode_by_addr(self, addr_jibun: str, addr_road: str) -> str:
+    # 우편번호
+    def _fetch_zipcode_by_addr(self, addr_jibun: str, addr_road: str) -> str:
         """
         1) 지번 주소로 조회
         2) 실패 시 도로명 주소로 조회
@@ -821,7 +982,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             return ""
 
     # 영업시간 함수1
-    def format_business_hours(self, business_hours: List[Dict[str, Any]]) -> str:
+    def _format_business_hours(self, business_hours: List[Dict[str, Any]]) -> str:
         formatted_hours: List[str] = []
         try:
             if business_hours:
@@ -838,17 +999,14 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         return "\n".join(formatted_hours).strip() if formatted_hours else ""
 
     # 영업시간 함수2
-    def format_new_business_hours(self, new_business_hours: List[Dict[str, Any]]) -> str:
+    def _format_new_business_hours(self, new_business_hours: List[Dict[str, Any]]) -> str:
         formatted_hours: List[str] = []
         try:
             if new_business_hours:
                 for item in new_business_hours:
                     status_description = item.get("businessStatusDescription", {}) or {}
-                    status = status_description.get("status", "") or ""
                     description = status_description.get("description", "") or ""
 
-                    if status:
-                        formatted_hours.append(status)
                     if description:
                         formatted_hours.append(description)
 
@@ -867,7 +1025,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
                         last_order_times = info.get("lastOrderTimes", []) or []
                         last_order_times_str = ", ".join(
-                            [f"{lo.get('type', '')}: {lo.get('time', '')}" for lo in last_order_times]
+                            [f"{lo.get('time', '')}" for lo in last_order_times]
                         ) + " 라스트오더" if last_order_times else ""
 
                         if day:

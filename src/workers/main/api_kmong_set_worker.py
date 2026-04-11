@@ -66,6 +66,38 @@ class ApiKmongSetWorker(BaseApiWorker):
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
         self.log_signal_func("✅ driver_set 완료")
 
+    def cleanup(self):
+        try:
+            if self.csv_filename and self.excel_driver:
+                self.log_signal_func(f"🧾 CSV -> 엑셀 변환 시작: {self.csv_filename}")
+                self.excel_driver.convert_csv_to_excel_and_delete(
+                    self.csv_filename,
+                    folder_path=self.folder_path,
+                    sub_dir=self.out_dir
+                )
+                self.log_signal_func("✅ 엑셀 변환 완료")
+                self.csv_filename = None
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
+
+        try:
+            if self.file_driver:
+                self.file_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
+        finally:
+            self.file_driver = None
+
+        try:
+            if self.excel_driver:
+                self.excel_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
+        finally:
+            self.excel_driver = None
+
+        self.api_client = None
+
     def main(self):
         try:
             self.log_signal_func("크롤링 시작합니다.")
@@ -381,35 +413,3 @@ class ApiKmongSetWorker(BaseApiWorker):
         out_dir = os.path.join(parent_dir, dir_name)
         os.makedirs(out_dir, exist_ok=True)
         return out_dir
-
-    def cleanup(self):
-        try:
-            if self.csv_filename and self.excel_driver:
-                self.log_signal_func(f"🧾 CSV -> 엑셀 변환 시작: {self.csv_filename}")
-                self.excel_driver.convert_csv_to_excel_and_delete(
-                    self.csv_filename,
-                    folder_path=self.folder_path,
-                    sub_dir=self.out_dir
-                )
-                self.log_signal_func("✅ 엑셀 변환 완료")
-                self.csv_filename = None
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
-
-        try:
-            if self.file_driver:
-                self.file_driver.close()
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
-        finally:
-            self.file_driver = None
-
-        try:
-            if self.excel_driver:
-                self.excel_driver.close()
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
-        finally:
-            self.excel_driver = None
-
-        self.api_client = None

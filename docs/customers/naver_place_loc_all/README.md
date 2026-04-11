@@ -3,6 +3,9 @@
 
 
 
+
+
+
 pyinstaller .\main.py `
 --noconfirm `
 --clean `
