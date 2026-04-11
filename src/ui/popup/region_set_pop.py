@@ -1,9 +1,11 @@
 # src/ui/popup/region_set_pop.py
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple, TypedDict, cast
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal, Slot, QThread
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -20,10 +22,34 @@ from src.ui.style.style import create_common_button
 from src.utils.file_utils import FileUtils
 
 
-class _Region(TypedDict):
+class _Region(TypedDict, total=False):
     시도: str
     시군구: str
     읍면동: str
+    value: bool
+
+
+class RegionCacheSaveThread(QThread):
+    finished_signal: Signal = Signal(str)
+    error_signal: Signal = Signal(str)
+
+    def __init__(self, save_list: List[Dict[str, Any]], save_path: str) -> None:
+        super().__init__()
+        self.save_list = save_list
+        self.save_path = save_path
+
+    def run(self) -> None:
+        try:
+            with open(self.save_path, "w", encoding="utf-8") as f:
+                json.dump(
+                    self.save_list,
+                    f,
+                    ensure_ascii=False,
+                    separators=(",", ":")
+                )
+            self.finished_signal.emit(self.save_path)
+        except Exception as e:
+            self.error_signal.emit(str(e))
 
 
 class RegionSetPop(QDialog):
@@ -40,6 +66,7 @@ class RegionSetPop(QDialog):
         self.setStyleSheet("background-color: white; color: #111;")
 
         self.selected_regions: List[_Region] = selected_regions or []
+        self._save_thread: Optional[RegionCacheSaveThread] = None
 
         self.tree = QTreeWidget(self)
         self.tree.setHeaderHidden(True)
@@ -52,19 +79,14 @@ class RegionSetPop(QDialog):
         self.select_all_checkbox.setStyleSheet(self.checkbox_style())
         self.select_all_checkbox.stateChanged.connect(self.on_select_all_changed)
 
-        # 기존 코드의 _is_select_all_action은 실제 로직에서 크게 쓰이지 않아 제거 가능하지만,
-        # 현재 흐름 보존을 위해 플래그는 남기고 사용은 최소화
         self._is_select_all_action: bool = False
 
-        # FileUtils: logger로 signal emit 넘기는 패턴 유지
         self.file_driver = FileUtils(self.log_signal.emit)
 
-        loc_any: Any = self.file_driver.read_json_array_from_resources(
-            "naver_loc_all_real.json",
-            "customers/naver_place_loc_all"
-        )
+        self.json_name = "naver_loc_all_real.json"
+        self.resource_sub_dir = "customers/naver_place_loc_all"
 
-        self.loc_all: List[_Region] = cast(List[_Region], loc_any or [])
+        self.loc_all: List[_Region] = self.load_region_data()
 
         self.init_ui()
 
@@ -83,7 +105,6 @@ class RegionSetPop(QDialog):
 
         self.populate_tree()
 
-        # tree itemChanged는 populate 이후 연결(초기 setCheckState 이벤트 잡음 최소화)
         self.tree.itemChanged.connect(self.on_item_changed)
 
         btn_layout = QHBoxLayout()
@@ -96,6 +117,82 @@ class RegionSetPop(QDialog):
         btn_layout.addStretch()
         btn_layout.addWidget(confirm_btn)
         layout.addLayout(btn_layout)
+
+    # =========================
+    # json load/save
+    # =========================
+    def get_json_file_path(self) -> Path:
+        base_dir = Path(__file__).resolve().parents[3]
+        return base_dir / "resources" / self.resource_sub_dir / self.json_name
+
+    def load_region_data(self) -> List[_Region]:
+        loc_any: Any = self.file_driver.read_json_array_from_resources(
+            self.json_name,
+            self.resource_sub_dir
+        )
+        loc_all: List[_Region] = cast(List[_Region], loc_any or [])
+
+        for item in loc_all:
+            if "value" not in item:
+                item["value"] = False
+
+        return loc_all
+
+    def build_region_cache_data(self) -> List[Dict[str, Any]]:
+        selected_set: Set[Tuple[str, str, str]] = set()
+
+        for i in range(self.tree.topLevelItemCount()):
+            sido_item = self.tree.topLevelItem(i)
+            if sido_item is None:
+                continue
+
+            for j in range(sido_item.childCount()):
+                sigungu_item = sido_item.child(j)
+
+                for k in range(sigungu_item.childCount()):
+                    dong_item = sigungu_item.child(k)
+                    if dong_item.checkState(0) == Qt.CheckState.Checked:
+                        selected_set.add(
+                            (sido_item.text(0), sigungu_item.text(0), dong_item.text(0))
+                        )
+
+        save_list: List[Dict[str, Any]] = []
+        for item in self.loc_all:
+            sido = str(item.get("시도", "")).strip()
+            sigungu = str(item.get("시군구", "")).strip()
+            dong = str(item.get("읍면동", "")).strip()
+
+            save_list.append({
+                "시도": sido,
+                "시군구": sigungu,
+                "읍면동": dong,
+                "value": (sido, sigungu, dong) in selected_set
+            })
+
+        return save_list
+
+    def save_region_cache_async(self) -> None:
+        try:
+            save_path = self.get_json_file_path()
+            save_list = self.build_region_cache_data()
+
+            self._save_thread = RegionCacheSaveThread(save_list, str(save_path))
+            self._save_thread.finished_signal.connect(self.on_cache_save_finished)
+            self._save_thread.error_signal.connect(self.on_cache_save_error)
+            self._save_thread.start()
+
+        except Exception as e:
+            self.log_signal.emit(f"지역 JSON 저장 시작 실패: {e}")
+
+    @Slot(str)
+    def on_cache_save_finished(self, save_path: str) -> None:
+        self.log_signal.emit(f"지역 JSON 저장 완료: {save_path}")
+        self._save_thread = None
+
+    @Slot(str)
+    def on_cache_save_error(self, error_msg: str) -> None:
+        self.log_signal.emit(f"지역 JSON 저장 실패: {error_msg}")
+        self._save_thread = None
 
     # =========================
     # tree build
@@ -111,9 +208,9 @@ class RegionSetPop(QDialog):
             )
 
             for item in self.loc_all:
-                sido = item["시도"]
-                sigungu = item["시군구"]
-                dong = item["읍면동"]
+                sido = str(item.get("시도", "")).strip()
+                sigungu = str(item.get("시군구", "")).strip()
+                dong = str(item.get("읍면동", "")).strip()
 
                 if sido not in region_dict:
                     sido_item = QTreeWidgetItem([sido])
@@ -136,7 +233,10 @@ class RegionSetPop(QDialog):
                 dong_item.setFlags(dong_item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
                 dong_item.setData(0, Qt.ItemDataRole.UserRole, "eupmyeondong")
 
-                checked = (sido, sigungu, dong) in selected_set
+                checked = bool(item.get("value", False))
+                if not checked and (sido, sigungu, dong) in selected_set:
+                    checked = True
+
                 dong_item.setCheckState(0, Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
 
                 children[sigungu]["item"].addChild(dong_item)
@@ -146,10 +246,24 @@ class RegionSetPop(QDialog):
 
         self.update_all_check_states()
 
-        # ✅ 전체 선택 체크박스는 기본 해제
         self.select_all_checkbox.blockSignals(True)
-        self.select_all_checkbox.setCheckState(Qt.CheckState.Unchecked)
-        self.select_all_checkbox.blockSignals(False)
+        try:
+            total = self.tree.topLevelItemCount()
+            checked = sum(
+                1
+                for i in range(total)
+                if self.tree.topLevelItem(i) is not None
+                and self.tree.topLevelItem(i).checkState(0) == Qt.CheckState.Checked
+            )
+
+            if total > 0 and checked == total:
+                self.select_all_checkbox.setCheckState(Qt.CheckState.Checked)
+            elif checked == 0:
+                self.select_all_checkbox.setCheckState(Qt.CheckState.Unchecked)
+            else:
+                self.select_all_checkbox.setCheckState(Qt.CheckState.PartiallyChecked)
+        finally:
+            self.select_all_checkbox.blockSignals(False)
 
     # =========================
     # events
@@ -189,7 +303,6 @@ class RegionSetPop(QDialog):
 
     @Slot(int)
     def on_select_all_changed(self, state: int) -> None:
-        # PartiallyChecked 클릭 → Checked로 취급
         check_state = Qt.CheckState(state)
         if check_state == Qt.CheckState.PartiallyChecked:
             check_state = Qt.CheckState.Checked
@@ -206,7 +319,6 @@ class RegionSetPop(QDialog):
             self.tree.blockSignals(False)
             self._is_select_all_action = False
 
-        # select_all 자체도 동기화
         self.select_all_checkbox.blockSignals(True)
         self.select_all_checkbox.setCheckState(check_state)
         self.select_all_checkbox.blockSignals(False)
@@ -224,7 +336,6 @@ class RegionSetPop(QDialog):
         self.update_all_checkbox_state()
 
     def update_check_state_recursive(self, item: QTreeWidgetItem) -> None:
-        # leaf면 패스
         for i in range(item.childCount()):
             self.update_check_state_recursive(item.child(i))
 
@@ -286,12 +397,16 @@ class RegionSetPop(QDialog):
                 for k in range(sigungu_item.childCount()):
                     dong_item = sigungu_item.child(k)
                     if dong_item.checkState(0) == Qt.CheckState.Checked:
-                        selected.append(
-                            {"시도": sido_item.text(0), "시군구": sigungu_item.text(0), "읍면동": dong_item.text(0)}
-                        )
+                        selected.append({
+                            "시도": sido_item.text(0),
+                            "시군구": sigungu_item.text(0),
+                            "읍면동": dong_item.text(0),
+                        })
 
         self.log_signal.emit(f"선택된 지역 {len(selected)}개")
         self.confirm_signal.emit(selected)
+
+        self.save_region_cache_async()
         self.accept()
 
     # =========================
@@ -320,7 +435,7 @@ class RegionSetPop(QDialog):
             QTreeView::indicator:checked {
                 background-color: black;
             }
-    
+
             QScrollBar:vertical {
                 width: 8px;
                 background: transparent;
@@ -329,7 +444,7 @@ class RegionSetPop(QDialog):
                 height: 8px;
                 background: transparent;
             }
-    
+
             QScrollBar::handle:vertical {
                 min-height: 20px;
                 background: rgba(120, 120, 120, 160);
@@ -340,7 +455,7 @@ class RegionSetPop(QDialog):
                 background: rgba(120, 120, 120, 160);
                 border-radius: 4px;
             }
-    
+
             QScrollBar::add-line,
             QScrollBar::sub-line,
             QScrollBar::add-page,
@@ -351,8 +466,6 @@ class RegionSetPop(QDialog):
                 height: 0px;
             }
         """
-
-
 
     def checkbox_style(self) -> str:
         return """
