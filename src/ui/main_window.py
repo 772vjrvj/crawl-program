@@ -7,6 +7,7 @@ from queue import Queue
 from typing import Optional, Any, List, Tuple, Protocol, cast
 
 from src.ui.popup.detail_all_style_set_pop import DetailAllStyleSetPop
+from src.ui.popup.region_filter_favorite_set_pop import RegionFilterFavoriteSetPop
 from src.utils.run_file_logger import RunFileLogger
 import keyring
 from PySide6.QtCore import Qt, QTimer, QUrl
@@ -84,11 +85,14 @@ class OnDemandWorkerProto(StoppableThreadProto, Protocol):
     def set_setting(self, setting: Any) -> None: ...
     def set_setting_detail(self, setting_detail: Any) -> None: ...
     def set_setting_detail_all_style(self, set_setting_detail_all_style: Any) -> None: ...
+    def set_setting_region_filter_favorite(self, setting_region_filter_favorite: Any) -> None: ...
     def set_columns(self, columns: Any) -> None: ...
     def set_sites(self, sites: Any) -> None: ...
     def set_region(self, regions: List[Any]) -> None: ...
     def set_excel_data_list(self, excel_data_list: List[Any]) -> None: ...
     def set_user(self, user: Any) -> None: ...
+
+    
 
 
 # =========================================================
@@ -114,6 +118,7 @@ class MainWindow(QWidget):
         self.setting: Optional[Any] = None
         self.setting_detail: Optional[Any] = None
         self.setting_detail_all_style: Optional[Any] = None
+        self.setting_region_filter_favorite: Optional[Any] = None
 
         self.name: Optional[str] = None
         self.site: Optional[str] = None
@@ -135,6 +140,7 @@ class MainWindow(QWidget):
         self.setting_button: Optional[QWidget] = None
         self.detail_setting_button: Optional[QWidget] = None
         self.detail_all_style_setting_button = None
+        self.region_filter_favorite_setting_button = None
         self.column_setting_button: Optional[QWidget] = None
         self.site_setting_button: Optional[QWidget] = None
         self.region_setting_button: Optional[QWidget] = None
@@ -159,6 +165,7 @@ class MainWindow(QWidget):
         self.excel_set_pop: Optional[ExcelSetPop] = None
         self.detail_set_pop: Optional[DetailSetPop] = None
         self.detail_all_style_set_pop = None
+        self.region_filter_favorite_set_pop = None
 
         # 워커/큐
         self.task_queue: Optional[Queue[Tuple[int, int]]] = None
@@ -205,6 +212,7 @@ class MainWindow(QWidget):
         self.popup = state.get("popup")
         self.setting_detail = state.get("setting_detail")
         self.setting_detail_all_style = state.get("setting_detail_all_style")
+        self.setting_region_filter_favorite = state.get("setting_region_filter_favorite")
 
     # 재 초기화
     def init_reset(self) -> None:
@@ -300,6 +308,10 @@ class MainWindow(QWidget):
             if self.setting_detail_all_style:
                 self.detail_all_style_setting_button = create_common_button("상세세팅", self.open_detail_all_style_setting, self.color, 100)
                 self.right_button_layout.addWidget(self.detail_all_style_setting_button)
+
+            if self.setting_region_filter_favorite:
+                self.region_filter_favorite_setting_button = create_common_button("전체세팅", self.open_region_filter_favorite_setting, self.color, 100)
+                self.right_button_layout.addWidget(self.region_filter_favorite_setting_button)
 
             if self.columns:
                 self.column_setting_button = create_common_button("항목세팅", self.open_column_setting, self.color, 100)
@@ -424,6 +436,10 @@ class MainWindow(QWidget):
         if self.setting_detail_all_style:
             self.detail_all_style_setting_button = create_common_button("상세세팅", self.open_detail_all_style_setting, self.color, 100)
             self.right_button_layout.addWidget(self.detail_all_style_setting_button)
+
+        if self.setting_region_filter_favorite:
+            self.region_filter_favorite_setting_button = create_common_button("전체세팅", self.open_region_filter_favorite_setting, self.color, 100)
+            self.right_button_layout.addWidget(self.region_filter_favorite_setting_button)
 
         if self.columns:
             self.column_setting_button = create_common_button("항목세팅", self.open_column_setting, self.color, 100)
@@ -668,6 +684,9 @@ class MainWindow(QWidget):
             if self.setting_detail_all_style:
                 self.on_demand_worker.set_setting_detail_all_style(self.setting_detail_all_style)
 
+            if self.setting_region_filter_favorite:
+                self.on_demand_worker.set_setting_region_filter_favorite(self.setting_region_filter_favorite)
+
             if self.columns:
                 self.on_demand_worker.set_columns(self.columns)
 
@@ -864,12 +883,29 @@ class MainWindow(QWidget):
             self.detail_set_pop = DetailSetPop(self)
         self.detail_set_pop.exec()
 
-
     def open_detail_all_style_setting(self) -> None:
         if self.detail_all_style_set_pop is None:
             self.detail_all_style_set_pop = DetailAllStyleSetPop(self)
         self.detail_all_style_set_pop.exec()
 
+
+    def on_confirm(self, regions, filters, favorites):
+        self.selected_regions = regions
+        self.setting_detail_all_style = filters
+        self.setting_region_filter_favorite = favorites
+
+    def open_region_filter_favorite_setting(self) -> None:
+
+        if self.region_filter_favorite_set_pop is None:
+            self.region_filter_favorite_set_pop = RegionFilterFavoriteSetPop(
+                parent=self,
+                selected_regions=getattr(self, "selected_regions", []),
+                setting_attr_name="setting_detail_all_style",
+                favorite_attr_name="setting_region_filter_favorite",
+            )
+            self.region_filter_favorite_set_pop.confirm_signal.connect(self.on_confirm)
+
+        self.region_filter_favorite_set_pop.exec()
 
     def open_column_setting(self) -> None:
         try:

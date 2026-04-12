@@ -20,7 +20,7 @@ START_NEXT_BEFORE = ""
 
 # 한국시간 기준
 KST = timezone(timedelta(hours=9))
-STOP_DT = datetime(2024, 7, 4, 11, 0, 0, tzinfo=KST)
+STOP_DT = datetime(2025, 4, 11, 0, 0, 0, tzinfo=KST)
 
 CSV_COLUMNS = [
     "before",

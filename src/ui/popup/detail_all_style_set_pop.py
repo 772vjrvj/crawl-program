@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import copy
-import json  # === 신규 ===
-import os  # === 신규 ===
+import json
+import os
 from typing import Any, Dict, List, Optional
 
 from PySide6.QtCore import Qt, Slot
@@ -54,7 +54,7 @@ class DetailAllStyleSetPop(QDialog):
             return copy.deepcopy(rows_any)
         return []
 
-    # === 신규 === ColumnSetPop 방식 그대로 가져옴
+    # ColumnSetPop 방식 그대로 가져옴
     def _resolve_site_config_path(self) -> Optional[str]:
         try:
             state = GlobalState()
@@ -101,7 +101,7 @@ class DetailAllStyleSetPop(QDialog):
         except Exception:
             return None
 
-    # === 신규 === setting_detail_all_style 통째로 저장
+    # setting_detail_all_style 통째로 저장
     def _save_setting_data_to_runtime_config(self) -> None:
         try:
             config_path = self._resolve_site_config_path()

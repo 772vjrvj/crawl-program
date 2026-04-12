@@ -810,6 +810,15 @@
       "checked": true
     }
   ],
+  "setting_region_filter_favorite": [
+    {
+      "regions": [
+      ],
+      "filters": [
+      ],
+      "checked": true
+    }
+  ],
   "columns": [
     {
       "code": "article_number",
