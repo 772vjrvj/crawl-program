@@ -1,10 +1,13 @@
 import csv
 import os
+import sys
 import time
+from datetime import datetime
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -12,6 +15,33 @@ from selenium.webdriver.support import expected_conditions as EC
 
 INPUT_CSV = "test.csv"
 OUTPUT_CSV = "test_result.csv"
+CHROMEDRIVER_NAME = "chromedriver.exe"
+
+PROGRAM_START_DT = datetime.now()
+
+
+def format_dt(dt: datetime) -> str:
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def format_elapsed(seconds: float) -> str:
+    total_seconds = int(seconds)
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    secs = total_seconds % 60
+    return f"{hours}시간 {minutes}분 {secs}초"
+
+
+def log(message: str) -> None:
+    now_dt = datetime.now()
+    elapsed = now_dt - PROGRAM_START_DT
+    elapsed_str = format_elapsed(elapsed.total_seconds())
+    print(
+        f"[시작 시간 {format_dt(PROGRAM_START_DT)}] "
+        f"[현재 시간 {format_dt(now_dt)}] "
+        f"[현재 경과 {elapsed_str}] "
+        f"{message}"
+    )
 
 
 def clean_text(text: str) -> str:
@@ -50,6 +80,12 @@ def save_rows_to_csv(output_csv: str, fieldnames: list[str], rows: list[dict]) -
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
+
+
+def resource_path(filename: str) -> str:
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, filename)
+    return os.path.join(os.path.abspath("."), filename)
 
 
 def create_driver() -> webdriver.Chrome:
@@ -180,8 +216,12 @@ def get_post_data(driver: webdriver.Chrome, post_url: str) -> dict:
 
 
 def process_posts() -> None:
+    log("프로그램 시작")
+
     if not os.path.exists(INPUT_CSV):
         raise FileNotFoundError(f"입력 파일이 없습니다: {INPUT_CSV}")
+
+    log(f"입력 파일 확인 완료: {INPUT_CSV}")
 
     with open(INPUT_CSV, "r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
@@ -193,12 +233,15 @@ def process_posts() -> None:
     if "URL" not in rows[0]:
         raise ValueError('"URL" 컬럼이 없습니다.')
 
+    log(f"입력 행 수 확인 완료: {len(rows)}건")
+
     fieldnames = ensure_output_columns(rows)
 
-    # 시작하자마자 빈 결과 파일 1회 생성
     save_rows_to_csv(OUTPUT_CSV, fieldnames, [])
+    log(f"결과 파일 초기화 완료: {OUTPUT_CSV}")
 
     driver = create_driver()
+    log("크롬 드라이버 실행 완료")
 
     try:
         result_rows = []
@@ -218,10 +261,11 @@ def process_posts() -> None:
                 row["메모"] = "URL 값이 비어있음"
                 result_rows.append(row)
                 save_rows_to_csv(OUTPUT_CSV, fieldnames, result_rows)
-                print(f"[{idx}/{len(rows)}] 실패 - URL 비어있음")
+                log(f"[{idx}/{len(rows)}] 실패 - URL 비어있음")
                 continue
 
             row["게시글 URL"] = post_url
+            log(f"[{idx}/{len(rows)}] 시작 - {post_url}")
 
             try:
                 parsed = get_post_data(driver, post_url)
@@ -234,33 +278,38 @@ def process_posts() -> None:
                 row["성공"] = "Y"
                 row["메모"] = ""
 
-                print(f"[{idx}/{len(rows)}] 성공 - {post_url}")
+                log(f"[{idx}/{len(rows)}] 성공 - {post_url}")
 
             except TimeoutException:
                 row["성공"] = "N"
                 row["메모"] = "타임아웃 - article-wrapper 로딩 실패"
-                print(f"[{idx}/{len(rows)}] 실패 - {post_url} - 타임아웃")
+                log(f"[{idx}/{len(rows)}] 실패 - {post_url} - 타임아웃")
 
             except Exception as e:
                 row["성공"] = "N"
                 row["메모"] = f"실패: {e}"
-                print(f"[{idx}/{len(rows)}] 실패 - {post_url} - {e}")
+                log(f"[{idx}/{len(rows)}] 실패 - {post_url} - {e}")
 
             result_rows.append(row)
-
-            # === 행 1개 끝날 때마다 즉시 저장 ===
             save_rows_to_csv(OUTPUT_CSV, fieldnames, result_rows)
+            log(f"[{idx}/{len(rows)}] CSV 저장 완료")
 
             time.sleep(1)
 
-        print(f"\n완료: {OUTPUT_CSV}")
+        log(f"전체 완료: {OUTPUT_CSV}")
 
     finally:
         try:
             driver.quit()
-        except Exception:
-            pass
+            log("크롬 드라이버 종료 완료")
+        except Exception as e:
+            log(f"크롬 드라이버 종료 중 예외 발생: {e}")
 
 
 if __name__ == "__main__":
-    process_posts()
+    try:
+        process_posts()
+    except Exception as e:
+        log(f"프로그램 오류: {e}")
+    finally:
+        input("엔터를 누르면 종료됩니다...")
