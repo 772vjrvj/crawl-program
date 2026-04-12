@@ -11,6 +11,7 @@ from src.workers.api_base_worker import BaseApiWorker
 from src.utils.time_utils import yyyy_mm_dd_to
 from urllib.parse import quote
 
+
 class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def __init__(self) -> None:
@@ -43,6 +44,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         self.naver_loc_all_real_detail = None
         self.detail_region_article_list = None
+        self.work_items: list[dict[str, Any]] = []
 
         self.list_api_url: str = "https://fin.land.naver.com/front-api/v1/article/boundedArticles"
         self.agent_detail_url: str = "https://fin.land.naver.com/front-api/v1/article/agent"
@@ -161,53 +163,104 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         self._load_js_assets()
 
-        # 1. 지역세팅
+        # 1. 전체 지역 원본 로드
         self.naver_loc_all_real_detail = self.file_driver.read_json_array_from_resources(
             "korea_eup_myeon_dong.json",
             "customers/naver_land_real_estate_detail/region",
         )
 
-        region_key_set = {
-            (item.get("시도"), item.get("시군구"), item.get("읍면동"))
-            for item in self.region
-        }
-
-        self.detail_region_article_list = [
-            item
-            for item in self.naver_loc_all_real_detail
-            if (item.get("시도"), item.get("시군구"), item.get("읍면동")) in region_key_set
-        ]
-        self.log_signal_func(f"[선택한 상세 지역] 목록 : {self.detail_region_article_list}")
-
-        # 2. filter 확인
-        self.log_signal_func(f"filter 확인 : {self.setting_detail_all_style}")
-
-        # 3. 등록일
+        # 2. 등록일
         self.fr_date: str = str(self.get_setting_value(self.setting, "fr_date") or "").strip()
         self.to_date: str = str(self.get_setting_value(self.setting, "to_date") or "").strip()
         self.log_signal_func(f"등록 시작일 : {self.fr_date}")
         self.log_signal_func(f"등록 종료일 : {self.to_date}")
 
-        # 4. 정렬방식
+        # 3. 정렬방식
         self.article_sort_type: str = str(self.get_setting_value(self.setting, "articleSortType") or "").strip()
         self.log_signal_func(f"정렬 방식 : {self.article_sort_type}")
 
-        # 5. 영어컬럼 여부
+        # 4. 영어컬럼 여부
         self.eng: str = self.get_setting_value(self.setting, "eng")
         self.log_signal_func(f"영어컬럼 여부 : {self.eng}")
 
-        # 6. 부동산 중개사 기준 매물 가져오기 여부
+        # 5. 부동산 중개사 기준 매물 가져오기 여부
         self.brokerage_yn: bool = self.get_setting_value(self.setting, "brokerage_yn")
         self.log_signal_func(f"부동산 중개사 기준 매물 가져오기 여부 : {self.brokerage_yn}")
 
-        # 7. 중복제거 여부
+        # 6. 중복제거 여부
         self.remove_duplicate_yn: bool = self.get_setting_value(self.setting, "remove_duplicate_yn")
         self.log_signal_func(f"중복제거 여부 : {self.remove_duplicate_yn}")
 
         self.link_yn: bool = self.get_setting_value(self.setting, "link_yn")
         self.log_signal_func(f"링크 여부 : {self.link_yn}")
 
-        # 8. 위 세팅에 맞는 매물 목록 크롤링
+        # 7. 작업목록 생성
+        self.work_items = []
+
+        favorite_list = self.setting_region_filter_favorite or []
+        checked_favorite_list = []
+
+        for row in favorite_list:
+            if type(row) is dict and bool(row.get("checked", False)):
+                checked_favorite_list.append(row)
+
+        # favorite가 있으면 기존 self.region, self.setting_detail_all_style는 사용하지 않음
+        if checked_favorite_list:
+            self.log_signal_func(f"[즐겨찾기 모드] 사용 즐겨찾기 수 : {len(checked_favorite_list)}")
+
+            for fav_index, favorite in enumerate(checked_favorite_list, start=1):
+                favorite_regions = favorite.get("regions") or []
+                favorite_filters = favorite.get("filters") or []
+
+                region_key_set = {
+                    (item.get("시도"), item.get("시군구"), item.get("읍면동"))
+                    for item in favorite_regions
+                }
+
+                detail_region_article_list = [
+                    item
+                    for item in self.naver_loc_all_real_detail
+                    if (item.get("시도"), item.get("시군구"), item.get("읍면동")) in region_key_set
+                ]
+
+                self.work_items.append({
+                    "type": "favorite",
+                    "favorite_index": fav_index,
+                    "regions": favorite_regions,
+                    "filters": favorite_filters,
+                    "detail_region_article_list": detail_region_article_list,
+                })
+
+                self.log_signal_func(
+                    f"[즐겨찾기 {fav_index}] 지역 {len(favorite_regions)}개 / "
+                    f"상세지역 {len(detail_region_article_list)}개"
+                )
+        else:
+            self.log_signal_func("[기본 모드] 기존 지역/필터 사용")
+
+            region_key_set = {
+                (item.get("시도"), item.get("시군구"), item.get("읍면동"))
+                for item in (self.region or [])
+            }
+
+            detail_region_article_list = [
+                item
+                for item in self.naver_loc_all_real_detail
+                if (item.get("시도"), item.get("시군구"), item.get("읍면동")) in region_key_set
+            ]
+
+            self.work_items.append({
+                "type": "default",
+                "favorite_index": 0,
+                "regions": self.region or [],
+                "filters": self.setting_detail_all_style or [],
+                "detail_region_article_list": detail_region_article_list,
+            })
+
+            self.log_signal_func(f"[선택한 상세 지역] 목록 : {detail_region_article_list}")
+            self.log_signal_func(f"filter 확인 : {self.setting_detail_all_style}")
+
+        # 8. 작업목록에 따라 매물 목록 크롤링
         self._crawl_article_list()
 
         return True
@@ -368,126 +421,160 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         return ""
 
     def _crawl_article_list(self):
-        for index, region_item in enumerate(self.detail_region_article_list, start=1):
-            sido = region_item.get("시도")
-            sigungu = region_item.get("시군구")
-            eup_myeon_dong = region_item.get("읍면동")
+        total_region_count = 0
+        for work_item in self.work_items:
+            total_region_count += len(work_item.get("detail_region_article_list") or [])
 
-            self.log_signal_func(f"[지역] {sido} {sigungu} {eup_myeon_dong}")
+        done_region_count = 0
 
-            data = region_item.get("data", {})
-            coordinates = data.get("coordinates", {})
+        for work_index, work_item in enumerate(self.work_items, start=1):
+            current_filters = work_item.get("filters") or []
+            current_region_list = work_item.get("detail_region_article_list") or []
+            favorite_index = work_item.get("favorite_index", 0)
+            work_type = work_item.get("type", "default")
 
-            x = coordinates.get("xCoordinate")
-            y = coordinates.get("yCoordinate")
+            if work_type == "favorite":
+                self.log_signal_func(
+                    f"[즐겨찾기 작업 시작] {favorite_index} / "
+                    f"지역수={len(current_region_list)}"
+                )
+                self.log_signal_func(f"[즐겨찾기 {favorite_index}] filter 확인 : {current_filters}")
+            else:
+                self.log_signal_func("[기본 작업 시작] 기존 지역/필터 기준")
+                self.log_signal_func(f"[기본] filter 확인 : {current_filters}")
 
-            url = self._build_region_map_url(x, y, self.setting_detail_all_style)
-            self.log_signal_func(f"[URL] {url}")
+            for region_item in current_region_list:
+                if not self.running:
+                    self.log_signal_func("중단 요청 감지")
+                    return
 
-            success = False
-            base_payload: dict[str, Any] = {}
-            first_result: dict[str, Any] = {}
+                done_region_count += 1
 
-            for attempt in range(1, 5):
-                try:
-                    self.log_signal_func(f"[지역 진입] 시도 {attempt}/3")
+                sido = region_item.get("시도")
+                sigungu = region_item.get("시군구")
+                eup_myeon_dong = region_item.get("읍면동")
 
-                    self.driver.get(url)
-                    time.sleep(5)
-
-                    self.log_signal_func("[후킹] 목록 후킹 설치")
-                    self._inject_list_hook()
-                    time.sleep(1)
-
-                    # === 신규 === 후킹 데이터 먼저 초기화
-                    try:
-                        self.driver.execute_script("window.__naverListHookData = null;")
-                        self.log_signal_func("[후킹] 지역 진입 후 hook 데이터 초기화")
-                    except Exception as e:
-                        self.log_signal_func(f"[후킹] 초기화 실패: {e}")
-
-                    self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
-                    self._click_article_button(wait_sec=20)
-                    time.sleep(3)
-
-                    # === 신규 === 정렬 전에 한 번 더 초기화
-                    try:
-                        self.driver.execute_script("window.__naverListHookData = null;")
-                        self.log_signal_func("[후킹] 정렬 전 hook 데이터 초기화")
-                    except Exception as e:
-                        self.log_signal_func(f"[후킹] 초기화 실패: {e}")
-
-                    self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
-                    self._click_sort_button_by_setting(wait_sec=20)
-                    time.sleep(3)
-
-                    # === 신규 === 성공 판정 전에 hook 데이터 검증
-                    hook_data: dict[str, Any] = self._get_first_list_hook_data(12)
-                    body_text: str = hook_data.get("bodyText", "")
-                    response_json: dict[str, Any] = hook_data.get("responseJson", {}) or {}
-
-                    self.log_signal_func(f"[후킹] 수신 여부={bool(hook_data)}")
-                    self.log_signal_func(f"[후킹] bodyText 존재={bool(body_text)}")
-                    self.log_signal_func(f"[후킹] responseJson 존재={bool(response_json)}")
-
-                    if not body_text:
-                        raise Exception("목록 후킹 bodyText 없음")
-
-                    try:
-                        base_payload = json.loads(body_text)
-                    except Exception as e:
-                        raise Exception(f"bodyText json 파싱 실패: {e}")
-
-                    first_result = response_json.get("result", {}) or {}
-
-                    if not first_result:
-                        self.log_signal_func("[후킹] 첫 응답 result 없음 -> 첫 페이지 재요청")
-                        retry_res = self._browser_fetch_json(
-                            url=self.list_api_url,
-                            method="POST",
-                            payload=base_payload,
-                            wait_sec=30,
-                        )
-
-                        self.log_signal_func(
-                            f"[후킹 재요청] status={retry_res.get('status')} ok={retry_res.get('ok')}"
-                        )
-
-                        retry_json: dict[str, Any] = retry_res.get("json") or {}
-                        first_result = retry_json.get("result", {}) or {}
-
-                    if not first_result:
-                        raise Exception("첫 페이지 result 확보 실패")
-
-                    success = True
-                    break
-
-                except Exception as e:
+                if work_type == "favorite":
                     self.log_signal_func(
-                        f"[지역 처리 실패] {sido} {sigungu} {eup_myeon_dong} "
-                        f"/ 시도 {attempt}/3 / {e}"
+                        f"[즐겨찾기 {favorite_index}] "
+                        f"[지역] {sido} {sigungu} {eup_myeon_dong}"
                     )
+                else:
+                    self.log_signal_func(f"[지역] {sido} {sigungu} {eup_myeon_dong}")
 
-                    if attempt < 3:
-                        self.log_signal_func("[재시도] 화면 새로 로드 후 다시 시도")
-                        time.sleep(2)
-                    else:
-                        self.log_signal_func("[재시도 실패] 3회 모두 실패하여 다음 지역으로 이동")
+                data = region_item.get("data", {})
+                coordinates = data.get("coordinates", {})
 
-            if not success:
-                continue
+                x = coordinates.get("xCoordinate")
+                y = coordinates.get("yCoordinate")
 
-            items: list[dict[str, Any]] = self._collect_next_list_pages(
-                base_payload=base_payload,
-                first_result=first_result,
-            )
+                url = self._build_region_map_url(x, y, current_filters)
+                self.log_signal_func(f"[URL] {url}")
 
-            self._collect_detail(items, region_item)
+                success = False
+                base_payload: dict[str, Any] = {}
+                first_result: dict[str, Any] = {}
 
-            pro_value = (index / max(len(self.detail_region_article_list), 1)) * 1000000
-            self.progress_signal.emit(self.before_pro_value, pro_value)
-            self.before_pro_value = pro_value
-            time.sleep(random.uniform(2, 4))
+                for attempt in range(1, 5):
+                    try:
+                        self.log_signal_func(f"[지역 진입] 시도 {attempt}/3")
+
+                        self.driver.get(url)
+                        time.sleep(5)
+
+                        self.log_signal_func("[후킹] 목록 후킹 설치")
+                        self._inject_list_hook()
+                        time.sleep(1)
+
+                        # === 신규 === 후킹 데이터 먼저 초기화
+                        try:
+                            self.driver.execute_script("window.__naverListHookData = null;")
+                            self.log_signal_func("[후킹] 지역 진입 후 hook 데이터 초기화")
+                        except Exception as e:
+                            self.log_signal_func(f"[후킹] 초기화 실패: {e}")
+
+                        self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
+                        self._click_article_button(wait_sec=20)
+                        time.sleep(3)
+
+                        # === 신규 === 정렬 전에 한 번 더 초기화
+                        try:
+                            self.driver.execute_script("window.__naverListHookData = null;")
+                            self.log_signal_func("[후킹] 정렬 전 hook 데이터 초기화")
+                        except Exception as e:
+                            self.log_signal_func(f"[후킹] 초기화 실패: {e}")
+
+                        self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
+                        self._click_sort_button_by_setting(wait_sec=20)
+                        time.sleep(3)
+
+                        # === 신규 === 성공 판정 전에 hook 데이터 검증
+                        hook_data: dict[str, Any] = self._get_first_list_hook_data(12)
+                        body_text: str = hook_data.get("bodyText", "")
+                        response_json: dict[str, Any] = hook_data.get("responseJson", {}) or {}
+
+                        self.log_signal_func(f"[후킹] 수신 여부={bool(hook_data)}")
+                        self.log_signal_func(f"[후킹] bodyText 존재={bool(body_text)}")
+                        self.log_signal_func(f"[후킹] responseJson 존재={bool(response_json)}")
+
+                        if not body_text:
+                            raise Exception("목록 후킹 bodyText 없음")
+
+                        try:
+                            base_payload = json.loads(body_text)
+                        except Exception as e:
+                            raise Exception(f"bodyText json 파싱 실패: {e}")
+
+                        first_result = response_json.get("result", {}) or {}
+
+                        if not first_result:
+                            self.log_signal_func("[후킹] 첫 응답 result 없음 -> 첫 페이지 재요청")
+                            retry_res = self._browser_fetch_json(
+                                url=self.list_api_url,
+                                method="POST",
+                                payload=base_payload,
+                                wait_sec=30,
+                            )
+
+                            self.log_signal_func(
+                                f"[후킹 재요청] status={retry_res.get('status')} ok={retry_res.get('ok')}"
+                            )
+
+                            retry_json: dict[str, Any] = retry_res.get("json") or {}
+                            first_result = retry_json.get("result", {}) or {}
+
+                        if not first_result:
+                            raise Exception("첫 페이지 result 확보 실패")
+
+                        success = True
+                        break
+
+                    except Exception as e:
+                        self.log_signal_func(
+                            f"[지역 처리 실패] {sido} {sigungu} {eup_myeon_dong} "
+                            f"/ 시도 {attempt}/3 / {e}"
+                        )
+
+                        if attempt < 3:
+                            self.log_signal_func("[재시도] 화면 새로 로드 후 다시 시도")
+                            time.sleep(2)
+                        else:
+                            self.log_signal_func("[재시도 실패] 3회 모두 실패하여 다음 지역으로 이동")
+
+                if not success:
+                    continue
+
+                items: list[dict[str, Any]] = self._collect_next_list_pages(
+                    base_payload=base_payload,
+                    first_result=first_result,
+                )
+
+                self._collect_detail(items, region_item)
+
+                pro_value = (done_region_count / max(total_region_count, 1)) * 1000000
+                self.progress_signal.emit(self.before_pro_value, pro_value)
+                self.before_pro_value = pro_value
+                time.sleep(random.uniform(2, 4))
 
     def _build_region_map_url(self, x, y, filter_items):
         params = [
