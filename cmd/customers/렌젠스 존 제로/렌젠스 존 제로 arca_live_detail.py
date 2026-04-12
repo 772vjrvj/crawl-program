@@ -1,21 +1,19 @@
 import csv
 import os
-import sys
-import time
 from datetime import datetime
 
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 
-INPUT_CSV = "test.csv"
-OUTPUT_CSV = "test_result.csv"
-CHROMEDRIVER_NAME = "chromedriver.exe"
+# 오류 재시도 모드
+# True  -> 기존 result 에서 성공 N 인 것들만 다시 시도
+# False -> 기존 result 에서 성공 N 인 것도 스킵
+ERROR_RETRY_MODE = True
 
 PROGRAM_START_DT = datetime.now()
 
@@ -34,8 +32,7 @@ def format_elapsed(seconds: float) -> str:
 
 def log(message: str) -> None:
     now_dt = datetime.now()
-    elapsed = now_dt - PROGRAM_START_DT
-    elapsed_str = format_elapsed(elapsed.total_seconds())
+    elapsed_str = format_elapsed((now_dt - PROGRAM_START_DT).total_seconds())
     print(
         f"[시작 시간 {format_dt(PROGRAM_START_DT)}] "
         f"[현재 시간 {format_dt(now_dt)}] "
@@ -51,8 +48,25 @@ def clean_text(text: str) -> str:
     text = text.replace("\xa0", " ")
     lines = [line.strip() for line in text.splitlines()]
     lines = [line for line in lines if line]
-
     return "\n".join(lines).strip()
+
+
+def ask_csv_name() -> tuple[str, str]:
+    raw = input("INPUT_CSV 이름을 입력하세요 (예: test): ").strip()
+
+    if not raw:
+        raise ValueError("파일명을 입력하지 않았습니다.")
+
+    if raw.lower().endswith(".csv"):
+        input_csv = raw
+        base_name = raw[:-4]
+    else:
+        input_csv = f"{raw}.csv"
+        base_name = raw
+
+    output_csv = f"{base_name}_result.csv"
+
+    return input_csv, output_csv
 
 
 def ensure_output_columns(rows: list[dict]) -> list[str]:
@@ -75,17 +89,20 @@ def ensure_output_columns(rows: list[dict]) -> list[str]:
     return fieldnames
 
 
-def save_rows_to_csv(output_csv: str, fieldnames: list[str], rows: list[dict]) -> None:
+def write_all_rows(output_csv: str, fieldnames: list[str], rows: list[dict]) -> None:
     with open(output_csv, "w", encoding="utf-8-sig", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
 
-def resource_path(filename: str) -> str:
-    if hasattr(sys, "_MEIPASS"):
-        return os.path.join(sys._MEIPASS, filename)
-    return os.path.join(os.path.abspath("."), filename)
+def read_csv_rows(csv_path: str) -> list[dict]:
+    if not os.path.exists(csv_path):
+        return []
+
+    with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        return list(reader)
 
 
 def create_driver() -> webdriver.Chrome:
@@ -100,8 +117,6 @@ def create_driver() -> webdriver.Chrome:
         "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36"
     )
-
-    # options.add_argument("--headless=new")
 
     driver = webdriver.Chrome(options=options)
     driver.set_page_load_timeout(30)
@@ -159,15 +174,51 @@ def extract_body_text(driver: webdriver.Chrome, wrapper) -> str:
         return ""
 
 
+def get_error_404_message(driver: webdriver.Chrome) -> str:
+    try:
+        error_code_els = driver.find_elements(By.CSS_SELECTOR, ".error-code")
+        has_404 = False
+
+        for el in error_code_els:
+            code_text = clean_text(el.text)
+            if "ERROR 404" in code_text:
+                has_404 = True
+                break
+
+        if not has_404:
+            return ""
+
+        msg_els = driver.find_elements(By.CSS_SELECTOR, "p.pre-wrap")
+        for msg_el in msg_els:
+            msg_text = clean_text(msg_el.text)
+            if "존재하지 않는 글입니다" in msg_text:
+                return "존재하지 않는 글"
+
+        return "존재하지 않는 글"
+
+    except Exception:
+        return ""
+
+
 def get_post_data(driver: webdriver.Chrome, post_url: str) -> dict:
     driver.get(post_url)
+
+    not_found_msg = get_error_404_message(driver)
+    if not_found_msg:
+        return {
+            "게시글 제목": "",
+            "게시글 작성자": "",
+            "게시 날짜": "",
+            "게시글 본문": "",
+            "게시글 URL": post_url,
+            "성공": "Y",
+            "메모": not_found_msg,
+        }
 
     wait = WebDriverWait(driver, 20)
     wrapper = wait.until(
         EC.presence_of_element_located((By.CSS_SELECTOR, ".article-wrapper"))
     )
-
-    time.sleep(1)
 
     title = ""
     author = ""
@@ -212,98 +263,194 @@ def get_post_data(driver: webdriver.Chrome, post_url: str) -> dict:
         "게시 날짜": post_date,
         "게시글 본문": body_text,
         "게시글 URL": final_url,
+        "성공": "Y",
+        "메모": "",
     }
 
 
+def build_result_map(result_rows: list[dict]) -> dict[str, dict]:
+    result_map: dict[str, dict] = {}
+
+    for row in result_rows:
+        url = str(row.get("URL", "")).strip()
+        if url:
+            result_map[url] = row
+
+    return result_map
+
+
+def normalize_input_row(row: dict, fieldnames: list[str]) -> dict:
+    new_row = {}
+    for col in fieldnames:
+        new_row[col] = row.get(col, "")
+    return new_row
+
+
 def process_posts() -> None:
+    input_csv, output_csv = ask_csv_name()
+
     log("프로그램 시작")
+    log(f"입력 파일: {input_csv}")
+    log(f"결과 파일: {output_csv}")
 
-    if not os.path.exists(INPUT_CSV):
-        raise FileNotFoundError(f"입력 파일이 없습니다: {INPUT_CSV}")
+    if not os.path.exists(input_csv):
+        raise FileNotFoundError(f"입력 파일이 없습니다: {input_csv}")
 
-    log(f"입력 파일 확인 완료: {INPUT_CSV}")
+    input_rows = read_csv_rows(input_csv)
+    if not input_rows:
+        raise ValueError("원본 CSV 데이터가 비어 있습니다.")
 
-    with open(INPUT_CSV, "r", encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
-
-    if not rows:
-        raise ValueError("CSV 데이터가 비어 있습니다.")
-
-    if "URL" not in rows[0]:
+    if "URL" not in input_rows[0]:
         raise ValueError('"URL" 컬럼이 없습니다.')
 
-    log(f"입력 행 수 확인 완료: {len(rows)}건")
+    fieldnames = ensure_output_columns(input_rows)
 
-    fieldnames = ensure_output_columns(rows)
+    for row in input_rows:
+        for col in fieldnames:
+            if col not in row:
+                row[col] = ""
 
-    save_rows_to_csv(OUTPUT_CSV, fieldnames, [])
-    log(f"결과 파일 초기화 완료: {OUTPUT_CSV}")
+    log(f"원본 CSV 확인 완료: {input_csv} / {len(input_rows)}건")
+
+    result_rows = read_csv_rows(output_csv)
+    if result_rows:
+        for row in result_rows:
+            for col in fieldnames:
+                if col not in row:
+                    row[col] = ""
+        log(f"기존 결과 CSV 확인 완료: {output_csv} / {len(result_rows)}건")
+    else:
+        log("기존 결과 CSV 없음 - 새로 시작")
+
+    result_map = build_result_map(result_rows)
 
     driver = create_driver()
-    log("크롬 드라이버 실행 완료")
+    log("크롬 실행 완료")
 
     try:
-        result_rows = []
+        if result_rows:
+            log("1단계 시작 - 기존 result 기준 오류 행 정리")
 
-        for idx, row in enumerate(rows, start=1):
-            post_url = str(row.get("URL", "")).strip()
+            for idx, row in enumerate(result_rows, start=1):
+                post_url = str(row.get("URL", "")).strip()
+                success = str(row.get("성공", "")).strip().upper()
+
+                if not post_url:
+                    continue
+
+                if success == "Y":
+                    log(f"[기존결과 {idx}/{len(result_rows)}] 성공건 스킵 - {post_url}")
+                    continue
+
+                if not ERROR_RETRY_MODE:
+                    log(f"[기존결과 {idx}/{len(result_rows)}] 실패건 스킵 - {post_url}")
+                    continue
+
+                log(f"[기존결과 {idx}/{len(result_rows)}] 실패건 재시도 시작 - {post_url}")
+
+                try:
+                    parsed = get_post_data(driver, post_url)
+
+                    row["게시글 제목"] = parsed.get("게시글 제목", "")
+                    row["게시글 작성자"] = parsed.get("게시글 작성자", "")
+                    row["게시 날짜"] = parsed.get("게시 날짜", "")
+                    row["게시글 본문"] = parsed.get("게시글 본문", "")
+                    row["게시글 URL"] = parsed.get("게시글 URL", post_url)
+                    row["성공"] = parsed.get("성공", "Y")
+                    row["메모"] = parsed.get("메모", "")
+
+                    log(f"[기존결과 {idx}/{len(result_rows)}] 재시도 성공 - {post_url}")
+
+                except TimeoutException:
+                    row["성공"] = "N"
+                    row["메모"] = "2회 실패: 타임아웃 - article-wrapper 로딩 실패"
+                    log(f"[기존결과 {idx}/{len(result_rows)}] 재시도 실패 - 타임아웃 - {post_url}")
+
+                except Exception as e:
+                    row["성공"] = "N"
+                    row["메모"] = f"2회 실패: {e}"
+                    log(f"[기존결과 {idx}/{len(result_rows)}] 재시도 실패 - {post_url} - {e}")
+
+                write_all_rows(output_csv, fieldnames, result_rows)
+                log(f"[기존결과 {idx}/{len(result_rows)}] 결과 CSV 즉시 저장 완료")
+
+            result_map = build_result_map(result_rows)
+            log("1단계 완료 - 기존 result 정리 완료")
+
+        log("2단계 시작 - 원본 CSV 기준 신규 작업 확인")
+
+        for idx, source_row in enumerate(input_rows, start=1):
+            post_url = str(source_row.get("URL", "")).strip()
+
+            if not post_url:
+                log(f"[원본 {idx}/{len(input_rows)}] URL 비어있음 - 스킵")
+                continue
+
+            existing = result_map.get(post_url)
+
+            if existing:
+                existing_success = str(existing.get("성공", "")).strip().upper()
+
+                if existing_success == "Y":
+                    log(f"[원본 {idx}/{len(input_rows)}] 이미 성공한 건 스킵 - {post_url}")
+                    continue
+
+                if not ERROR_RETRY_MODE:
+                    log(f"[원본 {idx}/{len(input_rows)}] 기존 실패건 스킵 - {post_url}")
+                    continue
+
+                log(f"[원본 {idx}/{len(input_rows)}] 기존 실패건은 1단계 처리됨 - 스킵 - {post_url}")
+                continue
+
+            row = normalize_input_row(source_row, fieldnames)
 
             row["게시글 제목"] = ""
             row["게시글 작성자"] = ""
             row["게시 날짜"] = ""
             row["게시글 본문"] = ""
-            row["게시글 URL"] = ""
+            row["게시글 URL"] = post_url
             row["성공"] = "N"
             row["메모"] = ""
 
-            if not post_url:
-                row["메모"] = "URL 값이 비어있음"
-                result_rows.append(row)
-                save_rows_to_csv(OUTPUT_CSV, fieldnames, result_rows)
-                log(f"[{idx}/{len(rows)}] 실패 - URL 비어있음")
-                continue
-
-            row["게시글 URL"] = post_url
-            log(f"[{idx}/{len(rows)}] 시작 - {post_url}")
+            log(f"[원본 {idx}/{len(input_rows)}] 신규 시작 - {post_url}")
 
             try:
                 parsed = get_post_data(driver, post_url)
 
-                row["게시글 제목"] = parsed["게시글 제목"]
-                row["게시글 작성자"] = parsed["게시글 작성자"]
-                row["게시 날짜"] = parsed["게시 날짜"]
-                row["게시글 본문"] = parsed["게시글 본문"]
-                row["게시글 URL"] = parsed["게시글 URL"]
-                row["성공"] = "Y"
-                row["메모"] = ""
+                row["게시글 제목"] = parsed.get("게시글 제목", "")
+                row["게시글 작성자"] = parsed.get("게시글 작성자", "")
+                row["게시 날짜"] = parsed.get("게시 날짜", "")
+                row["게시글 본문"] = parsed.get("게시글 본문", "")
+                row["게시글 URL"] = parsed.get("게시글 URL", post_url)
+                row["성공"] = parsed.get("성공", "Y")
+                row["메모"] = parsed.get("메모", "")
 
-                log(f"[{idx}/{len(rows)}] 성공 - {post_url}")
+                log(f"[원본 {idx}/{len(input_rows)}] 성공 - {post_url}")
 
             except TimeoutException:
                 row["성공"] = "N"
-                row["메모"] = "타임아웃 - article-wrapper 로딩 실패"
-                log(f"[{idx}/{len(rows)}] 실패 - {post_url} - 타임아웃")
+                row["메모"] = "실패: 타임아웃 - article-wrapper 로딩 실패"
+                log(f"[원본 {idx}/{len(input_rows)}] 실패 - 타임아웃 - {post_url}")
 
             except Exception as e:
                 row["성공"] = "N"
                 row["메모"] = f"실패: {e}"
-                log(f"[{idx}/{len(rows)}] 실패 - {post_url} - {e}")
+                log(f"[원본 {idx}/{len(input_rows)}] 실패 - {post_url} - {e}")
 
             result_rows.append(row)
-            save_rows_to_csv(OUTPUT_CSV, fieldnames, result_rows)
-            log(f"[{idx}/{len(rows)}] CSV 저장 완료")
+            result_map[post_url] = row
 
-            time.sleep(1)
+            write_all_rows(output_csv, fieldnames, result_rows)
+            log(f"[원본 {idx}/{len(input_rows)}] 결과 CSV 즉시 저장 완료")
 
-        log(f"전체 완료: {OUTPUT_CSV}")
+        log(f"전체 완료: {output_csv}")
 
     finally:
         try:
             driver.quit()
-            log("크롬 드라이버 종료 완료")
+            log("크롬 종료 완료")
         except Exception as e:
-            log(f"크롬 드라이버 종료 중 예외 발생: {e}")
+            log(f"크롬 종료 중 예외 발생: {e}")
 
 
 if __name__ == "__main__":
