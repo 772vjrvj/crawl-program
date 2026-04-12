@@ -118,6 +118,8 @@ class MainWindow(QWidget):
         self.setting: Optional[Any] = None
         self.setting_detail: Optional[Any] = None
         self.setting_detail_all_style: Optional[Any] = None
+        self.setting_detail_all_style_flag: Optional[Any] = None
+        self.setting_region_filter_favorite_flag: Optional[Any] = None
         self.setting_region_filter_favorite: Optional[Any] = None
 
         self.name: Optional[str] = None
@@ -212,7 +214,10 @@ class MainWindow(QWidget):
         self.popup = state.get("popup")
         self.setting_detail = state.get("setting_detail")
         self.setting_detail_all_style = state.get("setting_detail_all_style")
+        self.setting_detail_all_style_flag = state.get("setting_detail_all_style_flag")
+
         self.setting_region_filter_favorite = state.get("setting_region_filter_favorite")
+        self.setting_region_filter_favorite_flag = state.get("setting_region_filter_favorite_flag")
 
     # 재 초기화
     def init_reset(self) -> None:
@@ -305,11 +310,11 @@ class MainWindow(QWidget):
                 self.detail_setting_button = create_common_button("상세세팅", self.open_detail_setting, self.color, 100)
                 self.right_button_layout.addWidget(self.detail_setting_button)
 
-            if self.setting_detail_all_style:
+            if self.setting_detail_all_style_flag:
                 self.detail_all_style_setting_button = create_common_button("상세세팅", self.open_detail_all_style_setting, self.color, 100)
                 self.right_button_layout.addWidget(self.detail_all_style_setting_button)
 
-            if self.setting_region_filter_favorite:
+            if self.setting_region_filter_favorite_flag:
                 self.region_filter_favorite_setting_button = create_common_button("전체세팅", self.open_region_filter_favorite_setting, self.color, 100)
                 self.right_button_layout.addWidget(self.region_filter_favorite_setting_button)
 
@@ -433,11 +438,11 @@ class MainWindow(QWidget):
             self.detail_setting_button = create_common_button("상세세팅", self.open_detail_setting, self.color, 100)
             self.right_button_layout.addWidget(self.detail_setting_button)
 
-        if self.setting_detail_all_style:
+        if self.setting_detail_all_style_flag:
             self.detail_all_style_setting_button = create_common_button("상세세팅", self.open_detail_all_style_setting, self.color, 100)
             self.right_button_layout.addWidget(self.detail_all_style_setting_button)
 
-        if self.setting_region_filter_favorite:
+        if self.setting_region_filter_favorite_flag:
             self.region_filter_favorite_setting_button = create_common_button("전체세팅", self.open_region_filter_favorite_setting, self.color, 100)
             self.right_button_layout.addWidget(self.region_filter_favorite_setting_button)
 
@@ -681,10 +686,10 @@ class MainWindow(QWidget):
             if self.setting_detail:
                 self.on_demand_worker.set_setting_detail(self.setting_detail)
 
-            if self.setting_detail_all_style:
+            if self.setting_detail_all_style_flag:
                 self.on_demand_worker.set_setting_detail_all_style(self.setting_detail_all_style)
 
-            if self.setting_region_filter_favorite:
+            if self.setting_region_filter_favorite_flag:
                 self.on_demand_worker.set_setting_region_filter_favorite(self.setting_region_filter_favorite)
 
             if self.columns:
@@ -893,6 +898,7 @@ class MainWindow(QWidget):
         self.selected_regions = regions
         self.setting_detail_all_style = filters
         self.setting_region_filter_favorite = favorites
+        self.add_log(f"변경사항이 저장되었습니다.")
 
     def open_region_filter_favorite_setting(self) -> None:
 

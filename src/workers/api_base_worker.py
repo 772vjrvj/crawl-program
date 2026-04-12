@@ -24,6 +24,7 @@ class BaseApiWorker(QThread):
 
         self.setting_detail: Optional[Any] = None
         self.setting_detail_all_style: Optional[Any] = None
+        self.setting_region_filter_favorite = None
         self.user: Optional[Any] = None
         self.excel_data_list: Optional[Any] = None
         self.region: Optional[Any] = None
@@ -90,9 +91,6 @@ class BaseApiWorker(QThread):
     def show_countdown_signal_func(self, sec: int) -> None:
         self.show_countdown_signal.emit(sec)
 
-    # =========================
-    # settings
-    # =========================
     def get_setting_value(self, setting_list: Sequence[dict[str, Any]], code_name: str) -> Optional[Any]:
         for item in setting_list:
             if item.get("code") == code_name:
@@ -107,6 +105,9 @@ class BaseApiWorker(QThread):
 
     def set_setting_detail_all_style(self, setting_detail_all_style: Any) -> None:
         self.setting_detail_all_style = setting_detail_all_style
+
+    def set_setting_region_filter_favorite(self, setting_region_filter_favorite: Any) -> None:
+        self.setting_region_filter_favorite = setting_region_filter_favorite
 
     def set_excel_data_list(self, excel_data_list: Any) -> None:
         self.excel_data_list = excel_data_list

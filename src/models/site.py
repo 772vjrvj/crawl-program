@@ -16,10 +16,14 @@ class Site:
     setting: Any = None
     setting_detail: Any = None
     setting_detail_all_style: Any = None
+
     setting_region_filter_favorite: Any = None
+
     columns: Any = None
     region: Any = None
 
+    setting_detail_all_style_flag: bool = False
+    setting_region_filter_favorite_flag: bool = False
     popup: bool = False
     sites: bool = False
 
@@ -36,7 +40,9 @@ class Site:
             enabled=bool(d.get("enabled", True)),
             setting=d.get("setting"),
             setting_detail=d.get("setting_detail"),
+            setting_detail_all_style_flag=d.get("setting_detail_all_style_flag"),
             setting_detail_all_style=d.get("setting_detail_all_style"),
+            setting_region_filter_favorite_flag=d.get("setting_region_filter_favorite_flag"),
             setting_region_filter_favorite=d.get("setting_region_filter_favorite"),
             columns=d.get("columns"),
             region=d.get("region"),

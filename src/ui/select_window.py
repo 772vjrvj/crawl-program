@@ -225,8 +225,13 @@ class SelectWindow(QWidget):
         state.set(GlobalState.COLOR, site.color)
         state.set(GlobalState.SETTING, resolved_setting)
         state.set(GlobalState.SETTING_DETAIL, site.setting_detail)
+
         state.set(GlobalState.SETTING_DETAIL_ALL_STYLE, site.setting_detail_all_style)
-        state.set(GlobalState.SETTING_REGION_FILTER_FAVORITE, site.setting_region_filter_favorite)
+        state.set(GlobalState.SETTING_DETAIL_ALL_STYLE_FLAG, site.setting_detail_all_style_flag)
+
+        state.set(GlobalState.SETTING_REGION_FILTER_FAVORITE_FLAG, site.setting_region_filter_favorite_flag)
+        state.set(GlobalState.SETTING_REGION_FILTER_FAVORITE, site.setting_region_filter_favorite_flag)
+
         state.set(GlobalState.COLUMNS, site.columns)
         state.set(GlobalState.REGION, site.region)
         state.set(GlobalState.POPUP, site.popup)

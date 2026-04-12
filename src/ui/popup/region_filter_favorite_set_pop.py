@@ -4,10 +4,11 @@ from __future__ import annotations
 import copy
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Any, Optional
 
-from PySide6.QtCore import Qt, Signal, Slot
+from PySide6.QtCore import Qt, Signal, Slot, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -77,6 +78,12 @@ class RegionFilterFavoriteSetPop(QDialog):
         self.select_all_checkbox.setStyleSheet(self.left_checkbox_style())
         self.select_all_checkbox.stateChanged.connect(self.on_select_all_changed)
 
+        self.filter_scroll: Optional[QScrollArea] = None
+        self.filter_body: Optional[QWidget] = None
+        self.filter_body_layout: Optional[QVBoxLayout] = None
+
+        self.favorite_scroll: Optional[QScrollArea] = None
+        self.favorite_body: Optional[QWidget] = None
         self.favorite_list_layout: Optional[QVBoxLayout] = None
 
         self.init_ui()
@@ -113,16 +120,15 @@ class RegionFilterFavoriteSetPop(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.setContentsMargins(0, 4, 0, 0)
 
-        cancel_btn = create_common_button("취소", self.reject, "#cccccc", 140)
         confirm_btn = create_common_button("확인", self.confirm_selection, "black", 140)
 
-        btn_layout.addWidget(cancel_btn)
         btn_layout.addStretch()
         btn_layout.addWidget(confirm_btn)
         root_layout.addLayout(btn_layout)
 
         self.populate_tree()
         self.tree.itemChanged.connect(self.on_item_changed)
+        self.render_filter_panel_body()
         self.render_favorite_list()
 
     def build_region_panel(self) -> QWidget:
@@ -146,30 +152,76 @@ class RegionFilterFavoriteSetPop(QDialog):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
 
+        top_row = QHBoxLayout()
+        top_row.setContentsMargins(0, 0, 0, 0)
+        top_row.setSpacing(8)
+
         title = QLabel("필터 설정")
         title.setStyleSheet("font-size: 17px; font-weight: bold; color: #111; padding: 4px 0;")
-        layout.addWidget(title)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet(self.scroll_style())
+        reset_btn = QPushButton("초기화")
+        reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        reset_btn.setFixedHeight(34)
+        reset_btn.setStyleSheet("""
+            QPushButton {
+                background: #efefef;
+                color: #111;
+                border: none;
+                border-radius: 8px;
+                padding: 0 14px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background: #e3e3e3;
+            }
+        """)
+        reset_btn.clicked.connect(self.reset_filter_to_default)
 
-        body = QWidget()
-        body_layout = QVBoxLayout(body)
-        body_layout.setContentsMargins(4, 4, 4, 4)
-        body_layout.setSpacing(12)
+        top_row.addWidget(title)
+        top_row.addStretch()
+        top_row.addWidget(reset_btn)
 
-        for idx, node in enumerate(self.setting_data):
-            self._render_node(node, body_layout, parent_code=None, depth=0)
-            if idx < len(self.setting_data) - 1:
-                body_layout.addWidget(self._make_divider())
+        layout.addLayout(top_row)
 
-        body_layout.addStretch()
-        scroll.setWidget(body)
-        layout.addWidget(scroll)
+        self.filter_scroll = QScrollArea()
+        self.filter_scroll.setWidgetResizable(True)
+        self.filter_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.filter_scroll.setStyleSheet(self.scroll_style())
+
+        self.filter_body = QWidget()
+        self.filter_body_layout = QVBoxLayout(self.filter_body)
+        self.filter_body_layout.setContentsMargins(4, 4, 4, 10)
+        self.filter_body_layout.setSpacing(12)
+
+        self.filter_scroll.setWidget(self.filter_body)
+        layout.addWidget(self.filter_scroll)
 
         return wrap
+
+    def render_filter_panel_body(self) -> None:
+        if self.filter_body_layout is None:
+            return
+
+        self.checkbox_widgets = []
+        self.single_group_widgets = []
+        self.line_edit_widgets = []
+
+        while self.filter_body_layout.count():
+            item = self.filter_body_layout.takeAt(0)
+            widget = item.widget()
+            child_layout = item.layout()
+            if widget is not None:
+                widget.deleteLater()
+            elif child_layout is not None:
+                self._clear_layout(child_layout)
+
+        for idx, node in enumerate(self.setting_data):
+            self._render_node(node, self.filter_body_layout, parent_code=None, depth=0)
+            if idx < len(self.setting_data) - 1:
+                self.filter_body_layout.addWidget(self._make_divider())
+
+        self.filter_body_layout.addStretch()
 
     def build_favorite_panel(self) -> QWidget:
         wrap = QWidget()
@@ -208,21 +260,33 @@ class RegionFilterFavoriteSetPop(QDialog):
 
         layout.addLayout(top_row)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet(self.scroll_style())
+        self.favorite_scroll = QScrollArea()
+        self.favorite_scroll.setWidgetResizable(True)
+        self.favorite_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.favorite_scroll.setStyleSheet(self.scroll_style())
+        self.favorite_scroll.setMinimumHeight(560)
+        self.favorite_scroll.setMaximumHeight(560)
 
-        body = QWidget()
-        self.favorite_list_layout = QVBoxLayout(body)
-        self.favorite_list_layout.setContentsMargins(4, 4, 4, 4)
-        self.favorite_list_layout.setSpacing(10)
+        self.favorite_body = QWidget()
+        self.favorite_list_layout = QVBoxLayout(self.favorite_body)
+        self.favorite_list_layout.setContentsMargins(4, 6, 4, 16)
+        self.favorite_list_layout.setSpacing(12)
         self.favorite_list_layout.addStretch()
 
-        scroll.setWidget(body)
-        layout.addWidget(scroll)
+        self.favorite_scroll.setWidget(self.favorite_body)
+        layout.addWidget(self.favorite_scroll)
 
         return wrap
+
+    def _clear_layout(self, layout: QVBoxLayout | QHBoxLayout | QGridLayout) -> None:
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            child_layout = item.layout()
+            if widget is not None:
+                widget.deleteLater()
+            elif child_layout is not None:
+                self._clear_layout(child_layout)
 
     # =========================
     # region
@@ -484,6 +548,61 @@ class RegionFilterFavoriteSetPop(QDialog):
                 pass
 
         return []
+
+    @Slot()
+    def reset_filter_to_default(self) -> None:
+        def walk(nodes: list[dict[str, Any]]) -> None:
+            for node in nodes:
+                if type(node) is not dict:
+                    continue
+
+                node_type = str(node.get("type") or "")
+                node_code = str(node.get("code") or "").strip()
+
+                if node_type == "input":
+                    node["value"] = ""
+
+                elif node_type == "two_input":
+                    items = node.get("items") or []
+                    for item in items:
+                        if type(item) is dict:
+                            item["value"] = ""
+
+                elif node_type in ("checkbox_multi_group", "checkbox_single_group"):
+                    items = node.get("items") or []
+                    for item in items:
+                        if type(item) is not dict:
+                            continue
+
+                        code = str(item.get("code") or "").strip()
+
+                        if node_code == "tradeTypes":
+                            item["value"] = code in {"A1", "B1"}
+                        elif node_code == "realEstateTypes":
+                            item["value"] = code in {"A01", "A04", "B01"}
+                        else:
+                            item["value"] = False
+
+                elif node_type == "checkbox":
+                    node["value"] = False
+
+                items = node.get("items") or []
+                for item in items:
+                    if type(item) is not dict:
+                        continue
+
+                    item_type = str(item.get("type") or "")
+                    if item_type == "checkbox":
+                        item["value"] = False
+                    elif item_type == "input":
+                        item["value"] = ""
+
+                children = node.get("children") or []
+                if children:
+                    walk(children)
+
+        walk(self.setting_data)
+        self.render_filter_panel_body()
 
     def _render_node(
             self,
@@ -821,8 +940,11 @@ class RegionFilterFavoriteSetPop(QDialog):
         while self.favorite_list_layout.count():
             item = self.favorite_list_layout.takeAt(0)
             widget = item.widget()
+            child_layout = item.layout()
             if widget is not None:
                 widget.deleteLater()
+            elif child_layout is not None:
+                self._clear_layout(child_layout)
 
         for idx, favorite in enumerate(self.favorite_data):
             card = self.build_favorite_card(idx, favorite)
@@ -832,6 +954,7 @@ class RegionFilterFavoriteSetPop(QDialog):
 
     def build_favorite_card(self, index: int, favorite: dict[str, Any]) -> QWidget:
         wrap = QFrame()
+        wrap.setMinimumHeight(250)
         wrap.setStyleSheet("""
             QFrame {
                 border: 1px solid #dddddd;
@@ -841,21 +964,31 @@ class RegionFilterFavoriteSetPop(QDialog):
         """)
 
         layout = QVBoxLayout(wrap)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(12, 12, 12, 14)
+        layout.setSpacing(10)
 
         top_row = QHBoxLayout()
         top_row.setContentsMargins(0, 0, 0, 0)
 
         title = QLabel(f"즐겨찾기 {index + 1}")
-        title.setStyleSheet("font-size: 14px; font-weight: bold; color: #111;")
+        title.setStyleSheet("""
+            QLabel {
+                font-size: 12px;
+                font-weight: bold;
+                color: #111;
+                background: white;
+                border: 1px solid #d9d9d9;
+                border-radius: 10px;
+                padding: 6px 12px;
+            }
+        """)
 
         top_row.addWidget(title)
         top_row.addStretch()
 
         summary_label = QLabel(self.build_favorite_summary_text(favorite))
         summary_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        summary_label.setWordWrap(False)
+        summary_label.setWordWrap(True)
         summary_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         summary_label.setStyleSheet("""
             QLabel {
@@ -864,26 +997,26 @@ class RegionFilterFavoriteSetPop(QDialog):
                 background: white;
                 color: #222;
                 font-size: 12px;
-                padding: 10px;
+                padding: 12px;
             }
         """)
-        summary_label.setMinimumHeight(180)
         summary_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         summary_scroll = QScrollArea()
         summary_scroll.setWidgetResizable(True)
         summary_scroll.setFrameShape(QFrame.Shape.NoFrame)
         summary_scroll.setStyleSheet(self.scroll_style())
+        summary_scroll.setMinimumHeight(150)
 
         summary_body = QWidget()
         summary_body_layout = QVBoxLayout(summary_body)
-        summary_body_layout.setContentsMargins(0, 0, 0, 0)
+        summary_body_layout.setContentsMargins(0, 0, 0, 8)
         summary_body_layout.addWidget(summary_label)
 
         summary_scroll.setWidget(summary_body)
 
         bottom_row = QHBoxLayout()
-        bottom_row.setContentsMargins(0, 4, 0, 0)
+        bottom_row.setContentsMargins(0, 6, 0, 0)
         bottom_row.setSpacing(8)
 
         use_checkbox = QCheckBox("사용")
@@ -939,10 +1072,10 @@ class RegionFilterFavoriteSetPop(QDialog):
         region_text = self.build_region_summary(regions)
         filter_text = self.build_filter_summary(filters)
 
-        lines = []
-        lines.append(f"지역 : {region_text}")
+        lines = [f"지역 : {region_text}"]
 
         if filter_text:
+            lines.append("")
             lines.append(filter_text)
 
         return "\n".join(lines)
@@ -964,6 +1097,33 @@ class RegionFilterFavoriteSetPop(QDialog):
     def build_filter_summary(self, filters: list[dict[str, Any]]) -> str:
         lines = []
 
+        def append_checkbox_items(label: str, items: list[dict[str, Any]]) -> None:
+            checked_names = []
+            for item in items:
+                if type(item) is not dict:
+                    continue
+                if str(item.get("type") or "") == "checkbox" and bool(item.get("value", False)):
+                    checked_names.append(str(item.get("name") or "").strip())
+
+            if label and checked_names:
+                lines.append(f"{label} : {', '.join(checked_names)}")
+
+        def append_input_items(label: str, items: list[dict[str, Any]]) -> None:
+            values = []
+            for item in items:
+                if type(item) is not dict:
+                    continue
+                if str(item.get("type") or "") == "input":
+                    value = str(item.get("value") or "").strip()
+                    if value:
+                        values.append(value)
+
+            if label and values:
+                if len(values) >= 2:
+                    lines.append(f"{label} : {values[0]} ~ {values[1]}")
+                else:
+                    lines.append(f"{label} : {values[0]}")
+
         def walk(nodes: list[dict[str, Any]]) -> None:
             for node in nodes:
                 if type(node) is not dict:
@@ -971,56 +1131,42 @@ class RegionFilterFavoriteSetPop(QDialog):
 
                 node_type = str(node.get("type") or "")
                 node_name = str(node.get("name") or "").strip()
+                items = node.get("items") or []
+                children = node.get("children") or []
 
                 if node_type in ("checkbox_multi_group", "checkbox_single_group"):
-                    names = []
-                    items = node.get("items") or []
-
-                    for item in items:
-                        if type(item) is not dict:
-                            continue
-                        if bool(item.get("value", False)):
-                            names.append(str(item.get("name") or "").strip())
-
-                    if node_name and names:
-                        lines.append(f"{node_name} : {', '.join(names)}")
+                    append_checkbox_items(node_name, items)
 
                 elif node_type == "two_input":
-                    items = node.get("items") or []
-                    values = []
-
-                    for item in items:
-                        if type(item) is not dict:
-                            continue
-                        value = str(item.get("value") or "").strip()
-                        if value:
-                            values.append(value)
-
-                    if node_name and values:
-                        if len(values) >= 2:
-                            lines.append(f"{node_name} : {values[0]} ~ {values[1]}")
-                        else:
-                            lines.append(f"{node_name} : {values[0]}")
+                    append_input_items(node_name, items)
 
                 elif node_type == "input":
                     value = str(node.get("value") or "").strip()
                     if node_name and value:
                         lines.append(f"{node_name} : {value}")
 
-                elif node_type == "title":
-                    checked_names = []
-                    items = node.get("items") or []
+                elif node_type == "checkbox":
+                    if node_name and bool(node.get("value", False)):
+                        lines.append(f"{node_name} : 선택")
+
+                else:
+                    has_checkbox_item = False
+                    has_input_item = False
 
                     for item in items:
                         if type(item) is not dict:
                             continue
-                        if str(item.get("type") or "") == "checkbox" and bool(item.get("value", False)):
-                            checked_names.append(str(item.get("name") or "").strip())
+                        item_type = str(item.get("type") or "")
+                        if item_type == "checkbox":
+                            has_checkbox_item = True
+                        elif item_type == "input":
+                            has_input_item = True
 
-                    if node_name and checked_names:
-                        lines.append(f"{node_name} : {', '.join(checked_names)}")
+                    if has_checkbox_item:
+                        append_checkbox_items(node_name, items)
+                    elif has_input_item:
+                        append_input_items(node_name, items)
 
-                children = node.get("children") or []
                 if children:
                     walk(children)
 
@@ -1080,7 +1226,11 @@ class RegionFilterFavoriteSetPop(QDialog):
         except Exception:
             return None
 
-    def _save_to_runtime_config(self) -> None:
+    def _save_to_runtime_config(
+            self,
+            setting_data: Optional[list[dict[str, Any]]] = None,
+            favorite_data: Optional[list[dict[str, Any]]] = None,
+    ) -> None:
         try:
             config_path = self._resolve_site_config_path()
             if not config_path:
@@ -1089,18 +1239,35 @@ class RegionFilterFavoriteSetPop(QDialog):
             if not os.path.exists(config_path):
                 return
 
+            save_setting_data = copy.deepcopy(setting_data if setting_data is not None else self.setting_data)
+            save_favorite_data = copy.deepcopy(favorite_data if favorite_data is not None else self.favorite_data)
+
             with open(config_path, "r", encoding="utf-8") as f:
                 config_data = json.load(f)
 
-            config_data[self.setting_attr_name] = copy.deepcopy(self.setting_data)
-            config_data[self.favorite_attr_name] = copy.deepcopy(self.favorite_data)
+            config_data[self.setting_attr_name] = save_setting_data
+            config_data[self.favorite_attr_name] = save_favorite_data
 
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(config_data, f, ensure_ascii=False, indent=2)
                 f.write("\n")
 
+            self.log_signal.emit("변경사항이 저장되었습니다.")
+
         except Exception as e:
             self.log_signal.emit(f"설정 저장 실패: {e}")
+
+    def _save_to_runtime_config_async(
+            self,
+            setting_data: list[dict[str, Any]],
+            favorite_data: list[dict[str, Any]],
+    ) -> None:
+        thread = threading.Thread(
+            target=self._save_to_runtime_config,
+            args=(setting_data, favorite_data),
+            daemon=True,
+        )
+        thread.start()
 
     # =========================
     # confirm
@@ -1110,19 +1277,32 @@ class RegionFilterFavoriteSetPop(QDialog):
         self.apply_filter_widget_values_to_setting_data()
 
         selected_regions = self.collect_selected_regions()
+        setting_snapshot = copy.deepcopy(self.setting_data)
+        favorite_snapshot = copy.deepcopy(self.favorite_data)
 
         if self._parent is not None:
             setattr(self._parent, "selected_regions", selected_regions)
-            setattr(self._parent, self.setting_attr_name, self.setting_data)
-            setattr(self._parent, self.favorite_attr_name, self.favorite_data)
-
-        self._save_to_runtime_config()
+            setattr(self._parent, self.setting_attr_name, setting_snapshot)
+            setattr(self._parent, self.favorite_attr_name, favorite_snapshot)
 
         self.log_signal.emit(f"선택된 지역 {len(selected_regions)}개")
         self.log_signal.emit(f"선택된 즐겨찾기 {len(self.get_checked_favorites())}개")
 
-        self.confirm_signal.emit(selected_regions, self.setting_data, self.favorite_data)
         self.accept()
+
+        QTimer.singleShot(
+            0,
+            lambda: self._after_confirm(selected_regions, setting_snapshot, favorite_snapshot)
+        )
+
+    def _after_confirm(
+            self,
+            selected_regions: list[dict[str, Any]],
+            setting_snapshot: list[dict[str, Any]],
+            favorite_snapshot: list[dict[str, Any]],
+    ) -> None:
+        self.confirm_signal.emit(selected_regions, setting_snapshot, favorite_snapshot)
+        self._save_to_runtime_config_async(setting_snapshot, favorite_snapshot)
 
     # =========================
     # styles

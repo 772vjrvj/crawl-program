@@ -11,8 +11,10 @@ class GlobalState:
     SESSION: ClassVar[str] = "session"
     SETTING: ClassVar[str] = "setting"
     SETTING_DETAIL: ClassVar[str] = "setting_detail"
+    SETTING_DETAIL_ALL_STYLE_FLAG: ClassVar[str] = "setting_detail_all_style_flag"
     SETTING_DETAIL_ALL_STYLE: ClassVar[str] = "setting_detail_all_style"
     SETTING_REGION_FILTER_FAVORITE: ClassVar[str] = "setting_region_filter_favorite"
+    SETTING_REGION_FILTER_FAVORITE_FLAG: ClassVar[str] = "setting_region_filter_favorite_flag"
     COLUMNS: ClassVar[str] = "columns"
     REGION: ClassVar[str] = "region"
     POPUP: ClassVar[str] = "popup"
@@ -50,7 +52,9 @@ class GlobalState:
                 self.SETTING: None,
                 self.SETTING_DETAIL: None,
                 self.SETTING_DETAIL_ALL_STYLE: None,
+                self.SETTING_DETAIL_ALL_STYLE_FLAG: None,
                 self.SETTING_REGION_FILTER_FAVORITE: None,
+                self.SETTING_REGION_FILTER_FAVORITE_FLAG: None,
                 self.COLUMNS: None,
                 self.REGION: None,
                 self.POPUP: False,
