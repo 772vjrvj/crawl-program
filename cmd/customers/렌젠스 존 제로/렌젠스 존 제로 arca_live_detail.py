@@ -45,6 +45,13 @@ def ensure_output_columns(rows: list[dict]) -> list[str]:
     return fieldnames
 
 
+def save_rows_to_csv(output_csv: str, fieldnames: list[str], rows: list[dict]) -> None:
+    with open(output_csv, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def create_driver() -> webdriver.Chrome:
     options = Options()
     options.add_argument("--start-maximized")
@@ -188,6 +195,9 @@ def process_posts() -> None:
 
     fieldnames = ensure_output_columns(rows)
 
+    # 시작하자마자 빈 결과 파일 1회 생성
+    save_rows_to_csv(OUTPUT_CSV, fieldnames, [])
+
     driver = create_driver()
 
     try:
@@ -207,6 +217,7 @@ def process_posts() -> None:
             if not post_url:
                 row["메모"] = "URL 값이 비어있음"
                 result_rows.append(row)
+                save_rows_to_csv(OUTPUT_CSV, fieldnames, result_rows)
                 print(f"[{idx}/{len(rows)}] 실패 - URL 비어있음")
                 continue
 
@@ -236,14 +247,13 @@ def process_posts() -> None:
                 print(f"[{idx}/{len(rows)}] 실패 - {post_url} - {e}")
 
             result_rows.append(row)
+
+            # === 행 1개 끝날 때마다 즉시 저장 ===
+            save_rows_to_csv(OUTPUT_CSV, fieldnames, result_rows)
+
             time.sleep(1)
 
-        with open(OUTPUT_CSV, "w", encoding="utf-8-sig", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-            writer.writeheader()
-            writer.writerows(result_rows)
-
-        print(f"\\n완료: {OUTPUT_CSV}")
+        print(f"\n완료: {OUTPUT_CSV}")
 
     finally:
         try:
