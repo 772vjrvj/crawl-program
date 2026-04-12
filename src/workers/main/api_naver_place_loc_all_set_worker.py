@@ -997,8 +997,12 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                     day = hour.get("day", "") or ""
                     start_time = hour.get("startTime", "") or ""
                     end_time = hour.get("endTime", "") or ""
+                    description = hour.get("description", "") or ""
                     if day and start_time and end_time:
-                        formatted_hours.append(f"{day} {start_time} - {end_time}")
+                        line = f"{day} {start_time} - {end_time}"
+                        if description:
+                            line += f" {description}"
+                        formatted_hours.append(line)
         except Exception as e:
             self.log_signal_func(f"Unexpected error: {e}")
             return ""
@@ -1010,15 +1014,26 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         formatted_hours: List[str] = []
 
         try:
+            day_order = {
+                "일": 0,
+                "월": 1,
+                "화": 2,
+                "수": 3,
+                "목": 4,
+                "금": 5,
+                "토": 6,
+            }
+
             if new_business_hours:
                 for item in new_business_hours:
-                    status_description = item.get("businessStatusDescription", {}) or {}
-                    description = status_description.get("description", "") or ""
+                    business_hours_list = item.get("businessHours", []) or []
 
-                    if description:
-                        formatted_hours.append(description)
+                    business_hours_list = sorted(
+                        business_hours_list,
+                        key=lambda x: day_order.get(x.get("day", "") or "", 99)
+                    )
 
-                    for info in item.get("businessHours", []) or []:
+                    for info in business_hours_list:
                         day = info.get("day", "") or ""
                         info_description = info.get("description", "") or ""
 
@@ -1027,7 +1042,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                         end_time = business_hours.get("end", "") or ""
 
                         break_hours = info.get("breakHours", []) or []
-                        break_times = []
+                        break_times: List[str] = []
                         for bh in break_hours:
                             bh_start = bh.get("start", "") or ""
                             bh_end = bh.get("end", "") or ""
@@ -1036,7 +1051,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                         break_times_str = ", ".join(break_times) + " 브레이크타임" if break_times else ""
 
                         last_order_times = info.get("lastOrderTimes", []) or []
-                        last_order_list = []
+                        last_order_list: List[str] = []
                         for lo in last_order_times:
                             lo_time = lo.get("time", "") or ""
                             if lo_time:
