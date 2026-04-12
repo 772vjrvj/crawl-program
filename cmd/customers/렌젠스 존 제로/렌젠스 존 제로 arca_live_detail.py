@@ -1,5 +1,6 @@
 import csv
 import os
+import sys
 from datetime import datetime
 
 from selenium import webdriver
@@ -10,12 +11,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 
-# 오류 재시도 모드
-# True  -> 기존 result 에서 성공 N 인 것들만 다시 시도
-# False -> 기존 result 에서 성공 N 인 것도 스킵
 ERROR_RETRY_MODE = True
-
 PROGRAM_START_DT = datetime.now()
+
+LOG_FILE_PATH = ""
+LAST_STATUS_LEN = 0
 
 
 def format_dt(dt: datetime) -> str:
@@ -30,15 +30,59 @@ def format_elapsed(seconds: float) -> str:
     return f"{hours}시간 {minutes}분 {secs}초"
 
 
-def log(message: str) -> None:
+def build_log_prefix() -> str:
     now_dt = datetime.now()
     elapsed_str = format_elapsed((now_dt - PROGRAM_START_DT).total_seconds())
-    print(
+    return (
         f"[시작 시간 {format_dt(PROGRAM_START_DT)}] "
         f"[현재 시간 {format_dt(now_dt)}] "
         f"[현재 경과 {elapsed_str}] "
-        f"{message}"
     )
+
+
+def write_log_file(message: str) -> None:
+    if not LOG_FILE_PATH:
+        return
+
+    try:
+        with open(LOG_FILE_PATH, "a", encoding="utf-8") as f:
+            f.write(message + "\n")
+    except Exception:
+        pass
+
+
+def clear_status_line() -> None:
+    global LAST_STATUS_LEN
+
+    if LAST_STATUS_LEN > 0:
+        sys.stdout.write("\r" + (" " * LAST_STATUS_LEN) + "\r")
+        sys.stdout.flush()
+        LAST_STATUS_LEN = 0
+
+
+def log_status(message: str) -> None:
+    global LAST_STATUS_LEN
+
+    full_message = build_log_prefix() + message
+    padded = full_message
+
+    if len(full_message) < LAST_STATUS_LEN:
+        padded = full_message + (" " * (LAST_STATUS_LEN - len(full_message)))
+
+    sys.stdout.write("\r" + padded)
+    sys.stdout.flush()
+    LAST_STATUS_LEN = len(full_message)
+
+    write_log_file(full_message)
+
+
+def log_line(message: str) -> None:
+    clear_status_line()
+
+    full_message = build_log_prefix() + message
+    print(full_message)
+
+    write_log_file(full_message)
 
 
 def clean_text(text: str) -> str:
@@ -269,7 +313,7 @@ def get_post_data(driver: webdriver.Chrome, post_url: str) -> dict:
 
 
 def build_result_map(result_rows: list[dict]) -> dict[str, dict]:
-    result_map: dict[str, dict] = {}
+    result_map = {}
 
     for row in result_rows:
         url = str(row.get("URL", "")).strip()
@@ -287,11 +331,17 @@ def normalize_input_row(row: dict, fieldnames: list[str]) -> dict:
 
 
 def process_posts() -> None:
+    global LOG_FILE_PATH
+
     input_csv, output_csv = ask_csv_name()
 
-    log("프로그램 시작")
-    log(f"입력 파일: {input_csv}")
-    log(f"결과 파일: {output_csv}")
+    base_name = os.path.splitext(input_csv)[0]
+    LOG_FILE_PATH = f"{base_name}_log.txt"
+
+    log_line("프로그램 시작")
+    log_line(f"입력 파일: {input_csv}")
+    log_line(f"결과 파일: {output_csv}")
+    log_line(f"로그 파일: {LOG_FILE_PATH}")
 
     if not os.path.exists(input_csv):
         raise FileNotFoundError(f"입력 파일이 없습니다: {input_csv}")
@@ -310,7 +360,7 @@ def process_posts() -> None:
             if col not in row:
                 row[col] = ""
 
-    log(f"원본 CSV 확인 완료: {input_csv} / {len(input_rows)}건")
+    log_line(f"원본 CSV 확인 완료: {input_csv} / {len(input_rows)}건")
 
     result_rows = read_csv_rows(output_csv)
     if result_rows:
@@ -318,18 +368,18 @@ def process_posts() -> None:
             for col in fieldnames:
                 if col not in row:
                     row[col] = ""
-        log(f"기존 결과 CSV 확인 완료: {output_csv} / {len(result_rows)}건")
+        log_line(f"기존 결과 CSV 확인 완료: {output_csv} / {len(result_rows)}건")
     else:
-        log("기존 결과 CSV 없음 - 새로 시작")
+        log_line("기존 결과 CSV 없음 - 새로 시작")
 
     result_map = build_result_map(result_rows)
 
     driver = create_driver()
-    log("크롬 실행 완료")
+    log_line("크롬 실행 완료")
 
     try:
         if result_rows:
-            log("1단계 시작 - 기존 result 기준 오류 행 정리")
+            log_line("1단계 시작 - 기존 result 기준 오류 행 정리")
 
             for idx, row in enumerate(result_rows, start=1):
                 post_url = str(row.get("URL", "")).strip()
@@ -339,14 +389,12 @@ def process_posts() -> None:
                     continue
 
                 if success == "Y":
-                    log(f"[기존결과 {idx}/{len(result_rows)}] 성공건 스킵 - {post_url}")
                     continue
 
                 if not ERROR_RETRY_MODE:
-                    log(f"[기존결과 {idx}/{len(result_rows)}] 실패건 스킵 - {post_url}")
                     continue
 
-                log(f"[기존결과 {idx}/{len(result_rows)}] 실패건 재시도 시작 - {post_url}")
+                log_status(f"[기존결과 {idx}/{len(result_rows)}] 실패건 재시도 중 - {post_url}")
 
                 try:
                     parsed = get_post_data(driver, post_url)
@@ -359,31 +407,28 @@ def process_posts() -> None:
                     row["성공"] = parsed.get("성공", "Y")
                     row["메모"] = parsed.get("메모", "")
 
-                    log(f"[기존결과 {idx}/{len(result_rows)}] 재시도 성공 - {post_url}")
-
                 except TimeoutException:
                     row["성공"] = "N"
                     row["메모"] = "2회 실패: 타임아웃 - article-wrapper 로딩 실패"
-                    log(f"[기존결과 {idx}/{len(result_rows)}] 재시도 실패 - 타임아웃 - {post_url}")
+                    log_line(f"[기존결과 {idx}/{len(result_rows)}] 재시도 실패 - 타임아웃 - {post_url}")
 
                 except Exception as e:
                     row["성공"] = "N"
                     row["메모"] = f"2회 실패: {e}"
-                    log(f"[기존결과 {idx}/{len(result_rows)}] 재시도 실패 - {post_url} - {e}")
+                    log_line(f"[기존결과 {idx}/{len(result_rows)}] 재시도 실패 - {post_url} - {e}")
 
                 write_all_rows(output_csv, fieldnames, result_rows)
-                log(f"[기존결과 {idx}/{len(result_rows)}] 결과 CSV 즉시 저장 완료")
 
+            clear_status_line()
             result_map = build_result_map(result_rows)
-            log("1단계 완료 - 기존 result 정리 완료")
+            log_line("1단계 완료 - 기존 result 정리 완료")
 
-        log("2단계 시작 - 원본 CSV 기준 신규 작업 확인")
+        log_line("2단계 시작 - 원본 CSV 기준 신규 작업 확인")
 
         for idx, source_row in enumerate(input_rows, start=1):
             post_url = str(source_row.get("URL", "")).strip()
 
             if not post_url:
-                log(f"[원본 {idx}/{len(input_rows)}] URL 비어있음 - 스킵")
                 continue
 
             existing = result_map.get(post_url)
@@ -392,14 +437,11 @@ def process_posts() -> None:
                 existing_success = str(existing.get("성공", "")).strip().upper()
 
                 if existing_success == "Y":
-                    log(f"[원본 {idx}/{len(input_rows)}] 이미 성공한 건 스킵 - {post_url}")
                     continue
 
                 if not ERROR_RETRY_MODE:
-                    log(f"[원본 {idx}/{len(input_rows)}] 기존 실패건 스킵 - {post_url}")
                     continue
 
-                log(f"[원본 {idx}/{len(input_rows)}] 기존 실패건은 1단계 처리됨 - 스킵 - {post_url}")
                 continue
 
             row = normalize_input_row(source_row, fieldnames)
@@ -412,7 +454,7 @@ def process_posts() -> None:
             row["성공"] = "N"
             row["메모"] = ""
 
-            log(f"[원본 {idx}/{len(input_rows)}] 신규 시작 - {post_url}")
+            log_status(f"[원본 {idx}/{len(input_rows)}] 작업 중 - {post_url}")
 
             try:
                 parsed = get_post_data(driver, post_url)
@@ -425,38 +467,36 @@ def process_posts() -> None:
                 row["성공"] = parsed.get("성공", "Y")
                 row["메모"] = parsed.get("메모", "")
 
-                log(f"[원본 {idx}/{len(input_rows)}] 성공 - {post_url}")
-
             except TimeoutException:
                 row["성공"] = "N"
                 row["메모"] = "실패: 타임아웃 - article-wrapper 로딩 실패"
-                log(f"[원본 {idx}/{len(input_rows)}] 실패 - 타임아웃 - {post_url}")
+                log_line(f"[원본 {idx}/{len(input_rows)}] 실패 - 타임아웃 - {post_url}")
 
             except Exception as e:
                 row["성공"] = "N"
                 row["메모"] = f"실패: {e}"
-                log(f"[원본 {idx}/{len(input_rows)}] 실패 - {post_url} - {e}")
+                log_line(f"[원본 {idx}/{len(input_rows)}] 실패 - {post_url} - {e}")
 
             result_rows.append(row)
             result_map[post_url] = row
-
             write_all_rows(output_csv, fieldnames, result_rows)
-            log(f"[원본 {idx}/{len(input_rows)}] 결과 CSV 즉시 저장 완료")
 
-        log(f"전체 완료: {output_csv}")
+        clear_status_line()
+        log_line(f"전체 완료: {output_csv}")
 
     finally:
         try:
             driver.quit()
-            log("크롬 종료 완료")
+            log_line("크롬 종료 완료")
         except Exception as e:
-            log(f"크롬 종료 중 예외 발생: {e}")
+            log_line(f"크롬 종료 중 예외 발생: {e}")
 
 
 if __name__ == "__main__":
     try:
         process_posts()
     except Exception as e:
-        log(f"프로그램 오류: {e}")
+        log_line(f"프로그램 오류: {e}")
     finally:
+        clear_status_line()
         input("엔터를 누르면 종료됩니다...")
