@@ -201,7 +201,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         checked_favorite_list = []
 
         for row in favorite_list:
-            if type(row) is dict and bool(row.get("checked", False)):
+            if row.get("checked"):
                 checked_favorite_list.append(row)
 
         # favorite가 있으면 기존 self.region, self.setting_detail_all_style는 사용하지 않음
@@ -427,6 +427,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         done_region_count = 0
 
+        def emit_region_progress() -> None:
+            pro_value = (done_region_count / max(total_region_count, 1)) * 1000000
+            self.progress_signal.emit(self.before_pro_value, pro_value)
+            self.before_pro_value = pro_value
+
         for work_index, work_item in enumerate(self.work_items, start=1):
             current_filters = work_item.get("filters") or []
             current_region_list = work_item.get("detail_region_article_list") or []
@@ -472,63 +477,62 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 self.log_signal_func(f"[URL] {url}")
 
                 success = False
+                skip_current_region = False
                 base_payload: dict[str, Any] = {}
                 first_result: dict[str, Any] = {}
 
-                for attempt in range(1, 5):
+                for attempt in range(1, 4):
                     try:
                         self.log_signal_func(f"[지역 진입] 시도 {attempt}/3")
 
                         self.driver.get(url)
                         time.sleep(5)
 
-                        self.log_signal_func("[후킹] 목록 후킹 설치")
+                        self.log_signal_func("[후킹] 목록 후킹 설치 시작")
                         self._inject_list_hook()
-                        time.sleep(1)
+                        time.sleep(2)
+                        self.log_signal_func("[후킹] 목록 후킹 설치 끝")
 
-                        # === 신규 === 후킹 데이터 먼저 초기화
+                        # 초기 hook 데이터 비우기
                         try:
                             self.driver.execute_script("window.__naverListHookData = null;")
                             self.log_signal_func("[후킹] 지역 진입 후 hook 데이터 초기화")
                         except Exception as e:
+
                             self.log_signal_func(f"[후킹] 초기화 실패: {e}")
 
                         self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
-                        self._click_article_button(wait_sec=20)
+                        try:
+                            self._click_article_button(wait_sec=20)
+                        except Exception as e:
+                            self.log_signal_func(f"[목록] 매물 버튼 없음/클릭 실패 -> 다음 지역으로 이동 / {e}")
+                            skip_current_region = True
+                            success = True
+                            break
+
                         time.sleep(3)
 
-                        # === 신규 === 정렬 전에 한 번 더 초기화
-                        try:
-                            self.driver.execute_script("window.__naverListHookData = null;")
-                            self.log_signal_func("[후킹] 정렬 전 hook 데이터 초기화")
-                        except Exception as e:
-                            self.log_signal_func(f"[후킹] 초기화 실패: {e}")
+                        # 정렬 전, 먼저 초기 목록 응답 확보
+                        initial_hook_data: dict[str, Any] = self._get_first_list_hook_data(12)
+                        initial_body_text: str = initial_hook_data.get("bodyText", "")
+                        initial_response_json: dict[str, Any] = initial_hook_data.get("responseJson", {}) or {}
 
-                        self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
-                        self._click_sort_button_by_setting(wait_sec=20)
-                        time.sleep(3)
+                        self.log_signal_func(f"[후킹-초기] 수신 여부={bool(initial_hook_data)}")
+                        self.log_signal_func(f"[후킹-초기] bodyText 존재={bool(initial_body_text)}")
+                        self.log_signal_func(f"[후킹-초기] responseJson 존재={bool(initial_response_json)}")
 
-                        # === 신규 === 성공 판정 전에 hook 데이터 검증
-                        hook_data: dict[str, Any] = self._get_first_list_hook_data(12)
-                        body_text: str = hook_data.get("bodyText", "")
-                        response_json: dict[str, Any] = hook_data.get("responseJson", {}) or {}
-
-                        self.log_signal_func(f"[후킹] 수신 여부={bool(hook_data)}")
-                        self.log_signal_func(f"[후킹] bodyText 존재={bool(body_text)}")
-                        self.log_signal_func(f"[후킹] responseJson 존재={bool(response_json)}")
-
-                        if not body_text:
-                            raise Exception("목록 후킹 bodyText 없음")
+                        if not initial_body_text:
+                            raise Exception("초기 목록 후킹 bodyText 없음")
 
                         try:
-                            base_payload = json.loads(body_text)
+                            base_payload = json.loads(initial_body_text)
                         except Exception as e:
-                            raise Exception(f"bodyText json 파싱 실패: {e}")
+                            raise Exception(f"초기 bodyText json 파싱 실패: {e}")
 
-                        first_result = response_json.get("result", {}) or {}
+                        first_result = initial_response_json.get("result", {}) or {}
 
                         if not first_result:
-                            self.log_signal_func("[후킹] 첫 응답 result 없음 -> 첫 페이지 재요청")
+                            self.log_signal_func("[후킹-초기] 첫 응답 result 없음 -> 첫 페이지 재요청")
                             retry_res = self._browser_fetch_json(
                                 url=self.list_api_url,
                                 method="POST",
@@ -537,14 +541,89 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                             )
 
                             self.log_signal_func(
-                                f"[후킹 재요청] status={retry_res.get('status')} ok={retry_res.get('ok')}"
+                                f"[후킹-초기 재요청] status={retry_res.get('status')} ok={retry_res.get('ok')}"
                             )
 
                             retry_json: dict[str, Any] = retry_res.get("json") or {}
                             first_result = retry_json.get("result", {}) or {}
 
                         if not first_result:
-                            raise Exception("첫 페이지 result 확보 실패")
+                            raise Exception("초기 첫 페이지 result 확보 실패")
+
+                        initial_list: list[dict[str, Any]] = first_result.get("list", []) or []
+                        initial_total_count: int = int(first_result.get("totalCount") or len(initial_list) or 0)
+
+                        self.log_signal_func(
+                            f"[목록-초기] count={len(initial_list)} "
+                            f"total={initial_total_count} "
+                            f"hasNext={first_result.get('hasNextPage')}"
+                        )
+
+                        # 조회 결과 자체가 없는 경우
+                        if not initial_list or initial_total_count == 0:
+                            self.log_signal_func("[목록] 조회 결과 없음 -> 다음 지역으로 이동")
+                            skip_current_region = True
+                            success = True
+                            break
+
+                        # 1건 이하이면 정렬 버튼이 없을 수 있으므로 스킵
+                        if initial_total_count <= 1 or len(initial_list) <= 1:
+                            self.log_signal_func("[정렬] 매물 1건 이하 -> 정렬 클릭 스킵")
+                            success = True
+                            break
+
+                        # 2건 이상일 때만 정렬 시도
+                        try:
+                            self.driver.execute_script("window.__naverListHookData = null;")
+                            self.log_signal_func("[후킹] 정렬 전 hook 데이터 초기화")
+                        except Exception as e:
+                            self.log_signal_func(f"[후킹] 초기화 실패: {e}")
+
+                        try:
+                            self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
+                            self._click_sort_button_by_setting(wait_sec=20)
+                            time.sleep(3)
+
+                            sorted_hook_data: dict[str, Any] = self._get_first_list_hook_data(12)
+                            sorted_body_text: str = sorted_hook_data.get("bodyText", "")
+                            sorted_response_json: dict[str, Any] = sorted_hook_data.get("responseJson", {}) or {}
+
+                            self.log_signal_func(f"[후킹-정렬] 수신 여부={bool(sorted_hook_data)}")
+                            self.log_signal_func(f"[후킹-정렬] bodyText 존재={bool(sorted_body_text)}")
+                            self.log_signal_func(f"[후킹-정렬] responseJson 존재={bool(sorted_response_json)}")
+
+                            if not sorted_body_text:
+                                raise Exception("정렬 후 목록 후킹 bodyText 없음")
+
+                            try:
+                                base_payload = json.loads(sorted_body_text)
+                            except Exception as e:
+                                raise Exception(f"정렬 후 bodyText json 파싱 실패: {e}")
+
+                            first_result = sorted_response_json.get("result", {}) or {}
+
+                            if not first_result:
+                                self.log_signal_func("[후킹-정렬] 첫 응답 result 없음 -> 첫 페이지 재요청")
+                                retry_res = self._browser_fetch_json(
+                                    url=self.list_api_url,
+                                    method="POST",
+                                    payload=base_payload,
+                                    wait_sec=30,
+                                )
+
+                                self.log_signal_func(
+                                    f"[후킹-정렬 재요청] status={retry_res.get('status')} ok={retry_res.get('ok')}"
+                                )
+
+                                retry_json: dict[str, Any] = retry_res.get("json") or {}
+                                first_result = retry_json.get("result", {}) or {}
+
+                            if not first_result:
+                                raise Exception("정렬 후 첫 페이지 result 확보 실패")
+
+                        except Exception as e:
+                            # 정렬 버튼이 없거나 정렬 실패해도 초기 목록으로 계속 진행
+                            self.log_signal_func(f"[정렬] 버튼 없음 또는 정렬 실패 -> 초기 목록으로 진행 / {e}")
 
                         success = True
                         break
@@ -562,6 +641,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                             self.log_signal_func("[재시도 실패] 3회 모두 실패하여 다음 지역으로 이동")
 
                 if not success:
+                    emit_region_progress()
+                    continue
+
+                if skip_current_region:
+                    emit_region_progress()
+                    time.sleep(random.uniform(1, 2))
                     continue
 
                 items: list[dict[str, Any]] = self._collect_next_list_pages(
@@ -569,12 +654,17 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     first_result=first_result,
                 )
 
+                if not items:
+                    self.log_signal_func("[목록] 수집된 매물 없음 -> 상세 수집 스킵")
+                    emit_region_progress()
+                    time.sleep(random.uniform(1, 2))
+                    continue
+
                 self._collect_detail(items, region_item)
 
-                pro_value = (done_region_count / max(total_region_count, 1)) * 1000000
-                self.progress_signal.emit(self.before_pro_value, pro_value)
-                self.before_pro_value = pro_value
+                emit_region_progress()
                 time.sleep(random.uniform(2, 4))
+
 
     def _build_region_map_url(self, x, y, filter_items):
         params = [
@@ -697,22 +787,29 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def _click_article_button(self, wait_sec: int = 20) -> None:
         end = time.time() + wait_sec
+        last_reason = ""
 
         while time.time() < end:
             try:
-                buttons = self.driver.execute_script(self.click_article_button_js)
+                result = self.driver.execute_script(self.click_article_button_js) or {}
 
-                if buttons:
-                    self.log_signal_func(f"[매물 버튼] 발견 개수={len(buttons)}")
-                    self.driver.execute_script("arguments[0].click();", buttons[0])
-                    self.log_signal_func("[매물 버튼] 첫 번째 버튼 클릭 완료")
+                if result.get("ok"):
+                    self.log_signal_func(
+                        f"[매물 버튼] 클릭 완료 / 타입={result.get('foundType', '')} / text={result.get('text', '')}"
+                    )
                     return
+
+                last_reason = str(result.get("reason") or "")
+                self.log_signal_func(f"[매물 버튼] 대기중 / reason={last_reason}")
+
             except Exception as e:
+                last_reason = str(e)
                 self.log_signal_func(f"[매물 버튼] 클릭 실패: {e}")
 
-            time.sleep(1)
+            time.sleep(0.5)
 
-        raise Exception("매물 버튼을 찾지 못했습니다.")
+        raise Exception(f"매물 버튼을 찾지 못했습니다. reason={last_reason}")
+
 
     def _click_sort_button_by_setting(self, wait_sec: int = 20) -> None:
         click_map: dict[str, tuple[str, int]] = {
