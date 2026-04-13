@@ -18,12 +18,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'ByeWhale'),
             StringStruct('FileDescription', 'Crawl Program'),
-            StringStruct('FileVersion', '2.0.0'),
+            StringStruct('FileVersion', '4.0.3'),
             StringStruct('InternalName', 'CrawlProgram'),
             StringStruct('LegalCopyright', '© 2026 ByeWhale'),
             StringStruct('OriginalFilename', 'CrawlProgram.exe'),
             StringStruct('ProductName', 'CrawlProgram'),
-            StringStruct('ProductVersion', '2.0.0')
+            StringStruct('ProductVersion', '4.0.3')
           ]
         )
       ]

@@ -197,12 +197,16 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         # 7. 작업목록 생성
         self.work_items = []
 
-        favorite_list = self.setting_region_filter_favorite or []
+        favorite_list = self.setting_region_filter_favorite
+        if not isinstance(favorite_list, list):
+            favorite_list = []
+
         checked_favorite_list = []
 
         for row in favorite_list:
-            if row.get("checked"):
+            if isinstance(row, dict) and row.get("checked"):
                 checked_favorite_list.append(row)
+
 
         # favorite가 있으면 기존 self.region, self.setting_detail_all_style는 사용하지 않음
         if checked_favorite_list:
