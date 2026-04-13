@@ -503,7 +503,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
                         self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
                         try:
-                            self._click_article_button(wait_sec=20)
+                            self._click_article_button(wait_sec=5)
                         except Exception as e:
                             self.log_signal_func(f"[목록] 매물 버튼 없음/클릭 실패 -> 다음 지역으로 이동 / {e}")
                             skip_current_region = True
@@ -513,7 +513,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                         time.sleep(3)
 
                         # 정렬 전, 먼저 초기 목록 응답 확보
-                        initial_hook_data: dict[str, Any] = self._get_first_list_hook_data(12)
+                        initial_hook_data: dict[str, Any] = self._get_first_list_hook_data(5)
                         initial_body_text: str = initial_hook_data.get("bodyText", "")
                         initial_response_json: dict[str, Any] = initial_hook_data.get("responseJson", {}) or {}
 
@@ -581,10 +581,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
                         try:
                             self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
-                            self._click_sort_button_by_setting(wait_sec=20)
+                            self._click_sort_button_by_setting(wait_sec=5)
                             time.sleep(3)
 
-                            sorted_hook_data: dict[str, Any] = self._get_first_list_hook_data(12)
+                            sorted_hook_data: dict[str, Any] = self._get_first_list_hook_data(5)
                             sorted_body_text: str = sorted_hook_data.get("bodyText", "")
                             sorted_response_json: dict[str, Any] = sorted_hook_data.get("responseJson", {}) or {}
 
@@ -785,7 +785,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         return checked_codes
 
-    def _click_article_button(self, wait_sec: int = 20) -> None:
+    def _click_article_button(self, wait_sec: int = 5) -> None:
         end = time.time() + wait_sec
         last_reason = ""
 
@@ -806,12 +806,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 last_reason = str(e)
                 self.log_signal_func(f"[매물 버튼] 클릭 실패: {e}")
 
-            time.sleep(0.5)
+            time.sleep(1)
 
         raise Exception(f"매물 버튼을 찾지 못했습니다. reason={last_reason}")
 
 
-    def _click_sort_button_by_setting(self, wait_sec: int = 20) -> None:
+    def _click_sort_button_by_setting(self, wait_sec: int = 5) -> None:
         click_map: dict[str, tuple[str, int]] = {
             "RANKING_DESC": ("filterOrder1", 1),
             "PRICE_DESC": ("filterOrder2", 1),
@@ -843,7 +843,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         script = self.list_hook_js.replace("__TARGET__", "/front-api/v1/article/boundedArticles")
         self.driver.execute_script(script)
 
-    def _get_first_list_hook_data(self, wait_sec: int = 20):
+    def _get_first_list_hook_data(self, wait_sec: int = 5):
         end = time.time() + wait_sec
 
         while time.time() < end:
