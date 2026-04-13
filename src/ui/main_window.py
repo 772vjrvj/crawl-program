@@ -215,9 +215,9 @@ class MainWindow(QWidget):
         self.setting_detail = state.get("setting_detail")
         self.setting_detail_all_style = state.get("setting_detail_all_style")
         self.setting_detail_all_style_flag = state.get("setting_detail_all_style_flag")
-
         self.setting_region_filter_favorite = state.get("setting_region_filter_favorite")
         self.setting_region_filter_favorite_flag = state.get("setting_region_filter_favorite_flag")
+
 
     # 재 초기화
     def init_reset(self) -> None:

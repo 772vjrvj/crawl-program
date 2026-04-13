@@ -1,5 +1,5 @@
 {
-  "label": "네이버 부동산 전국 공인중개사 번호",
+  "label": "네이버 부동산",
   "key": "NAVER_LAND_REAL_ESTATE_DETAIL",
   "color": "#ccc",
   "enabled": true,
@@ -20,13 +20,13 @@
     {
       "name": "등록일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": 20260406,
+      "value": "",
       "type": "input"
     },
     {
       "name": "등록일(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": 20260412,
+      "value": "",
       "type": "input"
     },
     {
@@ -60,6 +60,12 @@
           "value": "SPACE_ASC"
         }
       ]
+    },
+    {
+      "name": "상세정보조회",
+      "code": "detail_column_yn",
+      "value": false,
+      "type": "check"
     },
     {
       "name": "영어컬럼",
@@ -103,19 +109,19 @@
           "name": "전세",
           "code": "B1",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "월세",
           "code": "B2",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "단기임대",
           "code": "B3",
           "type": "checkbox",
-          "value": true
+          "value": false
         }
       ],
       "parent_id": "checkbox_multi_group",
@@ -136,13 +142,13 @@
           "name": "재건축",
           "code": "A04",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "오피스텔",
           "code": "A02",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "빌라",
@@ -252,13 +258,13 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": ""
+              "value": "30000"
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": ""
+              "value": "50000"
             }
           ]
         },
@@ -816,9 +822,49 @@
     {
       "regions": [
         {
-          "시도": "인천시",
-          "시군구": "중구",
-          "읍면동": "중앙동1가"
+          "시도": "서울시",
+          "시군구": "송파구",
+          "읍면동": "잠실동"
+        },
+        {
+          "시도": "경기도",
+          "시군구": "수원시 권선구",
+          "읍면동": "권선동"
+        },
+        {
+          "시도": "경기도",
+          "시군구": "수원시 영통구",
+          "읍면동": "망포동"
+        },
+        {
+          "시도": "경기도",
+          "시군구": "수원시 영통구",
+          "읍면동": "신동"
+        },
+        {
+          "시도": "경기도",
+          "시군구": "용인시 기흥구",
+          "읍면동": "농서동"
+        },
+        {
+          "시도": "경기도",
+          "시군구": "용인시 기흥구",
+          "읍면동": "서천동"
+        },
+        {
+          "시도": "경기도",
+          "시군구": "화성시 병점구",
+          "읍면동": "기산동"
+        },
+        {
+          "시도": "경기도",
+          "시군구": "화성시 병점구",
+          "읍면동": "반정동"
+        },
+        {
+          "시도": "경기도",
+          "시군구": "화성시 병점구",
+          "읍면동": "병점동"
         }
       ],
       "filters": [
@@ -837,19 +883,19 @@
               "name": "전세",
               "code": "B1",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "월세",
               "code": "B2",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "단기임대",
               "code": "B3",
               "type": "checkbox",
-              "value": true
+              "value": false
             }
           ],
           "parent_id": "checkbox_multi_group",
@@ -870,13 +916,13 @@
               "name": "재건축",
               "code": "A04",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "오피스텔",
               "code": "A02",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "빌라",
@@ -986,13 +1032,13 @@
                   "name": "최소",
                   "code": "min",
                   "type": "input",
-                  "value": ""
+                  "value": "30000"
                 },
                 {
                   "name": "최대",
                   "code": "max",
                   "type": "input",
-                  "value": ""
+                  "value": "50000"
                 }
               ]
             },
@@ -1571,7 +1617,7 @@
     },
     {
       "code": "warrantyAmount",
-      "value": "보증금",
+      "value": "보증금/전세",
       "checked": true
     },
     {
@@ -1625,8 +1671,13 @@
       "checked": true
     },
     {
-      "code": "floorText",
-      "value": "층정보",
+      "code": "targetFloor",
+      "value": "해당층",
+      "checked": true
+    },
+    {
+      "code": "totalFloor",
+      "value": "전체층",
       "checked": true
     },
     {
@@ -1772,12 +1823,12 @@
     {
       "code": "articleDescription",
       "value": "매물설명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "vrfctpcd",
       "value": "매물확인코드",
-      "checked": false
+      "checked": true
     },
     {
       "code": "currentBusinessType",

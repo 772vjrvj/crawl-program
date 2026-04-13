@@ -230,7 +230,7 @@ class SelectWindow(QWidget):
         state.set(GlobalState.SETTING_DETAIL_ALL_STYLE_FLAG, site.setting_detail_all_style_flag)
 
         state.set(GlobalState.SETTING_REGION_FILTER_FAVORITE_FLAG, site.setting_region_filter_favorite_flag)
-        state.set(GlobalState.SETTING_REGION_FILTER_FAVORITE, site.setting_region_filter_favorite_flag)
+        state.set(GlobalState.SETTING_REGION_FILTER_FAVORITE, site.setting_region_filter_favorite)
 
         state.set(GlobalState.COLUMNS, site.columns)
         state.set(GlobalState.REGION, site.region)
