@@ -31,9 +31,12 @@ POST_BODY_COL = "게시글 본문"
 POST_URL_COL = "게시글 URL"
 
 MAX_FETCH_RETRY = 2
-SLOW_RESPONSE_SECONDS = 4.0
+FIRST_REQUEST_THRESHOLD_SECONDS = 10.0
+NEXT_REQUEST_THRESHOLD_SECONDS = 5.0
 PAGE_LOAD_TIMEOUT_SECONDS = 15
 ELEMENT_WAIT_SECONDS = 10
+
+ITEM_ELAPSED_LIST = []
 
 
 def format_dt(dt: datetime) -> str:
@@ -343,12 +346,28 @@ def close_driver(driver) -> None:
         pass
 
 
-def restart_driver(driver):
-    close_driver(driver)
+def restart_driver(driver_box: dict, reason: str) -> None:
+    close_driver(driver_box.get("driver"))
     time.sleep(1)
-    new_driver = create_driver()
-    log_line("크롬 재실행 완료")
-    return new_driver
+    driver_box["driver"] = create_driver()
+    driver_box["request_count_after_restart"] = 0
+    log_line(f"크롬 재실행 완료 - 사유: {reason}")
+
+
+def ensure_driver(driver_box: dict) -> None:
+    if driver_box.get("driver") is not None:
+        return
+
+    driver_box["driver"] = create_driver()
+    driver_box["request_count_after_restart"] = 0
+    log_line("크롬 실행 완료")
+
+
+def get_current_threshold(driver_box: dict) -> float:
+    request_count = int(driver_box.get("request_count_after_restart", 0))
+    if request_count == 0:
+        return FIRST_REQUEST_THRESHOLD_SECONDS
+    return NEXT_REQUEST_THRESHOLD_SECONDS
 
 
 def extract_body_text(driver: webdriver.Chrome, wrapper) -> str:
@@ -372,6 +391,8 @@ def extract_body_text(driver: webdriver.Chrome, wrapper) -> str:
                         result += node.textContent;
                     } else if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'BR') {
                         result += '\\n';
+                    } else if (node.nodeType === Node.ELEMENT_NODE) {
+                        result += node.innerText || '';
                     }
                 }
 
@@ -494,42 +515,88 @@ def apply_parsed_to_row(row: dict, parsed: dict, post_url: str) -> None:
     row[MEMO_COL] = parsed.get(MEMO_COL, "")
 
 
-def fetch_post_with_recovery(driver_box: dict, post_url: str, log_prefix_text: str) -> dict:
+def avg_recent(values: list[float], size: int) -> tuple[float, int]:
+    if not values:
+        return 0.0, 0
+
+    recent = values[-size:]
+    return sum(recent) / len(recent), len(recent)
+
+
+def log_item_elapsed(log_prefix_text: str, total_elapsed: float, last_attempt_elapsed: float, threshold: float, attempt_count: int) -> None:
+    ITEM_ELAPSED_LIST.append(total_elapsed)
+
+    avg10, cnt10 = avg_recent(ITEM_ELAPSED_LIST, 10)
+    avg20, cnt20 = avg_recent(ITEM_ELAPSED_LIST, 20)
+
+    log_line(
+        f"{log_prefix_text} 처리시간={total_elapsed:.1f}초 "
+        f"/ 마지막시도={last_attempt_elapsed:.1f}초 "
+        f"/ 기준={threshold:.1f}초 "
+        f"/ 시도={attempt_count}회 "
+        f"/ 최근10평균={avg10:.1f}초({cnt10}건) "
+        f"/ 최근20평균={avg20:.1f}초({cnt20}건)"
+    )
+
+
+def fetch_post_with_recovery(driver_box: dict, post_url: str, log_prefix_text: str):
+    total_start = time.time()
+
+    last_attempt_elapsed = 0.0
+    last_threshold = 0.0
     last_error = ""
 
     for attempt in range(1, MAX_FETCH_RETRY + 1):
-        if driver_box["driver"] is None:
-            driver_box["driver"] = create_driver()
-            log_line("크롬 실행 완료")
+        ensure_driver(driver_box)
 
-        start_ts = time.time()
+        current_threshold = get_current_threshold(driver_box)
+        attempt_start = time.time()
 
         try:
             parsed = get_post_data(driver_box["driver"], post_url)
-            elapsed = time.time() - start_ts
 
-            if elapsed > SLOW_RESPONSE_SECONDS:
-                log_line(
-                    f"{log_prefix_text} 응답 {elapsed:.1f}초 - "
-                    f"{SLOW_RESPONSE_SECONDS}초 초과로 크롬 재시작"
+            attempt_elapsed = time.time() - attempt_start
+            total_elapsed = time.time() - total_start
+
+            driver_box["request_count_after_restart"] = int(driver_box.get("request_count_after_restart", 0)) + 1
+
+            if attempt_elapsed > current_threshold:
+                restart_driver(
+                    driver_box,
+                    f"응답 {attempt_elapsed:.1f}초 > 기준 {current_threshold:.1f}초"
                 )
-                driver_box["driver"] = restart_driver(driver_box["driver"])
 
-            return parsed
+            return True, parsed, total_elapsed, attempt_elapsed, current_threshold, attempt, ""
 
         except TimeoutException:
-            elapsed = time.time() - start_ts
-            last_error = f"타임아웃 - article-wrapper 로딩 실패 ({elapsed:.1f}초)"
+            attempt_elapsed = time.time() - attempt_start
+            total_elapsed = time.time() - total_start
+
+            last_attempt_elapsed = attempt_elapsed
+            last_threshold = current_threshold
+            last_error = f"타임아웃 - article-wrapper 로딩 실패 ({attempt_elapsed:.1f}초)"
+
             log_line(f"{log_prefix_text} {attempt}차 실패 - {last_error}")
-            driver_box["driver"] = restart_driver(driver_box["driver"])
+            restart_driver(driver_box, "타임아웃 발생")
+
+            if attempt == MAX_FETCH_RETRY:
+                return False, None, total_elapsed, last_attempt_elapsed, last_threshold, attempt, last_error
 
         except Exception as e:
-            elapsed = time.time() - start_ts
-            last_error = f"{str(e)} ({elapsed:.1f}초)"
-            log_line(f"{log_prefix_text} {attempt}차 실패 - {last_error}")
-            driver_box["driver"] = restart_driver(driver_box["driver"])
+            attempt_elapsed = time.time() - attempt_start
+            total_elapsed = time.time() - total_start
 
-    raise RuntimeError(last_error or "알 수 없는 오류")
+            last_attempt_elapsed = attempt_elapsed
+            last_threshold = current_threshold
+            last_error = f"{str(e)} ({attempt_elapsed:.1f}초)"
+
+            log_line(f"{log_prefix_text} {attempt}차 실패 - {last_error}")
+            restart_driver(driver_box, f"예외 발생: {str(e)}")
+
+            if attempt == MAX_FETCH_RETRY:
+                return False, None, total_elapsed, last_attempt_elapsed, last_threshold, attempt, last_error
+
+    return False, None, 0.0, last_attempt_elapsed, last_threshold, MAX_FETCH_RETRY, last_error
 
 
 def process_failed_rows(
@@ -556,22 +623,24 @@ def process_failed_rows(
         if not ERROR_RETRY_MODE:
             continue
 
-        log_status(f"[기존결과 {idx}/{len(result_rows)}] 실패건 재처리 중 - {post_url}")
+        prefix_text = f"[기존결과 {idx}/{len(result_rows)}]"
+        log_status(f"{prefix_text} 실패건 재처리 중 - {post_url}")
 
-        try:
-            parsed = fetch_post_with_recovery(
-                driver_box,
-                post_url,
-                f"[기존결과 {idx}/{len(result_rows)}]"
-            )
+        ok, parsed, total_elapsed, last_attempt_elapsed, threshold, attempt_count, error_text = fetch_post_with_recovery(
+            driver_box,
+            post_url,
+            prefix_text
+        )
+
+        if ok:
             apply_parsed_to_row(row, parsed, post_url)
-
-        except Exception as e:
+        else:
             row[SUCCESS_COL] = "N"
-            row[MEMO_COL] = f"{MAX_FETCH_RETRY}회 실패: {str(e)}"
-            log_line(f"[기존결과 {idx}/{len(result_rows)}] 최종 실패 - {post_url} - {str(e)}")
+            row[MEMO_COL] = f"{attempt_count}회 실패: {error_text}"
+            log_line(f"{prefix_text} 최종 실패 - {post_url} - {error_text}")
 
         save_rows_atomic(output_csv, fieldnames, result_rows)
+        log_item_elapsed(prefix_text, total_elapsed, last_attempt_elapsed, threshold, attempt_count)
 
     clear_status_line()
     log_line("1단계 완료 - 기존 실패건 재처리 완료")
@@ -615,24 +684,27 @@ def process_new_rows(
         row[SUCCESS_COL] = "N"
         row[MEMO_COL] = ""
 
-        log_status(f"[원본 {idx}/{len(input_rows)}] 작업 중 - {post_url}")
+        prefix_text = f"[원본 {idx}/{len(input_rows)}]"
+        log_status(f"{prefix_text} 작업 중 - {post_url}")
 
-        try:
-            parsed = fetch_post_with_recovery(
-                driver_box,
-                post_url,
-                f"[원본 {idx}/{len(input_rows)}]"
-            )
+        ok, parsed, total_elapsed, last_attempt_elapsed, threshold, attempt_count, error_text = fetch_post_with_recovery(
+            driver_box,
+            post_url,
+            prefix_text
+        )
+
+        if ok:
             apply_parsed_to_row(row, parsed, post_url)
-
-        except Exception as e:
+        else:
             row[SUCCESS_COL] = "N"
-            row[MEMO_COL] = f"{MAX_FETCH_RETRY}회 실패: {str(e)}"
-            log_line(f"[원본 {idx}/{len(input_rows)}] 최종 실패 - {post_url} - {str(e)}")
+            row[MEMO_COL] = f"{attempt_count}회 실패: {error_text}"
+            log_line(f"{prefix_text} 최종 실패 - {post_url} - {error_text}")
 
         result_rows.append(row)
         result_map[post_url] = row
+
         save_rows_atomic(output_csv, fieldnames, result_rows)
+        log_item_elapsed(prefix_text, total_elapsed, last_attempt_elapsed, threshold, attempt_count)
 
     clear_status_line()
     log_line("2단계 완료 - 남은 건 처리 완료")
@@ -677,7 +749,10 @@ def process_posts() -> None:
     else:
         log_line("기존 결과 없음 - 새로 시작")
 
-    driver_box = {"driver": None}
+    driver_box = {
+        "driver": None,
+        "request_count_after_restart": 0,
+    }
 
     try:
         process_failed_rows(
@@ -698,7 +773,7 @@ def process_posts() -> None:
         log_line(f"전체 완료: {output_csv}")
 
     finally:
-        close_driver(driver_box["driver"])
+        close_driver(driver_box.get("driver"))
         log_line("크롬 종료 완료")
 
 
