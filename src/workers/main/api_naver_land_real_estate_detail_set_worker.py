@@ -558,6 +558,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 first_result: dict[str, Any] = {}
 
                 for attempt in range(1, 4):
+
+                    if not self.running:
+                        return True
+
                     try:
                         self.log_signal_func(f"[지역 진입] 시도 {attempt}/3")
 
@@ -1154,6 +1158,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         prev_last_info_text = json.dumps(last_info, ensure_ascii=False, sort_keys=True)
 
         while True:
+            if not self.running:
+                return items
+
             if not has_next:
                 self.log_signal_func("[목록] hasNextPage=false 로 종료")
                 break
@@ -1257,6 +1264,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         details: list[dict[str, Any]] = []
 
         for i, info in enumerate(items, 1):
+
+            if not self.running:
+                return details
+
             try:
                 article_no: str = str(info["articleNumber"])
                 real_estate_type: str = str(info["realEstateType"])
