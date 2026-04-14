@@ -50,7 +50,7 @@ class ColumnSetPop(QDialog):
         self.checkbox_map = {}
 
         self.setWindowTitle("컬럼 선택")
-        self.resize(850, 840)
+        self.resize(850, 760)
         self.setMinimumSize(760, 560)
         self.setStyleSheet("background-color: white; color: #111;")
 
@@ -59,7 +59,7 @@ class ColumnSetPop(QDialog):
     def init_ui(self, parent: Optional[Any]) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 14, 14, 14)
-        layout.setSpacing(12)
+        layout.setSpacing(6)
 
         title_label = QLabel("출력할 컬럼 선택")
         title_label.setStyleSheet("""
@@ -109,35 +109,35 @@ class ColumnSetPop(QDialog):
         layout.addWidget(self.all_checkbox)
 
         scroll = QScrollArea()
-        scroll.setWidgetResizable(False)
+        scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         scroll.setStyleSheet(self.scroll_style())
 
         body = QWidget()
-        body.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        body.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         body_layout = QVBoxLayout(body)
         body_layout.setContentsMargins(0, 0, 0, 0)
         body_layout.setSpacing(0)
 
         grid_widget = QWidget()
+        grid_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
         grid_layout = QGridLayout(grid_widget)
         grid_layout.setContentsMargins(0, 0, 0, 0)
         grid_layout.setHorizontalSpacing(10)
-        grid_layout.setVerticalSpacing(12)
+        grid_layout.setVerticalSpacing(6)
 
         col_per_row = 5
         item_min_width = 150
-        body_min_width = (item_min_width * col_per_row) + (10 * (col_per_row - 1)) + 20
-        grid_widget.setMinimumWidth(body_min_width)
-        body.setMinimumWidth(body_min_width)
 
         row = 0
         col_idx = 0
 
         for idx in range(col_per_row):
+            grid_layout.setColumnStretch(idx, 1)
             grid_layout.setColumnMinimumWidth(idx, item_min_width)
 
         for col in cols:
@@ -176,7 +176,8 @@ class ColumnSetPop(QDialog):
             checkbox.setChecked(col.get("checked", True))
             checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
             checkbox.setStyleSheet(self.checkbox_style())
-            checkbox.setMinimumWidth(item_min_width)
+            checkbox.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            checkbox.setMinimumWidth(0)
             checkbox.stateChanged.connect(self.update_all_checkbox_state)
 
             if code:
@@ -190,9 +191,7 @@ class ColumnSetPop(QDialog):
                 row += 1
 
         body_layout.addWidget(grid_widget)
-        body_layout.addStretch()
 
-        body.adjustSize()
         scroll.setWidget(body)
         layout.addWidget(scroll)
 
@@ -215,6 +214,7 @@ class ColumnSetPop(QDialog):
 
     def make_section_title_widget(self, title: str) -> QWidget:
         wrap = QWidget()
+
         layout = QVBoxLayout(wrap)
         layout.setContentsMargins(0, 10, 0, 2)
         layout.setSpacing(0)
@@ -226,28 +226,31 @@ class ColumnSetPop(QDialog):
             color: #111;
             padding: 4px 2px 6px 2px;
         """)
+        label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         layout.addWidget(label)
         return wrap
 
     def make_section_content_widget(self, content: str) -> QWidget:
         wrap = QWidget()
+
         layout = QVBoxLayout(wrap)
-        layout.setContentsMargins(0, 0, 0, 2)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
         label = QLabel(content)
         label.setWordWrap(True)
         label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         label.setStyleSheet("""
             font-size: 12px;
             font-weight: normal;
             color: #666666;
             background: #f5f5f5;
             border: 1px solid #e3e3e3;
-            border-radius: 8px;
-            padding: 5px 10px;
-            line-height: 1.45;
+            border-radius: 4px;
+            padding: 2px 10px;
+            line-height: 1.2;
         """)
 
         layout.addWidget(label)
