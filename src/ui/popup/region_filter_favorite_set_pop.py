@@ -227,17 +227,18 @@ class RegionFilterFavoriteSetPop(QDialog):
         wrap = QWidget()
         layout = QVBoxLayout(wrap)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(8)
+        layout.setSpacing(6)  # 8 -> 6, 위아래 간격 살짝 줄임
 
         top_row = QHBoxLayout()
-        top_row.setContentsMargins(0, 0, 0, 0)
+        top_row.setContentsMargins(0, -2, 0, 0)  # 살짝 위로
+        top_row.setSpacing(8)
 
         title = QLabel("즐겨찾기")
-        title.setStyleSheet("font-size: 17px; font-weight: bold; color: #111; padding: 4px 0;")
+        title.setStyleSheet("font-size: 17px; font-weight: bold; color: #111; padding: 0;")
 
         add_btn = QPushButton("즐겨찾기 추가")
         add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        add_btn.setFixedHeight(34)
+        add_btn.setFixedHeight(32)  # 34 -> 32, 제목이랑 높이 더 잘 맞음
         add_btn.setStyleSheet("""
             QPushButton {
                 background: black;
@@ -264,12 +265,12 @@ class RegionFilterFavoriteSetPop(QDialog):
         self.favorite_scroll.setWidgetResizable(True)
         self.favorite_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self.favorite_scroll.setStyleSheet(self.scroll_style())
-        self.favorite_scroll.setMinimumHeight(560)
-        self.favorite_scroll.setMaximumHeight(560)
+        self.favorite_scroll.setMinimumHeight(640)   # 560 -> 640
+        self.favorite_scroll.setMaximumHeight(16777215)  # 고정 높이 제거
 
         self.favorite_body = QWidget()
         self.favorite_list_layout = QVBoxLayout(self.favorite_body)
-        self.favorite_list_layout.setContentsMargins(4, 6, 4, 16)
+        self.favorite_list_layout.setContentsMargins(4, 2, 4, 16)  # 6 -> 2
         self.favorite_list_layout.setSpacing(12)
         self.favorite_list_layout.addStretch()
 
@@ -965,10 +966,11 @@ class RegionFilterFavoriteSetPop(QDialog):
 
         layout = QVBoxLayout(wrap)
         layout.setContentsMargins(12, 12, 12, 14)
-        layout.setSpacing(10)
+        layout.setSpacing(0)
 
         top_row = QHBoxLayout()
-        top_row.setContentsMargins(0, 0, 0, 0)
+        top_row.setContentsMargins(0, 0, 0, 6)
+        top_row.setSpacing(8)   # 이 줄 추가
 
         title = QLabel(f"즐겨찾기 {index + 1}")
         title.setStyleSheet("""
@@ -1006,20 +1008,23 @@ class RegionFilterFavoriteSetPop(QDialog):
         summary_scroll.setWidgetResizable(True)
         summary_scroll.setFrameShape(QFrame.Shape.NoFrame)
         summary_scroll.setStyleSheet(self.scroll_style())
-        summary_scroll.setMinimumHeight(150)
+        summary_scroll.setFixedHeight(150)
 
         summary_body = QWidget()
+        summary_body.setStyleSheet("background: #fafafa;")
         summary_body_layout = QVBoxLayout(summary_body)
-        summary_body_layout.setContentsMargins(0, 0, 0, 8)
+        summary_body_layout.setContentsMargins(0, 0, 0, 0)
+        summary_body_layout.setSpacing(0)
         summary_body_layout.addWidget(summary_label)
 
         summary_scroll.setWidget(summary_body)
 
         bottom_row = QHBoxLayout()
-        bottom_row.setContentsMargins(0, 6, 0, 0)
+        bottom_row.setContentsMargins(0, 10, 0, 0)
         bottom_row.setSpacing(8)
 
         use_checkbox = QCheckBox("사용")
+        use_checkbox.setFixedHeight(32)
         use_checkbox.setChecked(bool(favorite.get("checked", False)))
         use_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
         use_checkbox.setStyleSheet(self.favorite_use_checkbox_style())
@@ -1049,6 +1054,7 @@ class RegionFilterFavoriteSetPop(QDialog):
 
         layout.addLayout(top_row)
         layout.addWidget(summary_scroll)
+        layout.addSpacing(6)
         layout.addLayout(bottom_row)
 
         return wrap
@@ -1470,21 +1476,29 @@ class RegionFilterFavoriteSetPop(QDialog):
         return """
             QCheckBox {
                 font-size: 12px;
+                font-weight: bold;
                 color: #111;
-                padding: 4px 2px;
+                padding: 0 10px;
                 spacing: 6px;
+                background: #e9e9e9;
+                border-radius: 7px;
+                min-height: 32px;
+            }
+            QCheckBox:hover {
+                background: #dcdcdc;
             }
             QCheckBox::indicator {
                 width: 16px;
                 height: 16px;
                 border-radius: 4px;
                 border: 1px solid #888;
-                background: white;
+                background: #fff;
             }
             QCheckBox::indicator:checked {
                 background: black;
                 border: 1px solid black;
             }
+
         """
 
     def input_style(self) -> str:

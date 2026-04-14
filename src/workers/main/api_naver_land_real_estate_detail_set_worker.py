@@ -314,7 +314,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             },
         ]
 
-
     def _make_excel_hyperlink_value(self, url: Any, text: Any) -> str:
         url_text = str(url or "").strip()
         display_text = str(text or "").strip()
@@ -330,7 +329,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "text": display_text,
         }, ensure_ascii=False)
 
-
     def _make_hyperlink_cell(self, url: Any, text: Any) -> str:
         url_text = str(url or "").strip()
         display_text = str(text or "").strip()
@@ -342,7 +340,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "url": url_text,
             "text": display_text,
         }, ensure_ascii=False)
-
 
     def _build_map_search_url(self, search_text: Any, lat: Any = "", lng: Any = "") -> str:
         search_value = str(search_text or "").strip()
@@ -363,7 +360,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 return ""
 
         return ""
-
 
     def _apply_excel_hyperlinks_to_row(self, rs: Dict[str, Any]) -> Dict[str, Any]:
         if not self.link_yn:
@@ -403,9 +399,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             out["URL"] = self._make_excel_hyperlink_value(url_text, url_text)
 
         return out
-
-
-
 
     def _get_eng_columns(self) -> List[str]:
         return [
@@ -1030,14 +1023,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         return {}
 
-    def _browser_fetch_json(
-            self,
-            url: str,
-            method: str = "GET",
-            payload: dict[str, Any] = None,
-            params: dict[str, Any] = None,
-            wait_sec: int = 30,
-    ) -> dict[str, Any]:
+    def _browser_fetch_json(self, url: str, method: str = "GET", payload: dict[str, Any] = None, params: dict[str, Any] = None, wait_sec: int = 30) -> dict[str, Any]:
         script = self.browser_fetch_json_js
         self.driver.set_script_timeout(wait_sec)
         return self.driver.execute_async_script(script, url, method, payload, params)
@@ -1466,7 +1452,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.log_signal_func(f"[상세] 최종 수집 건수={len(details)}")
         return details
 
-
     def _save_list_items(self, items: list[dict[str, Any]], region_item) -> None:
         try:
             save_rows = []
@@ -1495,8 +1480,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         except Exception as e:
             self.log_signal_func(f"[일반저장] 일괄 저장 실패 / {e}")
-
-
 
     def _append_save_row(self, rs):
         save_row = self._apply_excel_hyperlinks_to_row(rs)
