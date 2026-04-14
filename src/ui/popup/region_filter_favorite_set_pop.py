@@ -955,7 +955,8 @@ class RegionFilterFavoriteSetPop(QDialog):
 
     def build_favorite_card(self, index: int, favorite: dict[str, Any]) -> QWidget:
         wrap = QFrame()
-        wrap.setMinimumHeight(250)
+        wrap.setFixedHeight(250)
+        wrap.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         wrap.setStyleSheet("""
             QFrame {
                 border: 1px solid #dddddd;
@@ -973,6 +974,7 @@ class RegionFilterFavoriteSetPop(QDialog):
         top_row.setSpacing(8)   # 이 줄 추가
 
         title = QLabel(f"즐겨찾기 {index + 1}")
+        title.setFixedHeight(32)
         title.setStyleSheet("""
             QLabel {
                 font-size: 12px;
@@ -981,7 +983,7 @@ class RegionFilterFavoriteSetPop(QDialog):
                 background: white;
                 border: 1px solid #d9d9d9;
                 border-radius: 10px;
-                padding: 6px 12px;
+                padding: 2px 12px;
             }
         """)
 
@@ -1008,7 +1010,7 @@ class RegionFilterFavoriteSetPop(QDialog):
         summary_scroll.setWidgetResizable(True)
         summary_scroll.setFrameShape(QFrame.Shape.NoFrame)
         summary_scroll.setStyleSheet(self.scroll_style())
-        summary_scroll.setFixedHeight(150)
+        summary_scroll.setFixedHeight(145)
 
         summary_body = QWidget()
         summary_body.setStyleSheet("background: #fafafa;")
@@ -1058,6 +1060,7 @@ class RegionFilterFavoriteSetPop(QDialog):
         layout.addLayout(bottom_row)
 
         return wrap
+
 
     @Slot(int)
     def on_favorite_checked_changed(self, state: int, favorite_row: dict[str, Any]) -> None:
