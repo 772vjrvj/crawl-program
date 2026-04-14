@@ -38,7 +38,7 @@ class RegionFilterFavoriteSetPop(QDialog):
     def __init__(
             self,
             parent: Optional[QWidget] = None,
-            title: str = "지역 / 필터 / 즐겨찾기",
+            title: str = "지역 | 필터 | 즐겨찾기",
             setting_attr_name: str = "setting_detail_all_style",
             favorite_attr_name: str = "setting_detail_all_style_favorites",
             selected_regions: Optional[list[dict[str, Any]]] = None,

@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
     QWidget,
     QGridLayout,
     QPushButton,
+    QFrame,
+    QScrollArea,
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QShowEvent
@@ -24,14 +26,11 @@ from src.ui.style.style import create_common_button
 
 
 class ColumnItem(TypedDict, total=False):
-    """
-    columns 원소 타입(실용 고정).
-    - code/value는 사실상 필수로 쓰지만, 기존 데이터가 불완전할 수 있어 total=False
-    - checked는 없으면 True로 취급
-    """
     code: str
     value: str
     checked: bool
+    title: str
+    content: str
 
 
 class ColumnSetPop(QDialog):
@@ -51,28 +50,28 @@ class ColumnSetPop(QDialog):
         self.checkbox_map = {}
 
         self.setWindowTitle("컬럼 선택")
-        self.resize(600, 450)
-        self.setMinimumWidth(700)
+        self.resize(850, 840)
+        self.setMinimumSize(760, 560)
         self.setStyleSheet("background-color: white; color: #111;")
 
         self.init_ui(parent)
 
     def init_ui(self, parent: Optional[Any]) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(12)
 
         title_label = QLabel("출력할 컬럼 선택")
         title_label.setStyleSheet("""
             font-size: 18px;
             font-weight: bold;
             color: #111;
+            padding: 2px 0 4px 0;
         """)
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         layout.addWidget(title_label)
 
-        # parent.columns 확보 (없으면 안내만 표시하고 종료)
         cols: List[ColumnItem] = []
         if parent is not None and hasattr(parent, "columns"):
             try:
@@ -81,17 +80,24 @@ class ColumnSetPop(QDialog):
                 cols = []
 
         if not cols:
-            layout.addWidget(QLabel("컬럼 정보가 없습니다."))
+            empty_label = QLabel("컬럼 정보가 없습니다.")
+            empty_label.setStyleSheet("font-size: 14px; color: #666; padding: 12px 0;")
+            empty_label.setAlignment(Qt.AlignCenter)
+            layout.addWidget(empty_label)
             return
 
-        # 전체 선택 체크박스
+        selectable_cols = [
+            col for col in cols
+            if not self._is_title_item(col) and not self._is_content_item(col)
+        ]
+
         self.all_checkbox = QCheckBox("전체 선택")
         self.all_checkbox.setCursor(Qt.PointingHandCursor)
         self.all_checkbox.setStyleSheet(self.checkbox_style())
         self.all_checkbox.stateChanged.connect(self.handle_all_checkbox_click)
 
-        total = len(cols)
-        checked_count = sum(1 for c in cols if c.get("checked", True))
+        total = len(selectable_cols)
+        checked_count = sum(1 for c in selectable_cols if c.get("checked", True))
 
         if total > 0 and checked_count == total:
             self.all_checkbox.setCheckState(Qt.Checked)
@@ -102,35 +108,96 @@ class ColumnSetPop(QDialog):
 
         layout.addWidget(self.all_checkbox)
 
-        # 컬럼 체크박스 그리드
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(False)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setStyleSheet(self.scroll_style())
+
+        body = QWidget()
+        body.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(0)
+
         grid_widget = QWidget()
         grid_layout = QGridLayout(grid_widget)
-        grid_layout.setSpacing(10)
         grid_layout.setContentsMargins(0, 0, 0, 0)
+        grid_layout.setHorizontalSpacing(10)
+        grid_layout.setVerticalSpacing(12)
 
         col_per_row = 5
-        for idx, col in enumerate(cols):
-            code = str(col.get("code", ""))
-            label = str(col.get("value", ""))
+        item_min_width = 150
+        body_min_width = (item_min_width * col_per_row) + (10 * (col_per_row - 1)) + 20
+        grid_widget.setMinimumWidth(body_min_width)
+        body.setMinimumWidth(body_min_width)
+
+        row = 0
+        col_idx = 0
+
+        for idx in range(col_per_row):
+            grid_layout.setColumnMinimumWidth(idx, item_min_width)
+
+        for col in cols:
+            if self._is_title_item(col):
+                title_text = str(col.get("title", "") or "").strip()
+                if not title_text:
+                    continue
+
+                if col_idx != 0:
+                    row += 1
+                    col_idx = 0
+
+                section_widget = self.make_section_title_widget(title_text)
+                grid_layout.addWidget(section_widget, row, 0, 1, col_per_row)
+                row += 1
+                continue
+
+            if self._is_content_item(col):
+                content_text = str(col.get("content", "") or "").strip()
+                if not content_text:
+                    continue
+
+                if col_idx != 0:
+                    row += 1
+                    col_idx = 0
+
+                content_widget = self.make_section_content_widget(content_text)
+                grid_layout.addWidget(content_widget, row, 0, 1, col_per_row)
+                row += 1
+                continue
+
+            code = str(col.get("code", "") or "").strip()
+            label = str(col.get("value", "") or "").strip()
 
             checkbox = QCheckBox(label)
             checkbox.setChecked(col.get("checked", True))
-            checkbox.setCursor(Qt.PointingHandCursor)
+            checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
             checkbox.setStyleSheet(self.checkbox_style())
+            checkbox.setMinimumWidth(item_min_width)
             checkbox.stateChanged.connect(self.update_all_checkbox_state)
 
             if code:
                 self.checkbox_map[code] = checkbox
 
-            row = idx // col_per_row
-            col_in_row = idx % col_per_row
-            grid_layout.addWidget(checkbox, row, col_in_row)
+            grid_layout.addWidget(checkbox, row, col_idx)
+            col_idx += 1
 
-        layout.addWidget(grid_widget)
+            if col_idx >= col_per_row:
+                col_idx = 0
+                row += 1
 
-        # 버튼 영역
+        body_layout.addWidget(grid_widget)
+        body_layout.addStretch()
+
+        body.adjustSize()
+        scroll.setWidget(body)
+        layout.addWidget(scroll)
+
         btn_layout = QHBoxLayout()
-        btn_layout.setContentsMargins(0, 15, 0, 0)
+        btn_layout.setContentsMargins(0, 10, 0, 0)
 
         self.cancel_btn = create_common_button("취소", self.reject, "#cccccc", 140)
         self.confirm_btn = create_common_button("확인", self.confirm_selection, "black", 140)
@@ -140,7 +207,56 @@ class ColumnSetPop(QDialog):
         btn_layout.addWidget(self.confirm_btn)
         layout.addLayout(btn_layout)
 
+    def _is_title_item(self, col: ColumnItem) -> bool:
+        return bool(str(col.get("title", "") or "").strip())
+
+    def _is_content_item(self, col: ColumnItem) -> bool:
+        return bool(str(col.get("content", "") or "").strip())
+
+    def make_section_title_widget(self, title: str) -> QWidget:
+        wrap = QWidget()
+        layout = QVBoxLayout(wrap)
+        layout.setContentsMargins(0, 10, 0, 2)
+        layout.setSpacing(0)
+
+        label = QLabel(title)
+        label.setStyleSheet("""
+            font-size: 16px;
+            font-weight: bold;
+            color: #111;
+            padding: 4px 2px 6px 2px;
+        """)
+
+        layout.addWidget(label)
+        return wrap
+
+    def make_section_content_widget(self, content: str) -> QWidget:
+        wrap = QWidget()
+        layout = QVBoxLayout(wrap)
+        layout.setContentsMargins(0, 0, 0, 2)
+        layout.setSpacing(0)
+
+        label = QLabel(content)
+        label.setWordWrap(True)
+        label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        label.setStyleSheet("""
+            font-size: 12px;
+            font-weight: normal;
+            color: #666666;
+            background: #f5f5f5;
+            border: 1px solid #e3e3e3;
+            border-radius: 8px;
+            padding: 5px 10px;
+            line-height: 1.45;
+        """)
+
+        layout.addWidget(label)
+        return wrap
+
     def handle_all_checkbox_click(self) -> None:
+        if not self.checkbox_map:
+            return
+
         all_checked = all(cb.isChecked() for cb in self.checkbox_map.values())
 
         for checkbox in self.checkbox_map.values():
@@ -159,11 +275,11 @@ class ColumnSetPop(QDialog):
 
         self.all_checkbox.blockSignals(True)
         if total > 0 and checked_count == total:
-            self.all_checkbox.setCheckState(Qt.Checked)
+            self.all_checkbox.setCheckState(Qt.CheckState.Checked)
         elif checked_count == 0:
-            self.all_checkbox.setCheckState(Qt.Unchecked)
+            self.all_checkbox.setCheckState(Qt.CheckState.Unchecked)
         else:
-            self.all_checkbox.setCheckState(Qt.PartiallyChecked)
+            self.all_checkbox.setCheckState(Qt.CheckState.PartiallyChecked)
         self.all_checkbox.blockSignals(False)
 
     def _resolve_site_config_path(self) -> Optional[str]:
@@ -235,6 +351,9 @@ class ColumnSetPop(QDialog):
             checked_map_by_value: Dict[str, bool] = {}
 
             for col in cols:
+                if self._is_title_item(col) or self._is_content_item(col):
+                    continue
+
                 code = str(col.get("code", "") or "").strip()
                 value = str(col.get("value", "") or "").strip()
                 checked = bool(col.get("checked", False))
@@ -247,6 +366,9 @@ class ColumnSetPop(QDialog):
 
             for cfg_col in config_columns:
                 if not isinstance(cfg_col, dict):
+                    continue
+
+                if self._is_title_item(cfg_col) or self._is_content_item(cfg_col):
                     continue
 
                 code = str(cfg_col.get("code", "") or "").strip()
@@ -272,10 +394,6 @@ class ColumnSetPop(QDialog):
             return
 
     def confirm_selection(self) -> None:
-        """
-        parent.columns에 checked 반영.
-        - parent가 columns를 가진다고 가정(없으면 그냥 accept)
-        """
         parent = self.parent()
         if parent is None or not hasattr(parent, "columns"):
             self.accept()
@@ -288,14 +406,16 @@ class ColumnSetPop(QDialog):
             return
 
         for col in cols:
-            code = str(col.get("code", ""))
+            if self._is_title_item(col) or self._is_content_item(col):
+                continue
+
+            code = str(col.get("code", "") or "").strip()
             checkbox = self.checkbox_map.get(code)
+
             if checkbox is not None:
                 col["checked"] = checkbox.isChecked()
 
-        # runtime config_old.json columns.checked 동기화
         self._save_columns_to_runtime_config(cols)
-
         self.accept()
 
     def checkbox_style(self) -> str:
@@ -303,7 +423,7 @@ class ColumnSetPop(QDialog):
             QCheckBox {
                 font-size: 14px;
                 color: #333;
-                padding: 4px 8px;
+                padding: 6px 8px;
             }
             QCheckBox::indicator {
                 width: 18px;
@@ -314,6 +434,50 @@ class ColumnSetPop(QDialog):
             }
             QCheckBox::indicator:checked {
                 background-color: black;
+            }
+        """
+
+    def scroll_style(self) -> str:
+        return """
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+
+            QScrollBar:vertical {
+                width: 8px;
+                background: transparent;
+            }
+
+            QScrollBar:horizontal {
+                height: 8px;
+                background: transparent;
+            }
+
+            QScrollBar::handle:vertical {
+                min-height: 20px;
+                background: rgba(120, 120, 120, 160);
+                border-radius: 4px;
+            }
+
+            QScrollBar::handle:horizontal {
+                min-width: 20px;
+                background: rgba(120, 120, 120, 160);
+                border-radius: 4px;
+            }
+
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical,
+            QScrollBar::add-page:vertical,
+            QScrollBar::sub-page:vertical,
+            QScrollBar::add-line:horizontal,
+            QScrollBar::sub-line:horizontal,
+            QScrollBar::add-page:horizontal,
+            QScrollBar::sub-page:horizontal {
+                border: none;
+                background: transparent;
+                width: 0px;
+                height: 0px;
             }
         """
 

@@ -7,6 +7,7 @@ import json
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
 
+
 class ExcelUtils:
     def __init__(self, log_func=None):
         self.log_func = log_func
@@ -105,7 +106,6 @@ class ExcelUtils:
 
         return text
 
-
     def _apply_header_style_and_filter(self, ws):
         max_col = ws.max_column
         max_row = ws.max_row
@@ -122,33 +122,6 @@ class ExcelUtils:
 
         ws.auto_filter.ref = ws.dimensions
         ws.freeze_panes = "A2"
-
-
-
-
-    def _get_header_index_map(self, ws):
-        header_map = {}
-
-        for col_idx in range(1, ws.max_column + 1):
-            header_text = str(ws.cell(row=1, column=col_idx).value or "").strip()
-            if header_text:
-                header_map[header_text] = col_idx
-
-        return header_map
-
-
-    def _build_hyperlink_url(self, url_prefix, value_text):
-        value_text = str(value_text or "").strip()
-        url_prefix = str(url_prefix or "").strip()
-
-        if not value_text:
-            return ""
-
-        if value_text.startswith("http://") or value_text.startswith("https://"):
-            return value_text
-
-        return f"{url_prefix}{value_text}"
-
 
     def _parse_hyperlink_cell_value(self, value):
         text = self._clean_excel_cell_value(value)
@@ -177,7 +150,6 @@ class ExcelUtils:
             "text": display_text,
         }
 
-
     def _set_hyperlink_cell(self, cell, url, display_text):
         url = self._clean_excel_cell_value(url)
         display_text = self._clean_excel_cell_value(display_text)
@@ -190,54 +162,9 @@ class ExcelUtils:
         cell.style = "Hyperlink"
         return True
 
-
-    def _apply_hyperlink_cells(self, ws, hyperlink_columns=None):
-        header_map = self._get_header_index_map(ws)
-
-        for spec in hyperlink_columns or []:
-            target_col = str(spec.get("컬럼", "")).strip()
-            value_col = str(spec.get("값컬럼", "")).strip()
-            display_col = str(spec.get("표시컬럼", "")).strip() or target_col
-            url_prefix = str(spec.get("url", "")).strip()
-
-            if not target_col or not value_col:
-                continue
-
-            target_idx = header_map.get(target_col)
-            value_idx = header_map.get(value_col)
-            display_idx = header_map.get(display_col) or target_idx
-
-            if not target_idx or not value_idx:
-                continue
-
-            for row_idx in range(2, ws.max_row + 1):
-                value_cell = ws.cell(row=row_idx, column=value_idx)
-                display_cell = ws.cell(row=row_idx, column=display_idx)
-                target_cell = ws.cell(row=row_idx, column=target_idx)
-
-                parsed_target = self._parse_hyperlink_cell_value(target_cell.value)
-                if parsed_target:
-                    self._set_hyperlink_cell(
-                        target_cell,
-                        parsed_target.get("url", ""),
-                        parsed_target.get("text", ""),
-                    )
-                    continue
-
-                value_text = self._clean_excel_cell_value(value_cell.value)
-                display_text = self._clean_excel_cell_value(display_cell.value)
-
-                if not value_text or not display_text:
-                    continue
-
-                link_url = self._build_hyperlink_url(url_prefix, value_text)
-                if not link_url:
-                    continue
-
-                self._set_hyperlink_cell(target_cell, link_url, display_text)
-
-        # 기존 호환: 셀 값 자체가 URL이면 자동 링크
-        # 추가: __HYPERLINK__ + json 문자열도 자동 링크
+    def _apply_hyperlink_cells(self, ws):
+        # __HYPERLINK__ + json 문자열 자동 링크
+        # 셀 값 자체가 URL이면 자동 링크
         for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
             for cell in row:
                 if cell.hyperlink:
@@ -258,7 +185,6 @@ class ExcelUtils:
 
                 if text.startswith("http://") or text.startswith("https://"):
                     self._set_hyperlink_cell(cell, text, text)
-
 
     def _apply_column_widths(self, ws, column_widths=None, default_width=16):
         width_map = {}
@@ -284,7 +210,7 @@ class ExcelUtils:
             ws.column_dimensions[col_letter].width = width
 
 
-    def convert_csv_to_excel_and_delete(self, csv_filename, sheet_name="Sheet1", folder_path=None, sub_dir=None, keep_csv=False, column_widths=None, default_width=16, hyperlink_columns=None):
+    def convert_csv_to_excel_and_delete(self, csv_filename, sheet_name="Sheet1", folder_path=None, sub_dir=None, keep_csv=False, column_widths=None, default_width=16):
         csv_filename = self.build_file_path(csv_filename, folder_path, sub_dir)
 
         if not os.path.exists(csv_filename):
@@ -314,7 +240,7 @@ class ExcelUtils:
                         if cell.value is not None:
                             cell.value = self._clean_excel_cell_value(cell.value)
                 self._apply_header_style_and_filter(ws)
-                self._apply_hyperlink_cells(ws, hyperlink_columns=hyperlink_columns)
+                self._apply_hyperlink_cells(ws)
                 self._apply_column_widths(ws, column_widths=column_widths, default_width=default_width)
 
             if not keep_csv:

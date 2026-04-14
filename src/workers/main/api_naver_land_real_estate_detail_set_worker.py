@@ -74,8 +74,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 column_widths=[
                     {"컬럼": "간략설명", "너비": 49},
                     {"컬럼": "매물설명", "너비": 49}
-                ],
-                hyperlink_columns=self._get_excel_hyperlink_columns(),
+                ]
             )
             self.log_signal_func("✅ [엑셀 변환] 성공")
         except Exception as e:
@@ -272,47 +271,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self._crawl_article_list()
 
         return True
-
-    def _get_excel_hyperlink_columns(self) -> list[dict[str, str]]:
-        if not self.link_yn:
-            return []
-
-        if self.eng_yn:
-            return [
-                {
-                    "컬럼": "atclNo",
-                    "url": f"{self.url}/articles/",
-                    "값컬럼": "atclNo",
-                    "표시컬럼": "atclNo",
-                },
-                {
-                    "컬럼": "atclUrl",
-                    "url": "",
-                    "값컬럼": "atclUrl",
-                    "표시컬럼": "atclUrl",
-                },
-            ]
-
-        return [
-            {
-                "컬럼": "매물번호",
-                "url": f"{self.url}/articles/",
-                "값컬럼": "매물번호",
-                "표시컬럼": "매물번호",
-            },
-            {
-                "컬럼": "전체주소",
-                "url": "https://map.naver.com/p/search/",
-                "값컬럼": "전체주소",
-                "표시컬럼": "전체주소",
-            },
-            {
-                "컬럼": "URL",
-                "url": "",
-                "값컬럼": "URL",
-                "표시컬럼": "URL",
-            },
-        ]
 
     def _make_excel_hyperlink_value(self, url: Any, text: Any) -> str:
         url_text = str(url or "").strip()
@@ -1738,6 +1696,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         if detail_verification.get("verificationType") not in [None, ""]:
             rs["매물확인코드"] = detail_verification.get("verificationType", "")
+
+        if detail_space.get("currentBusinessType") not in [None, ""]:
+            rs["현재업종"] = detail_space.get("currentBusinessType", "")
 
         if detail_space.get("recommendedBusinessType") not in [None, ""]:
             rs["추천업종"] = detail_space.get("recommendedBusinessType", "")
