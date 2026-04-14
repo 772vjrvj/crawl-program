@@ -3,6 +3,7 @@ import os
 from openpyxl import load_workbook, Workbook
 import csv
 import re
+import json
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
 
@@ -149,6 +150,47 @@ class ExcelUtils:
         return f"{url_prefix}{value_text}"
 
 
+    def _parse_hyperlink_cell_value(self, value):
+        text = self._clean_excel_cell_value(value)
+
+        prefix = "__HYPERLINK__"
+        if not text.startswith(prefix):
+            return None
+
+        raw_json = text[len(prefix):].strip()
+        if not raw_json:
+            return None
+
+        try:
+            obj = json.loads(raw_json)
+        except Exception:
+            return None
+
+        url = self._clean_excel_cell_value(obj.get("url"))
+        display_text = self._clean_excel_cell_value(obj.get("text"))
+
+        if not url or not display_text:
+            return None
+
+        return {
+            "url": url,
+            "text": display_text,
+        }
+
+
+    def _set_hyperlink_cell(self, cell, url, display_text):
+        url = self._clean_excel_cell_value(url)
+        display_text = self._clean_excel_cell_value(display_text)
+
+        if not url or not display_text:
+            return False
+
+        cell.value = display_text
+        cell.hyperlink = url
+        cell.style = "Hyperlink"
+        return True
+
+
     def _apply_hyperlink_cells(self, ws, hyperlink_columns=None):
         header_map = self._get_header_index_map(ws)
 
@@ -173,6 +215,15 @@ class ExcelUtils:
                 display_cell = ws.cell(row=row_idx, column=display_idx)
                 target_cell = ws.cell(row=row_idx, column=target_idx)
 
+                parsed_target = self._parse_hyperlink_cell_value(target_cell.value)
+                if parsed_target:
+                    self._set_hyperlink_cell(
+                        target_cell,
+                        parsed_target.get("url", ""),
+                        parsed_target.get("text", ""),
+                    )
+                    continue
+
                 value_text = self._clean_excel_cell_value(value_cell.value)
                 display_text = self._clean_excel_cell_value(display_cell.value)
 
@@ -183,14 +234,22 @@ class ExcelUtils:
                 if not link_url:
                     continue
 
-                target_cell.value = display_text
-                target_cell.hyperlink = link_url
-                target_cell.style = "Hyperlink"
+                self._set_hyperlink_cell(target_cell, link_url, display_text)
 
         # 기존 호환: 셀 값 자체가 URL이면 자동 링크
+        # 추가: __HYPERLINK__ + json 문자열도 자동 링크
         for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
             for cell in row:
                 if cell.hyperlink:
+                    continue
+
+                parsed = self._parse_hyperlink_cell_value(cell.value)
+                if parsed:
+                    self._set_hyperlink_cell(
+                        cell,
+                        parsed.get("url", ""),
+                        parsed.get("text", ""),
+                    )
                     continue
 
                 text = self._clean_excel_cell_value(cell.value)
@@ -198,9 +257,7 @@ class ExcelUtils:
                     continue
 
                 if text.startswith("http://") or text.startswith("https://"):
-                    cell.value = text
-                    cell.hyperlink = text
-                    cell.style = "Hyperlink"
+                    self._set_hyperlink_cell(cell, text, text)
 
 
     def _apply_column_widths(self, ws, column_widths=None, default_width=16):
@@ -345,10 +402,18 @@ class ExcelUtils:
 
             for row in ws.iter_rows(min_row=2):
                 for cell in row:
+                    parsed = self._parse_hyperlink_cell_value(cell.value)
+                    if parsed:
+                        self._set_hyperlink_cell(
+                            cell,
+                            parsed.get("url", ""),
+                            parsed.get("text", ""),
+                        )
+                        continue
+
                     val = str(cell.value) if cell.value else ""
                     if val.startswith("http://") or val.startswith("https://"):
-                        cell.hyperlink = val
-                        cell.style = "Hyperlink"
+                        self._set_hyperlink_cell(cell, val, val)
 
         wb.save(filename)
 

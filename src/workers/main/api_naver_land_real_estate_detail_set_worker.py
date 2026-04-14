@@ -10,7 +10,7 @@ from src.utils.selenium_utils import SeleniumUtils
 from src.workers.api_base_worker import BaseApiWorker
 from src.utils.time_utils import yyyy_mm_dd_to
 from urllib.parse import quote
-
+from pyproj import Transformer
 
 class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
@@ -313,6 +313,99 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 "표시컬럼": "URL",
             },
         ]
+
+
+    def _make_excel_hyperlink_value(self, url: Any, text: Any) -> str:
+        url_text = str(url or "").strip()
+        display_text = str(text or "").strip()
+
+        if not url_text or not display_text:
+            return display_text
+
+        if display_text.startswith("__HYPERLINK__"):
+            return display_text
+
+        return "__HYPERLINK__" + json.dumps({
+            "url": url_text,
+            "text": display_text,
+        }, ensure_ascii=False)
+
+
+    def _make_hyperlink_cell(self, url: Any, text: Any) -> str:
+        url_text = str(url or "").strip()
+        display_text = str(text or "").strip()
+
+        if not url_text or not display_text:
+            return str(text or "").strip()
+
+        return "__HYPERLINK__" + json.dumps({
+            "url": url_text,
+            "text": display_text,
+        }, ensure_ascii=False)
+
+
+    def _build_map_search_url(self, search_text: Any, lat: Any = "", lng: Any = "") -> str:
+        search_value = str(search_text or "").strip()
+        lat_value = str(lat or "").strip()
+        lng_value = str(lng or "").strip()
+
+        # 1. 주소(도로명/지번)가 있으면 무조건 검색 URL 우선
+        if search_value:
+            return f"https://map.naver.com/p/search/{quote(search_value)}"
+
+        # 2. 주소가 없을 때만 위도/경도로 네이버 v5 좌표 URL
+        if lat_value and lng_value:
+            try:
+                transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+                x, y = transformer.transform(float(lng_value), float(lat_value))
+                return f"https://map.naver.com/v5/?c={x},{y},16,0,0,0,dh"
+            except Exception:
+                return ""
+
+        return ""
+
+
+    def _apply_excel_hyperlinks_to_row(self, rs: Dict[str, Any]) -> Dict[str, Any]:
+        if not self.link_yn:
+            return rs
+
+        out = dict(rs or {})
+
+        article_no = str(out.get("매물번호") or "").strip()
+        full_addr = str(out.get("전체주소") or "").strip()
+        url_text = str(out.get("URL") or "").strip()
+
+        if article_no:
+            out["매물번호"] = self._make_excel_hyperlink_value(
+                f"{self.url}/articles/{article_no}",
+                article_no,
+            )
+
+        road_addr = str(out.get("도로명주소") or "").strip()
+        jibun = str(out.get("번지") or "").strip()
+
+        search_addr = ""
+        if road_addr:
+            search_addr = full_addr
+        elif jibun:
+            search_addr = full_addr
+
+        out["전체주소"] = self._make_hyperlink_cell(
+            self._build_map_search_url(
+                search_text=search_addr,
+                lat=out.get("위도", ""),
+                lng=out.get("경도", ""),
+            ),
+            full_addr,
+        )
+
+        if url_text:
+            out["URL"] = self._make_excel_hyperlink_value(url_text, url_text)
+
+        return out
+
+
+
 
     def _get_eng_columns(self) -> List[str]:
         return [
@@ -1381,6 +1474,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
             for info in items:
                 rs = self._make_list_row(info, region_item)
+                rs = self._apply_excel_hyperlinks_to_row(rs)
 
                 if self.eng_yn:
                     rs = self._map_out_to_eng(rs)
@@ -1405,9 +1499,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
 
     def _append_save_row(self, rs):
-        save_row = rs
+        save_row = self._apply_excel_hyperlinks_to_row(rs)
         if self.eng_yn:
-            save_row = self._map_out_to_eng(rs)
+            save_row = self._map_out_to_eng(save_row)
 
         self.excel_driver.append_to_csv(
             self.csv_filename,
