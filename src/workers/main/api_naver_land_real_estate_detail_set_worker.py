@@ -75,6 +75,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     {"컬럼": "간략설명", "너비": 49},
                     {"컬럼": "매물설명", "너비": 49}
                 ],
+                hyperlink_columns=self._get_excel_hyperlink_columns(),
             )
             self.log_signal_func("✅ [엑셀 변환] 성공")
         except Exception as e:
@@ -271,6 +272,47 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self._crawl_article_list()
 
         return True
+
+    def _get_excel_hyperlink_columns(self) -> list[dict[str, str]]:
+        if not self.link_yn:
+            return []
+
+        if self.eng_yn:
+            return [
+                {
+                    "컬럼": "atclNo",
+                    "url": f"{self.url}/articles/",
+                    "값컬럼": "atclNo",
+                    "표시컬럼": "atclNo",
+                },
+                {
+                    "컬럼": "atclUrl",
+                    "url": "",
+                    "값컬럼": "atclUrl",
+                    "표시컬럼": "atclUrl",
+                },
+            ]
+
+        return [
+            {
+                "컬럼": "매물번호",
+                "url": f"{self.url}/articles/",
+                "값컬럼": "매물번호",
+                "표시컬럼": "매물번호",
+            },
+            {
+                "컬럼": "전체주소",
+                "url": "https://map.naver.com/p/search/",
+                "값컬럼": "전체주소",
+                "표시컬럼": "전체주소",
+            },
+            {
+                "컬럼": "URL",
+                "url": "",
+                "값컬럼": "URL",
+                "표시컬럼": "URL",
+            },
+        ]
 
     def _get_eng_columns(self) -> List[str]:
         return [
@@ -1350,30 +1392,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.log_signal_func(f"[일반저장] 일괄 저장 실패 / {e}")
 
 
-    def _escape_excel_formula_text(self, value: Any) -> str:
-        return str(value or "").replace('"', '""').strip()
-
-    def _make_excel_hyperlink(self, url: str, text: Any) -> str:
-        url_text = self._escape_excel_formula_text(url)
-        display_text = self._escape_excel_formula_text(text)
-        if not url_text or not display_text:
-            return str(text or "")
-        return f'=HYPERLINK("{url_text}","{display_text}")'
-
-    def _build_article_link_value(self, article_no: Any) -> str:
-        article_no = str(article_no or "").strip()
-        if not article_no:
-            return ""
-        article_url = f"{self.url}/articles/{article_no}"
-        return self._make_excel_hyperlink(article_url, article_no)
-
-    def _build_map_link_value(self, full_addr: str) -> str:
-        search_text = str(full_addr or "").strip()
-        if not search_text:
-            return ""
-
-        map_url = f"https://map.naver.com/p/search/{quote(search_text)}"
-        return self._make_excel_hyperlink(map_url, search_text)
 
     def _append_save_row(self, rs):
         save_row = rs
@@ -1452,15 +1470,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         direction = self._find_filter_name_by_index_and_code(8, direction_code) or direction_code
 
         article_no = list_item.get("articleNumber", "")
-        article_no_value = article_no
-        full_addr_value = full_addr
-
-        if self.link_yn:
-            article_no_value = self._build_article_link_value(article_no)
-            full_addr_value = self._build_map_link_value(full_addr)
 
         rs = {
-            "매물번호": article_no_value,
+            "매물번호": article_no,
             "단지명": list_item.get("complexName", ""),
             "동이름": list_item.get("dongName", ""),
             "매매가": self._empty_if_zero(list_price.get("dealPrice", "")),
@@ -1483,7 +1495,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "번지": jibun,
             "도로명주소": road_name,
             "우편번호": zip_code,
-            "전체주소": full_addr_value,
+            "전체주소": full_addr,
             "중개사무소이름": list_broker.get("brokerageName", ""),
             "중개사이름": list_broker.get("brokerName", ""),
             "중개사무소주소": list_broker.get("address", ""),
@@ -1608,10 +1620,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             full_addr_parts.append(articleName)
 
         full_addr = " ".join([str(v).strip() for v in full_addr_parts if str(v).strip()])
-        if self.link_yn:
-            rs["전체주소"] = self._build_map_link_value(full_addr)
-        else:
-            rs["전체주소"] = full_addr
+
+        rs["전체주소"] = full_addr
 
         if agent_result.get("brokerageName") not in [None, ""]:
             rs["중개사무소이름"] = agent_result.get("brokerageName", "")
