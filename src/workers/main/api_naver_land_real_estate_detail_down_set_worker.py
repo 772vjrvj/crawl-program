@@ -186,11 +186,36 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             gallery_count = task["expected_count"]
             if gallery_count is None:
                 gallery_count = self._get_gallery_image_count(atcl_no)
-                task["expected_count"] = gallery_count
+
+            # None -> 0 정규화
+            try:
+                gallery_count = int(gallery_count or 0)
+            except Exception:
+                gallery_count = 0
+
+            task["expected_count"] = gallery_count
 
             self.log_signal_func(f"[이미지 개수] gallery_count={gallery_count} / 기준={min_cnt}")
 
-            if gallery_count is not None and gallery_count <= min_cnt:
+            # === 신규 === None이었든 0이었든 최종 0이면 바로 스킵
+            if gallery_count <= 0:
+                msg = "이미지 개수 확인 실패 또는 0개라 스킵"
+                task["skip"] = True
+                task["rows"] = [self._make_result_row(
+                    data=data,
+                    atcl_no=atcl_no,
+                    seq="",
+                    media_type_text="",
+                    media_url="",
+                    saved_path="",
+                    status="skip",
+                    message=msg,
+                )]
+                task["finalized"] = True
+                task["last_message"] = msg
+                return
+
+            if gallery_count <= min_cnt:
                 msg = f"이미지 개수 {gallery_count}개로 기준({min_cnt}) 이하라 스킵"
                 task["skip"] = True
                 task["rows"] = [self._make_result_row(
@@ -214,14 +239,11 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                 max_retry=self.collect_retry_count,
             )
 
-            if task["expected_count"] is None:
-                task["expected_count"] = len(media_items) if media_items else 1
-
             if not task["rows"]:
                 task["rows"] = self._build_pending_rows(
                     data=data,
                     atcl_no=atcl_no,
-                    expected_count=int(task["expected_count"] or 1),
+                    expected_count=gallery_count,
                 )
 
             if media_items:

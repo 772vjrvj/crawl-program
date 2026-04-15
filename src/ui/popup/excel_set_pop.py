@@ -49,6 +49,8 @@ class ExcelSetPop(QDialog):
         self.user: Optional[UserCred] = None
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
 
         self.drag_drop_label = ExcelDragDropLabel(self)
         self.drag_drop_label.fileDropped.connect(self.load_excel)
@@ -58,6 +60,9 @@ class ExcelSetPop(QDialog):
         self.table_widget.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table_widget.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table_widget.setAlternatingRowColors(True)
+        self.table_widget.setWordWrap(False)
+        self.table_widget.setCornerButtonEnabled(False)
+        self.table_widget.setStyleSheet(self.table_style())
         layout.addWidget(self.table_widget)
 
         button_layout = QHBoxLayout()
@@ -96,6 +101,74 @@ class ExcelSetPop(QDialog):
         padding: 20px;
         background-color: white;
         color: #111;
+        """
+
+    def table_style(self) -> str:
+        return """
+            QTableWidget {
+                border: 1px solid #d9d9d9;
+                border-radius: 10px;
+                background-color: white;
+                gridline-color: #eeeeee;
+                outline: none;
+                font-size: 13px;
+            }
+
+            QTableWidget::item {
+                padding: 6px 8px;
+            }
+
+            QHeaderView::section {
+                background-color: #f7f7f7;
+                color: #111;
+                border: none;
+                border-bottom: 1px solid #e5e5e5;
+                border-right: 1px solid #efefef;
+                padding: 8px 10px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+
+            QTableCornerButton::section {
+                background-color: #f7f7f7;
+                border: none;
+                border-bottom: 1px solid #e5e5e5;
+                border-right: 1px solid #efefef;
+            }
+
+            QScrollBar:vertical {
+                width: 8px;
+                background: transparent;
+                margin: 10px 2px 10px 0px;
+            }
+
+            QScrollBar:horizontal {
+                height: 8px;
+                background: transparent;
+                margin: 0px 10px 2px 10px;
+            }
+
+            QScrollBar::handle:vertical {
+                min-height: 24px;
+                background: rgba(120, 120, 120, 160);
+                border-radius: 4px;
+            }
+
+            QScrollBar::handle:horizontal {
+                min-width: 24px;
+                background: rgba(120, 120, 120, 160);
+                border-radius: 4px;
+            }
+
+            QScrollBar::add-line,
+            QScrollBar::sub-line,
+            QScrollBar::add-page,
+            QScrollBar::sub-page {
+                border: none;
+                background: transparent;
+                width: 0px;
+                height: 0px;
+            }
         """
 
     def _read_csv(self, path: str) -> pd.DataFrame:
@@ -143,6 +216,11 @@ class ExcelSetPop(QDialog):
             header = self.table_widget.horizontalHeader()
             header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
             header.setStretchLastSection(True)
+
+            v_header = self.table_widget.verticalHeader()
+            v_header.setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+            v_header.setDefaultSectionSize(30)
+
         finally:
             self.table_widget.setUpdatesEnabled(True)
 
