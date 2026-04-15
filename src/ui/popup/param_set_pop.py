@@ -367,8 +367,8 @@ class ParamSetPop(QDialog):
     # =========================
     def set_layout(self) -> None:
         self.setWindowTitle("설정")
-        self.resize(400, 420)
-        self.setMinimumSize(400, 420)
+        self.resize(400, 500)
+        self.setMinimumSize(400, 500)
         self.setStyleSheet("QDialog { background: white; color: #111; } QLabel { color: #111; }")
         self.setWindowIcon(self._make_window_icon())
 
@@ -398,7 +398,7 @@ class ParamSetPop(QDialog):
         body.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         body_layout = QVBoxLayout(body)
-        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setContentsMargins(0, 0, 10, 0)
         body_layout.setSpacing(0)
 
         for item in self._get_setting():
