@@ -10,8 +10,28 @@
     {
       "name": "1. 키워드(콤마(,)로 구분해주세요)",
       "code": "keyword",
-      "value": "파크골프마트",
+      "value": "선거기획, 선거홍보, 유세차량",
       "type": "input"
+    },
+    {
+      "name": "지역구 선택",
+      "code": "naver_loc",
+      "value": "읍면동",
+      "type": "select",
+      "options": [
+        {
+          "key": "시도",
+          "value": "시도"
+        },
+        {
+          "key": "시군구",
+          "value": "시군구"
+        },
+        {
+          "key": "읍면동",
+          "value": "읍면동"
+        }
+      ]
     },
     {
       "name": "저장 폴더",
@@ -213,7 +233,7 @@
     {
       "code": "zip_code",
       "value": "우편번호",
-      "checked": true
+      "checked": false
     },
     {
       "code": "agency_name",

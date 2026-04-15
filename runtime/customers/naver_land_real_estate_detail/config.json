@@ -64,7 +64,7 @@
     {
       "name": "상세정보조회",
       "code": "detail_column_yn",
-      "value": true,
+      "value": false,
       "type": "check"
     },
     {
@@ -1591,7 +1591,7 @@
           "checked": true
         }
       ],
-      "checked": false
+      "checked": true
     }
   ],
   "columns": [

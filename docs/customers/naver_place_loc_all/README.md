@@ -19,4 +19,5 @@ pyinstaller .\main.py `
 --add-data ".\resources\customers\naver_place_loc_all\naver_loc_all_real.json;resources\customers\naver_place_loc_all" `
 --exclude-module tk `
 --exclude-module Tcl `
---exclude-module tcl
+--exclude-module tcl `
+--add-data ".\resources\icons\crawling.ico;resources\icons"

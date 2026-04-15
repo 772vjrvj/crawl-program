@@ -38,6 +38,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         self.saved_ids: Set[str] = set()
         self._destroyed: bool = False
         self._cleaned_up: bool = False
+        self.naver_loc: str = "읍면동"
 
     # 런타임 상태 초기화
     def _reset_runtime_state(self) -> None:
@@ -56,6 +57,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         keyword_str: str = self.get_setting_value(self.setting, "keyword")
         self.keyword_list = split_comma_keywords(keyword_str)
         self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+        self.naver_loc = str(self.get_setting_value(self.setting, "naver_loc") or "읍면동").strip()
         self.driver_set()
         self.log_signal_func(f"선택 항목 : {self.columns}")
         return True
@@ -148,13 +150,68 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
 
+    # 실행용 지역 목록 가공
+    def _get_run_region_list(self) -> List[Dict[str, str]]:
+        if not self.region:
+            return []
+
+        if self.naver_loc == "읍면동":
+            return self.region
+
+        result: List[Dict[str, str]] = []
+        seen: Set[tuple] = set()
+
+        for item in self.region:
+            if not isinstance(item, dict):
+                continue
+
+            sido = str(item.get("시도") or "").strip()
+            sigungu = str(item.get("시군구") or "").strip()
+            eup_myeon_dong = str(item.get("읍면동") or "").strip()
+
+            if self.naver_loc == "시도":
+                key = (sido,)
+                row = {
+                    "시도": sido,
+                    "시군구": "",
+                    "읍면동": "",
+                }
+            elif self.naver_loc == "시군구":
+                key = (sido, sigungu)
+                row = {
+                    "시도": sido,
+                    "시군구": sigungu,
+                    "읍면동": "",
+                }
+            else:
+                key = (sido, sigungu, eup_myeon_dong)
+                row = {
+                    "시도": sido,
+                    "시군구": sigungu,
+                    "읍면동": eup_myeon_dong,
+                }
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+            result.append(row)
+
+        return result
+
+
     # 전국 키워드 조회
     def _loc_all_keyword_list(self) -> None:
         if not self.region or not self.keyword_list:
             self.log_signal_func("지역 또는 키워드 정보가 없습니다.")
             return
 
-        loc_all_len: int = len(self.region)
+        run_region_list = self._get_run_region_list()
+        if not run_region_list:
+            self.log_signal_func("실행할 지역 정보가 없습니다.")
+            return
+
+        loc_all_len: int = len(run_region_list)
         keyword_list_len: int = len(self.keyword_list)
         self.total_cnt = loc_all_len * keyword_list_len * 300
         self.total_pages = loc_all_len * keyword_list_len * 15
@@ -162,12 +219,19 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         self.log_signal_func(f"예상 전체 수 {self.total_cnt} 개")
         self.log_signal_func(f"예상 전체 페이지수 {self.total_pages} 개")
 
-        for index, loc in enumerate(self.region, start=1):
+        for index, loc in enumerate(run_region_list, start=1):
             if not self.running:
                 self.log_signal_func("크롤링이 중지되었습니다.")
                 break
 
-            name = f'{loc["시도"]} {loc["시군구"]} {loc["읍면동"]} '
+            name_parts = [
+                str(loc.get("시도") or "").strip(),
+                str(loc.get("시군구") or "").strip(),
+                str(loc.get("읍면동") or "").strip(),
+            ]
+            name = " ".join([x for x in name_parts if x])
+            if name:
+                name += " "
 
             for idx, query_keyword in enumerate(self.keyword_list, start=1):
                 if not self.running:
