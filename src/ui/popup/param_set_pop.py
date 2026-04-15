@@ -14,10 +14,12 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QVBoxLayout,
     QWidget,
@@ -94,7 +96,6 @@ class ParamSetPop(QDialog):
         self.log_signal.emit(msg)
 
     def _make_window_icon(self) -> QIcon:
-        # 회색 정사각형 아이콘 생성
         pix = QPixmap(32, 32)
         pix.fill(QColor("transparent"))
         painter = QPainter(pix)
@@ -149,6 +150,50 @@ class ParamSetPop(QDialog):
             }
             QCheckBox::indicator:checked {
                 background-color: black;
+            }
+        """
+
+    def _scroll_style(self) -> str:
+        return """
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+
+            QScrollBar:vertical {
+                width: 8px;
+                background: transparent;
+            }
+
+            QScrollBar:horizontal {
+                height: 8px;
+                background: transparent;
+            }
+
+            QScrollBar::handle:vertical {
+                min-height: 20px;
+                background: rgba(120, 120, 120, 160);
+                border-radius: 4px;
+            }
+
+            QScrollBar::handle:horizontal {
+                min-width: 20px;
+                background: rgba(120, 120, 120, 160);
+                border-radius: 4px;
+            }
+
+            QScrollBar::add-line:vertical,
+            QScrollBar::sub-line:vertical,
+            QScrollBar::add-page:vertical,
+            QScrollBar::sub-page:vertical,
+            QScrollBar::add-line:horizontal,
+            QScrollBar::sub-line:horizontal,
+            QScrollBar::add-page:horizontal,
+            QScrollBar::sub-page:horizontal {
+                border: none;
+                background: transparent;
+                width: 0px;
+                height: 0px;
             }
         """
 
@@ -275,7 +320,6 @@ class ParamSetPop(QDialog):
         except Exception as e:
             self._emit_log(f"[설정저장] 처리 중 오류: {str(e)}")
 
-    # === 신규 === 기본 시작 경로: 문서 폴더
     def _get_default_start_dir(self, item: Optional[_SettingItem] = None) -> str:
         path_type = str((item or {}).get("path_type", "doc") or "doc").strip().lower()
 
@@ -292,7 +336,6 @@ class ParamSetPop(QDialog):
 
         return os.getcwd()
 
-    # === 신규 === 프로그램 실행 경로
     def _get_main_start_dir(self) -> str:
         if getattr(sys, "frozen", False):
             exe_dir = os.path.dirname(sys.executable)
@@ -317,10 +360,6 @@ class ParamSetPop(QDialog):
 
         center = screen.availableGeometry().center()
         frame.moveCenter(center)
-
-        #  중앙에서 위로 350px 이동 (기존 유지)
-        frame.moveTop(frame.top() - 400)
-
         self.move(frame.topLeft())
 
     # =========================
@@ -328,14 +367,14 @@ class ParamSetPop(QDialog):
     # =========================
     def set_layout(self) -> None:
         self.setWindowTitle("설정")
-        self.resize(400, 100)  # 초기 크기 (자동 확장 허용)
-        self.setMinimumWidth(400)
+        self.resize(400, 420)
+        self.setMinimumSize(400, 420)
         self.setStyleSheet("QDialog { background: white; color: #111; } QLabel { color: #111; }")
         self.setWindowIcon(self._make_window_icon())
 
         popup_layout = QVBoxLayout(self)
         popup_layout.setContentsMargins(10, 10, 10, 10)
-        popup_layout.setSpacing(5)
+        popup_layout.setSpacing(8)
 
         title_label = QLabel("설정 파라미터 세팅")
         title_label.setStyleSheet(
@@ -348,12 +387,25 @@ class ParamSetPop(QDialog):
         title_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         popup_layout.addWidget(title_label)
 
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setStyleSheet(self._scroll_style())
+
+        body = QWidget()
+        body.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(0)
+
         for item in self._get_setting():
             item_type = str(item.get("type", "input") or "input")
             code = str(item.get("code", "") or "")
             name = str(item.get("name", "") or "")
 
-            # ✅ 개별 항목 레이아웃 (간격 포함용)
             item_layout = QVBoxLayout()
             item_layout.setContentsMargins(0, 12, 0, 0)
             item_layout.setSpacing(5)
@@ -393,7 +445,6 @@ class ParamSetPop(QDialog):
                 item_layout.addWidget(w)
 
             elif item_type == "button":
-                # line edit
                 le = QLineEdit(self)
                 le.setText(str(item.get("value", "") or ""))
                 le.setFixedHeight(40)
@@ -401,12 +452,10 @@ class ParamSetPop(QDialog):
                 self.input_fields[code] = le
                 item_layout.addWidget(le)
 
-                # action button
                 btn = QPushButton("조회", self)
                 btn.setFixedHeight(40)
                 btn.setStyleSheet(self._button_style())
                 btn.setCursor(Qt.CursorShape.PointingHandCursor)
-                # lambda 캡처 안정화(기존 유지)
                 btn.clicked.connect(lambda _checked=False, c=code: self.on_button_clicked(c))
                 item_layout.addWidget(btn)
 
@@ -438,10 +487,9 @@ class ParamSetPop(QDialog):
             elif item_type == "folder":
                 le = QLineEdit(self)
 
-                # === 신규 === value가 비어 있으면 path_type 기준 기본 경로 표시
                 folder_value = str(item.get("value", "") or "").strip()
                 if not folder_value:
-                    folder_value = self._get_default_start_dir(item)  # === 신규 ===
+                    folder_value = self._get_default_start_dir(item)
 
                 le.setText(folder_value)
                 le.setPlaceholderText(str(item.get("placeholder", "폴더를 선택하세요") or "폴더를 선택하세요"))
@@ -458,21 +506,22 @@ class ParamSetPop(QDialog):
                 btn.clicked.connect(lambda _checked=False, c=code, it=item: self.on_folder_pick_clicked(c, it))
                 item_layout.addWidget(btn)
 
-            popup_layout.addLayout(item_layout)
+            body_layout.addLayout(item_layout)
 
-        # 버튼 레이아웃
+        body_layout.addStretch()
+        scroll.setWidget(body)
+        popup_layout.addWidget(scroll)
+
         button_layout = QHBoxLayout()
 
         self.cancel_button = create_common_button("취소", self.reject, "#cccccc", 140)
         self.confirm_button = create_common_button("확인", self.on_confirm, "black", 140)
 
-        button_layout.setContentsMargins(0, 15, 0, 0)
+        button_layout.setContentsMargins(0, 12, 0, 0)
         button_layout.addWidget(self.cancel_button)
         button_layout.addStretch()
         button_layout.addWidget(self.confirm_button)
         popup_layout.addLayout(button_layout)
-
-        self._center_window()
 
     # =========================
     # actions
@@ -488,16 +537,13 @@ class ParamSetPop(QDialog):
 
         worker = self._get_on_demand_worker()
         if worker is None:
-            # 기존 코드의 self.site는 정의가 없어 런타임 에러 가능 → code로 대체
             self._emit_log(f"[{code}] on_demand_worker가 없습니다.")
             return
 
         try:
-            # get_list(value) 호출 규약 유지
             result_list: Any = worker.get_list(value)
             self._emit_log(f"[{code}] 결과 수신 완료: {result_list}")
 
-            # 결과를 select(QComboBox)에 반영할 대상 코드 추정 (예: "{code}_select")
             select_code = f"{code}_select"
             select_widget = self.input_fields.get(select_code)
 
@@ -574,28 +620,27 @@ class ParamSetPop(QDialog):
 
             item_type = str(item.get("type", "input") or "input")
 
-            # QLineEdit
             if isinstance(widget, QLineEdit):
                 text = widget.text()
 
-                # === 신규 === file 타입은 무조건 문자열로 저장
                 if item_type in ("file", "folder"):
                     item["value"] = text
                 else:
-                    # 기존 로직 유지: int 변환 시도 후 실패하면 문자열
                     try:
                         item["value"] = int(text)
                     except ValueError:
                         item["value"] = text
 
-            # QComboBox
             elif isinstance(widget, QComboBox):
                 item["value"] = widget.currentData()
 
-            # QCheckBox
             elif isinstance(widget, QCheckBox):
                 item["value"] = widget.isChecked()
 
         self._save_setting_to_runtime_config(setting)
         self._emit_log(f"setting : {setting}")
         self.accept()
+
+    def showEvent(self, event) -> None:  # type: ignore[override]
+        super().showEvent(event)
+        self._center_window()

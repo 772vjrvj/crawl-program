@@ -37,7 +37,7 @@ class DetailAllStyleSetPop(QDialog):
         self.setting_attr_name: str = setting_attr_name
 
         self.setWindowTitle(title)
-        self.resize(560, 760)
+        self.resize(560, 720)
         self.setStyleSheet("background-color: white; color: #111;")
 
         self.setting_data: List[Dict[str, Any]] = self._load_setting_data()
