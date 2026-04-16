@@ -251,6 +251,23 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         else:
             self.log_signal_func("[기본 모드] 기존 지역/필터 사용")
 
+            if not self.region:
+                region_list = self.file_driver.read_json_array_from_resources(
+                    "naver_loc_all_real.json",
+                    "customers/naver_place_loc_all",
+                ) or []
+
+                self.region = [
+                    {
+                        "시도": item.get("시도"),
+                        "시군구": item.get("시군구"),
+                        "읍면동": item.get("읍면동"),
+                        "value": bool(item.get("value", False)),
+                    }
+                    for item in region_list
+                    if type(item) is dict and bool(item.get("value", False))
+                ]
+
             region_key_set = {
                 (item.get("시도"), item.get("시군구"), item.get("읍면동"))
                 for item in (self.region or [])

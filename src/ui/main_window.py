@@ -687,6 +687,7 @@ class MainWindow(QWidget):
                 self.on_demand_worker.set_setting_detail_all_style(self.setting_detail_all_style)
 
             if self.setting_region_filter_favorite_flag:
+                self.on_demand_worker.set_setting_detail_all_style(self.setting_detail_all_style)
                 self.on_demand_worker.set_setting_region_filter_favorite(self.setting_region_filter_favorite)
 
             if self.columns:

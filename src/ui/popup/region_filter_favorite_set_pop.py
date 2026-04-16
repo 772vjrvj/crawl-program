@@ -522,6 +522,39 @@ class RegionFilterFavoriteSetPop(QDialog):
 
         return selected
 
+    def _apply_selected_regions_to_loc_all(
+            self,
+            selected_regions: list[dict[str, Any]],
+    ) -> None:
+        selected_set = {
+            (
+                str(row.get("시도", "")).strip(),
+                str(row.get("시군구", "")).strip(),
+                str(row.get("읍면동", "")).strip(),
+            )
+            for row in selected_regions
+        }
+
+        for item in self.loc_all:
+            key = (
+                str(item.get("시도", "")).strip(),
+                str(item.get("시군구", "")).strip(),
+                str(item.get("읍면동", "")).strip(),
+            )
+            item["value"] = key in selected_set
+
+    def _save_region_data(self) -> None:
+        try:
+            json_path = self.get_json_file_path()
+            json_path.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(self.loc_all, f, ensure_ascii=False, separators=(",", ":"))
+
+            self.log_signal.emit(f"지역 JSON 저장 완료: {json_path}")
+        except Exception as e:
+            self.log_signal.emit(f"지역 JSON 저장 실패: {e}")
+
     # =========================
     # filter
     # =========================
@@ -1286,6 +1319,9 @@ class RegionFilterFavoriteSetPop(QDialog):
         self.apply_filter_widget_values_to_setting_data()
 
         selected_regions = self.collect_selected_regions()
+        self._apply_selected_regions_to_loc_all(selected_regions)
+        self._save_region_data()
+
         setting_snapshot = copy.deepcopy(self.setting_data)
         favorite_snapshot = copy.deepcopy(self.favorite_data)
 
