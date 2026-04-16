@@ -20,13 +20,13 @@
     {
       "name": "등록일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": "",
+      "value": 20260416,
       "type": "input"
     },
     {
       "name": "등록일(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": "",
+      "value": 20260416,
       "type": "input"
     },
     {
@@ -58,6 +58,26 @@
         {
           "key": "좁은면적순",
           "value": "SPACE_ASC"
+        }
+      ]
+    },
+    {
+      "name": "기준금액",
+      "code": "baseAmount",
+      "value": "10K",
+      "type": "select",
+      "options": [
+        {
+          "key": "만(10,000)",
+          "value": "10K"
+        },
+        {
+          "key": "억(100,000,000)",
+          "value": "100M"
+        },
+        {
+          "key": "일(1)",
+          "value": "KRW"
         }
       ]
     },
@@ -115,7 +135,7 @@
           "name": "월세",
           "code": "B2",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "단기임대",
@@ -207,7 +227,7 @@
               "name": "상가",
               "code": "D02",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "토지",
@@ -823,48 +843,8 @@
       "regions": [
         {
           "시도": "서울시",
-          "시군구": "송파구",
-          "읍면동": "잠실동"
-        },
-        {
-          "시도": "경기도",
-          "시군구": "수원시 권선구",
-          "읍면동": "권선동"
-        },
-        {
-          "시도": "경기도",
-          "시군구": "수원시 영통구",
-          "읍면동": "망포동"
-        },
-        {
-          "시도": "경기도",
-          "시군구": "수원시 영통구",
-          "읍면동": "신동"
-        },
-        {
-          "시도": "경기도",
-          "시군구": "용인시 기흥구",
-          "읍면동": "농서동"
-        },
-        {
-          "시도": "경기도",
-          "시군구": "용인시 기흥구",
-          "읍면동": "서천동"
-        },
-        {
-          "시도": "경기도",
-          "시군구": "화성시 병점구",
-          "읍면동": "기산동"
-        },
-        {
-          "시도": "경기도",
-          "시군구": "화성시 병점구",
-          "읍면동": "반정동"
-        },
-        {
-          "시도": "경기도",
-          "시군구": "화성시 병점구",
-          "읍면동": "병점동"
+          "시군구": "금천구",
+          "읍면동": "가산동"
         }
       ],
       "filters": [
@@ -877,7 +857,7 @@
               "name": "매매",
               "code": "A1",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "전세",
@@ -889,13 +869,13 @@
               "name": "월세",
               "code": "B2",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "단기임대",
               "code": "B3",
               "type": "checkbox",
-              "value": false
+              "value": true
             }
           ],
           "parent_id": "checkbox_multi_group",
@@ -910,7 +890,7 @@
               "name": "아파트",
               "code": "A01",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "재건축",
@@ -981,7 +961,7 @@
                   "name": "상가",
                   "code": "D02",
                   "type": "checkbox",
-                  "value": false
+                  "value": true
                 },
                 {
                   "name": "토지",
@@ -993,7 +973,7 @@
                   "name": "사무실",
                   "code": "D01",
                   "type": "checkbox",
-                  "value": false
+                  "value": true
                 },
                 {
                   "name": "건물",
@@ -1011,7 +991,7 @@
                   "name": "지식산업센터",
                   "code": "E04",
                   "type": "checkbox",
-                  "value": false
+                  "value": true
                 }
               ]
             }
@@ -1032,13 +1012,13 @@
                   "name": "최소",
                   "code": "min",
                   "type": "input",
-                  "value": "30000"
+                  "value": ""
                 },
                 {
                   "name": "최대",
                   "code": "max",
                   "type": "input",
-                  "value": "50000"
+                  "value": ""
                 }
               ]
             },
@@ -1591,7 +1571,7 @@
           "checked": true
         }
       ],
-      "checked": true
+      "checked": false
     }
   ],
   "columns": [
@@ -1601,207 +1581,217 @@
     {
       "code": "article_number",
       "value": "매물번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "complexName",
       "value": "단지명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "dongName",
       "value": "동이름",
-      "checked": false
+      "checked": true
     },
     {
       "code": "price",
       "value": "매매가",
-      "checked": false
+      "checked": true
     },
     {
       "code": "warrantyAmount",
       "value": "보증금/전세",
-      "checked": false
+      "checked": true
     },
     {
       "code": "rentAmount",
       "value": "월세",
-      "checked": false
+      "checked": true
     },
     {
       "code": "supplySpace",
       "value": "공급면적",
-      "checked": false
+      "checked": true
     },
     {
       "code": "landSpace",
       "value": "대지면적",
-      "checked": false
+      "checked": true
     },
     {
       "code": "floorSpace",
       "value": "연면적",
-      "checked": false
+      "checked": true
     },
     {
       "code": "buildingSpace",
       "value": "건축면적",
-      "checked": false
+      "checked": true
     },
     {
       "code": "exclusiveSpace",
       "value": "전용면적",
-      "checked": false
+      "checked": true
     },
     {
       "code": "articleConfirmDate",
       "value": "매물확인일",
-      "checked": false
+      "checked": true
     },
     {
       "code": "exposureStartDate",
       "value": "매물노출시작일",
-      "checked": false
+      "checked": true
     },
     {
       "code": "targetFloor",
       "value": "해당층",
-      "checked": false
+      "checked": true
     },
     {
       "code": "totalFloor",
       "value": "전체층",
-      "checked": false
+      "checked": true
     },
     {
       "code": "city",
       "value": "시도",
-      "checked": false
+      "checked": true
     },
     {
       "code": "division",
       "value": "시군구",
-      "checked": false
+      "checked": true
     },
     {
       "code": "sector",
       "value": "읍면동",
-      "checked": false
+      "checked": true
     },
     {
       "code": "zipCode",
       "value": "우편번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "full_addr",
       "value": "전체주소",
-      "checked": false
+      "checked": true
     },
     {
       "code": "brokerage_name",
       "value": "중개사무소이름",
-      "checked": false
+      "checked": true
     },
     {
       "code": "broker_name",
       "value": "중개사이름",
-      "checked": false
+      "checked": true
     },
     {
       "code": "url",
       "value": "URL",
-      "checked": false
+      "checked": true
     },
     {
       "code": "atclNm",
       "value": "상위매물명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "bildNm",
       "value": "상위매물동",
-      "checked": false
+      "checked": true
     },
     {
       "code": "parentYn",
       "value": "부모여부",
-      "checked": false
+      "checked": true
     },
     {
       "code": "atclNo",
       "value": "상위매물번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "rletType",
       "value": "매물유형",
-      "checked": false
+      "checked": true
     },
     {
       "code": "tradeType",
       "value": "거래유형",
-      "checked": false
+      "checked": true
     },
     {
       "code": "tagList",
       "value": "매물태그",
-      "checked": false
+      "checked": true
     },
     {
       "code": "atclCfmYmd",
       "value": "등록일자",
-      "checked": false
+      "checked": true
     },
     {
       "code": "lat",
       "value": "위도",
-      "checked": false
+      "checked": true
     },
     {
       "code": "lng",
       "value": "경도",
-      "checked": false
+      "checked": true
     },
     {
       "code": "direction",
       "value": "방향정보",
-      "checked": false
+      "checked": true
     },
     {
       "code": "sameAddrCnt",
       "value": "동일주소매물수",
-      "checked": false
+      "checked": true
     },
     {
       "code": "sameAddrMinPrc",
       "value": "동일주소최소가",
-      "checked": false
+      "checked": true
     },
     {
       "code": "sameAddrMaxPrc",
       "value": "동일주소최대가",
-      "checked": false
+      "checked": true
     },
     {
       "code": "articleFeatureDescription",
-      "value": "간략설명",
-      "checked": false
+      "value": "매물설명",
+      "checked": true
+    },
+    {
+      "code": "currentBusinessType",
+      "value": "현재업종",
+      "checked": true
+    },
+    {
+      "code": "recommendedBusinessType",
+      "value": "추천업종",
+      "checked": true
     },
     {
       "code": "vrfctpcd",
       "value": "매물확인코드",
-      "checked": false
+      "checked": true
     },
     {
       "code": "buildingConjunctionDate",
       "value": "사용승인일",
-      "checked": false
+      "checked": true
     },
     {
       "code": "parts",
       "value": "검색 주소",
-      "checked": false
+      "checked": true
     },
     {
       "title": "상세목록"
@@ -1820,18 +1810,8 @@
       "checked": false
     },
     {
-      "code": "currentBusinessType",
-      "value": "현재업종",
-      "checked": false
-    },
-    {
-      "code": "recommendedBusinessType",
-      "value": "추천업종",
-      "checked": false
-    },
-    {
       "code": "articleDescription",
-      "value": "매물설명",
+      "value": "매물상세설명",
       "checked": false
     },
     {

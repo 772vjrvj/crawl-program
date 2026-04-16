@@ -1529,6 +1529,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         sigungu = region_item.get("시군구")
         eup_myeon_dong = region_item.get("읍면동")
 
+        list_land = list_item.get("landInfo") or {}
         list_space = list_item.get("spaceInfo") or {}
         list_broker = list_item.get("brokerInfo") or {}
         list_article_detail = list_item.get("articleDetail") or {}
@@ -1624,11 +1625,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "동일주소매물수": self._empty_if_zero(list_item.get("sameAddrCnt", "")),
             "동일주소최소가": self._empty_if_zero(list_item.get("sameAddrMinPrc", "")),
             "동일주소최대가": self._empty_if_zero(list_item.get("sameAddrMaxPrc", "")),
-            "간략설명": list_article_detail.get("articleFeatureDescription", ""),
-            "매물설명": list_article_detail.get("articleDescription", ""),
+            "매물설명": list_article_detail.get("articleFeatureDescription", ""),
+            "매물상세설명": list_article_detail.get("articleDescription", ""),
             "매물확인코드": list_item.get("vrfctpcd", "") or list_verification.get("verificationType", ""),
-            "현재업종": list_space.get("currentBusinessType", ""),
-            "추천업종": list_space.get("recommendedBusinessType", ""),
+            "현재업종": list_land.get("currentPurpose", ""),
+            "추천업종": list_land.get("recommendedPurpose", ""),
             "사용승인일": yyyy_mm_dd_to(list_building.get("buildingConjunctionDate", "")),
             "검색 주소": sido + " " + sigungu + " " + eup_myeon_dong,
         }
@@ -1751,10 +1752,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             rs["방향정보"] = self._find_filter_name_by_index_and_code(8, direction_code) or direction_code
 
         if detail_article.get("articleFeatureDescription") not in [None, ""]:
-            rs["간략설명"] = detail_article.get("articleFeatureDescription", "")
+            rs["매물설명"] = detail_article.get("articleFeatureDescription", "")
 
         if detail_article.get("articleDescription") not in [None, ""]:
-            rs["매물설명"] = detail_article.get("articleDescription", "")
+            rs["매물상세설명"] = detail_article.get("articleDescription", "")
 
         if detail_verification.get("verificationType") not in [None, ""]:
             rs["매물확인코드"] = detail_verification.get("verificationType", "")
