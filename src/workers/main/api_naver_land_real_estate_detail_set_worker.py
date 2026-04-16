@@ -3,6 +3,7 @@ import time
 from typing import Any, Dict, List, Optional
 import random
 import json
+from decimal import Decimal, InvalidOperation
 
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
@@ -17,6 +18,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
+        self.base_amount = None
         self.eng_yn = None
         self.remove_duplicate_yn = None
         self.filter_data = None
@@ -197,6 +199,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         self.detail_column_yn: bool = self.get_setting_value(self.setting, "detail_column_yn")
         self.log_signal_func(f"상세조회 여부 : {self.detail_column_yn}")
+
+        self.base_amount: str = self.get_setting_value(self.setting, "baseAmount")
+        self.log_signal_func(f"기준금액 : {self.base_amount}")
+
 
         # 7. 작업목록 생성
         self.work_items = []
@@ -1462,6 +1468,45 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             return ""
         return value
 
+    def _get_base_amount_divisor(self):
+        base_amount = str(self.base_amount or "").strip().upper()
+
+        if base_amount == "10K":
+            return Decimal("10000")
+
+        if base_amount == "100M":
+            return Decimal("100000000")
+
+        return Decimal("1")
+
+    def _convert_price_by_base_amount(self, value):
+        if value in [None, ""]:
+            return value
+
+        text = str(value).strip().replace(",", "")
+        if not text:
+            return value
+
+        try:
+            amount = Decimal(text)
+        except (InvalidOperation, ValueError, TypeError):
+            return value
+
+        if amount == 0:
+            return ""
+
+        divisor = self._get_base_amount_divisor()
+
+        if divisor == Decimal("1"):
+            return value
+
+        converted = amount / divisor
+
+        if converted == converted.to_integral_value():
+            return int(converted)
+
+        return float(converted)
+
     def _make_list_row(self, list_item, region_item):
         sido = region_item.get("시도")
         sigungu = region_item.get("시군구")
@@ -1521,9 +1566,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "매물번호": article_no,
             "단지명": list_item.get("complexName", ""),
             "동이름": list_item.get("dongName", ""),
-            "매매가": self._empty_if_zero(list_price.get("dealPrice", "")),
-            "보증금/전세": self._empty_if_zero(list_price.get("warrantyPrice", "")),
-            "월세": self._empty_if_zero(list_price.get("rentPrice", "")),
+            "매매가": self._convert_price_by_base_amount(list_price.get("dealPrice", "")),
+            "보증금/전세": self._convert_price_by_base_amount(list_price.get("warrantyPrice", "")),
+            "월세": self._convert_price_by_base_amount(list_price.get("rentPrice", "")),
             "공급면적": self._empty_if_zero(list_space.get("supplySpace", "")),
             "평수": self._empty_if_zero(list_item.get("pyeongArea", "") or list_space.get("pyeongArea", "")),
             "대지면적": self._empty_if_zero(list_space.get("landSpace", "")),
@@ -1608,13 +1653,13 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             rs["동이름"] = detail_complex.get("dongName", "")
 
         if detail_price.get("price") not in [None, ""]:
-            rs["매매가"] = self._empty_if_zero(detail_price.get("price", ""))
+            rs["매매가"] = self._convert_price_by_base_amount(detail_price.get("price", ""))
 
-        if detail_price.get("previousDeposit") not in [None, ""]:
-            rs["보증금/전세"] = self._empty_if_zero(detail_price.get("previousDeposit", ""))
+        if detail_price.get("warrantyAmount") not in [None, ""]:
+            rs["보증금/전세"] = self._convert_price_by_base_amount(detail_price.get("warrantyAmount", ""))
 
-        if detail_price.get("previousMonthlyRent") not in [None, ""]:
-            rs["월세"] = self._empty_if_zero(detail_price.get("previousMonthlyRent", ""))
+        if detail_price.get("rentAmount") not in [None, ""]:
+            rs["월세"] = self._convert_price_by_base_amount(detail_price.get("rentAmount", ""))
 
         if detail_size.get("supplySpace") not in [None, ""]:
             rs["공급면적"] = self._empty_if_zero(detail_size.get("supplySpace", ""))
