@@ -1,4 +1,3 @@
-# src/workers/main/api_naver_shop_total_set_worker.py
 from __future__ import annotations
 
 import json
@@ -103,12 +102,16 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         # 1. CSV → Excel 변환
         try:
             if self.csv_filename and self.excel_driver:
-                self.excel_driver.convert_csv_to_excel_and_delete(
+                excel_ok = self.excel_driver.convert_csv_to_excel_and_delete(
                     self.csv_filename,
                     folder_path=self.folder_path,
                     sub_dir=self.out_dir,
                 )
-                self.log_signal_func("✅ [엑셀 변환] 성공")
+
+                if excel_ok:
+                    self.log_signal_func("✅ [엑셀 변환] 성공")
+                else:
+                    self.log_signal_func("❌ [엑셀 변환] 실패")
         except Exception as e:
             self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
 
@@ -183,12 +186,18 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         # 파일명은 이름만 보관하고 실제 저장경로는 ExcelUtils 에 맡김
         self.csv_filename = os.path.basename(self.file_driver.get_csv_filename(self.site_name))
 
-        self.excel_driver.init_csv(
+        init_ok = self.excel_driver.init_csv(
             self.csv_filename,
             self.columns,
             folder_path=self.folder_path,
             sub_dir=self.out_dir,
         )
+
+        if not init_ok:
+            self.log_signal_func(
+                f"❌ CSV 초기화 실패로 작업 중단 | file={self.csv_filename}"
+            )
+            return False
 
         completed_keywords = 0
 
@@ -468,16 +477,25 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                                         f"🛑 사용자 중단 감지(CSV 저장 직전) | 키워드={kw} | page={p_num} | idx={idx + 1}"
                                     )
 
-                                self.excel_driver.append_to_csv(
+                                save_ok = self.excel_driver.append_to_csv(
                                     self.csv_filename,
                                     [rs],
                                     self.columns,
                                     folder_path=self.folder_path,
                                     sub_dir=self.out_dir,
                                 )
-                                self.log_signal_func(
-                                    f"💾 CSV 저장 대상 추가 | 키워드={kw} | page={p_num} | 방문자={total_visit} | 기준={site_total_cnt}"
-                                )
+
+                                if save_ok:
+                                    self.log_signal_func(
+                                        f"💾 CSV 저장 대상 추가 | 키워드={kw} | page={p_num} | 방문자={total_visit} | 기준={site_total_cnt}"
+                                    )
+                                else:
+                                    self.log_signal_func(
+                                        f"❌ CSV 저장 실패 | 키워드={kw} | page={p_num} | 방문자={total_visit} | 기준={site_total_cnt}"
+                                    )
+                                    return self._log_and_return_true(
+                                        f"🛑 조기 종료 | CSV 저장 실패 | 키워드={kw} | page={p_num} | idx={idx + 1}"
+                                    )
 
                             self.log_signal_func(
                                 f"📦 [수집 완료] {kw} - {p_num}p | {item.get('mallName')} | 방문자: {total_visit}"
@@ -616,7 +634,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                 for _ in range(5):
                     pyautogui.press("tab")
                     if not self.sleep_s(random.uniform(0.1, 0.2)):
-                        self.log_signal_func("🛑 캡차 처리 중단: 첫 진입 tab 이동 중 sleep 실패")
+                        self.log_signal_func("🛑 캡차 처리 중단: tab 이동 중 sleep 실패")
                         return 0
                 pyautogui.press("enter")
             else:

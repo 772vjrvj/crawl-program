@@ -4,6 +4,7 @@ from openpyxl import load_workbook, Workbook
 import csv
 import re
 import json
+import time
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
 
@@ -57,22 +58,81 @@ class ExcelUtils:
     def init_csv(self, filename, columns, folder_path=None, sub_dir=None):
         filename = self.build_file_path(filename, folder_path, sub_dir)
 
-        df = pd.DataFrame(columns=columns)
-        df.to_csv(filename, index=False, encoding="utf-8-sig")
-        if self.log_func:
-            self.log_func(f"CSV 초기화 완료: {filename}")
+        # === 신규 ===
+        for attempt in range(1, 4):
+            try:
+                df = pd.DataFrame(columns=columns)
+                df.to_csv(filename, index=False, encoding="utf-8-sig")
+                if self.log_func:
+                    self.log_func(f"CSV 초기화 완료: {filename}")
+                return True
+
+            except PermissionError as e:
+                if self.log_func:
+                    self.log_func(
+                        f"❌ CSV 초기화 권한/파일잠금 오류 {attempt}/3 | {filename} | {type(e).__name__}: {e}"
+                    )
+                time.sleep(1.0)
+
+            except Exception as e:
+                if self.log_func:
+                    self.log_func(
+                        f"❌ CSV 초기화 실패 {attempt}/3 | {filename} | {type(e).__name__}: {e}"
+                    )
+                time.sleep(1.0)
+
+        return False
 
     def append_to_csv(self, filename, data_list, columns, folder_path=None, sub_dir=None):
         if not data_list:
-            return
+            return True
 
         filename = self.build_file_path(filename, folder_path, sub_dir)
 
-        df = pd.DataFrame(data_list, columns=columns)
-        df.to_csv(filename, mode="a", header=False, index=False, encoding="utf-8-sig")
-        data_list.clear()
+        # === 신규 ===
+        save_rows = list(data_list)
+        save_count = len(save_rows)
+
+        for attempt in range(1, 4):
+            start_ts = time.time()
+
+            try:
+                if self.log_func:
+                    self.log_func(
+                        f"[CSV] 저장 시도 {attempt}/3 | rows={save_count} | file={filename}"
+                    )
+
+                df = pd.DataFrame(save_rows, columns=columns)
+                df.to_csv(filename, mode="a", header=False, index=False, encoding="utf-8-sig")
+                data_list.clear()
+
+                if self.log_func:
+                    self.log_func(
+                        f"csv 저장완료 | rows={save_count} | elapsed={time.time() - start_ts:.2f}s"
+                    )
+
+                return True
+
+            except PermissionError as e:
+                if self.log_func:
+                    self.log_func(
+                        f"❌ [CSV] 권한/파일잠금 오류 {attempt}/3 | file={filename} | {type(e).__name__}: {e}"
+                    )
+                time.sleep(1.0)
+
+            except Exception as e:
+                if self.log_func:
+                    self.log_func(
+                        f"❌ [CSV] 저장 실패 {attempt}/3 | file={filename} | {type(e).__name__}: {e}"
+                    )
+                time.sleep(1.0)
+
         if self.log_func:
-            self.log_func("csv 저장완료")
+            self.log_func(
+                f"❌ [CSV] 최종 저장 실패 | rows={save_count} | file={filename}"
+            )
+
+        return False
 
     def append_to_excel(self, filename, data_list, columns, sheet_name="Sheet1", folder_path=None, sub_dir=None):
         if not data_list:
@@ -406,7 +466,7 @@ class ExcelUtils:
 
     def append_row_to_csv(self, csv_filename, item, columns, folder_path=None, sub_dir=None):
         if not columns:
-            return
+            return False
 
         csv_filename = self.build_file_path(csv_filename, folder_path, sub_dir)
 
@@ -415,16 +475,37 @@ class ExcelUtils:
             v = item.get(c)
             row[c] = "" if v is None else str(v)
 
-        file_exists = os.path.exists(csv_filename)
+        # === 신규 ===
+        for attempt in range(1, 4):
+            try:
+                file_exists = os.path.exists(csv_filename)
 
-        with open(csv_filename, "a", newline="", encoding="utf-8-sig") as f:
-            writer = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore")
-            if not file_exists:
-                writer.writeheader()
-            writer.writerow(row)
+                with open(csv_filename, "a", newline="", encoding="utf-8-sig") as f:
+                    writer = csv.DictWriter(f, fieldnames=columns, extrasaction="ignore")
+                    if not file_exists:
+                        writer.writeheader()
+                    writer.writerow(row)
 
-        if self.log_func:
-            self.log_func("csv 1행 저장완료")
+                if self.log_func:
+                    self.log_func("csv 1행 저장완료")
+
+                return True
+
+            except PermissionError as e:
+                if self.log_func:
+                    self.log_func(
+                        f"❌ csv 1행 저장 권한/파일잠금 오류 {attempt}/3 | {csv_filename} | {type(e).__name__}: {e}"
+                    )
+                time.sleep(0.5)
+
+            except Exception as e:
+                if self.log_func:
+                    self.log_func(
+                        f"❌ csv 1행 저장 실패 {attempt}/3 | {csv_filename} | {type(e).__name__}: {e}"
+                    )
+                time.sleep(0.5)
+
+        return False
 
     def close(self):
         if self.log_func:
