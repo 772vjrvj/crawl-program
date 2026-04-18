@@ -382,7 +382,7 @@ def _get_category_info(text):
 
 
 # ── STEP 2: 혜택 [카드 서비스 상세] HTML 수집 ────────────────────────
-async def get_benefit_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSession) -> list[dict]:
+async def get_benefit_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSession, updated_at: str) -> list[dict]:
     rows = []
 
     bubbles = (
@@ -448,13 +448,14 @@ async def get_benefit_rows(card_id: str, nuxt_data: dict, session: aiohttp.Clien
                         "unit": "",
                         "value": "",
                         "max_limit": "",
-                        "benefit_summary": re.sub(r"\s+", " ", benefit_content).strip()[:120],
+                        "benefit_summary": benefit_content[:120],
                         "target_merchants": "",
                         "category_id": "",
                         "category": "",
                         "on_offline": "",
                         "excluded_merchants": "",
                         "performance_level": "",
+                        "updated_at": updated_at
                     })
                     continue
 
@@ -486,6 +487,7 @@ async def get_benefit_rows(card_id: str, nuxt_data: dict, session: aiohttp.Clien
                     "on_offline": "",
                     "excluded_merchants": "",
                     "performance_level": "",
+                    "updated_at": updated_at
                 })
 
         if not found and serviceName:
@@ -517,6 +519,7 @@ async def get_benefit_rows(card_id: str, nuxt_data: dict, session: aiohttp.Clien
                 "on_offline": "",
                 "excluded_merchants": "",
                 "performance_level": "",
+                "updated_at": updated_at
             })
 
     for row in rows:
@@ -573,7 +576,7 @@ def _fee_expand(trs):
     return rows
 
 
-def _make_fee_row(card_id, title, content):
+def _make_fee_row(card_id, title, content, updated_at):
     unit, value = _get_unit_value(content)
 
     return {
@@ -598,7 +601,7 @@ def _make_fee_row(card_id, title, content):
     }
 
 
-async def get_fee_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSession) -> list[dict]:
+async def get_fee_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSession, updated_at: str) -> list[dict]:
     rows = []
 
     fee_url = (
@@ -648,7 +651,7 @@ async def get_fee_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSes
                         continue
 
                     amount = _fee_clean(r[i] if i < len(r) else "") or "없음"
-                    rows.append(_make_fee_row(card_id, title, f"{header} {fee_type} {amount}"))
+                    rows.append(_make_fee_row(card_id, title, f"{header} {fee_type} {amount}", updated_at))
 
         notes = []
         for el in indv.select(".btm_info .alert_s_new, .btm_info li"):
@@ -657,8 +660,47 @@ async def get_fee_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSes
                 notes.append(txt)
 
         for txt in notes:
-            rows.append(_make_fee_row(card_id, title, txt))
+            rows.append(_make_fee_row(card_id, title, txt, updated_at))
 
+    # === 연회비 유의사항 추가 ===
+    notice_title = ""
+    notice_lines = []
+
+    for box in soup.select(".b_note .list_box_nt"):
+        h4 = box.select_one("h4.tit04")
+        if not h4 or "유의사항" not in _get_text(h4):
+            continue
+
+        for li in box.select("ul.txt_list > li"):
+            txt = _get_text(li)
+            if txt:
+                notice_lines.append(txt)
+        break
+
+    if notice_lines:
+        notice_content = "\n".join(notice_lines)
+
+        rows.append({
+            "card_id": card_id,
+            "row_type": "유의사항",
+            "benefit_group": "연회비",
+            "benefit_main_title": "연회비 유의사항",
+            "benefit_title": "연회비 유의사항",
+            "benefit_content": notice_content,
+            "region": "국내",
+            "benefit_type": "",
+            "unit": "",
+            "value": "",
+            "max_limit": "",
+            "benefit_summary": notice_content[:120],
+            "target_merchants": "",
+            "category_id": "",
+            "category": "",
+            "on_offline": "",
+            "excluded_merchants": "",
+            "performance_level": "",
+            "updated_at": updated_at
+        })
     for row in rows:
         log(str(row))
 
@@ -681,17 +723,20 @@ def save_rows_to_csv(rows, filename="card_benefit.csv"):
 # ── 메인 처리 ─────────────────────────────────────────────────
 async def crawl_one(card_code: str, session: aiohttp.ClientSession):
     result = await get_nuxt_data(card_code)
+    updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     benefit_rows = await get_benefit_rows(
         card_id=card_code,
         nuxt_data=result["nuxt_data"],
         session=session,
+        updated_at=updated_at,
     )
 
     fee_rows = await get_fee_rows(
         card_id=card_code,
         nuxt_data=result["nuxt_data"],
         session=session,
+        updated_at=updated_at,
     )
 
     all_rows = benefit_rows + fee_rows
@@ -705,7 +750,15 @@ async def crawl_one(card_code: str, session: aiohttp.ClientSession):
     log(f"혜택 건수: {len(benefit_rows)}")
     log(f"연회비 건수: {len(fee_rows)}")
 
+
+
+
+
+
+
+
     return result
+
 
 async def main():
     log(f"삼성카드 크롤링 시작 - 총 {len(CARD_LIST)}개 카드")
