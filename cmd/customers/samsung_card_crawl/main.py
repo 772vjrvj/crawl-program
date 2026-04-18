@@ -382,9 +382,9 @@ def _get_category_info(text):
 
 
 # ── STEP 2: 혜택 [카드 서비스 상세] HTML 수집 ────────────────────────
-async def get_benefit_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSession, updated_at: str) -> list[dict]:
+async def get_benefit_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSession) -> list[dict]:
     rows = []
-
+    updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     bubbles = (
         nuxt_data.get("wcms", {})
         .get("detail", {})
@@ -598,12 +598,13 @@ def _make_fee_row(card_id, title, content, updated_at):
         "on_offline": "",
         "excluded_merchants": "",
         "performance_level": "",
+        "updated_at": updated_at,
     }
 
 
-async def get_fee_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSession, updated_at: str) -> list[dict]:
+async def get_fee_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSession) -> list[dict]:
+    updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     rows = []
-
     fee_url = (
         nuxt_data.get("wcms", {})
         .get("detail", {})
@@ -663,7 +664,6 @@ async def get_fee_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSes
             rows.append(_make_fee_row(card_id, title, txt, updated_at))
 
     # === 연회비 유의사항 추가 ===
-    notice_title = ""
     notice_lines = []
 
     for box in soup.select(".b_note .list_box_nt"):
@@ -701,6 +701,7 @@ async def get_fee_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSes
             "performance_level": "",
             "updated_at": updated_at
         })
+
     for row in rows:
         log(str(row))
 
@@ -720,42 +721,95 @@ def save_rows_to_csv(rows, filename="card_benefit.csv"):
 
         writer.writerows(rows)
 
+def _format_event_date(value: str) -> str:
+    if not value:
+        return ""
+
+    value = value.split("-")[0]
+
+    if len(value) == 8:
+        return f"{value[:4]}-{value[4:6]}-{value[6:8]}"
+
+    return value
+
+async def get_event_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSession) -> list[dict]:
+    rows = []
+
+    banner_list = (
+        nuxt_data.get("wcms", {})
+        .get("detail", {})
+        .get("bannerList", [])
+    )
+
+    for banner in banner_list:
+        evt_url = banner.get("evtUrl", "")
+        if not evt_url:
+            continue
+
+        event_url = evt_url if evt_url.startswith("http") else CDN_BASE + evt_url
+
+        async with session.get(event_url) as resp:
+            event_html = await resp.text()
+
+        crawled_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        rows.append({
+            "card_id": card_id,
+            "card_company": "삼성카드",
+            "card_name": "",
+            "source_event_id": banner.get("id", ""),
+            "event_title": banner.get("evtTitle", ""),
+            "event_url": event_url,
+            "event_start_date": _format_event_date(banner.get("sDate", "")),
+            "event_end_date": _format_event_date(banner.get("eDate", "")),
+            "benefit_type": "",
+            "section": "",
+            "content": event_html,
+            "crawled_at": crawled_at,
+        })
+
+    for row in rows:
+        log(str(row))
+
+    return rows
+
+
 # ── 메인 처리 ─────────────────────────────────────────────────
 async def crawl_one(card_code: str, session: aiohttp.ClientSession):
     result = await get_nuxt_data(card_code)
-    updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #
+    # benefit_rows = await get_benefit_rows(
+    #     card_id=card_code,
+    #     nuxt_data=result["nuxt_data"],
+    #     session=session
+    # )
+    #
+    # fee_rows = await get_fee_rows(
+    #     card_id=card_code,
+    #     nuxt_data=result["nuxt_data"],
+    #     session=session
+    # )
+    #
+    # all_rows = benefit_rows + fee_rows
+    # save_rows_to_csv(all_rows, "card_benefit.csv")
+    #
+    # result["benefit_rows"] = benefit_rows
+    # result["fee_rows"] = fee_rows
+    #
+    # log(f"{card_code} 추출 성공")
+    # log(f"출시일: {result['sell_start_dt']}")
+    # log(f"혜택 건수: {len(benefit_rows)}")
+    # log(f"연회비 건수: {len(fee_rows)}")
 
-    benefit_rows = await get_benefit_rows(
+    # 이벤트
+    event_rows = await get_event_rows(
         card_id=card_code,
         nuxt_data=result["nuxt_data"],
         session=session,
-        updated_at=updated_at,
     )
 
-    fee_rows = await get_fee_rows(
-        card_id=card_code,
-        nuxt_data=result["nuxt_data"],
-        session=session,
-        updated_at=updated_at,
-    )
-
-    all_rows = benefit_rows + fee_rows
-    save_rows_to_csv(all_rows, "card_benefit.csv")
-
-    result["benefit_rows"] = benefit_rows
-    result["fee_rows"] = fee_rows
-
-    log(f"{card_code} 추출 성공")
-    log(f"출시일: {result['sell_start_dt']}")
-    log(f"혜택 건수: {len(benefit_rows)}")
-    log(f"연회비 건수: {len(fee_rows)}")
-
-
-
-
-
-
-
+    result["event_rows"] = event_rows
+    log(f"이벤트 건수: {len(event_rows)}")
 
     return result
 
