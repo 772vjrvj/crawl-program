@@ -4,6 +4,8 @@ import re
 from datetime import datetime
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
+import csv
+import os
 
 # ── 설정 ──────────────────────────────────────────────────────
 CARD_LIST = ["AAP1731", "ABP1689", "ABP1384", "ABP1383", "AAP1483", "AAP1452"]
@@ -12,39 +14,36 @@ BASE_URL = "https://www.samsungcard.com/home/card/cardinfo/PGHPPCCCardCardinfoDe
 CDN_BASE = "https://static11.samsungcard.com"
 
 category_data = [
-    {"category_id": 1, "category_name": "온라인쇼핑", "category_list": ["삼성카드 쇼핑", "G마켓", "옥션", "11번가", "인터파크", "쿠팡", "티몬", "위메프", "SSG.COM", "롯데ON", "마켓컬리", "오아시스마켓"]},
-    {"category_id": 2, "category_name": "패션/뷰티", "category_list": ["올리브영", "유니클로", "자라", "H&M", "8SECONDS"]},
-    {"category_id": 3, "category_name": "슈퍼마켓/생활잡화", "category_list": ["이마트", "트레이더스", "롯데마트", "홈플러스", "에브리데이", "빅마켓", "다이소"]},
-    {"category_id": 4, "category_name": "백화점/아울렛/면세점", "category_list": ["신세계", "롯데", "현대", "갤러리아", "동아", "대구백화점", "AK플라자", "NC 대전 유성점", "NC 대전유성점", "신세계사이먼 프리미엄 아울렛", "현대프리미엄아울렛"]},
-    {"category_id": 5, "category_name": "대중교통/택시", "category_list": []},
-    {"category_id": 6, "category_name": "자동차/주유", "category_list": ["SK에너지", "GS칼텍스", "현대오일뱅크", "S-OIL"]},
-    {"category_id": 7, "category_name": "반려동물", "category_list": []},
-    {"category_id": 8, "category_name": "구독/스트리밍", "category_list": ["넷플릭스", "웨이브", "티빙", "왓챠", "멜론", "FLO"]},
-    {"category_id": 9, "category_name": "레저/스포츠", "category_list": ["에버랜드", "롯데월드", "서울랜드", "통도환타지아", "대전오월드", "경주월드", "이월드", "캐리비안베이", "아쿠아환타지아", "캘리포니아비치", "중흥골드스파", "디오션리조트 워터파크", "스파밸리"]},
-    {"category_id": 10, "category_name": "페이/간편결제", "category_list": ["삼성페이", "네이버페이", "카카오페이", "PAYCO", "스마일페이", "coupay", "SSGPAY", "L.PAY"]},
-    {"category_id": 11, "category_name": "문화/엔터", "category_list": ["YES24", "인터파크 도서", "알라딘", "교보문고"]},
-    {"category_id": 12, "category_name": "생활비", "category_list": ["SKT", "KT", "LG U+"]},
+    {"category_id": 1, "category_name": "온라인쇼핑", "category_list": ["온라인쇼핑", "삼성카드 쇼핑", "G마켓", "옥션", "11번가", "인터파크", "쿠팡", "티몬", "위메프", "SSG.COM", "롯데ON", "마켓컬리", "오아시스마켓"]},
+    {"category_id": 2, "category_name": "패션/뷰티", "category_list": ["패션", "뷰티", "올리브영", "유니클로", "자라", "H&M", "8SECONDS"]},
+    {"category_id": 3, "category_name": "슈퍼마켓/생활잡화", "category_list": ["슈퍼마켓", "생활잡화", "이마트", "트레이더스", "롯데마트", "홈플러스", "에브리데이", "빅마켓", "다이소"]},
+    {"category_id": 4, "category_name": "백화점/아울렛/면세점", "category_list": ["백화점", "아울렛", "면세점", "신세계", "롯데", "현대", "갤러리아", "동아", "대구백화점", "AK플라자", "NC 대전 유성점", "NC 대전유성점", "신세계사이먼 프리미엄 아울렛", "현대프리미엄아울렛"]},
+    {"category_id": 5, "category_name": "대중교통/택시", "category_list": ["대중교통", "택시"]},
+    {"category_id": 6, "category_name": "자동차/주유", "category_list": ["자동차", "주유", "SK에너지", "GS칼텍스", "현대오일뱅크", "S-OIL"]},
+    {"category_id": 7, "category_name": "반려동물", "category_list": ["반려동물"]},
+    {"category_id": 8, "category_name": "구독/스트리밍", "category_list": ["구독", "스트리밍", "넷플릭스", "웨이브", "티빙", "왓챠", "멜론", "FLO"]},
+    {"category_id": 9, "category_name": "레저/스포츠", "category_list": ["레저", "스포츠", "에버랜드", "롯데월드", "서울랜드", "통도환타지아", "대전오월드", "경주월드", "이월드", "캐리비안베이", "아쿠아환타지아", "캘리포니아비치", "중흥골드스파", "디오션리조트 워터파크", "스파밸리"]},
+    {"category_id": 10, "category_name": "페이/간편결제", "category_list": ["페이", "간편결제", "삼성페이", "네이버페이", "카카오페이", "PAYCO", "스마일페이", "coupay", "SSGPAY", "L.PAY"]},
+    {"category_id": 11, "category_name": "문화/엔터", "category_list": ["문화", "엔터", "YES24", "인터파크 도서", "알라딘", "교보문고"]},
+    {"category_id": 12, "category_name": "생활비", "category_list": ["생활비", "SKT", "KT", "LG U+"]},
     {"category_id": 13, "category_name": "편의점", "category_list": ["편의점"]},
-    {"category_id": 14, "category_name": "커피/카페/베이커리", "category_list": ["스타벅스", "이디야커피", "커피빈", "투썸플레이스", "블루보틀", "파리바게뜨", "배스킨라빈스", "던킨", "카페베네", "탐앤탐스", "엔제리너스", "할리스", "파스쿠찌", "아티제", "폴 바셋"]},
-    {"category_id": 15, "category_name": "배달", "category_list": ["배달의민족", "요기요"]},
-    {"category_id": 16, "category_name": "외식", "category_list": ["쉐이크쉑", "써브웨이"]},
-    {"category_id": 17, "category_name": "여행/숙박", "category_list": []},
-    {"category_id": 18, "category_name": "항공", "category_list": []},
-    {"category_id": 19, "category_name": "해외", "category_list": []},
-    {"category_id": 20, "category_name": "교육/육아", "category_list": ["씽크빅", "교원", "대교", "한솔교육"]},
-    {"category_id": 21, "category_name": "의료", "category_list": []},
+    {"category_id": 14, "category_name": "커피/카페/베이커리", "category_list": ["커피", "카페", "베이커리", "스타벅스", "이디야커피", "커피빈", "투썸플레이스", "블루보틀", "파리바게뜨", "배스킨라빈스", "던킨", "카페베네", "탐앤탐스", "엔제리너스", "할리스", "파스쿠찌", "아티제", "폴 바셋"]},
+    {"category_id": 15, "category_name": "배달", "category_list": ["배달", "배달의민족", "요기요"]},
+    {"category_id": 16, "category_name": "외식", "category_list": ["외식", "쉐이크쉑", "써브웨이"]},
+    {"category_id": 17, "category_name": "여행/숙박", "category_list": ["여행", "숙박"]},
+    {"category_id": 18, "category_name": "항공", "category_list": ["항공"]},
+    {"category_id": 19, "category_name": "해외", "category_list": ["해외"]},
+    {"category_id": 20, "category_name": "교육/육아", "category_list": ["교육", "육아", "씽크빅", "교원", "대교", "한솔교육"]},
+    {"category_id": 21, "category_name": "의료", "category_list": ["의료"]},
 ]
-
 
 # ── 공통 ──────────────────────────────────────────────────────
 def log(msg: str):
     now = datetime.now().strftime("%H:%M:%S")
     print(f"[{now}] {msg}")
 
-
 def line():
     print("=" * 60)
-
 
 # ── STEP 1: Playwright로 __NUXT__ 추출 ────────────────────────
 async def get_nuxt_data(card_code: str) -> dict:
@@ -101,7 +100,6 @@ async def get_nuxt_data(card_code: str) -> dict:
         "nuxt_data": nuxt_data,
     }
 
-
 # ── STEP 2: 혜택 [카드 서비스 상세] HTML benefit_content 수집 ────────────────────────
 def _get_text(el):
     soup = BeautifulSoup(str(el), "html.parser")
@@ -111,10 +109,8 @@ def _get_text(el):
 
     return soup.get_text("", strip=True)
 
-
 def _has_class(tag, keyword):
     return any(keyword in c for c in (tag.get("class") or []))
-
 
 def _get_text_lines(elements):
     return "\n".join(
@@ -122,7 +118,6 @@ def _get_text_lines(elements):
         for txt in [_get_text(el) for el in elements]
         if txt
     )
-
 
 def _get_dt_dd_content(title_el):
     dds = []
@@ -138,7 +133,6 @@ def _get_dt_dd_content(title_el):
 
     return _get_text_lines(dds)
 
-
 def _get_next_ul_content(title_el, ul_class_name):
     lines = []
 
@@ -150,7 +144,6 @@ def _get_next_ul_content(title_el, ul_class_name):
             break
 
         if sib.name == "ul" and ul_class_name in (sib.get("class") or []):
-            # ul 안에 table_col 있으면 table 우선 처리
             table_box = sib.find(
                 lambda tag: getattr(tag, "name", None) == "div"
                             and "table_col" in (tag.get("class") or [])
@@ -176,7 +169,6 @@ def _get_next_ul_content(title_el, ul_class_name):
                         else:
                             lines.append(" | ".join(row_parts))
 
-                # table 아래 일반 li도 이어서 추가
                 for li in sib.find_all("li", recursive=False):
                     if li.find(
                             lambda tag: getattr(tag, "name", None) == "div"
@@ -190,7 +182,6 @@ def _get_next_ul_content(title_el, ul_class_name):
 
                 break
 
-            # 기존 ul 처리
             for li in sib.find_all("li", recursive=False):
                 txt = _get_text(li)
                 if txt:
@@ -222,7 +213,6 @@ def _get_next_ul_content(title_el, ul_class_name):
 
     return "\n".join(lines)
 
-
 def _get_wcms_txt_content(title_el):
     section = title_el.find_parent("section", class_="section-container")
     if not section:
@@ -249,7 +239,6 @@ def _get_wcms_txt_content(title_el):
 
     return "\n".join(lines)
 
-
 def _get_only_wcms_txt_content(soup):
     lines = []
 
@@ -260,8 +249,6 @@ def _get_only_wcms_txt_content(soup):
 
     return "\n".join(lines)
 
-
-# === 신규 시작: benefit_content 파생값 추출용 ===
 def _find_amounts(text):
     if not text:
         return []
@@ -281,7 +268,6 @@ def _find_amounts(text):
 
     return items
 
-
 def _get_region(text):
     has_domestic = "국내" in text
     has_global = "해외" in text
@@ -293,7 +279,6 @@ def _get_region(text):
         return "해외"
 
     return "국내"
-
 
 def _get_benefit_type(text):
     items = [("할인", "할인"), ("포인트적립", "포인트적립"), ("포인트 적립", "포인트적립"), ("마일리지적립", "마일리지적립"), ("마일리지 적립", "마일리지적립"), ("캐시백", "캐시백"), ("서비스", "서비스")]
@@ -311,7 +296,6 @@ def _get_benefit_type(text):
     found.sort(key=lambda x: x[0])
     return found[0][1]
 
-
 def _get_unit_value(text):
     amounts = _find_amounts(text)
 
@@ -319,7 +303,6 @@ def _get_unit_value(text):
         return "", ""
 
     return amounts[0]["unit"], amounts[0]["value"]
-
 
 def _get_max_limit(text):
     for line in text.splitlines():
@@ -335,42 +318,31 @@ def _get_max_limit(text):
 
     return ""
 
-
-# === 신규 시작: benefit_summary 정리 ===
 def _clean_benefit_summary_text(text):
     if not text:
         return ""
 
     text = text.strip()
 
-    # 앞쪽 불필요 표기 제거
     text = re.sub(r'^\s*[①-⑳]\s*', '', text)
     text = re.sub(r'^\s*[A-Z]\.\s*', '', text)
     text = re.sub(r'^\s*\d+\.\s*', '', text)
-
-    # 중간에 끼는 A. 같은 표기도 제거
     text = re.sub(r'\b[A-Z]\.\s*', '', text)
-
-    # 공백 정리
     text = re.sub(r'\s+', ' ', text).strip()
 
     return text
-
 
 def _is_bad_summary_line(text):
     if not text:
         return True
 
-    # 표/구간성 문구 제외
     if "|" in text or ":" in text:
         return True
 
-    # 전월 이용금액 같은 기준표 제외
     if "전월" in text and "이용금액" in text:
         return True
 
     return False
-
 
 def _get_benefit_summary(text):
     for line in text.splitlines():
@@ -379,15 +351,12 @@ def _get_benefit_summary(text):
         if not line:
             continue
 
-        # 60자 이하 + 숫자단위 포함 + 할인 포함 + 표성 문구 제외
         if len(line) <= 60 and _find_amounts(line) and "할인" in line and not _is_bad_summary_line(line):
             return line[:120]
 
     text = _clean_benefit_summary_text(text)
     return text[:120]
 
-
-# === 신규 시작: category_data 매칭 ===
 def _get_category_info(text):
     target_merchants = []
     category_id = ""
@@ -410,7 +379,6 @@ def _get_category_info(text):
                 category = item.get("category_name", "")
 
     return ",".join(target_merchants), category_id, category
-
 
 
 # ── STEP 2: 혜택 [카드 서비스 상세] HTML 수집 ────────────────────────
@@ -442,17 +410,14 @@ async def get_benefit_rows(card_id: str, nuxt_data: dict, session: aiohttp.Clien
         for selector in ['h5.tit04', 'h5.tit', 'p[class*="wcms-tit"]', 'dt']:
             for title_el in soup.select(selector):
 
-                # benefit_title [시작] ==========
+                # region benefit_title [시작] ==========
                 benefit_title = _get_text(title_el)
 
                 if not benefit_title:
                     continue
+                # endregion benefit_title [끝] ==========
 
-                if "유의사항" in benefit_title:
-                    continue
-                # benefit_title [끝] ==========
-
-                # benefit_content [시작] ==========
+                # region benefit_content [시작] ==========
                 benefit_content = ""
 
                 if selector == "dt":
@@ -466,7 +431,32 @@ async def get_benefit_rows(card_id: str, nuxt_data: dict, session: aiohttp.Clien
 
                 elif selector == "h5.tit":
                     benefit_content = _get_next_ul_content(title_el, "shopList")
-                # benefit_content [끝] ==========
+                # endregion benefit_content [끝] ==========
+
+                if selector == "h5.tit04" and "유의사항" in benefit_title:
+                    found = True
+
+                    rows.append({
+                        "card_id": card_id,
+                        "row_type": "유의사항",
+                        "benefit_group": tab_name,
+                        "benefit_main_title": serviceName,
+                        "benefit_title": benefit_title,
+                        "benefit_content": benefit_content,
+                        "region": "",
+                        "benefit_type": "",
+                        "unit": "",
+                        "value": "",
+                        "max_limit": "",
+                        "benefit_summary": re.sub(r"\s+", " ", benefit_content).strip()[:120],
+                        "target_merchants": "",
+                        "category_id": "",
+                        "category": "",
+                        "on_offline": "",
+                        "excluded_merchants": "",
+                        "performance_level": "",
+                    })
+                    continue
 
                 region = _get_region(benefit_content)
                 benefit_type = _get_benefit_type(benefit_content)
@@ -535,6 +525,159 @@ async def get_benefit_rows(card_id: str, nuxt_data: dict, session: aiohttp.Clien
     return rows
 
 
+# ── STEP 3: 연회비 HTML 수집 ────────────────────────
+def _fee_clean(text):
+    text = BeautifulSoup(str(text or ""), "html.parser").get_text(" ", strip=True)
+    text = text.replace("총연회비", "총 연회비").replace("기본연회비", "기본 연회비").replace("제휴연회비", "제휴 연회비")
+    text = text.replace("( ", "(").replace(" )", ")")
+    text = re.sub(r"(\d[\d,]*)\s+(원)", r"\1\2", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _fee_expand(trs):
+    rows = []
+    spans = {}
+
+    for tr in trs:
+        row = []
+        col = 0
+
+        for cell in tr.find_all(["th", "td"], recursive=False):
+            while col in spans:
+                row.append(spans[col]["text"])
+                spans[col]["left"] -= 1
+                if spans[col]["left"] == 0:
+                    del spans[col]
+                col += 1
+
+            text = _fee_clean(cell)
+            rowspan = int(cell.get("rowspan", 1) or 1)
+            colspan = int(cell.get("colspan", 1) or 1)
+
+            for i in range(colspan):
+                row.append(text)
+                if rowspan > 1:
+                    spans[col + i] = {"text": text, "left": rowspan - 1}
+
+            col += colspan
+
+        while col in spans:
+            row.append(spans[col]["text"])
+            spans[col]["left"] -= 1
+            if spans[col]["left"] == 0:
+                del spans[col]
+            col += 1
+
+        rows.append(row)
+
+    return rows
+
+
+def _make_fee_row(card_id, title, content):
+    unit, value = _get_unit_value(content)
+
+    return {
+        "card_id": card_id,
+        "row_type": "연회비",
+        "benefit_group": "연회비",
+        "benefit_main_title": title,
+        "benefit_title": title,
+        "benefit_content": content,
+        "region": "해외" if "해외" in content else "국내",
+        "benefit_type": "",
+        "unit": unit,
+        "value": value,
+        "max_limit": "",
+        "benefit_summary": content[:120],
+        "target_merchants": "",
+        "category_id": "",
+        "category": "",
+        "on_offline": "",
+        "excluded_merchants": "",
+        "performance_level": "",
+    }
+
+
+async def get_fee_rows(card_id: str, nuxt_data: dict, session: aiohttp.ClientSession) -> list[dict]:
+    rows = []
+
+    fee_url = (
+        nuxt_data.get("wcms", {})
+        .get("detail", {})
+        .get("htmlList", {})
+        .get("feeUrl", "")
+    )
+
+    if not fee_url:
+        return rows
+
+    url = fee_url if fee_url.startswith("http") else CDN_BASE + fee_url
+
+    async with session.get(url) as resp:
+        fee_html = await resp.text()
+
+    soup = BeautifulSoup(fee_html, "html.parser")
+
+    for indv in soup.select("article.terms > div.indv"):
+        title = _fee_clean(indv.select_one("h4.t_web_em"))
+        if not title:
+            continue
+
+        table = indv.find("table")
+
+        if table:
+            head_rows = _fee_expand(table.select("thead tr"))
+            headers = []
+
+            max_cols = max((len(r) for r in head_rows), default=0)
+            for i in range(1, max_cols):
+                parts = []
+                for r in head_rows:
+                    txt = r[i] if i < len(r) else ""
+                    if txt and txt != "구분" and txt not in parts:
+                        parts.append(txt)
+                headers.append(" ".join(parts).strip())
+
+            for r in _fee_expand(table.select("tbody tr")):
+                fee_type = _fee_clean(r[0] if len(r) > 0 else "")
+                if not fee_type:
+                    continue
+
+                for i, header in enumerate(headers, start=1):
+                    if not header:
+                        continue
+
+                    amount = _fee_clean(r[i] if i < len(r) else "") or "없음"
+                    rows.append(_make_fee_row(card_id, title, f"{header} {fee_type} {amount}"))
+
+        notes = []
+        for el in indv.select(".btm_info .alert_s_new, .btm_info li"):
+            txt = _fee_clean(el)
+            if txt and txt not in notes:
+                notes.append(txt)
+
+        for txt in notes:
+            rows.append(_make_fee_row(card_id, title, txt))
+
+    for row in rows:
+        log(str(row))
+
+    return rows
+
+def save_rows_to_csv(rows, filename="card_benefit.csv"):
+    if not rows:
+        return
+
+    file_exists = os.path.exists(filename)
+
+    with open(filename, "a", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerows(rows)
+
 # ── 메인 처리 ─────────────────────────────────────────────────
 async def crawl_one(card_code: str, session: aiohttp.ClientSession):
     result = await get_nuxt_data(card_code)
@@ -545,14 +688,24 @@ async def crawl_one(card_code: str, session: aiohttp.ClientSession):
         session=session,
     )
 
+    fee_rows = await get_fee_rows(
+        card_id=card_code,
+        nuxt_data=result["nuxt_data"],
+        session=session,
+    )
+
+    all_rows = benefit_rows + fee_rows
+    save_rows_to_csv(all_rows, "card_benefit.csv")
+
     result["benefit_rows"] = benefit_rows
+    result["fee_rows"] = fee_rows
 
     log(f"{card_code} 추출 성공")
     log(f"출시일: {result['sell_start_dt']}")
     log(f"혜택 건수: {len(benefit_rows)}")
+    log(f"연회비 건수: {len(fee_rows)}")
 
     return result
-
 
 async def main():
     log(f"삼성카드 크롤링 시작 - 총 {len(CARD_LIST)}개 카드")
