@@ -464,7 +464,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "spc1": str(out.get("공급면적") or ""),
             "spc2": str(out.get("전용면적") or ""),
             "jibun": str(out.get("번지") or ""),
-            "atclFetrDesc": str(out.get("매물상세설명") or out.get("매물설명")),
+            "atclFetrDesc": str(out.get("매물명") or ""),
             "tagList": str(out.get("매물태그") or ""),
             "rltrNm": str(out.get("중개사무소이름") or ""),
             "phone": str(out.get("중개사무소번호") or out.get("중개사핸드폰번호") or ""),
@@ -1582,6 +1582,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         rs = {
             "매물번호": article_no,
+            "매물명": articleName,
             "단지명": list_item.get("complexName", ""),
             "동이름": list_item.get("dongName", ""),
             "매매가": self._convert_price_by_base_amount(list_price.get("dealPrice", "")),
@@ -1719,6 +1720,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         rs["우편번호"] = zip_code
 
         articleName = detail_article.get("articleName", "")
+        rs["매물명"] = articleName
 
         full_addr_parts = [city, division, sector]
         if road_name:
