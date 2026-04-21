@@ -40,9 +40,12 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         self.detail_fail_count = 0
         self.detail_table_name = "naver_shop_total_detail"
 
-        # 저장 폴더/하위 폴더 보관
         self.folder_path: str = ""
         self.out_dir: str = "output_naver_shop"
+
+        # === 신규 ===
+        self.dup_yn = False
+        self.seen_store_names = set()
 
     # =========================================================
     # lifecycle
@@ -124,11 +127,8 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         self.progress_end_signal.emit()
 
     def cleanup(self) -> None:
-
-        # 1. Whisper 모델 해제
         self.model = None
 
-        # 2. 캡차 음성파일 삭제
         try:
             if os.path.exists("captcha_audio_final.wav"):
                 os.remove("captcha_audio_final.wav")
@@ -136,7 +136,6 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         except Exception:
             pass
 
-        # 3. 기존 sqlite driver 정리
         try:
             if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
                 self.sqlite_driver.close()
@@ -146,10 +145,8 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         finally:
             self.sqlite_driver = None
 
-        # 4. 새 연결로 hist update + detail 조회 + 엑셀 저장
         self.finalize_db_and_excel()
 
-        # 5. excel driver
         try:
             if self.excel_driver and hasattr(self.excel_driver, "close"):
                 self.excel_driver.close()
@@ -180,7 +177,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                     fail_count,
                     created_at,
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
 
         params = (
@@ -230,7 +227,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                     fail_count = ?,
                     error_message = ?,
                     updated_at = ?
-                WHERE hist_id = ? \
+                WHERE hist_id = ?
                 """
 
         params = (
@@ -252,6 +249,60 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             f"✅ [DB] hist 종료 row 수정 완료 | hist_id={self.hist_id} | status={self.hist_status}"
         )
         return True
+
+    # === 신규 ===
+    def load_existing_store_names(self) -> set:
+        if not self.sqlite_driver:
+            return set()
+
+        query = f"""
+                SELECT DISTINCT store_name
+                FROM {self.detail_table_name}
+                WHERE TRIM(COALESCE(store_name, '')) <> ''
+                """
+
+        rows = self.sqlite_driver.fetchall(query)
+        result = set()
+
+        for row in rows:
+            store_name = str(row.get("store_name") or "").strip()
+            if store_name:
+                result.add(store_name)
+
+        self.log_signal_func(f"✅ [중복] DB 스토어명 {len(result)}건 로드 완료")
+        return result
+
+    # === 신규 ===
+    def filter_chunk_items(self, chunk_items_queue: list, kw: str) -> list:
+        result = []
+
+        for item_data in chunk_items_queue:
+            item = item_data.get("item", {})
+            mall_name = str(item.get("mallName") or "").strip()
+
+            if not mall_name:
+                self.log_signal_func("⏭️ 스토어명 없음 스킵")
+                continue
+
+            if self.dup_yn and mall_name in self.seen_store_names:
+                self.log_signal_func(f"⏭️ 스토어명 중복 스킵: {mall_name}")
+                continue
+
+            if self.dup_yn:
+                self.seen_store_names.add(mall_name)
+
+            result.append(item_data)
+
+        if self.dup_yn:
+            self.log_signal_func(
+                f"🧮 상세 대상 정리 완료 | 원본={len(chunk_items_queue)} | 중복제거후={len(result)} | 키워드={kw}"
+            )
+        else:
+            self.log_signal_func(
+                f"🧮 상세 대상 정리 완료 | 원본={len(chunk_items_queue)} | 대상={len(result)} | 키워드={kw}"
+            )
+
+        return result
 
     def insert_detail_row(self, rs: dict) -> bool:
         now = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -288,7 +339,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                     no,
                     created_at,
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
 
         params = (
@@ -379,7 +430,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                     no AS "번호"
                 FROM naver_shop_total_detail
                 WHERE hist_id = ?
-                ORDER BY detail_id \
+                ORDER BY detail_id
                 """
 
         row_list = sqlite_driver.fetchall(query, (self.hist_id,))
@@ -474,15 +525,25 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         end_p = int(self.get_setting_value(self.setting, "end_page") or 1)
         site_total_cnt = int(self.get_setting_value(self.setting, "site_total_cnt") or 0)
 
-        # 저장 폴더 설정값 확보
         self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+
+
+        # === 신규 ===
+        self.dup_yn = bool(self.get_setting_value(self.setting, "dup_yn"))
+        self.seen_store_names = self.load_existing_store_names() if self.dup_yn else set()
+
+        if self.dup_yn:
+            self.log_signal_func(
+                f"✅ [중복] 스토어명 중복제거 사용 | 초기 DB 건수={len(self.seen_store_names)}"
+            )
+        else:
+            self.log_signal_func("ℹ️ [중복] 스토어명 중복제거 미사용")
 
         if not keywords:
             self.log_signal_func("❌ 키워드가 없습니다.")
             self.finish_job("FAIL", "키워드가 없습니다.")
             return False
 
-        # 진행률 계산 설정
         total_pages = (end_p - start_p + 1)
         self.total_cnt = len(keywords) * total_pages
         self.current_cnt = 0
@@ -508,7 +569,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             all_pages = list(range(start_p, end_p + 1))
             chunk_size = 10
 
-            for i in range(0, len(all_pages), chunk_size):  # 0, 10
+            for i in range(0, len(all_pages), chunk_size):
                 if not self.running:
                     return self._log_and_return_true(
                         f"🛑 사용자 중단 감지(chunk 시작 전) | 키워드={kw} | chunk_index={i}"
@@ -631,29 +692,8 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                 if chunk_items_queue:
                     self.log_signal_func(f"🚀 확보된 {len(chunk_items_queue)}개 상품 상세 수집 시작...")
 
-                    seen_store_names = set()
-                    dedup_items_queue = []
-
-                    for item_data in chunk_items_queue:
-                        item = item_data.get("item", {})
-                        mall_name = str(item.get("mallName") or "").strip()
-
-                        if not mall_name:
-                            self.log_signal_func("⏭️ 스토어명 없음 스킵")
-                            continue
-
-                        if mall_name in seen_store_names:
-                            self.log_signal_func(f"⏭️ 스토어명 중복 스킵: {mall_name}")
-                            continue
-
-                        seen_store_names.add(mall_name)
-                        dedup_items_queue.append(item_data)
-
-                    self.log_signal_func(
-                        f"🧮 상세 대상 정리 완료 | 원본={len(chunk_items_queue)} | 중복제거후={len(dedup_items_queue)} | 키워드={kw}"
-                    )
-
-                    chunk_items_queue = dedup_items_queue
+                    # === 기존 중복제거 부분 교체 ===
+                    chunk_items_queue = self.filter_chunk_items(chunk_items_queue, kw)
                     chunk_results = []
 
                     for idx, item_data in enumerate(chunk_items_queue):
