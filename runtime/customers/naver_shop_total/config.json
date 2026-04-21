@@ -128,12 +128,12 @@
     },
     {
       "checked": true,
-      "code": "mallProdMblUrl",
+      "code": "mall_prod_mbl_url",
       "value": "스토어모바일주소"
     },
     {
       "checked": true,
-      "code": "mallProductUrl",
+      "code": "mall_product_url",
       "value": "스토어PC주소"
     },
     {

@@ -320,6 +320,71 @@ class ExcelUtils:
                 self.log_func(f"❌ 변환 중 오류 발생: {e}")
             return False
 
+
+    def save_db_rows_to_excel(
+            self,
+            excel_filename,
+            row_list,
+            columns=None,
+            sheet_name="Sheet1",
+            folder_path=None,
+            sub_dir=None,
+            column_widths=None,
+            default_width=16
+    ):
+        if not row_list:
+            if self.log_func:
+                self.log_func("⚠️ 저장할 DB 데이터가 없습니다.")
+            return False
+
+        excel_filename = str(excel_filename or "").strip()
+        if not excel_filename:
+            if self.log_func:
+                self.log_func("❌ excel_filename 이 비어 있습니다.")
+            return False
+
+        if not excel_filename.lower().endswith(".xlsx"):
+            excel_filename = os.path.splitext(excel_filename)[0] + ".xlsx"
+
+        excel_filename = self.build_file_path(excel_filename, folder_path, sub_dir)
+
+        try:
+            if columns:
+                df = pd.DataFrame(row_list, columns=columns)
+            else:
+                df = pd.DataFrame(row_list)
+
+            if df.empty:
+                if self.log_func:
+                    self.log_func("⚠️ DataFrame 이 비어 있습니다.")
+                return False
+
+            for col in df.columns:
+                df[col] = df[col].apply(self._clean_excel_cell_value)
+
+            with pd.ExcelWriter(excel_filename, engine="openpyxl") as writer:
+                df.to_excel(writer, index=False, sheet_name=sheet_name)
+
+                ws = writer.sheets[sheet_name]
+                for r in ws.iter_rows(min_row=2, max_row=len(df) + 1):
+                    for cell in r:
+                        if cell.value is not None:
+                            cell.value = self._clean_excel_cell_value(cell.value)
+
+                self._apply_header_style_and_filter(ws)
+                self._apply_hyperlink_cells(ws)
+                self._apply_column_widths(ws, column_widths=column_widths, default_width=default_width)
+
+            if self.log_func:
+                self.log_func(f"✅ DB -> 엑셀 저장 완료: {excel_filename}")
+
+            return True
+
+        except Exception as e:
+            if self.log_func:
+                self.log_func(f"❌ DB -> 엑셀 저장 실패: {e}")
+            return False
+
     def obj_to_row(self, o, cols):
         if isinstance(o, dict):
             return {c: o.get(c) for c in cols}

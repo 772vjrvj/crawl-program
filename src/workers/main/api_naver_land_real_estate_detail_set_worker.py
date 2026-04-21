@@ -464,7 +464,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "spc1": str(out.get("공급면적") or ""),
             "spc2": str(out.get("전용면적") or ""),
             "jibun": str(out.get("번지") or ""),
-            "atclFetrDesc": str(out.get("매물명") or ""),
+            "atclFetrDesc": str(out.get("매물설명") or ""),
             "tagList": str(out.get("매물태그") or ""),
             "rltrNm": str(out.get("중개사무소이름") or ""),
             "phone": str(out.get("중개사무소번호") or out.get("중개사핸드폰번호") or ""),

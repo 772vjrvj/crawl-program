@@ -162,3 +162,6 @@ Source: "C:\Users\772vj\Desktop\거래중\KRX NEXTRADE_V600\_internal\*"; DestDi
 Source: "C:\Users\772vj\Desktop\거래중\KRX NEXTRADE_V600\runtime\*"; DestDir: "{app}\runtime"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 수정필요
+
+
+

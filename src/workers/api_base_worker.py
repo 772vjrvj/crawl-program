@@ -5,6 +5,8 @@ from typing import Any, Optional, Sequence
 
 from PySide6.QtCore import QThread, Signal
 import time
+import os
+import sys
 
 class BaseApiWorker(QThread):
     # =========================
@@ -128,6 +130,29 @@ class BaseApiWorker(QThread):
     def set_region(self, region: Any) -> None:
         self.region = region
 
+    def get_project_root(self) -> str:
+        if getattr(sys, "frozen", False):
+            return os.path.dirname(sys.executable)
+
+        return os.path.dirname(os.path.abspath(sys.argv[0]))
+
+
+    def get_resource_root(self) -> str:
+        if getattr(sys, "frozen", False):
+            return os.path.join(os.path.dirname(sys.executable), "_internal")
+
+        return self.get_project_root()
+
+
+    def get_runtime_db_path(self, db_name: str = "worker_hist.db") -> str:
+        return os.path.join(
+            self.get_project_root(),
+            "runtime",
+            "customers",
+            "common",
+            "db",
+            db_name
+        )
 
     def sleep_s(self, seconds: float) -> bool:
         end = time.time() + float(seconds)

@@ -20,19 +20,19 @@
     {
       "name": "등록일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": 20260416,
+      "value": 20260418,
       "type": "input"
     },
     {
       "name": "등록일(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": 20260416,
+      "value": 20260419,
       "type": "input"
     },
     {
       "name": "정렬방식",
       "code": "articleSortType",
-      "value": "DATE_DESC",
+      "value": "SPACE_ASC",
       "type": "select",
       "options": [
         {
@@ -90,7 +90,7 @@
     {
       "name": "영어컬럼",
       "code": "eng_yn",
-      "value": false,
+      "value": true,
       "type": "check"
     },
     {
@@ -1579,8 +1579,13 @@
       "title": "기본목록"
     },
     {
-      "code": "article_number",
+      "code": "articleNumber",
       "value": "매물번호",
+      "checked": true
+    },
+    {
+      "code": "articleName",
+      "value": "매물명",
       "checked": true
     },
     {

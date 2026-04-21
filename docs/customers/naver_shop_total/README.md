@@ -32,8 +32,11 @@ pyinstaller .\main.py `
 --icon ".\resources\icons\crawling.ico" `
 --version-file ".\docs\customers\naver_shop_total\version_info.txt" `
 --distpath ".\dist" `
+--workpath ".\build" `
 --add-data "E:\git\crawl-program\venv\Lib\site-packages\whisper\assets;whisper\assets" `
 --add-data ".\resources\customers\naver_shop_total\bin;resources\customers\naver_shop_total\bin" `
+--add-data ".\resources\customers\common\db;resources\customers\common\db" `
+--add-data ".\resources\customers\naver_shop_total\db;resources\customers\naver_shop_total\db" `
 --hidden-import "src.workers.main.api_naver_shop_total_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `
