@@ -15,22 +15,30 @@ import pyperclip
 
 from src.core.services.ai_whisper import get_model
 from src.utils.excel_utils import ExcelUtils
-from src.utils.file_utils import FileUtils
 from src.workers.api_base_worker import BaseApiWorker
+from src.utils.sqlite_utils import SqliteUtils
 
 
 class ApiNaverShopTotalSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
+        self.hist_id = None
+        self.job_id = None
+        self.hist_status = "RUNNING"
+        self.hist_error_message = None
         self.site_name: str = "naver_shop"
-        self.csv_filename: Optional[str] = None
+        self.worker_name: str = "naver_shop_total"
         self.excel_driver: Optional[ExcelUtils] = None
-        self.file_driver: Optional[FileUtils] = None
+        self.sqlite_driver: Optional[SqliteUtils] = None
         self.model = None
 
         self.total_cnt = 0
         self.current_cnt = 0
         self.before_pro_value = 0.0
+
+        self.detail_success_count = 0
+        self.detail_fail_count = 0
+        self.detail_table_name = "naver_shop_total_detail"
 
         # 저장 폴더/하위 폴더 보관
         self.folder_path: str = ""
@@ -44,19 +52,10 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             if sys.stdout is None:
                 sys.stdout = open(os.devnull, "w")
 
-            if getattr(sys, "frozen", False):
-                root_path = sys._MEIPASS
-            else:
-                root_path = os.path.dirname(
-                    os.path.dirname(
-                        os.path.dirname(
-                            os.path.dirname(os.path.abspath(__file__))
-                        )
-                    )
-                )
+            resource_root = self.get_resource_root()
 
             ffmpeg_path = os.path.join(
-                root_path,
+                resource_root,
                 "resources",
                 "customers",
                 "naver_shop_total",
@@ -73,11 +72,32 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             pyautogui.FAILSAFE = True
 
             self.excel_driver = ExcelUtils(self.log_signal_func)
-            self.file_driver = FileUtils(self.log_signal_func)
+            self.sqlite_driver = SqliteUtils(self.log_signal_func)
+
+            db_path = self.get_runtime_db_path()
+            self.log_signal_func(f"[DB] 실제 경로 = {os.path.abspath(db_path)}")
+
+            if not self.sqlite_driver.connect(db_path):
+                self.log_signal_func("❌ [DB] 연결 실패")
+                return False
+
+            schema_files = [
+                os.path.join("resources", "customers", "common", "db", "schema_hist.sql"),
+                os.path.join("resources", "customers", self.worker_name, "db", "schema_detail.sql"),
+            ]
+
+            if not self.sqlite_driver.execute_script_files(schema_files):
+                self.log_signal_func("❌ [DB] 스키마 초기화 실패")
+                return False
+
+            self.log_signal_func("✅ [DB] 스키마 초기화 완료")
 
             if self.model is None:
                 self.model = get_model()
                 self.log_signal_func("✅ Whisper AI (service) 연결 완료")
+
+            if not self.insert_hist_start():
+                return False
 
             return True
 
@@ -88,6 +108,11 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
     def stop(self) -> None:
         self.log_signal_func("✅ stop 시작")
         self.running = False
+
+        if self.hist_status == "RUNNING":
+            self.hist_status = "STOP"
+            self.hist_error_message = "사용자 중단"
+
         time.sleep(2.5)
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
@@ -99,26 +124,11 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         self.progress_end_signal.emit()
 
     def cleanup(self) -> None:
-        # 1. CSV → Excel 변환
-        try:
-            if self.csv_filename and self.excel_driver:
-                excel_ok = self.excel_driver.convert_csv_to_excel_and_delete(
-                    self.csv_filename,
-                    folder_path=self.folder_path,
-                    sub_dir=self.out_dir,
-                )
 
-                if excel_ok:
-                    self.log_signal_func("✅ [엑셀 변환] 성공")
-                else:
-                    self.log_signal_func("❌ [엑셀 변환] 실패")
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
-
-        # 2. Whisper 모델 해제
+        # 1. Whisper 모델 해제
         self.model = None
 
-        # 3. 캡차 음성파일 삭제
+        # 2. 캡차 음성파일 삭제
         try:
             if os.path.exists("captcha_audio_final.wav"):
                 os.remove("captcha_audio_final.wav")
@@ -126,15 +136,18 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         except Exception:
             pass
 
-        # 4. file driver
+        # 3. 기존 sqlite driver 정리
         try:
-            if self.file_driver and hasattr(self.file_driver, "close"):
-                self.file_driver.close()
-                self.log_signal_func("✅ [파일] 해재")
+            if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
+                self.sqlite_driver.close()
+                self.log_signal_func("✅ [DB] 기존 연결 해제")
         except Exception as e:
-            self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
+            self.log_signal_func(f"[cleanup] sqlite_driver.close 실패: {e}")
         finally:
-            self.file_driver = None
+            self.sqlite_driver = None
+
+        # 4. 새 연결로 hist update + detail 조회 + 엑셀 저장
+        self.finalize_db_and_excel()
 
         # 5. excel driver
         try:
@@ -145,6 +158,268 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         finally:
             self.excel_driver = None
 
+    def finish_job(self, status: str, error_message: Optional[str] = None) -> None:
+        self.hist_status = status
+        self.hist_error_message = error_message
+
+    def insert_hist_start(self) -> bool:
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.job_id = time.strftime("%Y%m%d%H%M%S")
+
+        query = """
+                INSERT INTO worker_job_hist (
+                    job_id,
+                    table_name,
+                    site_name,
+                    worker_name,
+                    user_id,
+                    start_at,
+                    status,
+                    total_count,
+                    success_count,
+                    fail_count,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+                """
+
+        params = (
+            self.job_id,
+            "naver_shop_total_detail",
+            self.site_name,
+            self.worker_name,
+            getattr(self.user, "user_id", None) if self.user else None,
+            now,
+            "RUNNING",
+            0,
+            0,
+            0,
+            now,
+            now,
+        )
+
+        if not self.sqlite_driver.execute(query, params):
+            self.log_signal_func("❌ [DB] hist 시작 row 저장 실패")
+            return False
+
+        row = self.sqlite_driver.fetchone("SELECT last_insert_rowid() AS hist_id")
+        self.hist_id = row["hist_id"] if row else None
+
+        self.log_signal_func(f"✅ [DB] hist 시작 row 저장 완료 | hist_id={self.hist_id}")
+        return True
+
+    def update_hist_end(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
+        sqlite_driver = sqlite_driver or self.sqlite_driver
+
+        if not sqlite_driver:
+            return False
+
+        if not self.hist_id:
+            self.log_signal_func("⚠️ [DB] hist_id 없음 - 종료 update 스킵")
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        query = """
+                UPDATE worker_job_hist
+                SET
+                    end_at = ?,
+                    status = ?,
+                    total_count = ?,
+                    success_count = ?,
+                    fail_count = ?,
+                    error_message = ?,
+                    updated_at = ?
+                WHERE hist_id = ? \
+                """
+
+        params = (
+            now,
+            self.hist_status,
+            self.detail_success_count + self.detail_fail_count,
+            self.detail_success_count,
+            self.detail_fail_count,
+            self.hist_error_message,
+            now,
+            self.hist_id,
+        )
+
+        if not sqlite_driver.execute(query, params):
+            self.log_signal_func(f"❌ [DB] hist 종료 row 수정 실패 | hist_id={self.hist_id}")
+            return False
+
+        self.log_signal_func(
+            f"✅ [DB] hist 종료 row 수정 완료 | hist_id={self.hist_id} | status={self.hist_status}"
+        )
+        return True
+
+    def insert_detail_row(self, rs: dict) -> bool:
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        query = """
+                INSERT INTO naver_shop_total_detail (
+                    hist_id,
+                    site_name,
+                    worker_name,
+                    table_name,
+                    job_id,
+                    user_id,
+                    row_status,
+                    keyword,
+                    crawled_at,
+                    product_name,
+                    category,
+                    product_no,
+                    list_price,
+                    low_price,
+                    sale_price,
+                    delivery_fee,
+                    discount_ratio,
+                    brand,
+                    review_count,
+                    purchase_count,
+                    wish_count,
+                    store_name,
+                    mall_prod_mbl_url,
+                    mall_product_url,
+                    pc_url,
+                    total_visit_count,
+                    page,
+                    no,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+                """
+
+        params = (
+            self.hist_id,
+            self.site_name,
+            self.worker_name,
+            self.detail_table_name,
+            self.job_id,
+            getattr(self.user, "user_id", None) if self.user else None,
+            "SUCCESS",
+            rs.get("키워드"),
+            rs.get("수집일시"),
+            rs.get("상품명"),
+            rs.get("카테고리"),
+            rs.get("상품번호"),
+            rs.get("원가"),
+            rs.get("최소가"),
+            rs.get("판매가격"),
+            rs.get("배송비"),
+            rs.get("할인률"),
+            rs.get("브랜드"),
+            rs.get("리뷰수"),
+            rs.get("구매건수"),
+            rs.get("찜하기수"),
+            rs.get("스토어명"),
+            rs.get("스토어모바일주소"),
+            rs.get("스토어PC주소"),
+            rs.get("PC주소"),
+            rs.get("전체방문자수"),
+            rs.get("페이지"),
+            rs.get("번호"),
+            now,
+            now,
+        )
+
+        ok = self.sqlite_driver.execute(query, params)
+
+        if ok:
+            self.detail_success_count += 1
+            self.log_signal_func(
+                f"✅ [DB] detail 저장 완료 | hist_id={self.hist_id} | 상품={rs.get('상품명')}"
+            )
+        else:
+            self.detail_fail_count += 1
+            self.log_signal_func(
+                f"❌ [DB] detail 저장 실패 | hist_id={self.hist_id} | 상품={rs.get('상품명')}"
+            )
+
+        return ok
+
+    def export_detail_to_excel(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
+        sqlite_driver = sqlite_driver or self.sqlite_driver
+
+        if not self.excel_driver:
+            self.log_signal_func("❌ [엑셀] excel_driver 없음")
+            return False
+
+        if not sqlite_driver:
+            self.log_signal_func("❌ [엑셀] sqlite_driver 없음")
+            return False
+
+        if not self.hist_id:
+            self.log_signal_func("❌ [엑셀] hist_id 없음")
+            return False
+
+        query = """
+                SELECT
+                    keyword AS "키워드",
+                    crawled_at AS "수집일시",
+                    product_name AS "상품명",
+                    category AS "카테고리",
+                    product_no AS "상품번호",
+                    list_price AS "원가",
+                    low_price AS "최소가",
+                    sale_price AS "판매가격",
+                    delivery_fee AS "배송비",
+                    discount_ratio AS "할인률",
+                    brand AS "브랜드",
+                    review_count AS "리뷰수",
+                    purchase_count AS "구매건수",
+                    wish_count AS "찜하기수",
+                    store_name AS "스토어명",
+                    mall_prod_mbl_url AS "스토어모바일주소",
+                    mall_product_url AS "스토어PC주소",
+                    pc_url AS "PC주소",
+                    total_visit_count AS "전체방문자수",
+                    page AS "페이지",
+                    no AS "번호"
+                FROM naver_shop_total_detail
+                WHERE hist_id = ?
+                ORDER BY detail_id \
+                """
+
+        row_list = sqlite_driver.fetchall(query, (self.hist_id,))
+        if not row_list:
+            self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
+            return False
+
+        excel_columns = self.columns or [
+            "키워드",
+            "수집일시",
+            "상품명",
+            "카테고리",
+            "상품번호",
+            "원가",
+            "최소가",
+            "판매가격",
+            "배송비",
+            "할인률",
+            "브랜드",
+            "리뷰수",
+            "구매건수",
+            "찜하기수",
+            "스토어명",
+            "스토어모바일주소",
+            "스토어PC주소",
+            "PC주소",
+            "전체방문자수",
+            "페이지",
+            "번호",
+        ]
+
+        excel_filename = f"{self.site_name}_{self.job_id}.xlsx"
+
+        return self.excel_driver.save_db_rows_to_excel(
+            excel_filename=excel_filename,
+            row_list=row_list,
+            columns=excel_columns,
+            folder_path=self.folder_path,
+            sub_dir=self.out_dir,
+        )
 
     def _log_and_return_true(self, message: str) -> bool:
         self.log_signal_func(message)
@@ -155,6 +430,39 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             self.log_signal_func(message)
             return False
         return True
+
+    def finalize_db_and_excel(self) -> None:
+        temp_sqlite_driver = None
+
+        try:
+            temp_sqlite_driver = SqliteUtils(self.log_signal_func)
+            db_path = self.get_runtime_db_path()
+
+            if not temp_sqlite_driver.connect(db_path):
+                self.log_signal_func("❌ [DB] 최종 마감용 연결 실패")
+                return
+
+            if self.update_hist_end(temp_sqlite_driver):
+                self.log_signal_func("✅ [DB] hist 최종 업데이트 완료")
+            else:
+                self.log_signal_func("❌ [DB] hist 최종 업데이트 실패")
+
+            auto_save_yn = bool(self.get_setting_value(self.setting, "auto_save_yn"))
+            if auto_save_yn:
+                if self.export_detail_to_excel(temp_sqlite_driver):
+                    self.log_signal_func("✅ [엑셀] detail 자동 저장 완료")
+                else:
+                    self.log_signal_func("❌ [엑셀] detail 자동 저장 실패")
+
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] finalize_db_and_excel 실패: {e}")
+
+        finally:
+            try:
+                if temp_sqlite_driver:
+                    temp_sqlite_driver.close()
+            except Exception:
+                pass
 
     # =========================================================
     # main (수집 실행 로직)
@@ -171,6 +479,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
 
         if not keywords:
             self.log_signal_func("❌ 키워드가 없습니다.")
+            self.finish_job("FAIL", "키워드가 없습니다.")
             return False
 
         # 진행률 계산 설정
@@ -182,22 +491,6 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         self.log_signal_func(
             f"🚀 작업 시작 | 키워드수={len(keywords)} | 페이지={start_p}~{end_p} | 총 작업단위={self.total_cnt}"
         )
-
-        # 파일명은 이름만 보관하고 실제 저장경로는 ExcelUtils 에 맡김
-        self.csv_filename = os.path.basename(self.file_driver.get_csv_filename(self.site_name))
-
-        init_ok = self.excel_driver.init_csv(
-            self.csv_filename,
-            self.columns,
-            folder_path=self.folder_path,
-            sub_dir=self.out_dir,
-        )
-
-        if not init_ok:
-            self.log_signal_func(
-                f"❌ CSV 초기화 실패로 작업 중단 | file={self.csv_filename}"
-            )
-            return False
 
         completed_keywords = 0
 
@@ -288,9 +581,8 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                                 f"❌ 캡차 해결 실패: 작업 중단 | 키워드={kw} | page={page} | retry={retry}"
                             )
                             pyautogui.hotkey("alt", "f4")
-                            return self._log_and_return_true(
-                                f"🛑 조기 종료 | 캡차 실패로 중단 | 마지막키워드={kw} | 마지막페이지={page}"
-                            )
+                            self.finish_job("FAIL", f"리스트 캡차 실패 | 키워드={kw} | page={page}")
+                            return True
 
                         pyautogui.hotkey("ctrl", "u")
                         if not self._sleep_or_stop(
@@ -413,9 +705,8 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                                 ):
                                     return True
                             elif captcha_result == 0:
-                                return self._log_and_return_true(
-                                    f"🛑 조기 종료 | 상세 캡차 실패 | 키워드={kw} | page={p_num} | idx={idx + 1}"
-                                )
+                                self.finish_job("FAIL", f"상세 캡차 실패 | 키워드={kw} | page={p_num} | idx={idx + 1}")
+                                return True
 
                             pyautogui.hotkey("ctrl", "a")
                             if not self._sleep_or_stop(
@@ -474,27 +765,12 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                             if site_total_cnt >= int(total_visit):
                                 if not self.running:
                                     return self._log_and_return_true(
-                                        f"🛑 사용자 중단 감지(CSV 저장 직전) | 키워드={kw} | page={p_num} | idx={idx + 1}"
+                                        f"🛑 사용자 중단 감지(DB 저장 직전) | 키워드={kw} | page={p_num} | idx={idx + 1}"
                                     )
 
-                                save_ok = self.excel_driver.append_to_csv(
-                                    self.csv_filename,
-                                    [rs],
-                                    self.columns,
-                                    folder_path=self.folder_path,
-                                    sub_dir=self.out_dir,
-                                )
-
-                                if save_ok:
+                                if not self.insert_detail_row(rs):
                                     self.log_signal_func(
-                                        f"💾 CSV 저장 대상 추가 | 키워드={kw} | page={p_num} | 방문자={total_visit} | 기준={site_total_cnt}"
-                                    )
-                                else:
-                                    self.log_signal_func(
-                                        f"❌ CSV 저장 실패 | 키워드={kw} | page={p_num} | 방문자={total_visit} | 기준={site_total_cnt}"
-                                    )
-                                    return self._log_and_return_true(
-                                        f"🛑 조기 종료 | CSV 저장 실패 | 키워드={kw} | page={p_num} | idx={idx + 1}"
+                                        f"❌ DB 저장 실패 | 키워드={kw} | page={p_num} | 방문자={total_visit} | 기준={site_total_cnt}"
                                     )
 
                             self.log_signal_func(
@@ -539,6 +815,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         self.log_signal_func(
             f"🏁 전체 작업 완료 | 완료키워드수={completed_keywords}/{len(keywords)} | 총진행={self.current_cnt}/{self.total_cnt}"
         )
+        self.finish_job("SUCCESS")
         return True
 
     # =========================================================
