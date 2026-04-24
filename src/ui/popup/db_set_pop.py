@@ -52,12 +52,13 @@ class CheckBoxHeader(QHeaderView):
 
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QColor("#777"))
-        painter.setBrush(QColor("white"))
+
+        painter.setPen(QColor("#111"))
+        painter.setBrush(QColor("#111") if self.checked else QColor("white"))
         painter.drawRect(x, y, size, size)
 
         if self.checked:
-            painter.setPen(QColor("#111"))
+            painter.setPen(QColor("white"))
             painter.drawLine(x + 3, y + 7, x + 6, y + 10)
             painter.drawLine(x + 6, y + 10, x + 11, y + 4)
 
@@ -116,6 +117,20 @@ class DbTableWidget(QTableWidget):
             alternate-background-color: #fafafa;
             font-size: 12px;
         }
+
+        QTableWidget::indicator {
+            width: 14px;
+            height: 14px;
+            border: 1px solid #111;
+            background: white;
+        }
+
+        QTableWidget::indicator:checked {
+            background: black;
+            border: 1px solid #111;
+            image: none;
+        }
+
         QHeaderView::section {
             background: #f6f6f6;
             color: #111;
@@ -125,12 +140,15 @@ class DbTableWidget(QTableWidget):
             border-bottom: 1px solid #ececec;
             padding: 8px 6px;
         }
+
         QScrollBar:vertical, QScrollBar:horizontal {
             background: #f3f3f3;
             border: none;
         }
+
         QScrollBar:vertical { width: 12px; }
         QScrollBar:horizontal { height: 12px; }
+
         QScrollBar::handle:vertical, QScrollBar::handle:horizontal {
             background: #c9c9c9;
             border-radius: 5px;
@@ -272,17 +290,7 @@ class DbSetPop(QDialog):
             "error_message": "오류메시지",
             "memo": "메모",
         }
-        self.left_columns = [
-            "hist_id",
-            "user_id",
-            "start_at",
-            "end_at",
-            "status",
-            "success_count",
-            "fail_count",
-            "error_message",
-            "memo",
-        ]
+        self.left_columns = list(self.left_header_map.keys())
         self.left_width_map = {
             "hist_id": 80,
             "user_id": 110,
@@ -328,18 +336,16 @@ class DbSetPop(QDialog):
         self.init_ui()
         self.load_hist_rows()
 
-    # =========================
-    # init ui
-    # =========================
     def init_ui(self) -> None:
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(12, 12, 12, 12)
-        root_layout.setSpacing(10)
+        root_layout.setContentsMargins(12, 8, 12, 12)
+        root_layout.setSpacing(6)
 
         title_label = QLabel(self.windowTitle(), self)
+        title_label.setFixedHeight(30)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #111; padding: 4px 0;")
-        root_layout.addWidget(title_label)
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #111; padding: 0;")
+        root_layout.addWidget(title_label, 0)
 
         splitter = QSplitter(Qt.Orientation.Horizontal, self)
         splitter.setHandleWidth(8)
@@ -349,7 +355,7 @@ class DbSetPop(QDialog):
         splitter.setStretchFactor(0, 4)
         splitter.setStretchFactor(1, 7)
         splitter.setSizes([520, 1000])
-        root_layout.addWidget(splitter)
+        root_layout.addWidget(splitter, 1)
 
         btn_layout = QHBoxLayout()
         btn_layout.setContentsMargins(0, 4, 0, 0)
@@ -358,7 +364,7 @@ class DbSetPop(QDialog):
 
         btn_layout.addStretch()
         btn_layout.addWidget(confirm_btn)
-        root_layout.addLayout(btn_layout)
+        root_layout.addLayout(btn_layout, 0)
 
     def build_left_panel(self) -> QWidget:
         wrap = QWidget()
@@ -367,7 +373,8 @@ class DbSetPop(QDialog):
         layout.setSpacing(8)
 
         title = QLabel("작업목록")
-        title.setStyleSheet("font-size: 17px; font-weight: bold; color: #111; padding: 4px 0;")
+        title.setFixedHeight(30)
+        title.setStyleSheet("font-size: 17px; font-weight: bold; color: #111; padding: 0;")
         layout.addWidget(title)
 
         top_row = QHBoxLayout()
@@ -389,7 +396,7 @@ class DbSetPop(QDialog):
 
         self.left_table = DbTableWidget(self)
         self.left_table.row_clicked_signal.connect(self.on_left_row_clicked)
-        layout.addWidget(self.left_table)
+        layout.addWidget(self.left_table, 1)
 
         return wrap
 
@@ -400,7 +407,8 @@ class DbSetPop(QDialog):
         layout.setSpacing(8)
 
         title = QLabel("상세목록")
-        title.setStyleSheet("font-size: 17px; font-weight: bold; color: #111; padding: 4px 0;")
+        title.setFixedHeight(30)
+        title.setStyleSheet("font-size: 17px; font-weight: bold; color: #111; padding: 0;")
         layout.addWidget(title)
 
         top_row = QHBoxLayout()
@@ -429,13 +437,10 @@ class DbSetPop(QDialog):
         layout.addLayout(top_row)
 
         self.right_table = DbTableWidget(self)
-        layout.addWidget(self.right_table)
+        layout.addWidget(self.right_table, 1)
 
         return wrap
 
-    # =========================
-    # style
-    # =========================
     def gray_button_style(self) -> str:
         return """
         QPushButton {
@@ -462,9 +467,6 @@ class DbSetPop(QDialog):
         QPushButton:hover { background: #222; }
         """
 
-    # =========================
-    # config / path
-    # =========================
     def _safe_table_name(self, name: str) -> str:
         name = str(name or "").strip()
         if not name:
@@ -490,18 +492,12 @@ class DbSetPop(QDialog):
             with open(app_json_path, "r", encoding="utf-8") as f:
                 app_json = json.load(f)
 
-            site_list = app_json.get("site_list") or []
-            config_rel_path = ""
-
-            for site_item in site_list:
+            for site_item in app_json.get("site_list") or []:
                 if isinstance(site_item, dict) and str(site_item.get("key") or "").strip() == site:
                     config_rel_path = str(site_item.get("config_path") or "").strip()
-                    break
+                    return os.path.normpath(os.path.join(runtime_dir, *config_rel_path.split("/")))
 
-            if not config_rel_path:
-                return None
-
-            return os.path.normpath(os.path.join(runtime_dir, *config_rel_path.split("/")))
+            return None
         except Exception:
             return None
 
@@ -534,8 +530,7 @@ class DbSetPop(QDialog):
         return os.path.join(os.getcwd(), "runtime", "customers", "common", "db", "worker_hist.db")
 
     def _get_folder_path(self) -> str:
-        settings = self.config_data.get("setting") or []
-        for row in settings:
+        for row in self.config_data.get("setting") or []:
             if isinstance(row, dict) and str(row.get("code") or "").strip() == "folder_path":
                 value = str(row.get("value") or "").strip()
                 if value:
@@ -543,14 +538,10 @@ class DbSetPop(QDialog):
         return os.path.dirname(self.db_path)
 
     def _build_detail_columns(self) -> tuple[list[str], dict[str, str]]:
-        columns = self.config_data.get("columns") or []
-        if not isinstance(columns, list):
-            return [], {}
-
         code_list = []
         header_map: dict[str, str] = {}
 
-        for row in columns:
+        for row in self.config_data.get("columns") or []:
             if not isinstance(row, dict):
                 continue
 
@@ -563,24 +554,17 @@ class DbSetPop(QDialog):
 
         return code_list, header_map
 
-    # =========================
-    # db
-    # =========================
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
-    # =========================
-    # load
-    # =========================
     def load_hist_rows(self) -> None:
         if not self.left_table or not self.left_count_label:
             return
 
         self.current_hist_row = None
         self.detail_rows = []
-
         rows: list[dict[str, Any]] = []
 
         try:
@@ -610,10 +594,10 @@ class DbSetPop(QDialog):
 
         self.hist_rows = rows
         self.left_table.load_rows(
-            rows=rows,
-            display_columns=self.left_columns,
-            header_labels=[self.left_header_map[x] for x in self.left_columns],
-            width_map=self.left_width_map,
+            rows,
+            self.left_columns,
+            [self.left_header_map[x] for x in self.left_columns],
+            self.left_width_map,
         )
         self.left_count_label.setText(f"전체 row수 {len(rows)}")
         self.clear_detail_rows()
@@ -658,16 +642,13 @@ class DbSetPop(QDialog):
 
         self.detail_rows = rows
         self.right_table.load_rows(
-            rows=rows,
-            display_columns=self.right_columns,
-            header_labels=[self.right_header_map.get(x, x) for x in self.right_columns],
-            width_map=self.right_width_map,
+            rows,
+            self.right_columns,
+            [self.right_header_map.get(x, x) for x in self.right_columns],
+            self.right_width_map,
         )
         self.right_count_label.setText(f"전체 row수 {len(rows)}")
 
-    # =========================
-    # delete
-    # =========================
     def delete_left_checked(self) -> None:
         if not self.left_table:
             return
@@ -695,14 +676,8 @@ class DbSetPop(QDialog):
                     hist_id = row.get("hist_id")
                     job_id = row.get("job_id")
 
-                    conn.execute(
-                        f"DELETE FROM {self.db_name} WHERE hist_id = ? OR job_id = ?",
-                        (hist_id, job_id),
-                    )
-                    conn.execute(
-                        f"DELETE FROM {self.db_common_name} WHERE hist_id = ?",
-                        (hist_id,),
-                    )
+                    conn.execute(f"DELETE FROM {self.db_name} WHERE hist_id = ? OR job_id = ?", (hist_id, job_id))
+                    conn.execute(f"DELETE FROM {self.db_common_name} WHERE hist_id = ?", (hist_id,))
 
             QMessageBox.information(self, "알림", "삭제되었습니다.")
             self.load_hist_rows()
@@ -734,10 +709,7 @@ class DbSetPop(QDialog):
         try:
             with self._connect() as conn:
                 for row in targets:
-                    conn.execute(
-                        f"DELETE FROM {self.db_name} WHERE rowid = ?",
-                        (row.get("__rowid__"),),
-                    )
+                    conn.execute(f"DELETE FROM {self.db_name} WHERE rowid = ?", (row.get("__rowid__"),))
 
             QMessageBox.information(self, "알림", "삭제되었습니다.")
 
@@ -757,13 +729,9 @@ class DbSetPop(QDialog):
         hist_id = self.current_hist_row.get("hist_id")
         job_id = str(self.current_hist_row.get("job_id") or "")
 
-        if not hist_id:
-            self.load_hist_rows()
-            return
-
         try:
             with self._connect() as conn:
-                cur = conn.execute(
+                success_count = conn.execute(
                     f"""
                     SELECT COUNT(*) AS cnt
                     FROM {self.db_name}
@@ -771,10 +739,9 @@ class DbSetPop(QDialog):
                       AND UPPER(COALESCE(row_status, '')) = 'SUCCESS'
                     """,
                     (hist_id,),
-                )
-                success_count = int(cur.fetchone()["cnt"])
+                ).fetchone()["cnt"]
 
-                cur = conn.execute(
+                fail_count = conn.execute(
                     f"""
                     SELECT COUNT(*) AS cnt
                     FROM {self.db_name}
@@ -782,23 +749,18 @@ class DbSetPop(QDialog):
                       AND UPPER(COALESCE(row_status, '')) = 'FAIL'
                     """,
                     (hist_id,),
-                )
-                fail_count = int(cur.fetchone()["cnt"])
+                ).fetchone()["cnt"]
 
                 conn.execute(
                     f"""
                     UPDATE {self.db_common_name}
-                    SET
-                        total_count = ?,
-                        success_count = ?,
-                        fail_count = ?,
-                        updated_at = ?
+                    SET total_count = ?, success_count = ?, fail_count = ?, updated_at = ?
                     WHERE hist_id = ?
                     """,
                     (
-                        success_count + fail_count,
-                        success_count,
-                        fail_count,
+                        int(success_count) + int(fail_count),
+                        int(success_count),
+                        int(fail_count),
                         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         hist_id,
                     ),
@@ -819,9 +781,6 @@ class DbSetPop(QDialog):
                 self.load_detail_rows_by_job_id(job_id)
                 break
 
-    # =========================
-    # excel
-    # =========================
     def save_detail_to_excel(self) -> None:
         if not self.detail_rows:
             QMessageBox.information(self, "알림", "저장할게 없습니다.")
