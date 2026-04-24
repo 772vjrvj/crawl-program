@@ -15,6 +15,7 @@ from PySide6.QtCore import QRect, Qt, Signal
 from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
     QDialog,
     QHeaderView,
     QHBoxLayout,
@@ -101,8 +102,6 @@ class DbTableWidget(QTableWidget):
         self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.setStyleSheet(self._table_style())
 
-        self.itemChanged.connect(self._sync_header_check_state)
-
     def _table_style(self) -> str:
         return """
         QTableWidget {
@@ -120,19 +119,6 @@ class DbTableWidget(QTableWidget):
         QTableWidget::item:selected {
             background: #eaf2ff;
             color: #111;
-        }
-
-        QTableWidget::indicator {
-            width: 14px;
-            height: 14px;
-            border: 1px solid #111;
-            background: white;
-        }
-
-        QTableWidget::indicator:checked {
-            background: black;
-            border: 1px solid #111;
-            image: none;
         }
 
         QHeaderView::section {
@@ -161,6 +147,40 @@ class DbTableWidget(QTableWidget):
         }
         """
 
+    def checkbox_style(self) -> str:
+        return """
+        QCheckBox::indicator {
+            width: 14px;
+            height: 14px;
+            border: 1px solid #111;
+            background: white;
+        }
+        QCheckBox::indicator:unchecked {
+            background: white;
+            border: 1px solid #111;
+        }
+        QCheckBox::indicator:checked {
+            background: black;
+            border: 1px solid #111;
+            image: none;
+        }
+        """
+
+    def make_checkbox_cell(self) -> QWidget:
+        wrap = QWidget()
+        layout = QHBoxLayout(wrap)
+        layout.setContentsMargins(10, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        cb = QCheckBox()
+        cb.setCursor(Qt.CursorShape.PointingHandCursor)
+        cb.setStyleSheet(self.checkbox_style())
+        cb.stateChanged.connect(self.sync_header_check_state)
+
+        layout.addWidget(cb)
+        return wrap
+
     def load_rows(
             self,
             rows: list[dict[str, Any]],
@@ -180,16 +200,7 @@ class DbTableWidget(QTableWidget):
             self.setColumnWidth(1, 56)
 
             for row_idx, row in enumerate(rows):
-                check_item = QTableWidgetItem()
-                check_item.setFlags(
-                    Qt.ItemFlag.ItemIsEnabled
-                    | Qt.ItemFlag.ItemIsUserCheckable
-                    | Qt.ItemFlag.ItemIsSelectable
-                )
-                check_item.setCheckState(Qt.CheckState.Unchecked)
-                check_item.setBackground(QColor("white"))
-                check_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.setItem(row_idx, 0, check_item)
+                self.setCellWidget(row_idx, 0, self.make_checkbox_cell())
 
                 no_item = QTableWidgetItem(str(row_idx + 1))
                 no_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -229,15 +240,19 @@ class DbTableWidget(QTableWidget):
             self.row_clicked_signal.emit(item.row())
         super().mousePressEvent(event)
 
+    def get_checkbox(self, row: int) -> Optional[QCheckBox]:
+        wrap = self.cellWidget(row, 0)
+        if not wrap:
+            return None
+        return wrap.findChild(QCheckBox)
+
     def toggle_all_checked(self, checked: bool) -> None:
-        self.blockSignals(True)
-        try:
-            for row in range(self.rowCount()):
-                item = self.item(row, 0)
-                if item:
-                    item.setCheckState(Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked)
-        finally:
-            self.blockSignals(False)
+        for row in range(self.rowCount()):
+            cb = self.get_checkbox(row)
+            if cb:
+                cb.blockSignals(True)
+                cb.setChecked(checked)
+                cb.blockSignals(False)
 
         header = self.horizontalHeader()
         if isinstance(header, CheckBoxHeader):
@@ -246,15 +261,12 @@ class DbTableWidget(QTableWidget):
     def checked_rows(self) -> list[int]:
         result = []
         for row in range(self.rowCount()):
-            item = self.item(row, 0)
-            if item and item.checkState() == Qt.CheckState.Checked:
+            cb = self.get_checkbox(row)
+            if cb and cb.isChecked():
                 result.append(row)
         return result
 
-    def _sync_header_check_state(self, item: QTableWidgetItem) -> None:
-        if item.column() != 0:
-            return
-
+    def sync_header_check_state(self) -> None:
         checked = self.rowCount() > 0 and len(self.checked_rows()) == self.rowCount()
         header = self.horizontalHeader()
         if isinstance(header, CheckBoxHeader):
