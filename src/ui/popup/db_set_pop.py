@@ -52,7 +52,6 @@ class CheckBoxHeader(QHeaderView):
 
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
         painter.setPen(QColor("#111"))
         painter.setBrush(QColor("#111") if self.checked else QColor("white"))
         painter.drawRect(x, y, size, size)
@@ -116,6 +115,11 @@ class DbTableWidget(QTableWidget):
             selection-color: #111;
             alternate-background-color: #fafafa;
             font-size: 12px;
+        }
+
+        QTableWidget::item:selected {
+            background: #eaf2ff;
+            color: #111;
         }
 
         QTableWidget::indicator {
@@ -183,6 +187,8 @@ class DbTableWidget(QTableWidget):
                     | Qt.ItemFlag.ItemIsSelectable
                 )
                 check_item.setCheckState(Qt.CheckState.Unchecked)
+                check_item.setBackground(QColor("white"))
+                check_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.setItem(row_idx, 0, check_item)
 
                 no_item = QTableWidgetItem(str(row_idx + 1))
@@ -198,7 +204,12 @@ class DbTableWidget(QTableWidget):
                         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     self.setItem(row_idx, col_idx, item)
 
-            self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
+            self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+            self.horizontalHeader().setMinimumSectionSize(40)
+            self.horizontalHeader().setStretchLastSection(False)
+
+            self.setColumnWidth(0, 42)
+            self.setColumnWidth(1, 56)
 
             if width_map:
                 for idx, key in enumerate(display_columns, start=2):
