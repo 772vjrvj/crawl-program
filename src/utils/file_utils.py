@@ -18,12 +18,12 @@ LogFunc = Callable[[str], None]
 class FileUtils:
     def __init__(self, log_func: Optional[LogFunc] = None, api_client: Optional[Any] = None):
         self.log_func: Optional[LogFunc] = log_func
-        self.api_client: Optional[Any] = api_client  # === 신규 ===
+        self.api_client: Optional[Any] = api_client
 
-        # === 신규 === httpx 클라이언트 재사용(선택)
+        # httpx 클라이언트 재사용(선택)
         self._http: Optional[httpx.Client] = None
 
-    # === 신규 === 로깅 통일
+    # 로깅 통일
     def _log(self, msg: str) -> None:
         if self.log_func:
             try:
@@ -31,7 +31,7 @@ class FileUtils:
             except Exception:
                 pass
 
-    # === 신규 === 필요 시만 생성/재사용
+    # 필요 시만 생성/재사용
     def _get_http_client(self, timeout: float) -> httpx.Client:
         if self._http is None:
             self._http = httpx.Client(
@@ -44,7 +44,7 @@ class FileUtils:
             pass
         return self._http
 
-    # === 신규 === 종료 시 호출해주면 깔끔 (선택)
+    # 종료 시 호출해주면 깔끔 (선택)
     def close(self) -> None:
         if self._http is not None:
             try:

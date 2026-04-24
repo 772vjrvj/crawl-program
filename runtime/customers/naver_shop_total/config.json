@@ -1,6 +1,8 @@
 {
   "label": "네이버 쇼핑 전체방문자",
   "key": "NAVER_SHOP_TOTAL",
+  "db_name": "NAVER_SHOP_TOTAL_DETAIL",
+  "db_common_name": "WORKER_JOB_HIST",
   "color": "#ccc",
   "enabled": true,
   "popup": false,
@@ -24,13 +26,13 @@
     {
       "name": "종료페이지",
       "code": "end_page",
-      "value": 2,
+      "value": 1,
       "type": "input"
     },
     {
       "name": "기준 방문자 수(같거나 작은 경우 추출)",
       "code": "site_total_cnt",
-      "value": 5000000,
+      "value": 500000,
       "type": "input"
     },
     {
@@ -38,6 +40,18 @@
       "code": "cpcha_cnt",
       "value": 10,
       "type": "input"
+    },
+    {
+      "name": "자동 엑셀 저장",
+      "code": "auto_save_yn",
+      "value": true,
+      "type": "check"
+    },
+    {
+      "name": "전체 중복 제거",
+      "code": "dup_yn",
+      "value": true,
+      "type": "check"
     },
     {
       "name": "저장 폴더",
@@ -58,7 +72,7 @@
     },
     {
       "checked": true,
-      "code": "collected_at",
+      "code": "crawled_at",
       "value": "수집일시"
     },
     {

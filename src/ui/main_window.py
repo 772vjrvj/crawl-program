@@ -35,6 +35,7 @@ from src.ui.popup.column_set_pop import ColumnSetPop
 from src.ui.popup.countdown_pop import CountdownPop
 from src.ui.popup.detail_set_pop import DetailSetPop
 from src.ui.popup.excel_set_pop import ExcelSetPop
+from src.ui.popup.db_set_pop import DbSetPop
 from src.ui.popup.param_set_pop import ParamSetPop
 from src.ui.popup.region_set_pop import RegionSetPop
 from src.ui.popup.site_set_pop import SiteSetPop
@@ -161,6 +162,7 @@ class MainWindow(QWidget):
         self.column_set_pop: Optional[ColumnSetPop] = None
         self.site_set_pop: Optional[SiteSetPop] = None
         self.param_set_pop: Optional[ParamSetPop] = None
+        self.db_set_pop: Optional[DbSetPop] = None
         self.excel_set_pop: Optional[ExcelSetPop] = None
         self.detail_set_pop: Optional[DetailSetPop] = None
         self.detail_all_style_set_pop = None
@@ -587,7 +589,7 @@ class MainWindow(QWidget):
         bottom_center_layout.addLayout(bottom_text_layout, 0)
         bottom_center_layout.addStretch()
     
-        self.bottom_right_button = create_common_button("제품 정보", self.open_product_info, self.color, 120)
+        self.bottom_right_button = create_common_button("DB 목록", self.open_db_info, self.color, 120)
     
         bottom_layout.addWidget(self.bottom_left_button, 0)
         bottom_layout.addWidget(self.bottom_center_wrap, 1)
@@ -868,8 +870,11 @@ class MainWindow(QWidget):
     def open_developer_info(self) -> None:
         self.show_message("개발자 정보 및 문의는 하단 사이트를 확인해주세요.", "info", None)
 
-    def open_product_info(self) -> None:
-        self.show_message("제품 정보 준비중입니다.", "info", None)
+    def open_db_info(self) -> None:
+        if self.db_set_pop is None:
+            self.db_set_pop = DbSetPop(self)
+            self.db_set_pop.log_signal.connect(self.add_log)
+        self.db_set_pop.exec()
 
     def open_my_site(self) -> None:
         QDesktopServices.openUrl(QUrl(server_url))
