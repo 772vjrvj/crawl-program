@@ -1,10 +1,10 @@
-# src/ui/popup/db_set_pop.py
 from __future__ import annotations
 
 import json
 import os
 import re
 import sqlite3
+import sys  # === 신규 ===
 from datetime import datetime
 from typing import Any, Optional
 
@@ -550,7 +550,13 @@ class DbSetPop(QDialog):
         except Exception:
             pass
 
-        return os.path.join(os.getcwd(), "runtime", "customers", "common", "db", "worker_hist.db")
+        # === 신규 === 빌드 후에는 현재 작업경로(os.getcwd)가 아니라 exe 위치 기준
+        if getattr(sys, "frozen", False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.getcwd()
+
+        return os.path.join(base_dir, "runtime", "customers", "common", "db", "worker_hist.db")
 
     def _get_folder_path(self) -> str:
         for row in self.config_data.get("setting") or []:
@@ -578,6 +584,10 @@ class DbSetPop(QDialog):
         return code_list, header_map
 
     def _connect(self) -> sqlite3.Connection:
+        # === 신규 === DB 없을 때 빈 DB가 자동 생성되는 것 방지
+        if not os.path.exists(self.db_path):
+            raise FileNotFoundError(f"DB 파일이 없습니다: {self.db_path}")
+
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn

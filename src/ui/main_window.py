@@ -871,9 +871,18 @@ class MainWindow(QWidget):
         self.show_message("개발자 정보 및 문의는 하단 사이트를 확인해주세요.", "info", None)
 
     def open_db_info(self) -> None:
-        if self.db_set_pop is None:
-            self.db_set_pop = DbSetPop(self)
-            self.db_set_pop.log_signal.connect(self.add_log)
+        # === 신규 === DB 팝업은 열 때마다 새로 생성해서 최신 DB 조회
+        try:
+            if self.db_set_pop is not None:
+                self.db_set_pop.close()
+                self.db_set_pop.deleteLater()
+        except Exception:
+            pass
+
+        self.db_set_pop = None
+
+        self.db_set_pop = DbSetPop(self)
+        self.db_set_pop.log_signal.connect(self.add_log)
         self.db_set_pop.exec()
 
     def open_my_site(self) -> None:
