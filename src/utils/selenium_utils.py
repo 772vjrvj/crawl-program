@@ -398,22 +398,46 @@ class SeleniumUtils:
 
     def _detect_chrome_major(self, chrome_exe: Optional[str]) -> Optional[int]:
         """
-        chrome.exe --version 출력에서 major 버전을 추출한다.
-
-        Args:
-            chrome_exe: chrome.exe 경로
-
-        Returns:
-            major 버전(int) 또는 None
+        chrome.exe의 실제 major 버전을 최대한 안정적으로 추출한다.
+        - 1차: chrome.exe --version
+        - 2차: PowerShell VersionInfo.ProductVersion
         """
         if not chrome_exe or not os.path.isfile(chrome_exe):
             return None
+
+        # 1차: chrome.exe --version
         try:
-            out = subprocess.check_output([chrome_exe, "--version"], stderr=subprocess.STDOUT, text=True)
+            out = subprocess.check_output(
+                [chrome_exe, "--version"],
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="ignore",
+            )
             m = re.search(r"(\d+)\.", out or "")
-            return int(m.group(1)) if m else None
-        except Exception:
-            return None
+            if m:
+                return int(m.group(1))
+        except Exception as e:
+            self._log("chrome --version failed:", str(e))
+
+        # 2차: PowerShell 파일 버전 조회
+        try:
+            safe_path = str(chrome_exe).replace("'", "''")
+            ps_cmd = f"(Get-Item '{safe_path}').VersionInfo.ProductVersion"
+            out = subprocess.check_output(
+                ["powershell", "-NoProfile", "-Command", ps_cmd],
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="ignore",
+            )
+            m = re.search(r"(\d+)\.", out or "")
+            if m:
+                return int(m.group(1))
+        except Exception as e:
+            self._log("chrome powershell version failed:", str(e))
+
+        return None
 
     # ---------------------------------------------------------------------
     # UC cache handling
@@ -982,13 +1006,15 @@ class SeleniumUtils:
         uc.Chrome 드라이버를 기동한다.
         - 임시 프로필 생성 후 user-data-dir로 지정
         - Chrome exe 탐색 후 options에 반영
+        - 현재 설치된 Chrome major를 자동 감지해 version_main에 적용
+        - 감지 실패/버전 불일치 시 에러 메시지에서 실제 Chrome major를 추출해 재시도
         - driver 생성 실패 시 uc 캐시 삭제 후 1회 재시도
         - 기존 호출부는 start_driver() 그대로 사용 가능
         - 신규 호출부는 browser/mobile 및 크기 override 가능
 
         Args:
             timeout: page_load_timeout (초)
-            force_major: 강제 major 버전(옵션). None이면 내부 기본값 사용
+            force_major: 강제 major 버전(옵션). None이면 현재 Chrome 버전 자동 감지
             view_mode: "browser" | "mobile"
             window_size: 실제 브라우저 창 크기 (w, h)
             mobile_metrics: 모바일 내부 viewport 크기 (w, h)
@@ -1010,8 +1036,6 @@ class SeleniumUtils:
         self._profile_dir = self._new_tmp_profile()
 
         chrome_exe = self._find_chrome_exe_windows()
-
-        # === 수정 === 실제 설치된 Chrome major 우선 사용
         detected_major = self._detect_chrome_major(chrome_exe)
         major = int(force_major) if force_major else detected_major
 
@@ -1040,20 +1064,83 @@ class SeleniumUtils:
         final_mobile_metrics = final_cfg["mobile_metrics"]
         final_mobile_user_agent = final_cfg["mobile_user_agent"]
 
+        def _extract_browser_major_from_error(e: Exception) -> Optional[int]:
+            """
+            Selenium 오류 메시지에서 실제 Chrome major를 추출한다.
+            예: Current browser version is 147.0.7727.102
+            """
+            try:
+                msg = str(e)
+                m = re.search(r"Current browser version is\s+(\d+)", msg)
+                if m:
+                    return int(m.group(1))
+            except Exception:
+                pass
+            return None
+
         def _create_driver(opts_any: uc.ChromeOptions) -> WebDriver:
             """
             uc.Chrome 생성 래퍼.
-            - version_main에 감지된 major를 지정하여 chromedriver 매칭을 유도한다.
-            - major를 못 찾으면 version_main 없이 생성 시도한다.
+
+            순서:
+            1) 현재 Chrome major 자동 감지값으로 실행
+            2) 실패하면 에러 메시지에서 실제 Chrome major 추출 후 재시도
+            3) 그래도 실패하면 version_main 없이 uc 자동 방식으로 재시도
+            4) 자동 방식 실패 시 다시 에러 메시지 major로 마지막 재시도
+
+            이렇게 하면 Chrome 147 -> 148 -> 149로 올라가도 코드 수정 없이 대응 가능하다.
             """
-            kwargs: Dict[str, Any] = {
-                "options": opts_any,
-            }
+            last_err: Optional[Exception] = None
 
+            # 1차: 감지된 Chrome major 또는 force_major로 실행
             if major:
-                kwargs["version_main"] = int(major)
+                try:
+                    self._log("start with chrome major:", major, force=True)
+                    return uc.Chrome(
+                        options=opts_any,
+                        version_main=int(major),
+                    )
+                except Exception as e:
+                    last_err = e
+                    self._log("uc major version failed:", str(e), force=True)
 
-            return uc.Chrome(**kwargs)
+                    # 에러 메시지에서 실제 Chrome 버전 추출 후 재시도
+                    extracted_major = _extract_browser_major_from_error(e)
+                    if extracted_major and extracted_major != int(major):
+                        try:
+                            self._log("retry with extracted chrome major:", extracted_major, force=True)
+                            return uc.Chrome(
+                                options=opts_any,
+                                version_main=int(extracted_major),
+                            )
+                        except Exception as e2:
+                            last_err = e2
+                            self._log("uc extracted major failed:", str(e2), force=True)
+
+            # 2차: version_main 없이 uc 자동 방식
+            try:
+                self._log("retry with uc auto version", force=True)
+                return uc.Chrome(options=opts_any)
+            except Exception as e3:
+                last_err = e3
+                self._log("uc auto version failed:", str(e3), force=True)
+
+                # 자동 방식 실패 시에도 에러에서 실제 버전 추출해서 마지막 재시도
+                extracted_major = _extract_browser_major_from_error(e3)
+                if extracted_major:
+                    try:
+                        self._log("final retry with extracted chrome major:", extracted_major, force=True)
+                        return uc.Chrome(
+                            options=opts_any,
+                            version_main=int(extracted_major),
+                        )
+                    except Exception as e4:
+                        last_err = e4
+                        self._log("uc final extracted major failed:", str(e4), force=True)
+
+            if last_err:
+                raise last_err
+            raise RuntimeError("uc.Chrome 생성 실패")
 
         try:
             # 1차 생성 시도
@@ -1092,7 +1179,7 @@ class SeleniumUtils:
             except Exception:
                 pass
 
-            # === 신규 === 캐시 삭제 후 한 번 더 현재 Chrome major 재확인
+            # 캐시 삭제 후 한 번 더 현재 Chrome major 재확인
             chrome_exe = self._find_chrome_exe_windows()
             detected_major = self._detect_chrome_major(chrome_exe)
             major = int(force_major) if force_major else detected_major

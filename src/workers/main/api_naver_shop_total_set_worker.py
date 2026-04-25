@@ -27,7 +27,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         self.hist_status = "RUNNING"
         self.hist_error_message = None
         self.site_name: str = "naver_shop"
-        self.worker_name: str = "naver_shop_total"
+        self.worker_name: str = "naver_shop_total_detail"
         self.excel_driver: Optional[ExcelUtils] = None
         self.sqlite_driver: Optional[SqliteUtils] = None
         self.model = None
@@ -41,7 +41,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
         self.detail_table_name = "naver_shop_total_detail"
 
         self.folder_path: str = ""
-        self.out_dir: str = "output_naver_shop"
+        self.out_dir: str = "output"
 
         # === 신규 ===
         self.dup_yn = False
@@ -185,7 +185,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
             "naver_shop_total_detail",
             self.site_name,
             self.worker_name,
-            getattr(self.user, "user_id", None) if self.user else None,
+            self.user,
             now,
             "RUNNING",
             0,

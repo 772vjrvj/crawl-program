@@ -326,27 +326,45 @@ class ExcelUtils:
             excel_filename,
             row_list,
             columns=None,
+            header_map=None,
             sheet_name="Sheet1",
             folder_path=None,
             sub_dir=None,
             column_widths=None,
-            default_width=16
+            default_width=16,
+            return_path=False,
     ):
+        """
+        DB row/list/dict 데이터를 엑셀로 저장하는 공통 함수
+
+        사용처:
+        1) 워커 자동 저장
+           - row_list: [{"키워드": "...", "상품명": "..."}]
+           - columns: ["키워드", "상품명", ...]
+
+        2) DB 팝업 저장
+           - row_list: [{"keyword": "...", "product_name": "..."}]
+           - columns: ["keyword", "product_name", ...]
+           - header_map: {"keyword": "키워드", "product_name": "상품명"}
+
+        3) 일반 dict list 저장
+        """
+
         if not row_list:
             if self.log_func:
                 self.log_func("⚠️ 저장할 DB 데이터가 없습니다.")
-            return False
+            return None if return_path else False
 
         excel_filename = str(excel_filename or "").strip()
         if not excel_filename:
             if self.log_func:
                 self.log_func("❌ excel_filename 이 비어 있습니다.")
-            return False
+            return None if return_path else False
 
         if not excel_filename.lower().endswith(".xlsx"):
             excel_filename = os.path.splitext(excel_filename)[0] + ".xlsx"
 
-        excel_filename = self.build_file_path(excel_filename, folder_path, sub_dir)
+        excel_path = self.build_file_path(excel_filename, folder_path, sub_dir)
 
         try:
             if columns:
@@ -357,15 +375,25 @@ class ExcelUtils:
             if df.empty:
                 if self.log_func:
                     self.log_func("⚠️ DataFrame 이 비어 있습니다.")
-                return False
+                return None if return_path else False
 
+            # 값 정리
             for col in df.columns:
                 df[col] = df[col].apply(self._clean_excel_cell_value)
 
-            with pd.ExcelWriter(excel_filename, engine="openpyxl") as writer:
+            # === 신규 ===
+            # DB 컬럼명 → 엑셀 헤더명 변환
+            if header_map:
+                df = df.rename(columns={
+                    col: str(header_map.get(col) or col)
+                    for col in df.columns
+                })
+
+            with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
                 df.to_excel(writer, index=False, sheet_name=sheet_name)
 
                 ws = writer.sheets[sheet_name]
+
                 for r in ws.iter_rows(min_row=2, max_row=len(df) + 1):
                     for cell in r:
                         if cell.value is not None:
@@ -373,22 +401,33 @@ class ExcelUtils:
 
                 self._apply_header_style_and_filter(ws)
                 self._apply_hyperlink_cells(ws)
-                self._apply_column_widths(ws, column_widths=column_widths, default_width=default_width)
+                self._apply_column_widths(
+                    ws,
+                    column_widths=column_widths,
+                    default_width=default_width,
+                )
 
             if self.log_func:
-                self.log_func(f"✅ DB -> 엑셀 저장 완료: {excel_filename}")
+                self.log_func(f"✅ DB -> 엑셀 저장 완료: {excel_path}")
 
-            return True
+            return excel_path if return_path else True
+
+        except PermissionError as e:
+            if self.log_func:
+                self.log_func(f"❌ DB -> 엑셀 저장 실패 - 파일 열림/권한 오류: {e}")
+            return None if return_path else False
 
         except Exception as e:
             if self.log_func:
                 self.log_func(f"❌ DB -> 엑셀 저장 실패: {e}")
-            return False
+            return None if return_path else False
+
 
     def obj_to_row(self, o, cols):
         if isinstance(o, dict):
             return {c: o.get(c) for c in cols}
         return {c: getattr(o, c, None) for c in cols}
+
 
     def obj_list_to_dataframe(self, obj_list, columns=None):
         if not obj_list:

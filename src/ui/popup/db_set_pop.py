@@ -8,14 +8,14 @@ import sys  # === 신규 ===
 from datetime import datetime
 from typing import Any, Optional
 
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
+from src.utils.excel_utils import ExcelUtils
 from PySide6.QtCore import QRect, Qt, Signal
-from PySide6.QtGui import QColor, QPainter
+from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QCheckBox,
+    QComboBox,
     QDialog,
     QHeaderView,
     QHBoxLayout,
@@ -40,6 +40,8 @@ class CheckBoxHeader(QHeaderView):
         super().__init__(orientation, parent)
         self.checked = False
         self.setSectionsClickable(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)  # === 신규 ===
+        self.viewport().setCursor(Qt.CursorShape.PointingHandCursor)  # === 신규 ===
 
     def paintSection(self, painter: QPainter, rect: QRect, logical_index: int) -> None:
         super().paintSection(painter, rect, logical_index)
@@ -47,20 +49,20 @@ class CheckBoxHeader(QHeaderView):
         if logical_index != 0:
             return
 
-        size = 14
+        # region_set_pop 체크박스와 동일 기준
+        size = 18
         x = rect.x() + (rect.width() - size) // 2
         y = rect.y() + (rect.height() - size) // 2
+        box_rect = QRect(x, y, size, size)
 
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QColor("#111"))
-        painter.setBrush(QColor("#111") if self.checked else QColor("white"))
-        painter.drawRect(x, y, size, size)
 
-        if self.checked:
-            painter.setPen(QColor("white"))
-            painter.drawLine(x + 3, y + 7, x + 6, y + 10)
-            painter.drawLine(x + 6, y + 10, x + 11, y + 4)
+        pen = QPen(QColor("#888888"))
+        pen.setWidth(2)
+        painter.setPen(pen)
+        painter.setBrush(QColor("black") if self.checked else QColor("white"))
+        painter.drawRoundedRect(box_rect, 4, 4)
 
         painter.restore()
 
@@ -85,6 +87,9 @@ class DbTableWidget(QTableWidget):
         super().__init__(parent)
 
         self.row_meta: list[dict[str, Any]] = []
+        self.display_columns: list[str] = []
+        self.header_labels: list[str] = []
+        self.width_map: dict[str, int] = {}
 
         header = CheckBoxHeader(Qt.Orientation.Horizontal, self)
         header.toggled.connect(self.toggle_all_checked)
@@ -149,27 +154,31 @@ class DbTableWidget(QTableWidget):
 
     def checkbox_style(self) -> str:
         return """
+        QCheckBox {
+            padding: 0px;
+            margin: 0px;
+            background: transparent;
+        }
+
         QCheckBox::indicator {
-            width: 14px;
-            height: 14px;
-            border: 1px solid #111;
-            background: white;
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 2px solid #888888;
+            background-color: white;
         }
-        QCheckBox::indicator:unchecked {
-            background: white;
-            border: 1px solid #111;
-        }
+
         QCheckBox::indicator:checked {
-            background: black;
-            border: 1px solid #111;
-            image: none;
+            background-color: black;
         }
         """
 
     def make_checkbox_cell(self) -> QWidget:
         wrap = QWidget()
+        wrap.setStyleSheet("background: transparent;")
+
         layout = QHBoxLayout(wrap)
-        layout.setContentsMargins(10, 0, 0, 0)
+        layout.setContentsMargins(8, 0, 0, 0)
         layout.setSpacing(0)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -181,6 +190,36 @@ class DbTableWidget(QTableWidget):
         layout.addWidget(cb)
         return wrap
 
+    def setup_columns(
+            self,
+            display_columns: list[str],
+            header_labels: list[str],
+            width_map: Optional[dict[str, int]] = None,
+    ) -> None:
+        self.display_columns = list(display_columns or [])
+        self.header_labels = list(header_labels or [])
+        self.width_map = dict(width_map or {})
+
+        self.clear()
+        self.setRowCount(0)
+        self.setColumnCount(2 + len(self.display_columns))
+        self.setHorizontalHeaderLabels(["", "번호", *self.header_labels])
+        self.row_meta = []
+
+        self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self.horizontalHeader().setMinimumSectionSize(40)
+        self.horizontalHeader().setStretchLastSection(False)
+
+        self.setColumnWidth(0, 42)
+        self.setColumnWidth(1, 56)
+
+        for idx, key in enumerate(self.display_columns, start=2):
+            self.setColumnWidth(idx, self.width_map.get(key, 120))
+
+        header = self.horizontalHeader()
+        if isinstance(header, CheckBoxHeader):
+            header.set_checked(False)
+
     def load_rows(
             self,
             rows: list[dict[str, Any]],
@@ -189,24 +228,37 @@ class DbTableWidget(QTableWidget):
             width_map: Optional[dict[str, int]] = None,
     ) -> None:
         self.blockSignals(True)
+        self.setUpdatesEnabled(False)
         try:
-            self.clear()
-            self.setRowCount(len(rows))
-            self.setColumnCount(2 + len(display_columns))
-            self.setHorizontalHeaderLabels(["", "번호", *header_labels])
-            self.row_meta = rows
+            self.setup_columns(display_columns, header_labels, width_map)
+            self.append_rows(rows, start_no=1)
+        finally:
+            self.setUpdatesEnabled(True)
+            self.blockSignals(False)
 
-            self.setColumnWidth(0, 42)
-            self.setColumnWidth(1, 56)
+    # === 신규 === 상세목록 스크롤 추가 로딩용 append 함수
+    def append_rows(self, rows: list[dict[str, Any]], start_no: Optional[int] = None) -> None:
+        if not rows:
+            return
 
-            for row_idx, row in enumerate(rows):
+        self.blockSignals(True)
+        self.setUpdatesEnabled(False)
+        try:
+            start_row = self.rowCount()
+            self.setRowCount(start_row + len(rows))
+
+            for idx, row in enumerate(rows):
+                row_idx = start_row + idx
+                self.row_meta.append(row)
+
                 self.setCellWidget(row_idx, 0, self.make_checkbox_cell())
 
-                no_item = QTableWidgetItem(str(row_idx + 1))
+                no_value = (start_no + idx) if start_no is not None else (row_idx + 1)
+                no_item = QTableWidgetItem(str(no_value))
                 no_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.setItem(row_idx, 1, no_item)
 
-                for col_idx, key in enumerate(display_columns, start=2):
+                for col_idx, key in enumerate(self.display_columns, start=2):
                     value = row.get(key)
                     text = "" if value is None else str(value)
                     item = QTableWidgetItem(text)
@@ -215,22 +267,12 @@ class DbTableWidget(QTableWidget):
                         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     self.setItem(row_idx, col_idx, item)
 
-            self.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-            self.horizontalHeader().setMinimumSectionSize(40)
-            self.horizontalHeader().setStretchLastSection(False)
-
-            self.setColumnWidth(0, 42)
-            self.setColumnWidth(1, 56)
-
-            if width_map:
-                for idx, key in enumerate(display_columns, start=2):
-                    self.setColumnWidth(idx, width_map.get(key, 120))
-
             header = self.horizontalHeader()
             if isinstance(header, CheckBoxHeader):
                 header.set_checked(False)
 
         finally:
+            self.setUpdatesEnabled(True)
             self.blockSignals(False)
 
     def mousePressEvent(self, event) -> None:
@@ -297,6 +339,13 @@ class DbSetPop(QDialog):
         self.detail_rows: list[dict[str, Any]] = []
         self.current_hist_row: Optional[dict[str, Any]] = None
 
+        # === 신규 === 상세목록 동적 로딩 상태
+        self.current_job_id: str = ""
+        self.detail_total_count: int = 0
+        self.detail_loaded_count: int = 0
+        self.detail_page_size: int = 100
+        self.detail_loading: bool = False
+
         self.setWindowTitle(title)
         self.resize(1650, 860)
         self.setMinimumSize(1500, 760)
@@ -349,12 +398,49 @@ class DbSetPop(QDialog):
             "total_visit_count": 110,
             "page": 70,
             "no": 70,
+
+            # === 신규 === 부동산/기타 detail 컬럼은 config code 기준으로 넉넉하게 표시
+            "date": 120,
+            "atclNo": 120,
+            "atclNm": 180,
+            "tradTpNm": 90,
+            "hanPrc": 110,
+            "rentPrc": 90,
+            "ho": 80,
+            "flrInfo": 90,
+            "spc1": 90,
+            "spc2": 90,
+            "jibun": 120,
+            "atclFetrDesc": 260,
+            "tagList": 180,
+            "rltrNm": 180,
+            "phone": 130,
+            "direction": 90,
+            "ipjuday": 110,
+            "atclUrl": 260,
+            "id": 90,
+            "searchRequirement": 240,
+            "atclCfmYmd": 110,
+            "rletTpNm": 100,
+            "articlePriceInfo": 120,
+            "supplySpaceName": 90,
+            "bildNm": 120,
+            "upperAtclNo": 120,
+            "parentYn": 80,
+            "sameAddrMinPrc": 120,
+            "sameAddrMaxPrc": 120,
+            "sameAddrCnt": 110,
+            "vrfcTpCd": 120,
+            "rank": 70,
+            "lat": 100,
+            "lng": 100,
         }
 
         self.left_count_label: Optional[QLabel] = None
         self.right_count_label: Optional[QLabel] = None
         self.left_table: Optional[DbTableWidget] = None
         self.right_table: Optional[DbTableWidget] = None
+        self.right_page_size_combo: Optional[QComboBox] = None
 
         self.init_ui()
         self.load_hist_rows()
@@ -450,16 +536,28 @@ class DbSetPop(QDialog):
         excel_btn.setStyleSheet(self.black_button_style())
         excel_btn.clicked.connect(self.save_detail_to_excel)
 
+        # === 신규 === 상세목록 추가 로딩 단위
+        self.right_page_size_combo = QComboBox()
+        self.right_page_size_combo.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.right_page_size_combo.setFixedSize(120, 34)
+        self.right_page_size_combo.setStyleSheet(self.combo_style())
+        for size in [100, 300, 500]:
+            self.right_page_size_combo.addItem(f"{size}개씩 보기", size)
+        self.right_page_size_combo.setCurrentIndex(0)
+        self.right_page_size_combo.currentIndexChanged.connect(self.on_detail_page_size_changed)
+
         self.right_count_label = QLabel("전체 row수 0")
         self.right_count_label.setStyleSheet("font-size: 13px; font-weight: bold; color: #333;")
 
         top_row.addWidget(delete_btn)
         top_row.addWidget(excel_btn)
         top_row.addStretch()
+        top_row.addWidget(self.right_page_size_combo)
         top_row.addWidget(self.right_count_label)
         layout.addLayout(top_row)
 
         self.right_table = DbTableWidget(self)
+        self.right_table.verticalScrollBar().valueChanged.connect(self.on_right_scroll_changed)
         layout.addWidget(self.right_table, 1)
 
         return wrap
@@ -488,6 +586,26 @@ class DbSetPop(QDialog):
             font-weight: bold;
         }
         QPushButton:hover { background: #222; }
+        """
+
+    def combo_style(self) -> str:
+        return """
+        QComboBox {
+            background: white;
+            color: #111;
+            border: 1px solid #d0d0d0;
+            border-radius: 8px;
+            padding: 0 10px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        QComboBox:hover {
+            border: 1px solid #999;
+        }
+        QComboBox::drop-down {
+            border: none;
+            width: 24px;
+        }
         """
 
     def _safe_table_name(self, name: str) -> str:
@@ -550,7 +668,6 @@ class DbSetPop(QDialog):
         except Exception:
             pass
 
-        # === 신규 === 빌드 후에는 현재 작업경로(os.getcwd)가 아니라 exe 위치 기준
         if getattr(sys, "frozen", False):
             base_dir = os.path.dirname(sys.executable)
         else:
@@ -584,7 +701,6 @@ class DbSetPop(QDialog):
         return code_list, header_map
 
     def _connect(self) -> sqlite3.Connection:
-        # === 신규 === DB 없을 때 빈 DB가 자동 생성되는 것 방지
         if not os.path.exists(self.db_path):
             raise FileNotFoundError(f"DB 파일이 없습니다: {self.db_path}")
 
@@ -597,6 +713,7 @@ class DbSetPop(QDialog):
             return
 
         self.current_hist_row = None
+        self.current_job_id = ""
         self.detail_rows = []
         rows: list[dict[str, Any]] = []
 
@@ -637,7 +754,11 @@ class DbSetPop(QDialog):
 
     def clear_detail_rows(self) -> None:
         self.current_hist_row = None
+        self.current_job_id = ""
         self.detail_rows = []
+        self.detail_total_count = 0
+        self.detail_loaded_count = 0
+        self.detail_loading = False
 
         if self.right_table:
             self.right_table.load_rows(
@@ -647,8 +768,27 @@ class DbSetPop(QDialog):
                 self.right_width_map,
             )
 
-        if self.right_count_label:
-            self.right_count_label.setText("전체 row수 0")
+        self.update_detail_count_label()
+
+    def update_detail_count_label(self) -> None:
+        if not self.right_count_label:
+            return
+
+        text = f"전체 row수 {self.detail_total_count:,} / 표시 {self.detail_loaded_count:,}"
+        if self.detail_loading:
+            text += " / 불러오는 중..."
+        self.right_count_label.setText(text)
+
+    def set_detail_loading(self, loading: bool) -> None:
+        self.detail_loading = loading
+        self.update_detail_count_label()
+
+        if loading:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        else:
+            QApplication.restoreOverrideCursor()
+
+        QApplication.processEvents()
 
     def on_left_row_clicked(self, row_index: int) -> None:
         if row_index < 0 or row_index >= len(self.hist_rows):
@@ -661,26 +801,119 @@ class DbSetPop(QDialog):
         if not self.right_table or not self.right_count_label:
             return
 
-        rows: list[dict[str, Any]] = []
+        job_id = str(job_id or "").strip()
+        self.current_job_id = job_id
+        self.detail_rows = []
+        self.detail_total_count = 0
+        self.detail_loaded_count = 0
+        self.detail_loading = False
 
-        try:
-            with self._connect() as conn:
-                cur = conn.execute(
-                    f"SELECT rowid AS __rowid__, * FROM {self.db_name} WHERE job_id = ? ORDER BY rowid DESC",
-                    (job_id,),
-                )
-                rows = [dict(row) for row in cur.fetchall()]
-        except Exception as e:
-            QMessageBox.warning(self, "오류", f"상세목록 조회 실패\n{e}")
-
-        self.detail_rows = rows
         self.right_table.load_rows(
-            rows,
+            [],
             self.right_columns,
             [self.right_header_map.get(x, x) for x in self.right_columns],
             self.right_width_map,
         )
-        self.right_count_label.setText(f"전체 row수 {len(rows)}")
+        self.update_detail_count_label()
+
+        if not job_id:
+            return
+
+        try:
+            with self._connect() as conn:
+                row = conn.execute(
+                    f"SELECT COUNT(*) AS cnt FROM {self.db_name} WHERE job_id = ?",
+                    (job_id,),
+                ).fetchone()
+                self.detail_total_count = int(row["cnt"] if row else 0)
+
+        except Exception as e:
+            QMessageBox.warning(self, "오류", f"상세목록 개수 조회 실패\n{e}")
+            self.update_detail_count_label()
+            return
+
+        self.update_detail_count_label()
+        self.load_next_detail_rows()
+
+    # === 신규 === 우측 상세목록 하단 스크롤 시 다음 묶음 조회
+    def on_right_scroll_changed(self, value: int) -> None:
+        if not self.right_table:
+            return
+
+        if self.detail_loading:
+            return
+
+        if not self.current_job_id:
+            return
+
+        if self.detail_loaded_count >= self.detail_total_count:
+            return
+
+        scrollbar = self.right_table.verticalScrollBar()
+        if value >= scrollbar.maximum() - 30:
+            self.load_next_detail_rows()
+
+    # === 신규 === 100/300/500 보기 변경 시 현재 작업 상세목록 다시 조회
+    def on_detail_page_size_changed(self) -> None:
+        if not self.right_page_size_combo:
+            return
+
+        value = self.right_page_size_combo.currentData()
+        try:
+            self.detail_page_size = int(value or 100)
+        except Exception:
+            self.detail_page_size = 100
+
+        if self.current_hist_row:
+            job_id = str(self.current_hist_row.get("job_id") or "")
+            self.load_detail_rows_by_job_id(job_id)
+
+    # === 신규 === LIMIT/OFFSET 기반 상세목록 추가 로딩
+    def load_next_detail_rows(self) -> None:
+        if not self.right_table:
+            return
+
+        if self.detail_loading:
+            return
+
+        if not self.current_job_id:
+            return
+
+        if self.detail_loaded_count >= self.detail_total_count:
+            self.update_detail_count_label()
+            return
+
+        rows: list[dict[str, Any]] = []
+        limit = int(self.detail_page_size or 100)
+        offset = int(self.detail_loaded_count or 0)
+
+        self.set_detail_loading(True)
+
+        try:
+            with self._connect() as conn:
+                cur = conn.execute(
+                    f"""
+                    SELECT rowid AS __rowid__, *
+                    FROM {self.db_name}
+                    WHERE job_id = ?
+                    ORDER BY rowid DESC
+                    LIMIT ? OFFSET ?
+                    """,
+                    (self.current_job_id, limit, offset),
+                )
+                rows = [dict(row) for row in cur.fetchall()]
+
+            if rows:
+                self.detail_rows.extend(rows)
+                self.right_table.append_rows(rows, start_no=offset + 1)
+                self.detail_loaded_count += len(rows)
+
+        except Exception as e:
+            QMessageBox.warning(self, "오류", f"상세목록 조회 실패\n{e}")
+
+        finally:
+            self.set_detail_loading(False)
+            self.update_detail_count_label()
 
     def delete_left_checked(self) -> None:
         if not self.left_table:
@@ -814,54 +1047,80 @@ class DbSetPop(QDialog):
                 self.load_detail_rows_by_job_id(job_id)
                 break
 
+    def fetch_all_detail_rows_for_current_job(self) -> list[dict[str, Any]]:
+        if not self.current_job_id:
+            return []
+
+        with self._connect() as conn:
+            cur = conn.execute(
+                f"""
+                SELECT rowid AS __rowid__, *
+                FROM {self.db_name}
+                WHERE job_id = ?
+                ORDER BY rowid DESC
+                """,
+                (self.current_job_id,),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
     def save_detail_to_excel(self) -> None:
-        if not self.detail_rows:
+        if not self.current_job_id:
             QMessageBox.information(self, "알림", "저장할게 없습니다.")
             return
 
         folder_root = self._get_folder_path()
-        save_dir = os.path.join(folder_root, "output_db")
-        os.makedirs(save_dir, exist_ok=True)
 
         job_id = ""
         if self.current_hist_row:
             job_id = str(self.current_hist_row.get("job_id") or "").strip()
 
-        filename = f"{self.db_name.lower()}_{job_id or 'detail'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        file_path = os.path.join(save_dir, filename)
+        filename = (
+            f"{self.db_name.lower()}_"
+            f"{job_id or 'detail'}_"
+            f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        )
 
+        column_widths = []
+        for col in self.right_columns:
+            header = self.right_header_map.get(col, col)
+            width = self.right_width_map.get(col, 120)
+
+            column_widths.append({
+                "컬럼": header,
+                "너비": max(12, int(width / 8)),
+            })
+
+        self.set_detail_loading(True)
         try:
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "상세목록"
+            # === 신규 === 화면에 로딩된 row만 저장하지 않고, 선택 작업 전체 row를 DB에서 다시 조회해서 저장
+            excel_rows = self.fetch_all_detail_rows_for_current_job()
+            if not excel_rows:
+                QMessageBox.information(self, "알림", "저장할게 없습니다.")
+                return
 
-            headers = [self.right_header_map.get(x, x) for x in self.right_columns]
-            ws.append(headers)
+            excel = ExcelUtils(
+                log_func=lambda msg: self.log_signal.emit(str(msg))
+            )
 
-            for row in self.detail_rows:
-                ws.append([row.get(col, "") for col in self.right_columns])
+            ok = excel.save_db_rows_to_excel(
+                excel_filename=filename,
+                row_list=excel_rows,
+                columns=self.right_columns,
+                header_map=self.right_header_map,
+                sheet_name="상세목록",
+                folder_path=folder_root,
+                sub_dir="output_db",
+                column_widths=column_widths,
+                default_width=16,
+            )
 
-            header_fill = PatternFill(fill_type="solid", fgColor="F3F3F3")
-            header_font = Font(bold=True)
-            thin = Side(style="thin", color="DDDDDD")
-
-            for cell in ws[1]:
-                cell.fill = header_fill
-                cell.font = header_font
-                cell.alignment = Alignment(horizontal="center", vertical="center")
-                cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-            for row in ws.iter_rows(min_row=2):
-                for cell in row:
-                    cell.alignment = Alignment(vertical="center")
-                    cell.border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-            for idx, col in enumerate(self.right_columns, start=1):
-                width = self.right_width_map.get(col, 120)
-                ws.column_dimensions[get_column_letter(idx)].width = max(12, int(width / 8))
-
-            wb.save(file_path)
-            QMessageBox.information(self, "알림", "엑셀이 저장되었습니다.")
+            if ok:
+                QMessageBox.information(self, "알림", "엑셀이 저장되었습니다.")
+            else:
+                QMessageBox.warning(self, "오류", "엑셀 저장에 실패했습니다.")
 
         except Exception as e:
             QMessageBox.warning(self, "오류", f"엑셀 저장 실패\n{e}")
+
+        finally:
+            self.set_detail_loading(False)

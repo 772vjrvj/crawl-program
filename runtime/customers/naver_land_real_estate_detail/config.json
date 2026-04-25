@@ -1,6 +1,8 @@
 {
   "label": "네이버 부동산",
   "key": "NAVER_LAND_REAL_ESTATE_DETAIL",
+  "db_name": "NAVER_LAND_REAL_ESTATE_DETAIL",
+  "db_common_name": "WORKER_JOB_HIST",
   "color": "#ccc",
   "enabled": true,
   "popup": false,
@@ -20,19 +22,25 @@
     {
       "name": "등록일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": 20260418,
+      "value": 20260420,
       "type": "input"
     },
     {
       "name": "등록일(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": 20260419,
+      "value": 20260425,
       "type": "input"
+    },
+    {
+      "name": "자동 엑셀 저장",
+      "code": "auto_save_yn",
+      "value": true,
+      "type": "check"
     },
     {
       "name": "정렬방식",
       "code": "articleSortType",
-      "value": "SPACE_ASC",
+      "value": "DATE_DESC",
       "type": "select",
       "options": [
         {
@@ -1579,7 +1587,7 @@
       "title": "기본목록"
     },
     {
-      "code": "articleNumber",
+      "code": "atclNo",
       "value": "매물번호",
       "checked": true
     },
@@ -1599,7 +1607,7 @@
       "checked": true
     },
     {
-      "code": "price",
+      "code": "hanPrc",
       "value": "매매가",
       "checked": true
     },
@@ -1609,12 +1617,12 @@
       "checked": true
     },
     {
-      "code": "rentAmount",
+      "code": "rentPrc",
       "value": "월세",
       "checked": true
     },
     {
-      "code": "supplySpace",
+      "code": "spc1",
       "value": "공급면적",
       "checked": true
     },
@@ -1634,17 +1642,17 @@
       "checked": true
     },
     {
-      "code": "exclusiveSpace",
+      "code": "spc2",
       "value": "전용면적",
       "checked": true
     },
     {
-      "code": "articleConfirmDate",
+      "code": "ipjuday",
       "value": "매물확인일",
       "checked": true
     },
     {
-      "code": "exposureStartDate",
+      "code": "date",
       "value": "매물노출시작일",
       "checked": true
     },
@@ -1684,7 +1692,7 @@
       "checked": true
     },
     {
-      "code": "brokerage_name",
+      "code": "rltrNm",
       "value": "중개사무소이름",
       "checked": true
     },
@@ -1694,7 +1702,7 @@
       "checked": true
     },
     {
-      "code": "url",
+      "code": "atclUrl",
       "value": "URL",
       "checked": true
     },
@@ -1714,17 +1722,17 @@
       "checked": true
     },
     {
-      "code": "atclNo",
+      "code": "upperAtclNo",
       "value": "상위매물번호",
       "checked": true
     },
     {
-      "code": "rletType",
+      "code": "rletTpNm",
       "value": "매물유형",
       "checked": true
     },
     {
-      "code": "tradeType",
+      "code": "tradTpNm",
       "value": "거래유형",
       "checked": true
     },
@@ -1769,7 +1777,7 @@
       "checked": true
     },
     {
-      "code": "articleFeatureDescription",
+      "code": "atclFetrDesc",
       "value": "매물설명",
       "checked": true
     },
@@ -1784,7 +1792,7 @@
       "checked": true
     },
     {
-      "code": "vrfctpcd",
+      "code": "vrfcTpCd",
       "value": "매물확인코드",
       "checked": true
     },
@@ -1794,9 +1802,39 @@
       "checked": true
     },
     {
-      "code": "parts",
+      "code": "keyword",
       "value": "검색 주소",
       "checked": true
+    },
+    {
+      "code": "ho",
+      "value": "호",
+      "checked": false
+    },
+    {
+      "code": "flrInfo",
+      "value": "층정보",
+      "checked": false
+    },
+    {
+      "code": "id",
+      "value": "ID",
+      "checked": false
+    },
+    {
+      "code": "searchRequirement",
+      "value": "검색조건",
+      "checked": false
+    },
+    {
+      "code": "articlePriceInfo",
+      "value": "가격정보",
+      "checked": false
+    },
+    {
+      "code": "rank",
+      "value": "순위",
+      "checked": false
     },
     {
       "title": "상세목록"
@@ -1805,7 +1843,7 @@
       "content": "※ 아래 항목은 기본설정에서 '상세정보조회'를 체크한 경우에만 수집됩니다. 상세 조회는 매물을 1건씩 처리하므로 수집 속도가 느릴 수 있습니다."
     },
     {
-      "code": "pyeongArea",
+      "code": "supplySpaceName",
       "value": "평수",
       "checked": false
     },
@@ -1825,7 +1863,7 @@
       "checked": false
     },
     {
-      "code": "phone_brokerage",
+      "code": "phone",
       "value": "중개사무소번호",
       "checked": false
     },

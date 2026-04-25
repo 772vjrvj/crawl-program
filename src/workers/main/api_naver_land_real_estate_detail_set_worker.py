@@ -8,6 +8,7 @@ from decimal import Decimal, InvalidOperation
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
+from src.utils.sqlite_utils import SqliteUtils
 from src.workers.api_base_worker import BaseApiWorker
 from src.utils.time_utils import yyyy_mm_dd_to
 from urllib.parse import quote
@@ -17,6 +18,17 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def __init__(self) -> None:
         super().__init__()
+
+        # === 신규 === DB 저장용 공통 상태
+        self.hist_id = None
+        self.job_id = None
+        self.hist_status = "RUNNING"
+        self.hist_error_message = None
+        self.worker_name: str = "naver_land_real_estate_detail"
+        self.detail_table_name: str = "naver_land_real_estate_detail"
+        self.detail_success_count: int = 0
+        self.detail_fail_count: int = 0
+        self.auto_save_yn: bool = False
 
         self.base_amount = None
         self.eng_yn = None
@@ -41,6 +53,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.selenium_driver = None
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
+        self.sqlite_driver: Optional[SqliteUtils] = None
 
         self.folder_path: str = ""
         self.out_dir: str = "output"
@@ -62,26 +75,25 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.click_article_button_js = None
 
     def init(self) -> bool:
-        self.driver_set()
-        self.log_signal_func(f"선택 항목 : {self.columns}")
-        self.log_signal_func("✅ init 완료")
-        return True
+        try:
+            self.excel_driver = ExcelUtils(self.log_signal_func)
+            self.file_driver = FileUtils(self.log_signal_func)
+
+            if not self.db_set():
+                return False
+
+            self.driver_set()
+
+            self.log_signal_func(f"선택 항목 : {self.columns}")
+            self.log_signal_func("✅ init 완료")
+            return True
+
+        except Exception as e:
+            self.finish_job("FAIL", str(e))
+            self.log_signal_func(f"❌ 초기화 에러: {e}")
+            return False
 
     def cleanup(self) -> None:
-        try:
-            self.excel_driver.convert_csv_to_excel_and_delete(
-                csv_filename=self.csv_filename,
-                folder_path=self.folder_path,
-                sub_dir=self.out_dir,
-                column_widths=[
-                    {"컬럼": "간략설명", "너비": 49},
-                    {"컬럼": "매물설명", "너비": 49}
-                ]
-            )
-            self.log_signal_func("✅ [엑셀 변환] 성공")
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
-
         try:
             if self.driver:
                 self.driver.quit()
@@ -107,6 +119,17 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.file_driver = None
 
         try:
+            if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
+                self.sqlite_driver.close()
+                self.log_signal_func("✅ [DB] 기존 연결 해제")
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] sqlite_driver.close 실패: {e}")
+        finally:
+            self.sqlite_driver = None
+
+        self.finalize_db_and_excel()
+
+        try:
             if self.excel_driver:
                 self.excel_driver.close()
         except Exception as e:
@@ -117,6 +140,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def stop(self) -> None:
         self.log_signal_func("✅ stop 시작")
         self.running = False
+
+        if self.hist_status == "RUNNING":
+            self.finish_job("STOP", "사용자 중단")
+
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
 
@@ -127,8 +154,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.progress_end_signal.emit()
 
     def driver_set(self) -> None:
-        self.excel_driver = ExcelUtils(self.log_signal_func)
-        self.file_driver = FileUtils(self.log_signal_func)
+        if not self.excel_driver:
+            self.excel_driver = ExcelUtils(self.log_signal_func)
+
+        if not self.file_driver:
+            self.file_driver = FileUtils(self.log_signal_func)
+
         self.selenium_driver = SeleniumUtils(
             headless=False,
             debug=True,
@@ -136,28 +167,436 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         )
         self.driver = self.selenium_driver.start_driver(timeout=1200, view_mode="browser", window_size=(1600, 1000))
 
+    # =========================================================
+    # DB 저장 / 마감 처리
+    # =========================================================
+    def db_set(self) -> bool:
+        self.sqlite_driver = SqliteUtils(self.log_signal_func)
+
+        db_path = self.get_runtime_db_path()
+        self.log_signal_func(f"[DB] 실제 경로 = {os.path.abspath(db_path)}")
+
+        if not self.sqlite_driver.connect(db_path):
+            self.log_signal_func("❌ [DB] 연결 실패")
+            return False
+
+        schema_files = [
+            os.path.join("resources", "customers", "common", "db", "schema_hist.sql"),
+            os.path.join("resources", "customers", self.worker_name, "db", "schema_detail.sql"),
+        ]
+
+        if not self.sqlite_driver.execute_script_files(schema_files):
+            self.log_signal_func("❌ [DB] 스키마 초기화 실패")
+            return False
+
+        self.log_signal_func("✅ [DB] 스키마 초기화 완료")
+
+        if not self.insert_hist_start():
+            return False
+
+        return True
+
+    def finish_job(self, status: str, error_message: Optional[str] = None) -> None:
+        self.hist_status = status
+        self.hist_error_message = error_message
+
+    def insert_hist_start(self) -> bool:
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.job_id = time.strftime("%Y%m%d%H%M%S")
+
+        query = """
+                INSERT INTO worker_job_hist (
+                    job_id,
+                    table_name,
+                    site_name,
+                    worker_name,
+                    user_id,
+                    start_at,
+                    status,
+                    total_count,
+                    success_count,
+                    fail_count,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
+
+        params = (
+            self.job_id,
+            self.detail_table_name,
+            self.site_name,
+            self.worker_name,
+            getattr(self.user, "user_id", None) if self.user else None,
+            now,
+            "RUNNING",
+            0,
+            0,
+            0,
+            now,
+            now,
+        )
+
+        if not self.sqlite_driver.execute(query, params):
+            self.log_signal_func("❌ [DB] hist 시작 row 저장 실패")
+            return False
+
+        row = self.sqlite_driver.fetchone("SELECT last_insert_rowid() AS hist_id")
+        self.hist_id = row["hist_id"] if row else None
+
+        self.log_signal_func(f"✅ [DB] hist 시작 row 저장 완료 | hist_id={self.hist_id}")
+        return True
+
+    def update_hist_end(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
+        sqlite_driver = sqlite_driver or self.sqlite_driver
+
+        if not sqlite_driver:
+            return False
+
+        if not self.hist_id:
+            self.log_signal_func("⚠️ [DB] hist_id 없음 - 종료 update 스킵")
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        query = """
+                UPDATE worker_job_hist
+                SET
+                    end_at = ?,
+                    status = ?,
+                    total_count = ?,
+                    success_count = ?,
+                    fail_count = ?,
+                    error_message = ?,
+                    updated_at = ?
+                WHERE hist_id = ?
+                """
+
+        params = (
+            now,
+            self.hist_status,
+            self.detail_success_count + self.detail_fail_count,
+            self.detail_success_count,
+            self.detail_fail_count,
+            self.hist_error_message,
+            now,
+            self.hist_id,
+        )
+
+        if not sqlite_driver.execute(query, params):
+            self.log_signal_func(f"❌ [DB] hist 종료 row 수정 실패 | hist_id={self.hist_id}")
+            return False
+
+        self.log_signal_func(
+            f"✅ [DB] hist 종료 row 수정 완료 | hist_id={self.hist_id} | status={self.hist_status}"
+        )
+        return True
+
+    def insert_detail_row(self, rs: Dict[str, Any]) -> bool:
+        if not self.sqlite_driver:
+            self.detail_fail_count += 1
+            self.log_signal_func("❌ [DB] sqlite_driver 없음 - detail 저장 실패")
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        db_columns = self._get_db_columns()
+        db_rs = self._map_out_to_db(rs)
+
+        base_columns = [
+            "hist_id",
+            "site_name",
+            "worker_name",
+            "table_name",
+            "job_id",
+            "user_id",
+            "row_status",
+        ]
+
+        all_columns = base_columns + db_columns + ["created_at", "updated_at"]
+        placeholders = ", ".join(["?"] * len(all_columns))
+        column_text = ",\n                    ".join(all_columns)
+
+        query = f"""
+                INSERT INTO {self.detail_table_name} (
+                    {column_text}
+                ) VALUES ({placeholders})
+                """
+
+        params = (
+            self.hist_id,
+            self.site_name,
+            self.worker_name,
+            self.detail_table_name,
+            self.job_id,
+            getattr(self.user, "user_id", None) if self.user else None,
+            "SUCCESS",
+            *[db_rs.get(col, "") for col in db_columns],
+            now,
+            now,
+        )
+
+        ok = self.sqlite_driver.execute(query, params)
+
+        if ok:
+            self.detail_success_count += 1
+            self.log_signal_func(
+                f"✅ [DB] detail 저장 완료 | hist_id={self.hist_id} | 매물번호={rs.get('매물번호')}"
+            )
+        else:
+            self.detail_fail_count += 1
+            self.log_signal_func(
+                f"❌ [DB] detail 저장 실패 | hist_id={self.hist_id} | 매물번호={rs.get('매물번호')}"
+            )
+
+        return ok
+
+    def _get_db_columns(self) -> List[str]:
+        # === 신규 ===
+        # 기존 columns.json의 위치/한글명/checked/title/content는 유지하고,
+        # code만 worker 영어 컬럼과 매핑한 결과다.
+        return ['atclNo',
+                'articleName',
+                'complexName',
+                'dongName',
+                'hanPrc',
+                'warrantyAmount',
+                'rentPrc',
+                'spc1',
+                'landSpace',
+                'floorSpace',
+                'buildingSpace',
+                'spc2',
+                'ipjuday',
+                'date',
+                'targetFloor',
+                'totalFloor',
+                'city',
+                'division',
+                'sector',
+                'zipCode',
+                'full_addr',
+                'rltrNm',
+                'broker_name',
+                'atclUrl',
+                'atclNm',
+                'bildNm',
+                'parentYn',
+                'upperAtclNo',
+                'rletTpNm',
+                'tradTpNm',
+                'tagList',
+                'atclCfmYmd',
+                'lat',
+                'lng',
+                'direction',
+                'sameAddrCnt',
+                'sameAddrMinPrc',
+                'sameAddrMaxPrc',
+                'atclFetrDesc',
+                'currentBusinessType',
+                'recommendedBusinessType',
+                'vrfcTpCd',
+                'buildingConjunctionDate',
+                'keyword',
+                'supplySpaceName',
+                'buildingPrincipalUse',
+                'articleDescription',
+                'broker_address',
+                'phone',
+                'phone_mobile',
+                'roadName',
+                'jibun',
+                'ho',
+                'flrInfo',
+                'id',
+                'searchRequirement',
+                'articlePriceInfo',
+                'rank']
+
+    def _get_kor_header_map(self) -> Dict[str, str]:
+        # === 신규 ===
+        # 한글명(value)은 기존 columns.json 기준 그대로 유지한다.
+        return {'atclNo': '매물번호',
+                'articleName': '매물명',
+                'complexName': '단지명',
+                'dongName': '동이름',
+                'hanPrc': '매매가',
+                'warrantyAmount': '보증금/전세',
+                'rentPrc': '월세',
+                'spc1': '공급면적',
+                'landSpace': '대지면적',
+                'floorSpace': '연면적',
+                'buildingSpace': '건축면적',
+                'spc2': '전용면적',
+                'ipjuday': '매물확인일',
+                'date': '매물노출시작일',
+                'targetFloor': '해당층',
+                'totalFloor': '전체층',
+                'city': '시도',
+                'division': '시군구',
+                'sector': '읍면동',
+                'zipCode': '우편번호',
+                'full_addr': '전체주소',
+                'rltrNm': '중개사무소이름',
+                'broker_name': '중개사이름',
+                'atclUrl': 'URL',
+                'atclNm': '상위매물명',
+                'bildNm': '상위매물동',
+                'parentYn': '부모여부',
+                'upperAtclNo': '상위매물번호',
+                'rletTpNm': '매물유형',
+                'tradTpNm': '거래유형',
+                'tagList': '매물태그',
+                'atclCfmYmd': '등록일자',
+                'lat': '위도',
+                'lng': '경도',
+                'direction': '방향정보',
+                'sameAddrCnt': '동일주소매물수',
+                'sameAddrMinPrc': '동일주소최소가',
+                'sameAddrMaxPrc': '동일주소최대가',
+                'atclFetrDesc': '매물설명',
+                'currentBusinessType': '현재업종',
+                'recommendedBusinessType': '추천업종',
+                'vrfcTpCd': '매물확인코드',
+                'buildingConjunctionDate': '사용승인일',
+                'keyword': '검색 주소',
+                'supplySpaceName': '평수',
+                'buildingPrincipalUse': '건축물용도',
+                'articleDescription': '매물상세설명',
+                'broker_address': '중개사무소주소',
+                'phone': '중개사무소번호',
+                'phone_mobile': '중개사핸드폰번호',
+                'roadName': '도로명주소',
+                'jibun': '번지',
+                'ho': '호',
+                'flrInfo': '층정보',
+                'id': 'ID',
+                'searchRequirement': '검색조건',
+                'articlePriceInfo': '가격정보',
+                'rank': '순위'}
+
+    def _get_kor_columns(self) -> List[str]:
+        header_map = self._get_kor_header_map()
+        return [header_map.get(code, code) for code in self._get_db_columns()]
+
+    def _db_rows_to_kor_rows(self, row_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        header_map = self._get_kor_header_map()
+        result: List[Dict[str, Any]] = []
+
+        for row in row_list or []:
+            out: Dict[str, Any] = {}
+            for code in self._get_db_columns():
+                kor_name = header_map.get(code, code)
+                out[kor_name] = row.get(code, "")
+            result.append(out)
+
+        return result
+
+    def export_detail_to_excel(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
+        sqlite_driver = sqlite_driver or self.sqlite_driver
+
+        if not self.excel_driver:
+            self.log_signal_func("❌ [엑셀] excel_driver 없음")
+            return False
+
+        if not sqlite_driver:
+            self.log_signal_func("❌ [엑셀] sqlite_driver 없음")
+            return False
+
+        if not self.hist_id:
+            self.log_signal_func("❌ [엑셀] hist_id 없음")
+            return False
+
+        if self.eng_yn:
+            db_columns = self._get_eng_columns()
+        else:
+            db_columns = self._get_db_columns()
+
+        select_text = ",\n                    ".join(db_columns)
+
+        query = f"""
+                SELECT
+                    {select_text}
+                FROM {self.detail_table_name}
+                WHERE hist_id = ?
+                ORDER BY detail_id
+                """
+
+        row_list = sqlite_driver.fetchall(query, (self.hist_id,))
+        if not row_list:
+            self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
+            return False
+
+        row_list = [dict(row) for row in row_list]
+
+        if self.eng_yn:
+            excel_row_list = row_list
+            excel_columns = self._get_eng_columns()
+        else:
+            excel_row_list = self._db_rows_to_kor_rows(row_list)
+            if self.link_yn:
+                excel_row_list = [self._apply_excel_hyperlinks_to_row(row) for row in excel_row_list]
+            excel_columns = self.columns or self._get_kor_columns()
+
+        excel_filename = f"{self.site_name}_{self.job_id}.xlsx"
+
+        return self.excel_driver.save_db_rows_to_excel(
+            excel_filename=excel_filename,
+            row_list=excel_row_list,
+            columns=excel_columns,
+            folder_path=self.folder_path,
+            sub_dir=self.out_dir,
+        )
+
+    def finalize_db_and_excel(self) -> None:
+        temp_sqlite_driver = None
+
+        try:
+            temp_sqlite_driver = SqliteUtils(self.log_signal_func)
+            db_path = self.get_runtime_db_path()
+
+            if not temp_sqlite_driver.connect(db_path):
+                self.log_signal_func("❌ [DB] 최종 마감용 연결 실패")
+                return
+
+            if self.update_hist_end(temp_sqlite_driver):
+                self.log_signal_func("✅ [DB] hist 최종 업데이트 완료")
+            else:
+                self.log_signal_func("❌ [DB] hist 최종 업데이트 실패")
+
+            if self.auto_save_yn:
+                if self.export_detail_to_excel(temp_sqlite_driver):
+                    self.log_signal_func("✅ [엑셀] detail 자동 저장 완료")
+                else:
+                    self.log_signal_func("❌ [엑셀] detail 자동 저장 실패")
+            else:
+                self.log_signal_func("ℹ️ [엑셀] 자동 저장 미사용(auto_save_yn=False)")
+
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] finalize_db_and_excel 실패: {e}")
+
+        finally:
+            try:
+                if temp_sqlite_driver:
+                    temp_sqlite_driver.close()
+            except Exception:
+                pass
+
     def main(self) -> bool:
         self.log_signal_func(" main 시작")
 
         # 저장경로
         self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
 
-        # 파일명
-        self.csv_filename = os.path.basename(self.file_driver.get_csv_filename(self.site_name))
+        # === 신규 === DB 저장 후 종료 시 엑셀 자동 저장 여부
+        self.auto_save_yn = bool(self.get_setting_value(self.setting, "auto_save_yn"))
+        self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
 
         # 영어컬럼 여부
         self.eng_yn: bool = self.get_setting_value(self.setting, "eng_yn")
         self.log_signal_func(f"영어컬럼 여부 : {self.eng_yn}")
         if self.eng_yn:
             self.columns = self._get_eng_columns()
-
-        # 초기 파일 생성
-        self.excel_driver.init_csv(
-            self.csv_filename,
-            self.columns,
-            folder_path=self.folder_path,
-            sub_dir=self.out_dir
-        )
 
         self.filter_data = self.file_driver.read_json_array_from_resources(
             "filter_data.json",
@@ -202,7 +641,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         self.base_amount: str = self.get_setting_value(self.setting, "baseAmount")
         self.log_signal_func(f"기준금액 : {self.base_amount}")
-
 
         # 7. 작업목록 생성
         self.work_items = []
@@ -292,6 +730,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         # 8. 작업목록에 따라 매물 목록 크롤링
         self._crawl_article_list()
+
+        if self.hist_status == "RUNNING":
+            if self.running:
+                self.finish_job("SUCCESS")
+            else:
+                self.finish_job("STOP", "사용자 중단")
 
         return True
 
@@ -422,7 +866,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def _build_article_price_info(self, out: Dict[str, Any]) -> str:
         price = str(out.get("매매가") or "").strip()
-        warranty = str(out.get("보증금") or "").strip()
+        warranty = str(out.get("보증금/전세") or out.get("보증금") or "").strip()
         rent = str(out.get("월세") or "").strip()
 
         if price:
@@ -491,6 +935,40 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         }
 
         return eng_out
+
+    def _map_out_to_db(self, out: Dict[str, Any]) -> Dict[str, Any]:
+        # === 신규 ===
+        # _get_eng_columns()에 있는 값은 먼저 영어 매핑값을 사용하고,
+        # 기존 columns.json에만 있던 컬럼은 기존 한글 row에서 그대로 채운다.
+        db_out: Dict[str, Any] = dict(self._map_out_to_eng(out))
+
+        db_out.update({
+            "articleName": str(out.get("매물명") or ""),
+            "complexName": str(out.get("단지명") or ""),
+            "dongName": str(out.get("동이름") or ""),
+            "warrantyAmount": str(out.get("보증금/전세") or ""),
+            "landSpace": str(out.get("대지면적") or ""),
+            "floorSpace": str(out.get("연면적") or ""),
+            "buildingSpace": str(out.get("건축면적") or ""),
+            "targetFloor": str(out.get("해당층") or ""),
+            "totalFloor": str(out.get("전체층") or ""),
+            "city": str(out.get("시도") or ""),
+            "division": str(out.get("시군구") or ""),
+            "sector": str(out.get("읍면동") or ""),
+            "zipCode": str(out.get("우편번호") or ""),
+            "full_addr": str(out.get("전체주소") or ""),
+            "broker_name": str(out.get("중개사이름") or ""),
+            "currentBusinessType": str(out.get("현재업종") or ""),
+            "recommendedBusinessType": str(out.get("추천업종") or ""),
+            "buildingConjunctionDate": str(out.get("사용승인일") or ""),
+            "buildingPrincipalUse": str(out.get("건축물용도") or ""),
+            "articleDescription": str(out.get("매물상세설명") or ""),
+            "broker_address": str(out.get("중개사무소주소") or ""),
+            "phone_mobile": str(out.get("중개사핸드폰번호") or ""),
+            "roadName": str(out.get("도로명주소") or ""),
+        })
+
+        return db_out
 
     def _load_js_assets(self) -> None:
         js_dir = "customers/naver_land_real_estate_detail/js"
@@ -1435,45 +1913,29 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def _save_list_items(self, items: list[dict[str, Any]], region_item) -> None:
         try:
-            save_rows = []
-            save_count = len(save_rows)
+            save_count = 0
 
             for info in items:
                 rs = self._make_list_row(info, region_item)
-                rs = self._apply_excel_hyperlinks_to_row(rs)
+                if self.insert_detail_row(rs):
+                    save_count += 1
 
-                if self.eng_yn:
-                    rs = self._map_out_to_eng(rs)
-
-                save_rows.append(rs)
-
-            if not save_rows:
-                self.log_signal_func("[일반저장] 저장할 데이터 없음")
+            if save_count == 0:
+                self.log_signal_func("[DB저장] 저장된 데이터 없음")
                 return
 
-            self.excel_driver.append_to_csv(
-                self.csv_filename,
-                save_rows,
-                self.columns,
-                folder_path=self.folder_path,
-                sub_dir=self.out_dir,
-            )
+            self.log_signal_func(f"✅ [DB저장] 일반목록 저장 완료 | count={save_count}")
 
         except Exception as e:
-            self.log_signal_func(f"[일반저장] 일괄 저장 실패 / {e}")
+            self.detail_fail_count += 1
+            self.log_signal_func(f"[DB저장] 일반목록 저장 실패 / {e}")
 
     def _append_save_row(self, rs):
-        save_row = self._apply_excel_hyperlinks_to_row(rs)
-        if self.eng_yn:
-            save_row = self._map_out_to_eng(save_row)
-
-        self.excel_driver.append_to_csv(
-            self.csv_filename,
-            [save_row],
-            self.columns,
-            folder_path=self.folder_path,
-            sub_dir=self.out_dir,
-        )
+        try:
+            self.insert_detail_row(rs)
+        except Exception as e:
+            self.detail_fail_count += 1
+            self.log_signal_func(f"[DB저장] 단건 저장 실패 / {e}")
 
     def _join_tag_list(self, tag_list):
         if isinstance(tag_list, list):
