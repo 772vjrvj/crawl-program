@@ -14,6 +14,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 
+from src.core.global_state import GlobalState
 from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
@@ -40,7 +41,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
-        # === 신규 === DB 저장용 공통 상태
+        # DB 저장용 공통 상태
         self.hist_id = None
         self.job_id = None
         self.hist_status = "RUNNING"
@@ -82,7 +83,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             self.file_driver = FileUtils(self.log_signal_func)
             self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
-            # === 신규 === DB 연결 및 스키마 초기화
+            # DB 연결 및 스키마 초기화
             if not self.db_set():
                 return False
 
@@ -104,7 +105,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
             self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
 
-            # === 신규 === 설정에 auto_save_yn이 없으면 기존처럼 종료 시 엑셀 저장
+            # 설정에 auto_save_yn이 없으면 기존처럼 종료 시 엑셀 저장
             auto_save_value = self.get_setting_value(self.setting, "auto_save_yn")
             self.auto_save_yn = True if auto_save_value is None else bool(auto_save_value)
             self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
@@ -137,7 +138,6 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
                     self._process_task_round(task)
 
-                    # === 신규 ===
                     # CSV 시절처럼 마지막에 한꺼번에 저장하지 않고,
                     # 해당 매물 처리가 최종 확정되면 즉시 DB에 저장한다.
                     if task["finalized"] and not task.get("saved"):
@@ -155,7 +155,6 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                     if remain_count > 0:
                         time.sleep(random.uniform(2.5, 4.0))
 
-            # === 신규 ===
             # 마지막 라운드까지도 성공/스킵 확정이 안 된 항목은
             # 더 이상 재시도하지 않으므로 현재 rows 상태를 최종 실패 결과로 저장한다.
             for task in tasks:
@@ -211,7 +210,6 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         }
 
     def _save_task_rows(self, task: Dict[str, Any]) -> int:
-        # === 신규 ===
         # 한 매물의 최종 결과 rows를 즉시 DB에 저장한다.
         # 같은 task가 재시도 라운드에서 다시 저장되지 않도록 saved 플래그로 막는다.
         rows = task.get("rows") or []
@@ -270,7 +268,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
             self.log_signal_func(f"[이미지 개수] gallery_count={gallery_count} / 기준={min_cnt}")
 
-            # === 신규 === None이었든 0이었든 최종 0이면 바로 스킵
+            # None이었든 0이었든 최종 0이면 바로 스킵
             if gallery_count <= 0:
                 msg = "이미지 개수 확인 실패 또는 0개라 스킵"
                 task["skip"] = True
@@ -664,7 +662,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             self.detail_table_name,
             self.site_name,
             self.worker_name,
-            getattr(self.user, "user_id", None) if self.user else None,
+            self.get_user_id(),
             now,
             "RUNNING",
             0,
@@ -729,6 +727,11 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         )
         return True
 
+    def get_user_id(self) -> str:
+        state = GlobalState()
+        user_id = str(state.get(GlobalState.USER_ID, "") or "").strip()
+        return user_id or "-"
+
     def insert_detail_row(self, rs: Dict[str, Any]) -> bool:
         if not self.sqlite_driver:
             self.detail_fail_count += 1
@@ -775,7 +778,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             self.worker_name,
             self.detail_table_name,
             self.job_id,
-            getattr(self.user, "user_id", None) if self.user else None,
+            self.get_user_id(),
             row_status,
             str(rs.get("메세지") or ""),
             *[db_rs.get(col, "") for col in db_columns],

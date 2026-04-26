@@ -24,6 +24,12 @@
       "code": "cnt",
       "value": 8,
       "type": "input"
+    },
+    {
+      "name": "자동 엑셀 저장",
+      "code": "auto_save_yn",
+      "value": true,
+      "type": "check"
     }
   ],
   "columns": [
