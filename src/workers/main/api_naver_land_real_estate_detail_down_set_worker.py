@@ -18,6 +18,7 @@ from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
+from src.utils.sqlite_utils import SqliteUtils
 from src.workers.api_base_worker import BaseApiWorker
 
 try:
@@ -39,6 +40,17 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
+        # === 신규 === DB 저장용 공통 상태
+        self.hist_id = None
+        self.job_id = None
+        self.hist_status = "RUNNING"
+        self.hist_error_message = None
+        self.worker_name: str = "naver_land_real_estate_detail_down"
+        self.detail_table_name: str = "naver_land_real_estate_detail_down"
+        self.detail_success_count: int = 0
+        self.detail_fail_count: int = 0
+        self.auto_save_yn: bool = True
+
         self.driver = None
         self.selenium_driver = None
         self.columns: Optional[List[str]] = None
@@ -49,6 +61,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
         self.api_client: Optional[APIClient] = None
+        self.sqlite_driver: Optional[SqliteUtils] = None
 
         self.folder_path: str = ""
         self.out_dir: str = "output_naver_land_real_estate_detail_down"
@@ -64,10 +77,25 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
     # 초기화
     def init(self) -> bool:
-        self.driver_set()
-        self.log_signal_func(f"선택 항목 : {self.columns}")
-        self.log_signal_func("✅ init 완료")
-        return True
+        try:
+            self.excel_driver = ExcelUtils(self.log_signal_func)
+            self.file_driver = FileUtils(self.log_signal_func)
+            self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+
+            # === 신규 === DB 연결 및 스키마 초기화
+            if not self.db_set():
+                return False
+
+            self.driver_set()
+
+            self.log_signal_func(f"선택 항목 : {self.columns}")
+            self.log_signal_func("✅ init 완료")
+            return True
+
+        except Exception as e:
+            self.finish_job("FAIL", str(e))
+            self.log_signal_func(f"❌ 초기화 에러: {e}")
+            return False
 
     # 프로그램 실행
     def main(self) -> bool:
@@ -75,14 +103,15 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             self.log_signal_func("main 시작")
 
             self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
-            self.csv_filename = os.path.basename(self.file_driver.get_csv_filename(self.site_name))
 
-            self.excel_driver.init_csv(
-                self.csv_filename,
-                self.columns,
-                folder_path=self.folder_path,
-                sub_dir=self.out_dir,
-            )
+            # === 신규 === 설정에 auto_save_yn이 없으면 기존처럼 종료 시 엑셀 저장
+            auto_save_value = self.get_setting_value(self.setting, "auto_save_yn")
+            self.auto_save_yn = True if auto_save_value is None else bool(auto_save_value)
+            self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
+
+            # config의 URL value가 비어 있어도 DB export는 아래 기본 한글 컬럼을 사용한다.
+            if not self.columns:
+                self.columns = self._get_kor_columns()
 
             source_items = list(self.excel_data_list or [])
             total_count = len(source_items)
@@ -108,7 +137,13 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
                     self._process_task_round(task)
 
-                    if task["finalized"]:
+                    # === 신규 ===
+                    # CSV 시절처럼 마지막에 한꺼번에 저장하지 않고,
+                    # 해당 매물 처리가 최종 확정되면 즉시 DB에 저장한다.
+                    if task["finalized"] and not task.get("saved"):
+                        self._save_task_rows(task)
+                        task["saved"] = True
+
                         finalized_count += 1
                         self._emit_progress(finalized_count, total_count)
 
@@ -120,21 +155,42 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                     if remain_count > 0:
                         time.sleep(random.uniform(2.5, 4.0))
 
+            # === 신규 ===
+            # 마지막 라운드까지도 성공/스킵 확정이 안 된 항목은
+            # 더 이상 재시도하지 않으므로 현재 rows 상태를 최종 실패 결과로 저장한다.
             for task in tasks:
-                rows = task.get("rows") or []
-                if rows:
-                    self.excel_driver.append_to_csv(
-                        self.csv_filename,
-                        rows,
-                        self.columns,
-                        folder_path=self.folder_path,
-                        sub_dir=self.out_dir,
-                    )
+                if task.get("saved"):
+                    continue
+
+                if not task.get("rows"):
+                    task["rows"] = [self._make_result_row(
+                        data=task.get("data") or {},
+                        atcl_no=task.get("atcl_no") or "",
+                        seq="",
+                        media_type_text="",
+                        media_url="",
+                        saved_path="",
+                        status="fail",
+                        message=task.get("last_message") or "최종 실패",
+                    )]
+
+                self._save_task_rows(task)
+                task["saved"] = True
+
+                finalized_count += 1
+                self._emit_progress(finalized_count, total_count)
+
+            if self.hist_status == "RUNNING":
+                if self.running:
+                    self.finish_job("SUCCESS")
+                else:
+                    self.finish_job("STOP", "사용자 중단")
 
             self.log_signal_func("✅ main 종료")
             return True
 
         except Exception as e:
+            self.finish_job("FAIL", str(e))
             self.log_signal_func(f"크롤링 에러: {e}")
             return True
 
@@ -150,8 +206,25 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             "target_dir": "",
             "skip": False,
             "finalized": False,
+            "saved": False,
             "last_message": "",
         }
+
+    def _save_task_rows(self, task: Dict[str, Any]) -> int:
+        # === 신규 ===
+        # 한 매물의 최종 결과 rows를 즉시 DB에 저장한다.
+        # 같은 task가 재시도 라운드에서 다시 저장되지 않도록 saved 플래그로 막는다.
+        rows = task.get("rows") or []
+        save_count = 0
+
+        for row in rows:
+            if self.insert_detail_row(row):
+                save_count += 1
+
+        self.log_signal_func(
+            f"✅ [DB저장] 매물 결과 저장 완료 | 번호={task.get('atcl_no')} | rows={save_count}"
+        )
+        return save_count
 
     def _process_task_round(self, task: Dict[str, Any]) -> None:
         data = task["data"]
@@ -509,9 +582,14 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         return best_items
 
     def driver_set(self) -> None:
-        self.excel_driver = ExcelUtils(self.log_signal_func)
-        self.file_driver = FileUtils(self.log_signal_func)
-        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+        if not self.excel_driver:
+            self.excel_driver = ExcelUtils(self.log_signal_func)
+
+        if not self.file_driver:
+            self.file_driver = FileUtils(self.log_signal_func)
+
+        if not self.api_client:
+            self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
         self.selenium_driver = SeleniumUtils(
             headless=False,
@@ -527,31 +605,351 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
         self.log_signal_func("✅ driver_set 완료")
 
-    def cleanup(self) -> None:
-        try:
-            if self.csv_filename and self.excel_driver:
-                self.excel_driver.convert_csv_to_excel_and_delete(
-                    csv_filename=self.csv_filename,
-                    folder_path=self.folder_path,
-                    sub_dir=self.out_dir,
-                )
-                self.log_signal_func("✅ [엑셀 변환] 성공")
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
+    # =========================================================
+    # DB 저장 / 마감 처리
+    # =========================================================
+    def db_set(self) -> bool:
+        self.sqlite_driver = SqliteUtils(self.log_signal_func)
 
+        db_path = self.get_runtime_db_path()
+        self.log_signal_func(f"[DB] 실제 경로 = {os.path.abspath(db_path)}")
+
+        if not self.sqlite_driver.connect(db_path):
+            self.log_signal_func("❌ [DB] 연결 실패")
+            return False
+
+        schema_files = [
+            os.path.join("resources", "customers", "common", "db", "schema_hist.sql"),
+            os.path.join("resources", "customers", self.worker_name, "db", "schema_detail.sql"),
+        ]
+
+        if not self.sqlite_driver.execute_script_files(schema_files):
+            self.log_signal_func("❌ [DB] 스키마 초기화 실패")
+            return False
+
+        self.log_signal_func("✅ [DB] 스키마 초기화 완료")
+
+        if not self.insert_hist_start():
+            return False
+
+        return True
+
+    def finish_job(self, status: str, error_message: Optional[str] = None) -> None:
+        self.hist_status = status
+        self.hist_error_message = error_message
+
+    def insert_hist_start(self) -> bool:
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.job_id = time.strftime("%Y%m%d%H%M%S")
+
+        query = """
+                INSERT INTO worker_job_hist (
+                    job_id,
+                    table_name,
+                    site_name,
+                    worker_name,
+                    user_id,
+                    start_at,
+                    status,
+                    total_count,
+                    success_count,
+                    fail_count,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
+
+        params = (
+            self.job_id,
+            self.detail_table_name,
+            self.site_name,
+            self.worker_name,
+            getattr(self.user, "user_id", None) if self.user else None,
+            now,
+            "RUNNING",
+            0,
+            0,
+            0,
+            now,
+            now,
+        )
+
+        if not self.sqlite_driver.execute(query, params):
+            self.log_signal_func("❌ [DB] hist 시작 row 저장 실패")
+            return False
+
+        row = self.sqlite_driver.fetchone("SELECT last_insert_rowid() AS hist_id")
+        self.hist_id = row["hist_id"] if row else None
+
+        self.log_signal_func(f"✅ [DB] hist 시작 row 저장 완료 | hist_id={self.hist_id}")
+        return True
+
+    def update_hist_end(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
+        sqlite_driver = sqlite_driver or self.sqlite_driver
+
+        if not sqlite_driver:
+            return False
+
+        if not self.hist_id:
+            self.log_signal_func("⚠️ [DB] hist_id 없음 - 종료 update 스킵")
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        query = """
+                UPDATE worker_job_hist
+                SET
+                    end_at = ?,
+                    status = ?,
+                    total_count = ?,
+                    success_count = ?,
+                    fail_count = ?,
+                    error_message = ?,
+                    updated_at = ?
+                WHERE hist_id = ?
+                """
+
+        params = (
+            now,
+            self.hist_status,
+            self.detail_success_count + self.detail_fail_count,
+            self.detail_success_count,
+            self.detail_fail_count,
+            self.hist_error_message,
+            now,
+            self.hist_id,
+        )
+
+        if not sqlite_driver.execute(query, params):
+            self.log_signal_func(f"❌ [DB] hist 종료 row 수정 실패 | hist_id={self.hist_id}")
+            return False
+
+        self.log_signal_func(
+            f"✅ [DB] hist 종료 row 수정 완료 | hist_id={self.hist_id} | status={self.hist_status}"
+        )
+        return True
+
+    def insert_detail_row(self, rs: Dict[str, Any]) -> bool:
+        if not self.sqlite_driver:
+            self.detail_fail_count += 1
+            self.log_signal_func("❌ [DB] sqlite_driver 없음 - detail 저장 실패")
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        db_columns = self._get_db_columns()
+        db_rs = self._map_out_to_db(rs)
+        status_text = str(rs.get("상태") or "").strip().lower()
+
+        if status_text == "fail":
+            row_status = "FAIL"
+        elif status_text == "skip":
+            row_status = "SKIP"
+        else:
+            row_status = "SUCCESS"
+
+        base_columns = [
+            "hist_id",
+            "site_name",
+            "worker_name",
+            "table_name",
+            "job_id",
+            "user_id",
+            "row_status",
+            "row_error_message",
+        ]
+
+        all_columns = base_columns + db_columns + ["created_at", "updated_at"]
+        placeholders = ", ".join(["?"] * len(all_columns))
+        column_text = ",\n                    ".join(all_columns)
+
+        query = f"""
+                INSERT INTO {self.detail_table_name} (
+                    {column_text}
+                ) VALUES ({placeholders})
+                """
+
+        params = (
+            self.hist_id,
+            self.site_name,
+            self.worker_name,
+            self.detail_table_name,
+            self.job_id,
+            getattr(self.user, "user_id", None) if self.user else None,
+            row_status,
+            str(rs.get("메세지") or ""),
+            *[db_rs.get(col, "") for col in db_columns],
+            now,
+            now,
+        )
+
+        ok = self.sqlite_driver.execute(query, params)
+
+        if ok:
+            if row_status == "FAIL":
+                self.detail_fail_count += 1
+            else:
+                self.detail_success_count += 1
+
+            self.log_signal_func(
+                f"✅ [DB] detail 저장 완료 | hist_id={self.hist_id} | 번호={rs.get('네이버부동산')} | seq={rs.get('미디어 번호')} | status={rs.get('상태')}"
+            )
+        else:
+            self.detail_fail_count += 1
+            self.log_signal_func(
+                f"❌ [DB] detail 저장 실패 | hist_id={self.hist_id} | 번호={rs.get('네이버부동산')} | seq={rs.get('미디어 번호')}"
+            )
+
+        return ok
+
+    def _get_db_columns(self) -> List[str]:
+        return [
+            "name",
+            "ho",
+            "number",
+            "seq",
+            "type",
+            "url",
+            "path",
+            "status",
+            "message",
+        ]
+
+    def _get_kor_header_map(self) -> Dict[str, str]:
+        return {
+            "name": "건물명",
+            "ho": "호수",
+            "number": "네이버부동산",
+            "seq": "미디어 번호",
+            "type": "유형",
+            "url": "URL",
+            "path": "저장경로",
+            "status": "상태",
+            "message": "메세지",
+        }
+
+    def _get_kor_columns(self) -> List[str]:
+        header_map = self._get_kor_header_map()
+        return [header_map.get(code, code) for code in self._get_db_columns()]
+
+    def _map_out_to_db(self, out: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "name": str(out.get("건물명") or ""),
+            "ho": str(out.get("호수") or ""),
+            "number": str(out.get("네이버부동산") or ""),
+            "seq": str(out.get("미디어 번호") or ""),
+            "type": str(out.get("유형") or ""),
+            "url": str(out.get("URL") or ""),
+            "path": str(out.get("저장경로") or ""),
+            "status": str(out.get("상태") or ""),
+            "message": str(out.get("메세지") or ""),
+        }
+
+    def _db_rows_to_kor_rows(self, row_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        header_map = self._get_kor_header_map()
+        result: List[Dict[str, Any]] = []
+
+        for row in row_list or []:
+            out: Dict[str, Any] = {}
+            for code in self._get_db_columns():
+                kor_name = header_map.get(code, code)
+                out[kor_name] = row.get(code, "")
+            result.append(out)
+
+        return result
+
+    def export_detail_to_excel(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
+        sqlite_driver = sqlite_driver or self.sqlite_driver
+
+        if not self.excel_driver:
+            self.log_signal_func("❌ [엑셀] excel_driver 없음")
+            return False
+
+        if not sqlite_driver:
+            self.log_signal_func("❌ [엑셀] sqlite_driver 없음")
+            return False
+
+        if not self.hist_id:
+            self.log_signal_func("❌ [엑셀] hist_id 없음")
+            return False
+
+        db_columns = self._get_db_columns()
+        select_text = ",\n                    ".join(db_columns)
+
+        query = f"""
+                SELECT
+                    {select_text}
+                FROM {self.detail_table_name}
+                WHERE hist_id = ?
+                ORDER BY detail_id
+                """
+
+        row_list = sqlite_driver.fetchall(query, (self.hist_id,))
+        if not row_list:
+            self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
+            return False
+
+        row_list = [dict(row) for row in row_list]
+        excel_row_list = self._db_rows_to_kor_rows(row_list)
+        excel_columns = self._get_kor_columns()
+        excel_filename = f"{self.site_name}_{self.job_id}.xlsx"
+
+        return self.excel_driver.save_db_rows_to_excel(
+            excel_filename=excel_filename,
+            row_list=excel_row_list,
+            columns=excel_columns,
+            folder_path=self.folder_path,
+            sub_dir=self.out_dir,
+        )
+
+    def finalize_db_and_excel(self) -> None:
+        temp_sqlite_driver = None
+
+        try:
+            temp_sqlite_driver = SqliteUtils(self.log_signal_func)
+            db_path = self.get_runtime_db_path()
+
+            if not temp_sqlite_driver.connect(db_path):
+                self.log_signal_func("❌ [DB] 최종 마감용 연결 실패")
+                return
+
+            if self.update_hist_end(temp_sqlite_driver):
+                self.log_signal_func("✅ [DB] hist 최종 업데이트 완료")
+            else:
+                self.log_signal_func("❌ [DB] hist 최종 업데이트 실패")
+
+            if self.auto_save_yn:
+                if self.export_detail_to_excel(temp_sqlite_driver):
+                    self.log_signal_func("✅ [엑셀] detail 자동 저장 완료")
+                else:
+                    self.log_signal_func("❌ [엑셀] detail 자동 저장 실패")
+            else:
+                self.log_signal_func("ℹ️ [엑셀] 자동 저장 미사용(auto_save_yn=False)")
+
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] finalize_db_and_excel 실패: {e}")
+
+        finally:
+            try:
+                if temp_sqlite_driver:
+                    temp_sqlite_driver.close()
+            except Exception:
+                pass
+
+    def cleanup(self) -> None:
         try:
             if self.driver:
                 self.driver.quit()
-        except Exception:
-            pass
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] driver.quit 실패: {e}")
         finally:
             self.driver = None
 
         try:
             if self.selenium_driver:
                 self.selenium_driver.quit()
-        except Exception:
-            pass
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] selenium_driver.quit 실패: {e}")
         finally:
             self.selenium_driver = None
 
@@ -564,6 +962,17 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             self.file_driver = None
 
         try:
+            if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
+                self.sqlite_driver.close()
+                self.log_signal_func("✅ [DB] 기존 연결 해제")
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] sqlite_driver.close 실패: {e}")
+        finally:
+            self.sqlite_driver = None
+
+        self.finalize_db_and_excel()
+
+        try:
             if self.excel_driver:
                 self.excel_driver.close()
         except Exception as e:
@@ -574,6 +983,10 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
     def stop(self) -> None:
         self.log_signal_func("✅ stop 시작")
         self.running = False
+
+        if self.hist_status == "RUNNING":
+            self.finish_job("STOP", "사용자 중단")
+
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
 

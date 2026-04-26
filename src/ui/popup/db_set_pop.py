@@ -1022,23 +1022,22 @@ class DbSetPop(QDialog):
     def confirm_delete(self) -> bool:
         """
         삭제 전 확인 팝업을 띄운다.
-        Yes를 누르면 True, No를 누르면 False를 반환한다.
+        확인을 누르면 True, 취소를 누르면 False를 반환한다.
         """
         msg = QMessageBox(self)
         msg.setWindowTitle("삭제 확인")
         msg.setText("선택한 항목을 삭제 하겠습니까?")
         msg.setIcon(QMessageBox.Icon.Question)
-        msg.setStandardButtons(
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        msg.setDefaultButton(QMessageBox.StandardButton.No)
 
-        # 제목이 잘리지 않도록 팝업 최소 너비 지정
+        yes_btn = msg.addButton("삭제", QMessageBox.ButtonRole.YesRole)
+        msg.addButton("취소", QMessageBox.ButtonRole.NoRole)
+
+        msg.setDefaultButton(yes_btn)
         msg.setMinimumWidth(360)
 
-        result = msg.exec()
+        msg.exec()
 
-        return result == QMessageBox.StandardButton.Yes
+        return msg.clickedButton() == yes_btn
 
 
     # 왼쪽 공통 테이블에서 삭제 좌우 모두 삭제됨
