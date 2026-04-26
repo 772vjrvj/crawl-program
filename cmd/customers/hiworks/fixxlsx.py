@@ -1,23 +1,27 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
 from openpyxl import load_workbook
+from openpyxl.styles import Font
 
 
 def normalize_excel_folder_link(path_text: str) -> str:
     path_text = (path_text or "").strip()
 
-    # 역슬래시를 엑셀에서 잘 먹는 슬래시로 변경
+    # 역슬래시 → 슬래시
     path_text = path_text.replace("\\", "/")
 
-    # 앞에 ./ 붙이면 "엑셀 파일 위치 기준" 상대경로 의미가 더 명확함
-    if not path_text.startswith("./"):
-        path_text = "./" + path_text
+    # hiwork_email부터 시작하는 상대경로 유지
+    path_text = path_text.lstrip("./")
 
-    # 폴더 링크는 끝에 / 붙이는 게 안전함
+    # 폴더는 끝에 / 붙임
     if not path_text.endswith("/"):
         path_text += "/"
 
     return path_text
+
+
+def escape_excel_formula_text(text: str) -> str:
+    return str(text or "").replace('"', '""')
 
 
 def fix_excel_links(excel_path: str):
@@ -25,6 +29,11 @@ def fix_excel_links(excel_path: str):
 
     backup_path = excel_path.with_name(excel_path.stem + "_backup" + excel_path.suffix)
     fixed_path = excel_path.with_name(excel_path.stem + "_fixed" + excel_path.suffix)
+
+    # 원본 백업 먼저
+    if not backup_path.exists():
+        backup_wb = load_workbook(excel_path)
+        backup_wb.save(backup_path)
 
     wb = load_workbook(excel_path)
 
@@ -49,23 +58,24 @@ def fix_excel_links(excel_path: str):
                 continue
 
             # hiwork_email 로 시작하는 경로만 수정
-            if not path_text.replace("/", "\\").startswith("hiwork_email\\"):
+            check_text = path_text.replace("/", "\\").lstrip(".\\")
+            if not check_text.startswith("hiwork_email\\"):
                 continue
 
             link = normalize_excel_folder_link(path_text)
 
-            cell.hyperlink = link
-            cell.style = "Hyperlink"
+            # Office365에서는 cell.hyperlink보다 HYPERLINK 수식이 더 안정적
+            safe_link = escape_excel_formula_text(link)
+            safe_text = escape_excel_formula_text("폴더 열기")
+
+            cell.value = f'=HYPERLINK("{safe_link}", "{safe_text}")'
+            cell.hyperlink = None
+            cell.font = Font(color="0563C1", underline="single")
 
             fixed_count += 1
 
         print(f"[OK] sheet={ws.title}, 수정={fixed_count}개")
 
-    # 원본 백업
-    if not backup_path.exists():
-        wb.save(backup_path)
-
-    # 수정본 저장
     wb.save(fixed_path)
 
     print(f"[DONE] 백업파일: {backup_path}")

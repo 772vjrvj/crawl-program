@@ -1,6 +1,8 @@
 {
   "label": "네이버 부동산 이미지 영상 다운로드",
   "key": "NAVER_LAND_REAL_ESTATE_DOWN_DETAIL",
+  "db_name": "NAVER_LAND_REAL_ESTATE_DOWN_DETAIL",
+  "db_common_name": "WORKER_JOB_HIST",
   "color": "#ccc",
   "enabled": true,
   "popup": true,
