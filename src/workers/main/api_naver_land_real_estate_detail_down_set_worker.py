@@ -450,8 +450,8 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                 task["last_message"] = msg
                 return
 
-            if gallery_count <= min_cnt:
-                msg = f"이미지 개수 {gallery_count}개로 기준({min_cnt}) 이하라 스킵"
+            if gallery_count < min_cnt:
+                msg = f"이미지 개수 {gallery_count}개로 기준({min_cnt}) 미만이라 스킵"
                 task["skip"] = True
                 task["rows"] = [self._make_result_row(
                     data=data,
