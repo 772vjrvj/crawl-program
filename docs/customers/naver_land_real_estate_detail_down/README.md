@@ -13,10 +13,15 @@
 
 --add-data "원본경로;실행시경로"
 
+개발/로그 확인용이면:
+--console `
+
+고객 배포용 GUI면:
+--windowed `
+
 pyinstaller .\main.py `
 --noconfirm `
 --clean `
---console `
 --windowed `
 --name "naver_land_real_estate_detail_down" `
 --icon ".\resources\icons\crawling.ico" `
@@ -39,4 +44,7 @@ pyinstaller .\main.py `
 --add-data ".\resources\customers\naver_land_real_estate_detail\js\click_sort_button.js;resources\customers\naver_land_real_estate_detail\js" `
 --add-data ".\resources\customers\naver_land_real_estate_detail\js\click_article_button.js;resources\customers\naver_land_real_estate_detail\js" `
 --add-data ".\resources\customers\naver_place_loc_all\naver_loc_all_real.json;resources\customers\naver_place_loc_all" `
+--add-data ".\resources\customers\naver_land_real_estate_detail\db\schema_detail.sql;resources\customers\naver_land_real_estate_detail\db" `
+--add-data ".\resources\customers\naver_land_real_estate_detail_down\db\schema_detail.sql;resources\customers\naver_land_real_estate_detail_down\db" `
+--add-data ".\resources\customers\common\db\schema_hist.sql;resources\customers\common\db" `
 --add-data ".\resources\icons\crawling.ico;resources\icons"
