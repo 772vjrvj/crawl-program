@@ -2,14 +2,14 @@
 ■ 날짜 : 2026.03.30
 ■ 요청 사이트 : 크몽
 ■ 가격 : 180,000
-■ 코드 : NAVER_SHOP_TOTAL
+■ 코드 : NAVER_SHOP_TOTAL_DETAIL
 ■ 크롤링 사이트 : https://msearch.shopping.naver.com
 ■ 내용
 
 크몽 26.03.31 네이버 샵 크롤링 AI Whisper 추가됨 메크로
 
 # 빌드후
-/resources/customers/naver_shop_total
+/resources/customers/naver_shop_total_detail
 /bin/ffmpeg.exe
 
 이거를 를 빌드후
@@ -30,14 +30,14 @@ pyinstaller .\main.py `
 --windowed `
 --name "네이버 스토어" `
 --icon ".\resources\icons\crawling.ico" `
---version-file ".\docs\customers\naver_shop_total\version_info.txt" `
+--version-file ".\docs\customers\naver_shop_total_detail\version_info.txt" `
 --distpath ".\dist" `
 --workpath ".\build" `
 --add-data "E:\git\crawl-program\venv\Lib\site-packages\whisper\assets;whisper\assets" `
---add-data ".\resources\customers\naver_shop_total\bin;resources\customers\naver_shop_total\bin" `
+--add-data ".\resources\customers\naver_shop_total_detail\bin;resources\customers\naver_shop_total_detail\bin" `
 --add-data ".\resources\customers\common\db;resources\customers\common\db" `
---add-data ".\resources\customers\naver_shop_total\db;resources\customers\naver_shop_total\db" `
---hidden-import "src.workers.main.api_naver_shop_total_set_worker" `
+--add-data ".\resources\customers\naver_shop_total_detail\db;resources\customers\naver_shop_total_detail\db" `
+--hidden-import "src.workers.main.api_naver_shop_total_detail_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `
 --hidden-import "pyaudiowpatch" `

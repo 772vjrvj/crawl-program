@@ -966,9 +966,13 @@ class DbSetPop(QDialog):
 
                 self.hist_rows = [dict(row) for row in cur.fetchall()]
 
+        except FileNotFoundError:
+            self.hist_rows = []
+
         except Exception as e:
             self.hist_rows = []
             QMessageBox.warning(self, "오류", f"작업목록 조회 실패\n{e}")
+
 
         self.left_table.load_rows(
             self.hist_rows,
@@ -1009,10 +1013,11 @@ class DbSetPop(QDialog):
         self.update_detail_count_label()
 
         if loading:
-            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            if QApplication.overrideCursor() is None:
+                QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         else:
-            QApplication.restoreOverrideCursor()
-
+            while QApplication.overrideCursor() is not None:
+                QApplication.restoreOverrideCursor()
         QApplication.processEvents()
 
     def on_left_row_clicked(self, row_index: int) -> None:
@@ -1338,13 +1343,18 @@ class DbSetPop(QDialog):
             f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         )
 
+        ok = False
+        message_title = "알림"
+        message_text = ""
+        message_type = "info"
+
         self.set_detail_loading(True)
 
         try:
             excel_rows = self.fetch_all_detail_rows_for_current_job()
 
             if not excel_rows:
-                QMessageBox.information(self, "알림", "저장할게 없습니다.")
+                message_text = "저장할게 없습니다."
                 return
 
             column_widths = [
@@ -1370,12 +1380,22 @@ class DbSetPop(QDialog):
             )
 
             if ok:
-                QMessageBox.information(self, "알림", "엑셀이 저장되었습니다.")
+                message_text = "엑셀이 저장되었습니다."
             else:
-                QMessageBox.warning(self, "오류", "엑셀 저장에 실패했습니다.")
+                message_title = "오류"
+                message_text = "엑셀 저장에 실패했습니다."
+                message_type = "warning"
 
         except Exception as e:
-            QMessageBox.warning(self, "오류", f"엑셀 저장 실패\n{e}")
+            message_title = "오류"
+            message_text = f"엑셀 저장 실패\n{e}"
+            message_type = "warning"
 
         finally:
             self.set_detail_loading(False)
+
+        if message_text:
+            if message_type == "warning":
+                QMessageBox.warning(self, message_title, message_text)
+            else:
+                QMessageBox.information(self, message_title, message_text)

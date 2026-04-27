@@ -19,7 +19,7 @@ from src.workers.api_base_worker import BaseApiWorker
 from src.utils.sqlite_utils import SqliteUtils
 
 
-class ApiNaverShopTotalSetWorker(BaseApiWorker):
+class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
         self.hist_id = None
@@ -61,7 +61,7 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                 resource_root,
                 "resources",
                 "customers",
-                "naver_shop_total",
+                "naver_shop_total_detail",
                 "bin",
             )
 
@@ -767,6 +767,12 @@ class ApiNaverShopTotalSetWorker(BaseApiWorker):
                             v_match = re.search(r"전체\s*([\d,]+)", detail_text)
                             if v_match:
                                 total_visit = v_match.group(1).replace(",", "")
+
+                            if int(total_visit or 0) <= 0:
+                                self.log_signal_func(
+                                    f"⏭️ 전체방문자수 0 스킵 | 키워드={kw} | page={p_num} | 스토어={item.get('mallName')}"
+                                )
+                                continue
 
                             categories = [
                                 item.get("category1Name"),

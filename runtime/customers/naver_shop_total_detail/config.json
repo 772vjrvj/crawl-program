@@ -1,12 +1,12 @@
 {
   "label": "네이버 쇼핑 전체방문자",
-  "key": "NAVER_SHOP_TOTAL",
+  "key": "NAVER_SHOP_TOTAL_DETAIL",
   "db_name": "NAVER_SHOP_TOTAL_DETAIL",
   "db_common_name": "WORKER_JOB_HIST",
   "color": "#ccc",
   "enabled": true,
   "popup": false,
-  "worker_class": "src.workers.main.api_naver_shop_total_set_worker:ApiNaverShopTotalSetWorker",
+  "worker_class": "src.workers.main.api_naver_shop_total_detail_set_worker:ApiNaverShopTotalDetailSetWorker",
   "services": [
     "ai_whisper"
   ],
@@ -108,6 +108,11 @@
     },
     {
       "checked": true,
+      "code": "total_visit_count",
+      "value": "전체방문자수"
+    },
+    {
+      "checked": true,
       "code": "category",
       "value": "카테고리"
     },
@@ -180,11 +185,6 @@
       "checked": true,
       "code": "pc_url",
       "value": "PC주소"
-    },
-    {
-      "checked": true,
-      "code": "total_visit_count",
-      "value": "전체방문자수"
     },
     {
       "checked": true,

@@ -11,7 +11,7 @@ OUTPUT_MP3 = "naver_blog_audio.mp3"
 
 def get_ffmpeg_path() -> Path:
     # 실행경로 기준
-    ffmpeg_path = Path.cwd() / "resources" / "customers" / "naver_shop_total" / "bin" / "ffmpeg.exe"
+    ffmpeg_path = Path.cwd() / "resources" / "customers" / "naver_shop_total_detail" / "bin" / "ffmpeg.exe"
     if not ffmpeg_path.exists():
         raise FileNotFoundError(f"ffmpeg.exe 파일을 찾을 수 없습니다: {ffmpeg_path}")
     return ffmpeg_path
