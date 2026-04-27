@@ -9,11 +9,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
-from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-
 from src.core.global_state import GlobalState
 from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
@@ -21,23 +18,12 @@ from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
 from src.utils.sqlite_utils import SqliteUtils
 from src.workers.api_base_worker import BaseApiWorker
-
-try:
-    from zoneinfo import ZoneInfo
-except Exception:
-    ZoneInfo = None
-
-try:
-    from PIL import Image
-    PIL_AVAILABLE = True
-except Exception:
-    Image = None
-    PIL_AVAILABLE = False
+from zoneinfo import ZoneInfo
+from PIL import Image
 
 
 class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
-    # 초기화
     def __init__(self) -> None:
         super().__init__()
 
@@ -76,18 +62,13 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         # 전체 라운드 수 (처음 1회 포함 총 3바퀴)
         self.total_round_count: int = 3
 
-    # 초기화
     def init(self) -> bool:
         try:
-            self.excel_driver = ExcelUtils(self.log_signal_func)
-            self.file_driver = FileUtils(self.log_signal_func)
-            self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+            self.driver_set()
 
             # DB 연결 및 스키마 초기화
             if not self.db_set():
                 return False
-
-            self.driver_set()
 
             self.log_signal_func(f"선택 항목 : {self.columns}")
             self.log_signal_func("✅ init 완료")
@@ -98,22 +79,90 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             self.log_signal_func(f"❌ 초기화 에러: {e}")
             return False
 
-    # 프로그램 실행
+    def cleanup(self) -> None:
+        try:
+            if self.driver:
+                self.driver.quit()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] driver.quit 실패: {e}")
+        finally:
+            self.driver = None
+
+        try:
+            if self.selenium_driver:
+                self.selenium_driver.quit()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] selenium_driver.quit 실패: {e}")
+        finally:
+            self.selenium_driver = None
+
+        try:
+            if self.file_driver:
+                self.file_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
+        finally:
+            self.file_driver = None
+
+        try:
+            if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
+                self.sqlite_driver.close()
+                self.log_signal_func("✅ [DB] 기존 연결 해제")
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] sqlite_driver.close 실패: {e}")
+        finally:
+            self.sqlite_driver = None
+
+        self.finalize_db_and_excel()
+
+        try:
+            if self.excel_driver:
+                self.excel_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
+        finally:
+            self.excel_driver = None
+
+    def stop(self) -> None:
+        self.log_signal_func("✅ stop 시작")
+        self.running = False
+
+        if self.hist_status == "RUNNING":
+            self.finish_job("STOP", "사용자 중단")
+
+        self.cleanup()
+        self.log_signal_func("✅ stop 완료")
+
+    def destroy(self) -> None:
+        self.progress_signal.emit(self.before_pro_value, 1000000)
+        self.log_signal_func("✅ destroy")
+        time.sleep(2.5)
+        self.progress_end_signal.emit()
+
+    def driver_set(self) -> None:
+        self.excel_driver = ExcelUtils(self.log_signal_func)
+        self.file_driver = FileUtils(self.log_signal_func)
+        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+        self.selenium_driver = SeleniumUtils(
+            headless=False,
+            debug=True,
+            log_func=self.log_signal_func,
+        )
+        self.driver = self.selenium_driver.start_driver(
+            timeout=1200,
+            view_mode="mobile",
+            window_size=(520, 980),
+            mobile_metrics=(430, 932),
+        )
+        self.log_signal_func("✅ driver_set 완료")
+
     def main(self) -> bool:
         try:
             self.log_signal_func("main 시작")
-
             self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
-
-            # 설정에 auto_save_yn이 없으면 기존처럼 종료 시 엑셀 저장
-            auto_save_value = self.get_setting_value(self.setting, "auto_save_yn")
-            self.auto_save_yn = True if auto_save_value is None else bool(auto_save_value)
+            self.auto_save_yn = bool(self.get_setting_value(self.setting, "auto_save_yn"))
             self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
-
-            # config의 URL value가 비어 있어도 DB export는 아래 기본 한글 컬럼을 사용한다.
-            if not self.columns:
-                self.columns = self._get_kor_columns()
-
+            self.columns = self._get_kor_columns()
             source_items = list(self.excel_data_list or [])
             total_count = len(source_items)
             finalized_count = 0
@@ -193,19 +242,148 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             self.log_signal_func(f"크롤링 에러: {e}")
             return True
 
+    def db_set(self) -> bool:
+        self.sqlite_driver = SqliteUtils(self.log_signal_func)
+
+        db_path = self.get_runtime_db_path()
+        self.log_signal_func(f"[DB] 실제 경로 = {os.path.abspath(db_path)}")
+
+        if not self.sqlite_driver.connect(db_path):
+            self.log_signal_func("❌ [DB] 연결 실패")
+            return False
+
+        schema_files = [
+            os.path.join("resources", "customers", "common", "db", "schema_hist.sql"),
+            os.path.join("resources", "customers", self.worker_name, "db", "schema_detail.sql"),
+        ]
+
+        if not self.sqlite_driver.execute_script_files(schema_files):
+            self.log_signal_func("❌ [DB] 스키마 초기화 실패")
+            return False
+
+        self.log_signal_func("✅ [DB] 스키마 초기화 완료")
+
+        if not self.insert_hist_start():
+            return False
+
+        return True
+
+    def insert_hist_start(self) -> bool:
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.job_id = time.strftime("%Y%m%d%H%M%S")
+
+        query = """
+                INSERT INTO worker_job_hist (
+                    job_id,
+                    table_name,
+                    site_name,
+                    worker_name,
+                    user_id,
+                    start_at,
+                    status,
+                    total_count,
+                    success_count,
+                    fail_count,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
+
+        params = (
+            self.job_id,
+            self.detail_table_name,
+            self.site_name,
+            self.worker_name,
+            self.get_user_id(),
+            now,
+            "RUNNING",
+            0,
+            0,
+            0,
+            now,
+            now,
+        )
+
+        if not self.sqlite_driver.execute(query, params):
+            self.log_signal_func("❌ [DB] hist 시작 row 저장 실패")
+            return False
+
+        row = self.sqlite_driver.fetchone("SELECT last_insert_rowid() AS hist_id")
+        self.hist_id = row["hist_id"] if row else None
+
+        self.log_signal_func(f"✅ [DB] hist 시작 row 저장 완료 | hist_id={self.hist_id}")
+        return True
+
+    def _get_db_columns(self) -> List[str]:
+        return [
+            "name",
+            "ho",
+            "number",
+            "seq",
+            "type",
+            "url",
+            "path",
+            "status",
+            "message",
+        ]
+
+    def _get_kor_header_map(self) -> Dict[str, str]:
+        return {
+            "name": "건물명",
+            "ho": "호수",
+            "number": "네이버부동산",
+            "seq": "미디어 번호",
+            "type": "유형",
+            "url": "URL",
+            "path": "저장경로",
+            "status": "상태",
+            "message": "메세지",
+        }
+
+    def _get_kor_columns(self) -> List[str]:
+        header_map = self._get_kor_header_map()
+        return [header_map.get(code, code) for code in self._get_db_columns()]
+
     def _make_task(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        엑셀 row 데이터 1건을 다운로드 작업용 task dict로 변환한다.
+        이후 재시도, 저장 여부, 예상 이미지 수, 결과 row 등을 이 task 기준으로 관리한다.
+        """
+
+        # 엑셀의 '네이버부동산' 컬럼에서 매물번호를 가져온다.
         atcl_no = str(data.get("네이버부동산") or "").strip()
 
         return {
+            # 원본 엑셀 row 데이터
             "data": data,
+
+            # 네이버 부동산 매물번호
             "atcl_no": atcl_no,
+
+            # 매물 상세 URL
             "detail_url": f"{self.fin_land_article_url}/{atcl_no}" if atcl_no else "",
+
+            # 해당 매물에서 수집/저장할 결과 row 목록
             "rows": [],
+
+            # 예상 이미지 개수
+            # None이면 아직 확인 전 상태
             "expected_count": None,
+
+            # 이미지 저장 대상 폴더 경로
             "target_dir": "",
+
+            # 작업 스킵 여부
             "skip": False,
+
+            # 작업 최종 완료 여부
+            # 재시도 라운드에서 완료된 task는 제외할 때 사용
             "finalized": False,
+
+            # 실제 파일 저장 완료 여부
             "saved": False,
+
+            # 마지막 처리 메시지 또는 실패 사유
             "last_message": "",
         }
 
@@ -229,29 +407,15 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         atcl_no = task["atcl_no"]
         detail_url = task["detail_url"]
 
-        if not atcl_no:
-            task["rows"] = [self._make_result_row(
-                data=data,
-                atcl_no="",
-                seq="",
-                media_type_text="",
-                media_url="",
-                saved_path="",
-                status="fail",
-                message="네이버부동산 값 없음",
-            )]
-            task["last_message"] = "네이버부동산 값 없음"
-            return
-
         try:
-            min_cnt = self._get_min_image_count_setting(default=8)
+            min_cnt = int(self.get_setting_value(self.setting, "cnt") or 0)
 
             self.log_signal_func(
                 f"건물명={data.get('건물명')} / 호수={data.get('호수')} / 번호={atcl_no}"
             )
 
             self.driver.get(detail_url)
-            self._wait_ready_state_complete(7)
+            self.selenium_driver.wait_ready_state_complete(7)
             time.sleep(random.uniform(3, 5))
 
             gallery_count = task["expected_count"]
@@ -349,6 +513,402 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
             task["last_message"] = f"item 처리 실패: {e}"
 
+    def _get_gallery_image_count(self, atcl_no: str) -> Optional[int]:
+        dom_count = self._get_gallery_count_from_dom_any_frame()
+        if dom_count is not None:
+            self.log_signal_func(f"[gallery count] DOM 사용: {dom_count}")
+            return dom_count
+
+        api_count = self._get_gallery_count_from_api(atcl_no)
+        if api_count is not None:
+            self.log_signal_func(f"[gallery count] API 사용: {api_count}")
+            return api_count
+
+        self.log_signal_func("[gallery count] DOM/API 모두 실패")
+        return None
+
+    def _get_gallery_count_from_dom_any_frame(self) -> Optional[int]:
+        try:
+            self.driver.switch_to.default_content()
+
+            count = self._find_count_in_current_frame()
+            if count is not None:
+                return count
+
+            frames = self.driver.find_elements(By.TAG_NAME, "iframe")
+            for idx in range(len(frames)):
+                self.driver.switch_to.default_content()
+                frames = self.driver.find_elements(By.TAG_NAME, "iframe")
+                if idx >= len(frames):
+                    break
+
+                self.driver.switch_to.frame(frames[idx])
+                self.selenium_driver.wait_current_frame_ready(3)
+
+                count = self._find_count_in_current_frame()
+                if count is not None:
+                    self.driver.switch_to.default_content()
+                    return count
+
+            self.driver.switch_to.default_content()
+            return None
+
+        except Exception as e:
+            self.log_signal_func(f"[DOM count 실패] {e}")
+            try:
+                self.driver.switch_to.default_content()
+            except Exception:
+                pass
+            return None
+
+    def _find_count_in_current_frame(self) -> Optional[int]:
+        selectors = [
+            "span.ThumbnailMapGroup_quantity__2GMil",
+            "span[class*='ThumbnailMapGroup_quantity']",
+        ]
+
+        for selector in selectors:
+            elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+            for el in elements:
+                text = str(el.text or "").strip()
+                count = self._extract_number_from_text(text)
+                if count is not None:
+                    self.log_signal_func(f"[DOM count] selector={selector} text={text} count={count}")
+                    return count
+
+        return None
+
+    def _extract_number_from_text(self, text: str) -> Optional[int]:
+        s = str(text or "").strip().replace(",", "")
+        m = re.search(r"(\d+)", s)
+        return int(m.group(1)) if m else None
+
+    def _get_gallery_count_from_api(self, atcl_no: str) -> Optional[int]:
+        try:
+            res = requests.get(
+                self.gallery_image_api_url,
+                params={"articleNumber": str(atcl_no or "").strip()},
+                headers=self._build_gallery_request_headers(atcl_no),
+                timeout=20,
+                allow_redirects=True,
+            )
+
+            self.log_signal_func(f"[API count] status={res.status_code}")
+
+            if res.status_code >= 400:
+                return None
+
+            if "json" not in str(res.headers.get("content-type") or "").lower():
+                return None
+
+            body = res.json()
+            result = body.get("result")
+            if not isinstance(result, list):
+                return None
+
+            return len(result)
+
+        except Exception as e:
+            self.log_signal_func(f"[API count 실패] {e}")
+            return None
+
+    def _build_gallery_request_headers(self, atcl_no: str) -> Dict[str, str]:
+        referer = ""
+        try:
+            referer = str(self.driver.current_url or "").strip()
+        except Exception:
+            pass
+
+        if not referer:
+            referer = f"{self.fin_land_article_url}/{atcl_no}"
+
+        headers = {
+            "accept": "application/json, text/plain, */*",
+            "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+            "cache-control": "no-cache",
+            "pragma": "no-cache",
+            "referer": referer,
+            "origin": "https://fin.land.naver.com",
+            "user-agent": self._get_browser_user_agent(),
+            "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
+        }
+
+        cookie_header = self._build_cookie_header_from_driver()
+        if cookie_header:
+            headers["cookie"] = cookie_header
+
+        return headers
+
+    def _build_cookie_header_from_driver(self) -> str:
+        try:
+            cookies = self.driver.get_cookies() or []
+            return "; ".join(
+                f"{str(c.get('name') or '').strip()}={str(c.get('value') or '').strip()}"
+                for c in cookies
+                if str(c.get("name") or "").strip()
+            )
+        except Exception:
+            return ""
+
+    def _make_result_row(self, data: Dict[str, Any], atcl_no: str, seq: Any, media_type_text: str, media_url: str, saved_path: str, status: str, message: str,) -> Dict[str, Any]:
+        return {
+            "건물명": str(data.get("건물명") or ""),
+            "호수": str(data.get("호수") or ""),
+            "네이버부동산": str(atcl_no or ""),
+            "미디어 번호": seq,
+            "유형": str(media_type_text or ""),
+            "URL": str(media_url or ""),
+            "저장경로": str(saved_path or ""),
+            "상태": str(status or ""),
+            "메세지": str(message or ""),
+        }
+
+    def _collect_media_items_with_retry(self, atcl_no: str, detail_url: str, gallery_count: Optional[int],max_retry: int = 3,) -> List[Dict[str, Any]]:
+        best_items: List[Dict[str, Any]] = []
+
+        for attempt in range(1, max_retry + 1):
+            if not self.running:
+                return best_items
+
+            self.log_signal_func(f"[개별 수집 재시도] {attempt}/{max_retry}")
+
+            try:
+                self.driver.get(detail_url)
+                self.selenium_driver.wait_ready_state_complete(7)
+                time.sleep(random.uniform(2.8, 4.2))
+
+                opened = self._open_media_popup_any_frame(
+                    target_name="매물 대표 이미지 1",
+                    timeout_sec=12,
+                )
+
+                if not opened:
+                    self.log_signal_func("팝업 열기 실패")
+                    time.sleep(random.uniform(1.0, 1.6))
+                    continue
+
+                if not self._wait_popup_viewer_ready(timeout_sec=8):
+                    self.log_signal_func("팝업 준비 timeout")
+
+                self._focus_popup_viewer()
+                time.sleep(0.4)
+
+                scan_steps = 40
+                if gallery_count is not None:
+                    scan_steps = max(40, int(gallery_count) + 5)
+
+                media_items = self._scan_all_media_current_popup(max_steps=scan_steps)
+
+                if len(media_items) > len(best_items):
+                    best_items = [dict(x) for x in media_items]
+
+                self.log_signal_func(
+                    f"[개별 수집 결과] expected={gallery_count} / actual={len(media_items)}"
+                )
+
+                if gallery_count is None and media_items:
+                    return media_items
+
+                if gallery_count is not None and len(media_items) == gallery_count:
+                    return media_items
+
+            except Exception as e:
+                self.log_signal_func(f"[개별 수집 실패] attempt={attempt}/{max_retry} / {e}")
+
+            time.sleep(random.uniform(1.0, 1.8))
+
+        return best_items
+
+    def _open_media_popup_any_frame(self, target_name: str = "매물 대표 이미지 1", timeout_sec: int = 12) -> bool:
+        try:
+            for round_idx in range(4):
+                self.driver.switch_to.default_content()
+
+                wait_sec = 1.2 + (round_idx * 1.0)
+                self.log_signal_func(f"[팝업 탐색 재시도] round={round_idx + 1} wait={wait_sec:.1f}s")
+                time.sleep(wait_sec)
+
+                try:
+                    self.log_signal_func("[main frame] 탐색 시작")
+
+                    if self._click_media_thumb_in_current_frame(target_name):
+                        self.log_signal_func("[main frame] 썸네일 클릭 성공")
+                        time.sleep(1.5)
+                        return True
+
+                    if self._click_visible_media_fallback_in_current_frame():
+                        self.log_signal_func("[main frame] fallback 클릭 성공")
+                        time.sleep(1.5)
+                        return True
+                except Exception as e:
+                    self.log_signal_func(f"[main frame] 탐색 실패: {e}")
+
+                frames = self.driver.find_elements(By.TAG_NAME, "iframe")
+                self.log_signal_func(f"iframe 개수 : {len(frames)}")
+
+                for idx in range(len(frames)):
+                    try:
+                        self.driver.switch_to.default_content()
+                        frames = self.driver.find_elements(By.TAG_NAME, "iframe")
+                        if idx >= len(frames):
+                            break
+
+                        self.driver.switch_to.frame(frames[idx])
+                        self.selenium_driver.wait_current_frame_ready(5)
+                        time.sleep(0.8 + (round_idx * 0.3))
+
+                        if self._click_media_thumb_in_current_frame(target_name):
+                            self.log_signal_func(f"[iframe {idx}] 썸네일 클릭 성공")
+                            time.sleep(1.5)
+                            self.driver.switch_to.default_content()
+                            return True
+
+                        if self._click_visible_media_fallback_in_current_frame():
+                            self.log_signal_func(f"[iframe {idx}] fallback 클릭 성공")
+                            time.sleep(1.5)
+                            self.driver.switch_to.default_content()
+                            return True
+
+                    except Exception as e:
+                        self.log_signal_func(f"[iframe {idx}] 처리 실패: {e}")
+                        continue
+
+                try:
+                    self.driver.switch_to.default_content()
+                    time.sleep(0.7)
+
+                    if self._click_media_thumb_in_current_frame(target_name):
+                        self.log_signal_func("[main frame 재탐색] 썸네일 클릭 성공")
+                        time.sleep(1.5)
+                        return True
+
+                    if self._click_visible_media_fallback_in_current_frame():
+                        self.log_signal_func("[main frame 재탐색] fallback 클릭 성공")
+                        time.sleep(1.5)
+                        return True
+                except Exception as e:
+                    self.log_signal_func(f"[main frame 재탐색] 실패: {e}")
+
+            self.driver.switch_to.default_content()
+            return False
+
+        except Exception as e:
+            self.log_signal_func(f"_open_media_popup_any_frame 오류: {e}")
+            try:
+                self.driver.switch_to.default_content()
+            except Exception:
+                pass
+            return False
+
+    def _click_media_thumb_in_current_frame(self, target_name: str) -> bool:
+        target_xpath = self._xpath_literal(target_name)
+
+        selectors = [
+            (By.CSS_SELECTOR, f'button[aria-label="{target_name}"]'),
+            (By.CSS_SELECTOR, f'button[aria-label*="{target_name}"]'),
+            (By.CSS_SELECTOR, f'[role="button"][aria-label="{target_name}"]'),
+            (By.CSS_SELECTOR, f'[role="button"][aria-label*="{target_name}"]'),
+            (By.CSS_SELECTOR, f'img[alt="{target_name}"]'),
+            (By.CSS_SELECTOR, f'img[alt*="{target_name}"]'),
+            (By.XPATH, f'//img[contains(@alt, {target_xpath})]'),
+            (
+                By.XPATH,
+                f'//img[contains(@alt, {target_xpath})]/ancestor::*['
+                f'self::button or self::a or @role="button" or @tabindex][1]'
+            ),
+            (By.XPATH, f'//*[@aria-label and contains(@aria-label, {target_xpath})]'),
+            (
+                By.XPATH,
+                f'//*[contains(normalize-space(.), {target_xpath}) and '
+                f'(self::button or self::a or @role="button")]'
+            ),
+        ]
+
+        for by, selector in selectors:
+            elements = self.driver.find_elements(by, selector)
+            for el in elements:
+                try:
+                    if not el.is_displayed():
+                        continue
+                    self.driver.execute_script(
+                        "arguments[0].scrollIntoView({block:'center', inline:'center'});",
+                        el
+                    )
+                    time.sleep(0.3)
+                    try:
+                        el.click()
+                    except Exception:
+                        self.driver.execute_script("arguments[0].click();", el)
+                    return True
+                except Exception:
+                    continue
+
+        return False
+
+    def _xpath_literal(self, value: str) -> str:
+        if "'" not in value:
+            return f"'{value}'"
+        if '"' not in value:
+            return f'"{value}"'
+        parts = value.split("'")
+        return "concat(" + ", \"'\", ".join([f"'{part}'" for part in parts]) + ")"
+
+    def _click_visible_media_fallback_in_current_frame(self) -> bool:
+        try:
+            return bool(self.driver.execute_script("""
+                function isVisible(el) {
+                    const r = el.getBoundingClientRect();
+                    const s = window.getComputedStyle(el);
+                    return s.display !== 'none' && s.visibility !== 'hidden' &&
+                           Number(s.opacity) !== 0 && r.width > 40 && r.height > 40;
+                }
+
+                function score(img) {
+                    const r = img.getBoundingClientRect();
+                    const src = (img.currentSrc || img.src || "").toLowerCase();
+                    const alt = (img.alt || "").toLowerCase();
+                    let v = r.width * r.height;
+                    if (alt.includes("매물")) v += 500000;
+                    if (alt.includes("대표")) v += 500000;
+                    if (alt.includes("사진")) v += 300000;
+                    if (src.includes("land")) v += 100000;
+                    if (src.includes("pstatic")) v += 100000;
+                    return v;
+                }
+
+                const list = [];
+                document.querySelectorAll("img").forEach((img) => {
+                    if (!isVisible(img)) return;
+                    const src = img.currentSrc || img.src || "";
+                    const lower = src.toLowerCase();
+                    if (!src) return;
+                    if (lower.startsWith("data:image")) return;
+                    if (lower.includes("icon") || lower.includes("logo") || lower.includes("sprite")) return;
+
+                    const clickable = img.closest("button, a, [role='button'], [tabindex]") || img;
+                    list.push({ el: clickable, score: score(img) });
+                });
+
+                list.sort((a, b) => b.score - a.score);
+                if (!list.length) return false;
+
+                const target = list[0].el;
+                target.scrollIntoView({block: "center", inline: "center"});
+                try { target.click(); return true; } catch (e) {}
+                try {
+                    target.dispatchEvent(new MouseEvent("click", {bubbles: true, cancelable: true}));
+                    return true;
+                } catch (e) {}
+                return false;
+            """))
+        except Exception:
+            return False
+
     def _emit_progress(self, finalized_count: int, total_count: int) -> None:
         if total_count <= 0:
             return
@@ -381,12 +941,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
         return f"success={success_count}, fail={fail_count}"
 
-    def _build_pending_rows(
-            self,
-            data: Dict[str, Any],
-            atcl_no: str,
-            expected_count: int,
-    ) -> List[Dict[str, Any]]:
+    def _build_pending_rows(self, data: Dict[str, Any], atcl_no: str,expected_count: int,) -> List[Dict[str, Any]]:
         rows: List[Dict[str, Any]] = []
 
         for seq in range(1, expected_count + 1):
@@ -403,34 +958,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
         return rows
 
-    def _make_result_row(
-            self,
-            data: Dict[str, Any],
-            atcl_no: str,
-            seq: Any,
-            media_type_text: str,
-            media_url: str,
-            saved_path: str,
-            status: str,
-            message: str,
-    ) -> Dict[str, Any]:
-        return {
-            "건물명": str(data.get("건물명") or ""),
-            "호수": str(data.get("호수") or ""),
-            "네이버부동산": str(atcl_no or ""),
-            "미디어 번호": seq,
-            "유형": str(media_type_text or ""),
-            "URL": str(media_url or ""),
-            "저장경로": str(saved_path or ""),
-            "상태": str(status or ""),
-            "메세지": str(message or ""),
-        }
-
-    def _ensure_target_dir(
-            self,
-            task: Dict[str, Any],
-            media_items: List[Dict[str, Any]],
-    ) -> str:
+    def _ensure_target_dir(self, task: Dict[str, Any], media_items: List[Dict[str, Any]],) -> str:
         if task.get("target_dir"):
             return str(task["target_dir"])
 
@@ -444,11 +972,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         self.log_signal_func(f"저장 폴더: {target_dir}")
         return target_dir
 
-    def _fill_rows_with_media_items(
-            self,
-            task: Dict[str, Any],
-            media_items: List[Dict[str, Any]],
-    ) -> None:
+    def _fill_rows_with_media_items(self,task: Dict[str, Any],media_items: List[Dict[str, Any]],) -> None:
         rows = task.get("rows") or []
         atcl_no = task["atcl_no"]
         target_dir = str(task.get("target_dir") or "")
@@ -517,170 +1041,9 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                 row["상태"] = "fail"
                 row["메세지"] = message
 
-    def _collect_media_items_with_retry(
-            self,
-            atcl_no: str,
-            detail_url: str,
-            gallery_count: Optional[int],
-            max_retry: int = 3,
-    ) -> List[Dict[str, Any]]:
-        best_items: List[Dict[str, Any]] = []
-
-        for attempt in range(1, max_retry + 1):
-            if not self.running:
-                return best_items
-
-            self.log_signal_func(f"[개별 수집 재시도] {attempt}/{max_retry}")
-
-            try:
-                self.driver.get(detail_url)
-                self._wait_ready_state_complete(7)
-                time.sleep(random.uniform(2.8, 4.2))
-
-                opened = self._open_media_popup_any_frame(
-                    target_name="매물 대표 이미지 1",
-                    timeout_sec=12,
-                )
-
-                if not opened:
-                    self.log_signal_func("팝업 열기 실패")
-                    time.sleep(random.uniform(1.0, 1.6))
-                    continue
-
-                if not self._wait_popup_viewer_ready(timeout_sec=8):
-                    self.log_signal_func("팝업 준비 timeout")
-
-                self._focus_popup_viewer()
-                time.sleep(0.4)
-
-                scan_steps = 40
-                if gallery_count is not None:
-                    scan_steps = max(40, int(gallery_count) + 5)
-
-                media_items = self._scan_all_media_current_popup(max_steps=scan_steps)
-
-                if len(media_items) > len(best_items):
-                    best_items = [dict(x) for x in media_items]
-
-                self.log_signal_func(
-                    f"[개별 수집 결과] expected={gallery_count} / actual={len(media_items)}"
-                )
-
-                if gallery_count is None and media_items:
-                    return media_items
-
-                if gallery_count is not None and len(media_items) == gallery_count:
-                    return media_items
-
-            except Exception as e:
-                self.log_signal_func(f"[개별 수집 실패] attempt={attempt}/{max_retry} / {e}")
-
-            time.sleep(random.uniform(1.0, 1.8))
-
-        return best_items
-
-    def driver_set(self) -> None:
-        if not self.excel_driver:
-            self.excel_driver = ExcelUtils(self.log_signal_func)
-
-        if not self.file_driver:
-            self.file_driver = FileUtils(self.log_signal_func)
-
-        if not self.api_client:
-            self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
-
-        self.selenium_driver = SeleniumUtils(
-            headless=False,
-            debug=True,
-            log_func=self.log_signal_func,
-        )
-        self.driver = self.selenium_driver.start_driver(
-            timeout=1200,
-            view_mode="mobile",
-            window_size=(520, 980),
-            mobile_metrics=(430, 932),
-        )
-
-        self.log_signal_func("✅ driver_set 완료")
-
-    # =========================================================
-    # DB 저장 / 마감 처리
-    # =========================================================
-    def db_set(self) -> bool:
-        self.sqlite_driver = SqliteUtils(self.log_signal_func)
-
-        db_path = self.get_runtime_db_path()
-        self.log_signal_func(f"[DB] 실제 경로 = {os.path.abspath(db_path)}")
-
-        if not self.sqlite_driver.connect(db_path):
-            self.log_signal_func("❌ [DB] 연결 실패")
-            return False
-
-        schema_files = [
-            os.path.join("resources", "customers", "common", "db", "schema_hist.sql"),
-            os.path.join("resources", "customers", self.worker_name, "db", "schema_detail.sql"),
-        ]
-
-        if not self.sqlite_driver.execute_script_files(schema_files):
-            self.log_signal_func("❌ [DB] 스키마 초기화 실패")
-            return False
-
-        self.log_signal_func("✅ [DB] 스키마 초기화 완료")
-
-        if not self.insert_hist_start():
-            return False
-
-        return True
-
     def finish_job(self, status: str, error_message: Optional[str] = None) -> None:
         self.hist_status = status
         self.hist_error_message = error_message
-
-    def insert_hist_start(self) -> bool:
-        now = time.strftime("%Y-%m-%d %H:%M:%S")
-        self.job_id = time.strftime("%Y%m%d%H%M%S")
-
-        query = """
-                INSERT INTO worker_job_hist (
-                    job_id,
-                    table_name,
-                    site_name,
-                    worker_name,
-                    user_id,
-                    start_at,
-                    status,
-                    total_count,
-                    success_count,
-                    fail_count,
-                    created_at,
-                    updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """
-
-        params = (
-            self.job_id,
-            self.detail_table_name,
-            self.site_name,
-            self.worker_name,
-            self.get_user_id(),
-            now,
-            "RUNNING",
-            0,
-            0,
-            0,
-            now,
-            now,
-        )
-
-        if not self.sqlite_driver.execute(query, params):
-            self.log_signal_func("❌ [DB] hist 시작 row 저장 실패")
-            return False
-
-        row = self.sqlite_driver.fetchone("SELECT last_insert_rowid() AS hist_id")
-        self.hist_id = row["hist_id"] if row else None
-
-        self.log_signal_func(f"✅ [DB] hist 시작 row 저장 완료 | hist_id={self.hist_id}")
-        return True
 
     def update_hist_end(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
         sqlite_driver = sqlite_driver or self.sqlite_driver
@@ -805,36 +1168,6 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
         return ok
 
-    def _get_db_columns(self) -> List[str]:
-        return [
-            "name",
-            "ho",
-            "number",
-            "seq",
-            "type",
-            "url",
-            "path",
-            "status",
-            "message",
-        ]
-
-    def _get_kor_header_map(self) -> Dict[str, str]:
-        return {
-            "name": "건물명",
-            "ho": "호수",
-            "number": "네이버부동산",
-            "seq": "미디어 번호",
-            "type": "유형",
-            "url": "URL",
-            "path": "저장경로",
-            "status": "상태",
-            "message": "메세지",
-        }
-
-    def _get_kor_columns(self) -> List[str]:
-        header_map = self._get_kor_header_map()
-        return [header_map.get(code, code) for code in self._get_db_columns()]
-
     def _map_out_to_db(self, out: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "name": str(out.get("건물명") or ""),
@@ -939,418 +1272,11 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             except Exception:
                 pass
 
-    def cleanup(self) -> None:
-        try:
-            if self.driver:
-                self.driver.quit()
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] driver.quit 실패: {e}")
-        finally:
-            self.driver = None
-
-        try:
-            if self.selenium_driver:
-                self.selenium_driver.quit()
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] selenium_driver.quit 실패: {e}")
-        finally:
-            self.selenium_driver = None
-
-        try:
-            if self.file_driver:
-                self.file_driver.close()
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
-        finally:
-            self.file_driver = None
-
-        try:
-            if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
-                self.sqlite_driver.close()
-                self.log_signal_func("✅ [DB] 기존 연결 해제")
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] sqlite_driver.close 실패: {e}")
-        finally:
-            self.sqlite_driver = None
-
-        self.finalize_db_and_excel()
-
-        try:
-            if self.excel_driver:
-                self.excel_driver.close()
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
-        finally:
-            self.excel_driver = None
-
-    def stop(self) -> None:
-        self.log_signal_func("✅ stop 시작")
-        self.running = False
-
-        if self.hist_status == "RUNNING":
-            self.finish_job("STOP", "사용자 중단")
-
-        self.cleanup()
-        self.log_signal_func("✅ stop 완료")
-
-    def destroy(self) -> None:
-        self.progress_signal.emit(self.before_pro_value, 1000000)
-        self.log_signal_func("✅ destroy")
-        time.sleep(2.5)
-        self.progress_end_signal.emit()
-
-    def _wait_ready_state_complete(self, timeout_sec: int = 7) -> None:
-        try:
-            WebDriverWait(self.driver, timeout_sec).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
-        except TimeoutException:
-            self.log_signal_func("readyState complete timeout")
-
-    def _wait_current_frame_ready(self, timeout_sec: int = 5) -> bool:
-        try:
-            WebDriverWait(self.driver, timeout_sec).until(
-                lambda d: d.execute_script("return document.readyState") in ("interactive", "complete")
-            )
-            WebDriverWait(self.driver, timeout_sec).until(
-                lambda d: d.execute_script("return !!document.body")
-            )
-            return True
-        except Exception:
-            return False
-
-    def _extract_number_from_text(self, text: str) -> Optional[int]:
-        s = str(text or "").strip().replace(",", "")
-        m = re.search(r"(\d+)", s)
-        return int(m.group(1)) if m else None
-
-    def _find_count_in_current_frame(self) -> Optional[int]:
-        selectors = [
-            "span.ThumbnailMapGroup_quantity__2GMil",
-            "span[class*='ThumbnailMapGroup_quantity']",
-        ]
-
-        for selector in selectors:
-            elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
-            for el in elements:
-                text = str(el.text or "").strip()
-                count = self._extract_number_from_text(text)
-                if count is not None:
-                    self.log_signal_func(f"[DOM count] selector={selector} text={text} count={count}")
-                    return count
-
-        return None
-
-    def _get_gallery_count_from_dom_any_frame(self) -> Optional[int]:
-        try:
-            self.driver.switch_to.default_content()
-
-            count = self._find_count_in_current_frame()
-            if count is not None:
-                return count
-
-            frames = self.driver.find_elements(By.TAG_NAME, "iframe")
-            for idx in range(len(frames)):
-                self.driver.switch_to.default_content()
-                frames = self.driver.find_elements(By.TAG_NAME, "iframe")
-                if idx >= len(frames):
-                    break
-
-                self.driver.switch_to.frame(frames[idx])
-                self._wait_current_frame_ready(3)
-
-                count = self._find_count_in_current_frame()
-                if count is not None:
-                    self.driver.switch_to.default_content()
-                    return count
-
-            self.driver.switch_to.default_content()
-            return None
-
-        except Exception as e:
-            self.log_signal_func(f"[DOM count 실패] {e}")
-            try:
-                self.driver.switch_to.default_content()
-            except Exception:
-                pass
-            return None
-
     def _get_browser_user_agent(self) -> str:
         try:
             return str(self.driver.execute_script("return navigator.userAgent") or "").strip()
         except Exception:
             return ""
-
-    def _build_cookie_header_from_driver(self) -> str:
-        try:
-            cookies = self.driver.get_cookies() or []
-            return "; ".join(
-                f"{str(c.get('name') or '').strip()}={str(c.get('value') or '').strip()}"
-                for c in cookies
-                if str(c.get("name") or "").strip()
-            )
-        except Exception:
-            return ""
-
-    def _build_gallery_request_headers(self, atcl_no: str) -> Dict[str, str]:
-        referer = ""
-        try:
-            referer = str(self.driver.current_url or "").strip()
-        except Exception:
-            pass
-
-        if not referer:
-            referer = f"{self.fin_land_article_url}/{atcl_no}"
-
-        headers = {
-            "accept": "application/json, text/plain, */*",
-            "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-            "cache-control": "no-cache",
-            "pragma": "no-cache",
-            "referer": referer,
-            "origin": "https://fin.land.naver.com",
-            "user-agent": self._get_browser_user_agent(),
-            "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "same-origin",
-        }
-
-        cookie_header = self._build_cookie_header_from_driver()
-        if cookie_header:
-            headers["cookie"] = cookie_header
-
-        return headers
-
-    def _get_gallery_count_from_api(self, atcl_no: str) -> Optional[int]:
-        try:
-            res = requests.get(
-                self.gallery_image_api_url,
-                params={"articleNumber": str(atcl_no or "").strip()},
-                headers=self._build_gallery_request_headers(atcl_no),
-                timeout=20,
-                allow_redirects=True,
-            )
-
-            self.log_signal_func(f"[API count] status={res.status_code}")
-
-            if res.status_code >= 400:
-                return None
-
-            if "json" not in str(res.headers.get("content-type") or "").lower():
-                return None
-
-            body = res.json()
-            result = body.get("result")
-            if not isinstance(result, list):
-                return None
-
-            return len(result)
-
-        except Exception as e:
-            self.log_signal_func(f"[API count 실패] {e}")
-            return None
-
-    def _get_gallery_image_count(self, atcl_no: str) -> Optional[int]:
-        dom_count = self._get_gallery_count_from_dom_any_frame()
-        if dom_count is not None:
-            self.log_signal_func(f"[gallery count] DOM 사용: {dom_count}")
-            return dom_count
-
-        api_count = self._get_gallery_count_from_api(atcl_no)
-        if api_count is not None:
-            self.log_signal_func(f"[gallery count] API 사용: {api_count}")
-            return api_count
-
-        self.log_signal_func("[gallery count] DOM/API 모두 실패")
-        return None
-
-    def _xpath_literal(self, value: str) -> str:
-        if "'" not in value:
-            return f"'{value}'"
-        if '"' not in value:
-            return f'"{value}"'
-        parts = value.split("'")
-        return "concat(" + ", \"'\", ".join([f"'{part}'" for part in parts]) + ")"
-
-    def _click_media_thumb_in_current_frame(self, target_name: str) -> bool:
-        target_xpath = self._xpath_literal(target_name)
-
-        selectors = [
-            (By.CSS_SELECTOR, f'button[aria-label="{target_name}"]'),
-            (By.CSS_SELECTOR, f'button[aria-label*="{target_name}"]'),
-            (By.CSS_SELECTOR, f'[role="button"][aria-label="{target_name}"]'),
-            (By.CSS_SELECTOR, f'[role="button"][aria-label*="{target_name}"]'),
-            (By.CSS_SELECTOR, f'img[alt="{target_name}"]'),
-            (By.CSS_SELECTOR, f'img[alt*="{target_name}"]'),
-            (By.XPATH, f'//img[contains(@alt, {target_xpath})]'),
-            (
-                By.XPATH,
-                f'//img[contains(@alt, {target_xpath})]/ancestor::*['
-                f'self::button or self::a or @role="button" or @tabindex][1]'
-            ),
-            (By.XPATH, f'//*[@aria-label and contains(@aria-label, {target_xpath})]'),
-            (
-                By.XPATH,
-                f'//*[contains(normalize-space(.), {target_xpath}) and '
-                f'(self::button or self::a or @role="button")]'
-            ),
-        ]
-
-        for by, selector in selectors:
-            elements = self.driver.find_elements(by, selector)
-            for el in elements:
-                try:
-                    if not el.is_displayed():
-                        continue
-                    self.driver.execute_script(
-                        "arguments[0].scrollIntoView({block:'center', inline:'center'});",
-                        el
-                    )
-                    time.sleep(0.3)
-                    try:
-                        el.click()
-                    except Exception:
-                        self.driver.execute_script("arguments[0].click();", el)
-                    return True
-                except Exception:
-                    continue
-
-        return False
-
-    def _click_visible_media_fallback_in_current_frame(self) -> bool:
-        try:
-            return bool(self.driver.execute_script("""
-                function isVisible(el) {
-                    const r = el.getBoundingClientRect();
-                    const s = window.getComputedStyle(el);
-                    return s.display !== 'none' && s.visibility !== 'hidden' &&
-                           Number(s.opacity) !== 0 && r.width > 40 && r.height > 40;
-                }
-
-                function score(img) {
-                    const r = img.getBoundingClientRect();
-                    const src = (img.currentSrc || img.src || "").toLowerCase();
-                    const alt = (img.alt || "").toLowerCase();
-                    let v = r.width * r.height;
-                    if (alt.includes("매물")) v += 500000;
-                    if (alt.includes("대표")) v += 500000;
-                    if (alt.includes("사진")) v += 300000;
-                    if (src.includes("land")) v += 100000;
-                    if (src.includes("pstatic")) v += 100000;
-                    return v;
-                }
-
-                const list = [];
-                document.querySelectorAll("img").forEach((img) => {
-                    if (!isVisible(img)) return;
-                    const src = img.currentSrc || img.src || "";
-                    const lower = src.toLowerCase();
-                    if (!src) return;
-                    if (lower.startsWith("data:image")) return;
-                    if (lower.includes("icon") || lower.includes("logo") || lower.includes("sprite")) return;
-
-                    const clickable = img.closest("button, a, [role='button'], [tabindex]") || img;
-                    list.push({ el: clickable, score: score(img) });
-                });
-
-                list.sort((a, b) => b.score - a.score);
-                if (!list.length) return false;
-
-                const target = list[0].el;
-                target.scrollIntoView({block: "center", inline: "center"});
-                try { target.click(); return true; } catch (e) {}
-                try {
-                    target.dispatchEvent(new MouseEvent("click", {bubbles: true, cancelable: true}));
-                    return true;
-                } catch (e) {}
-                return false;
-            """))
-        except Exception:
-            return False
-
-    def _open_media_popup_any_frame(self, target_name: str = "매물 대표 이미지 1", timeout_sec: int = 12) -> bool:
-        try:
-            for round_idx in range(4):
-                self.driver.switch_to.default_content()
-
-                wait_sec = 1.2 + (round_idx * 1.0)
-                self.log_signal_func(f"[팝업 탐색 재시도] round={round_idx + 1} wait={wait_sec:.1f}s")
-                time.sleep(wait_sec)
-
-                try:
-                    self.log_signal_func("[main frame] 탐색 시작")
-
-                    if self._click_media_thumb_in_current_frame(target_name):
-                        self.log_signal_func("[main frame] 썸네일 클릭 성공")
-                        time.sleep(1.5)
-                        return True
-
-                    if self._click_visible_media_fallback_in_current_frame():
-                        self.log_signal_func("[main frame] fallback 클릭 성공")
-                        time.sleep(1.5)
-                        return True
-                except Exception as e:
-                    self.log_signal_func(f"[main frame] 탐색 실패: {e}")
-
-                frames = self.driver.find_elements(By.TAG_NAME, "iframe")
-                self.log_signal_func(f"iframe 개수 : {len(frames)}")
-
-                for idx in range(len(frames)):
-                    try:
-                        self.driver.switch_to.default_content()
-                        frames = self.driver.find_elements(By.TAG_NAME, "iframe")
-                        if idx >= len(frames):
-                            break
-
-                        self.driver.switch_to.frame(frames[idx])
-                        self._wait_current_frame_ready(5)
-                        time.sleep(0.8 + (round_idx * 0.3))
-
-                        if self._click_media_thumb_in_current_frame(target_name):
-                            self.log_signal_func(f"[iframe {idx}] 썸네일 클릭 성공")
-                            time.sleep(1.5)
-                            self.driver.switch_to.default_content()
-                            return True
-
-                        if self._click_visible_media_fallback_in_current_frame():
-                            self.log_signal_func(f"[iframe {idx}] fallback 클릭 성공")
-                            time.sleep(1.5)
-                            self.driver.switch_to.default_content()
-                            return True
-
-                    except Exception as e:
-                        self.log_signal_func(f"[iframe {idx}] 처리 실패: {e}")
-                        continue
-
-                try:
-                    self.driver.switch_to.default_content()
-                    time.sleep(0.7)
-
-                    if self._click_media_thumb_in_current_frame(target_name):
-                        self.log_signal_func("[main frame 재탐색] 썸네일 클릭 성공")
-                        time.sleep(1.5)
-                        return True
-
-                    if self._click_visible_media_fallback_in_current_frame():
-                        self.log_signal_func("[main frame 재탐색] fallback 클릭 성공")
-                        time.sleep(1.5)
-                        return True
-                except Exception as e:
-                    self.log_signal_func(f"[main frame 재탐색] 실패: {e}")
-
-            self.driver.switch_to.default_content()
-            return False
-
-        except Exception as e:
-            self.log_signal_func(f"_open_media_popup_any_frame 오류: {e}")
-            try:
-                self.driver.switch_to.default_content()
-            except Exception:
-                pass
-            return False
 
     def _get_popup_state(self) -> Dict[str, Any]:
         try:
@@ -1579,12 +1505,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
         return False
 
-    def _wait_until_media_changed(
-            self,
-            prev_url: str,
-            prev_media_type: str = "",
-            timeout_sec: float = 5.0,
-    ) -> Tuple[str, str]:
+    def _wait_until_media_changed(self, prev_url: str, prev_media_type: str = "", timeout_sec: float = 5.0,) -> Tuple[str, str]:
         end_time = time.time() + timeout_sec + (3.0 if prev_media_type == "video" else 0.0)
 
         while time.time() < end_time:
@@ -1663,26 +1584,13 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         return results
 
     def _get_today_text(self) -> str:
-        try:
-            if ZoneInfo is not None:
-                return datetime.now(ZoneInfo("Asia/Seoul")).strftime("%y.%m.%d")
-        except Exception:
-            pass
-        return datetime.now().strftime("%y.%m.%d")
+        return datetime.now(ZoneInfo("Asia/Seoul")).strftime("%y.%m.%d")
 
     def _sanitize_filename(self, name: str) -> str:
         text = str(name or "").strip()
         text = re.sub(r'[\\/:*?"<>|]+', "_", text)
         text = re.sub(r"\s+", " ", text).strip()
         return text
-
-    def _get_min_image_count_setting(self, default: int = 8) -> int:
-        raw = self.get_setting_value(self.setting, "cnt")
-        try:
-            value = int(str(raw).strip())
-            return value if value >= 0 else default
-        except Exception:
-            return default
 
     def _build_folder_base_name(self, building_name: str, ho: str, has_video: bool = False) -> str:
         suffix = " (동)" if has_video else ""
@@ -1809,15 +1717,14 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         if not ok:
             return False, "", msg
 
-        if PIL_AVAILABLE:
-            try:
-                img = Image.open(io.BytesIO(raw))
-                if img.mode != "RGB":
-                    img = img.convert("RGB")
-                img.save(save_path_jpg, format="JPEG", quality=95)
-                return True, save_path_jpg, ""
-            except Exception:
-                pass
+        try:
+            img = Image.open(io.BytesIO(raw))
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            img.save(save_path_jpg, format="JPEG", quality=95)
+            return True, save_path_jpg, ""
+        except Exception:
+            pass
 
         try:
             ext = self._guess_ext_from_content_type(content_type, media_url)

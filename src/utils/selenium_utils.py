@@ -1304,6 +1304,50 @@ class SeleniumUtils:
             self.last_error = e
             return None
 
+
+    def wait_ready_state_complete(self, timeout_sec: int = 7) -> bool:
+        if not self.driver:
+            return False
+
+        try:
+            WebDriverWait(self.driver, timeout_sec).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
+            return True
+        except TimeoutException:
+            self._log("readyState complete timeout", force=True)
+            return False
+
+
+    def wait_current_frame_ready(self, timeout_sec: int = 5) -> bool:
+        """
+        현재 driver가 바라보는 frame/page의 DOM 사용 가능 상태를 기다린다.
+        - main page 상태면 main page 기준
+        - iframe으로 switch 되어 있으면 현재 iframe 기준
+        """
+        if not self.driver:
+            return False
+
+        try:
+            WebDriverWait(self.driver, timeout_sec).until(
+                lambda d: d.execute_script("return document.readyState") in ("interactive", "complete")
+            )
+
+            WebDriverWait(self.driver, timeout_sec).until(
+                lambda d: d.execute_script("return !!document.body")
+            )
+
+            return True
+
+        except TimeoutException:
+            self._log("current frame ready timeout", force=True)
+            return False
+
+        except Exception as e:
+            self._log("current frame ready failed:", str(e), force=True)
+            return False
+
+
     # ---------------------------------------------------------------------
     # Exception explain helper
     # ---------------------------------------------------------------------
