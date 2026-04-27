@@ -51,7 +51,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         self.sqlite_driver: Optional[SqliteUtils] = None
 
         self.folder_path: str = ""
-        self.out_dir: str = "output_naver_land_real_estate_detail_down"
+        self.out_dir: str = "output"
 
         self.fin_land_article_url: str = "https://fin.land.naver.com/articles"
         self.gallery_image_api_url: str = "https://fin.land.naver.com/front-api/v1/article/galleryImages"

@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMessageBox,
     QPushButton,
     QSplitter,
@@ -443,6 +444,9 @@ class DbSetPop(QDialog):
         # 상세 테이블에서 화면에 보여줄 컬럼 목록과 헤더명 매핑
         self.detail_columns, self.detail_header_map = self._build_detail_columns()
 
+        # === 신규 === 상세목록 검색 컬럼 목록
+        self.search_col_list = self._build_search_col_list()
+
         # 왼쪽 테이블에 표시할 공통 작업 이력 데이터
         self.hist_rows: list[dict[str, Any]] = []
 
@@ -481,6 +485,12 @@ class DbSetPop(QDialog):
 
         # 오른쪽 상세 데이터 추가 로딩 개수 선택 콤보박스
         self.right_page_size_combo: Optional[QComboBox] = None
+
+        # 오른쪽 상세 데이터 검색 컬럼 선택 콤보박스
+        self.right_search_col_combo: Optional[QComboBox] = None
+
+        # 오른쪽 상세 데이터 검색어 입력
+        self.right_search_input: Optional[QLineEdit] = None
 
         # 팝업 기본 설정
         self.setWindowTitle(title)
@@ -561,7 +571,10 @@ class DbSetPop(QDialog):
         # ============================================================
         btn_row = QHBoxLayout()
         btn_row.addStretch()  # 버튼을 오른쪽으로 밀기
-        btn_row.addWidget(create_common_button("확인", self.accept, "black", 140))
+        ok_btn = create_common_button("확인", self.accept, "black", 140)
+        ok_btn.setAutoDefault(False)
+        ok_btn.setDefault(False)
+        btn_row.addWidget(ok_btn)
         root.addLayout(btn_row)
 
 
@@ -599,6 +612,32 @@ class DbSetPop(QDialog):
         top.addWidget(self.make_button("삭제", self.delete_right_checked))
         top.addWidget(self.make_button("엑셀 저장", self.save_detail_to_excel, black=True, width=110))
         top.addStretch()
+
+        # 상세목록 검색 컬럼 선택
+        self.right_search_col_combo = QComboBox()
+        self.right_search_col_combo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.right_search_col_combo.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.right_search_col_combo.setFixedSize(150, 34)
+        self.right_search_col_combo.setStyleSheet(self.combo_style())
+
+        for row in self.search_col_list:
+            self.right_search_col_combo.addItem(
+                str(row.get("value") or row.get("code") or ""),
+                str(row.get("code") or ""),
+            )
+
+        self.right_search_col_combo.setEnabled(bool(self.search_col_list))
+
+        # 상세목록 검색어 입력
+        self.right_search_input = QLineEdit()
+        self.right_search_input.setFixedSize(180, 34)
+        self.right_search_input.setPlaceholderText("검색어")
+        self.right_search_input.setStyleSheet(self.input_style())
+        self.right_search_input.returnPressed.connect(self.on_detail_search_clicked)
+
+        top.addWidget(self.right_search_col_combo)
+        top.addWidget(self.right_search_input)
+        top.addWidget(self.make_button("검색", self.on_detail_search_clicked, width=70))
 
         self.right_page_size_combo = QComboBox()
         self.right_page_size_combo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -649,6 +688,11 @@ class DbSetPop(QDialog):
         btn = QPushButton(text)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setFixedSize(width, 34)
+
+        # Enter 입력 시 삭제/엑셀저장 버튼으로 빠지는 것 방지
+        btn.setAutoDefault(False)
+        btn.setDefault(False)
+
         btn.setStyleSheet(self.button_style(black))
         btn.clicked.connect(callback)
         return btn
@@ -691,6 +735,29 @@ class DbSetPop(QDialog):
             border: 1px solid #999;
         }
         """
+
+    @staticmethod
+    def input_style() -> str:
+        return """
+        QLineEdit {
+            background: white;
+            color: #111;
+            border: 1px solid #d0d0d0;
+            border-radius: 8px;
+            padding: 0 12px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        QLineEdit:hover {
+            border: 1px solid #999;
+        }
+
+        QLineEdit:focus {
+            border: 1px solid #111;
+        }
+        """
+
 
     @staticmethod
     def _safe_table_name(name: str) -> str:
@@ -817,6 +884,24 @@ class DbSetPop(QDialog):
 
         return columns, header_map
 
+    def _build_search_col_list(self) -> list[dict[str, str]]:
+        rows = []
+
+        for row in self.config_data.get("search_col_list") or []:
+            if not isinstance(row, dict):
+                continue
+
+            code = str(row.get("code") or "").strip()
+            value = str(row.get("value") or code).strip()
+
+            if code and re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", code):
+                rows.append({
+                    "code": code,
+                    "value": value or code,
+                })
+
+        return rows
+
     def _connect(self) -> sqlite3.Connection:
         if not os.path.exists(self.db_path):
             raise FileNotFoundError(f"DB 파일이 없습니다: {self.db_path}")
@@ -825,6 +910,29 @@ class DbSetPop(QDialog):
         conn.row_factory = sqlite3.Row
 
         return conn
+
+    def _build_detail_search_where(self) -> tuple[str, list[Any]]:
+        if not self.right_search_col_combo or not self.right_search_input:
+            return "", []
+
+        search_col = str(self.right_search_col_combo.currentData() or "").strip()
+        keyword = str(self.right_search_input.text() or "").strip()
+
+        if not search_col or not keyword:
+            return "", []
+
+        allowed_cols = {
+            str(row.get("code") or "").strip()
+            for row in self.search_col_list
+        }
+
+        if search_col not in allowed_cols:
+            return "", []
+
+        if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", search_col):
+            return "", []
+
+        return f" AND CAST({search_col} AS TEXT) LIKE ? ", [f"%{keyword}%"]
 
     def load_hist_rows(self) -> None:
         if not self.left_table or not self.left_count_label:
@@ -937,9 +1045,16 @@ class DbSetPop(QDialog):
 
         try:
             with self._connect() as conn:
+                search_where, search_params = self._build_detail_search_where()
+
                 row = conn.execute(
-                    f"SELECT COUNT(*) AS cnt FROM {self.db_name} WHERE job_id = ?",
-                    (self.current_job_id,),
+                    f"""
+                    SELECT COUNT(*) AS cnt
+                    FROM {self.db_name}
+                    WHERE job_id = ?
+                    {search_where}
+                    """,
+                    [self.current_job_id, *search_params],
                 ).fetchone()
 
                 self.detail_total_count = int(row["cnt"] if row else 0)
@@ -974,6 +1089,10 @@ class DbSetPop(QDialog):
         if self.current_hist_row:
             self.load_detail_rows_by_job_id(str(self.current_hist_row.get("job_id") or ""))
 
+    def on_detail_search_clicked(self) -> None:
+        if self.current_hist_row:
+            self.load_detail_rows_by_job_id(str(self.current_hist_row.get("job_id") or ""))
+
     def load_next_detail_rows(self) -> None:
         if not self.right_table:
             return
@@ -992,17 +1111,19 @@ class DbSetPop(QDialog):
 
         try:
             with self._connect() as conn:
+                search_where, search_params = self._build_detail_search_where()
+
                 cur = conn.execute(
                     f"""
                     SELECT rowid AS __rowid__, *
                     FROM {self.db_name}
                     WHERE job_id = ?
+                    {search_where}
                     ORDER BY rowid DESC
                     LIMIT ? OFFSET ?
                     """,
-                    (self.current_job_id, limit, offset),
+                    [self.current_job_id, *search_params, limit, offset],
                 )
-
                 rows = [dict(row) for row in cur.fetchall()]
 
             if rows:
@@ -1187,14 +1308,16 @@ class DbSetPop(QDialog):
             return []
 
         with self._connect() as conn:
+            search_where, search_params = self._build_detail_search_where()
             cur = conn.execute(
                 f"""
                 SELECT rowid AS __rowid__, *
                 FROM {self.db_name}
                 WHERE job_id = ?
+                {search_where}
                 ORDER BY rowid DESC
                 """,
-                (self.current_job_id,),
+                [self.current_job_id, *search_params],
             )
 
             return [dict(row) for row in cur.fetchall()]

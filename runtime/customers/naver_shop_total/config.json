@@ -64,6 +64,32 @@
       "path_type": "main"
     }
   ],
+  "search_col_list": [
+    {
+      "code": "product_name",
+      "value": "상품명"
+    },
+    {
+      "code": "total_visit_count",
+      "value": "전체방문자수"
+    },
+    {
+      "code": "keyword",
+      "value": "키워드"
+    },
+    {
+      "code": "category",
+      "value": "카테고리"
+    },
+    {
+      "code": "brand",
+      "value": "브랜드"
+    },
+    {
+      "code": "store_name",
+      "value": "스토어명"
+    }
+  ],
   "columns": [
     {
       "checked": true,

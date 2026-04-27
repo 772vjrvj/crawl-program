@@ -32,6 +32,24 @@
       "type": "check"
     }
   ],
+  "search_col_list": [
+    {
+      "code": "name",
+      "value": "건물명"
+    },
+    {
+      "code": "ho",
+      "value": "호수"
+    },
+    {
+      "code": "number",
+      "value": "네이버부동산"
+    },
+    {
+      "code": "seq",
+      "value": "미디어 번호"
+    }
+  ],
   "columns": [
     {
       "code": "name",

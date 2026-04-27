@@ -1582,6 +1582,24 @@
       "checked": true
     }
   ],
+  "search_col_list": [
+    {
+      "code": "atclNo",
+      "value": "매물번호"
+    },
+    {
+      "code": "atclNm",
+      "value": "상위매물명"
+    },
+    {
+      "code": "complexName",
+      "value": "단지명"
+    },
+    {
+      "code": "dongName",
+      "value": "동이름"
+    }
+  ],
   "columns": [
     {
       "title": "기본목록"
