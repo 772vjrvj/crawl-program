@@ -1078,7 +1078,7 @@ class SeleniumUtils:
                 pass
             return None
 
-        def _create_driver(opts_any: uc.ChromeOptions) -> WebDriver:
+        def _create_driver() -> WebDriver:
             """
             uc.Chrome 생성 래퍼.
 
@@ -1092,12 +1092,25 @@ class SeleniumUtils:
             """
             last_err: Optional[Exception] = None
 
+            def _new_options() -> uc.ChromeOptions:
+                """
+                uc.ChromeOptions는 uc.Chrome에 한 번 넘기면 재사용할 수 없다.
+                따라서 드라이버 생성 재시도마다 새 옵션 객체를 만든다.
+                """
+                return self._build_options(
+                    chrome_exe=chrome_exe,
+                    view_mode=final_view_mode,
+                    window_size=final_window_size,
+                    mobile_metrics=final_mobile_metrics,
+                    mobile_user_agent=final_mobile_user_agent,
+                )
+
             # 1차: 감지된 Chrome major 또는 force_major로 실행
             if major:
                 try:
                     self._log("start with chrome major:", major, force=True)
                     return uc.Chrome(
-                        options=opts_any,
+                        options=_new_options(),
                         version_main=int(major),
                     )
                 except Exception as e:
@@ -1110,7 +1123,7 @@ class SeleniumUtils:
                         try:
                             self._log("retry with extracted chrome major:", extracted_major, force=True)
                             return uc.Chrome(
-                                options=opts_any,
+                                options=_new_options(),
                                 version_main=int(extracted_major),
                             )
                         except Exception as e2:
@@ -1120,7 +1133,7 @@ class SeleniumUtils:
             # 2차: version_main 없이 uc 자동 방식
             try:
                 self._log("retry with uc auto version", force=True)
-                return uc.Chrome(options=opts_any)
+                return uc.Chrome(options=_new_options())
             except Exception as e3:
                 last_err = e3
                 self._log("uc auto version failed:", str(e3), force=True)
@@ -1131,7 +1144,7 @@ class SeleniumUtils:
                     try:
                         self._log("final retry with extracted chrome major:", extracted_major, force=True)
                         return uc.Chrome(
-                            options=opts_any,
+                            options=_new_options(),
                             version_main=int(extracted_major),
                         )
                     except Exception as e4:
@@ -1144,15 +1157,8 @@ class SeleniumUtils:
 
         try:
             # 1차 생성 시도
-            opts = self._build_options(
-                chrome_exe=chrome_exe,
-                view_mode=final_view_mode,
-                window_size=final_window_size,
-                mobile_metrics=final_mobile_metrics,
-                mobile_user_agent=final_mobile_user_agent,
-            )
             t = time.time()
-            self.driver = _create_driver(opts)
+            self.driver = _create_driver()
             self._force_window(final_window_size[0], final_window_size[1])  # === 신규 ===
             if final_view_mode == "mobile":
                 self._apply_mobile_emulation(
@@ -1195,15 +1201,8 @@ class SeleniumUtils:
             )
 
             try:
-                opts = self._build_options(
-                    chrome_exe=chrome_exe,
-                    view_mode=final_view_mode,
-                    window_size=final_window_size,
-                    mobile_metrics=final_mobile_metrics,
-                    mobile_user_agent=final_mobile_user_agent,
-                )
                 t = time.time()
-                self.driver = _create_driver(opts)
+                self.driver = _create_driver()
                 self._force_window(final_window_size[0], final_window_size[1])  # === 신규 ===
                 if final_view_mode == "mobile":
                     self._apply_mobile_emulation(
