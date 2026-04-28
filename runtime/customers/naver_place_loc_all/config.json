@@ -1,6 +1,8 @@
 {
   "label": "네이버 플레이스 전국",
   "key": "NAVER_PLACE_LOC_ALL",
+  "db_name": "NAVER_PLACE_LOC_ALL",
+  "db_common_name": "WORKER_JOB_HIST",
   "color": "#ccc",
   "enabled": true,
   "popup": false,
@@ -10,7 +12,7 @@
     {
       "name": "1. 키워드(콤마(,)로 구분해주세요)",
       "code": "keyword",
-      "value": "선거기획, 선거홍보, 유세차량",
+      "value": "주짓수",
       "type": "input"
     },
     {
@@ -42,6 +44,12 @@
       "button_text": "폴더 선택",
       "dialog_title": "저장 폴더 선택",
       "path_type": "main"
+    },
+    {
+      "name": "자동 엑셀 저장",
+      "code": "auto_save_yn",
+      "value": true,
+      "type": "check"
     }
   ],
   "columns": [
@@ -269,6 +277,48 @@
       "code": "agency_site",
       "value": "대행사 홈페이지",
       "checked": false
+    }
+  ],
+  "search_col_list": [
+    {
+      "code": "id",
+      "value": "아이디"
+    },
+    {
+      "code": "name",
+      "value": "이름"
+    },
+    {
+      "code": "addr_road",
+      "value": "주소(도로명)"
+    },
+    {
+      "code": "addr_jibun",
+      "value": "주소(지번)"
+    },
+    {
+      "code": "category",
+      "value": "카테고리"
+    },
+    {
+      "code": "keyword",
+      "value": "키워드(검색)"
+    },
+    {
+      "code": "all_keyword",
+      "value": "전체 검색어"
+    },
+    {
+      "code": "city",
+      "value": "시도(검색)"
+    },
+    {
+      "code": "division",
+      "value": "시군구(검색)"
+    },
+    {
+      "code": "sector",
+      "value": "읍면동(검색)"
     }
   ]
 }

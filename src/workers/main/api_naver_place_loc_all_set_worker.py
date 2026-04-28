@@ -13,6 +13,7 @@ from src.utils.api_utils import APIClient
 from src.utils.str_utils import split_comma_keywords
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
+from src.utils.sqlite_utils import SqliteUtils
 from src.workers.api_base_worker import BaseApiWorker
 
 
@@ -22,7 +23,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
-        self.out_dir = "output_naver_place_loc_all"
+        self.out_dir = "output"
         self.folder_path = ""
         self.columns: Optional[List[str]] = None
         self.csv_filename: Optional[str] = None
@@ -40,25 +41,46 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         self._cleaned_up: bool = False
         self.naver_loc: str = "읍면동"
 
-    # 런타임 상태 초기화
-    def _reset_runtime_state(self) -> None:
-        self.total_cnt = 0
-        self.total_pages = 0
-        self.current_cnt = 0
-        self.before_pro_value = 0.0
-        self.saved_ids.clear()
-        self.csv_filename = None
-        self._destroyed = False
+        # DB 저장용 공통 상태
+        self.hist_id = None
+        self.job_id = None
+        self.hist_status = "RUNNING"
+        self.hist_error_message = None
+        self.worker_name: str = "naver_place_loc_all"
+        self.detail_table_name: str = "naver_place_loc_all"
+        self.detail_success_count: int = 0
+        self.detail_fail_count: int = 0
+        self.auto_save_yn: bool = False
+        self.sqlite_driver: Optional[SqliteUtils] = None
+
+        # runtime config.json columns 기준 사용
+        self.config_data: Dict[str, Any] = {}
+        self.column_defs: List[Dict[str, Any]] = []
+        self.db_columns: List[str] = []
+        self.excel_columns: List[str] = []
+        self.code_value_map: Dict[str, str] = {}
 
     # 초기화
     def init(self) -> bool:
-        self._reset_runtime_state()
 
         keyword_str: str = self.get_setting_value(self.setting, "keyword")
         self.keyword_list = split_comma_keywords(keyword_str)
         self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
         self.naver_loc = str(self.get_setting_value(self.setting, "naver_loc") or "읍면동").strip()
+
+        # runtime/customers/naver_place_loc_all/config.json의 columns[].code/value 사용
+        if not self.load_runtime_config_columns():
+            return False
+
+        # DB 저장 후 종료 시 엑셀 자동 저장 여부
+        self.auto_save_yn = bool(self.get_setting_value(self.setting, "auto_save_yn"))
+        self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
+
         self.driver_set()
+
+        if not self.db_set():
+            return False
+
         self.log_signal_func(f"선택 항목 : {self.columns}")
         return True
 
@@ -66,24 +88,16 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
     def main(self) -> bool:
         self.log_signal_func("크롤링 사이트 인증에 성공하였습니다.")
         self.log_signal_func("전체 수 계산을 시작합니다. 잠시만 기다려주세요.")
-
-        if self.file_driver is None:
-            self.log_signal_func("파일 드라이버가 초기화되지 않았습니다.")
-            return False
-
-        self.csv_filename = os.path.basename(self.file_driver.get_csv_filename(self.site_name))
-
-        self.excel_driver.init_csv(
-            filename=self.csv_filename,
-            columns=self.columns,
-            folder_path=self.folder_path,
-            sub_dir=self.out_dir
-        )
-
         if self.region:
             self._loc_all_keyword_list()
         else:
             self._only_keywords_keyword_list()
+
+        if self.hist_status == "RUNNING":
+            if self.running:
+                self.finish_job("SUCCESS")
+            else:
+                self.finish_job("STOP", "사용자 중단")
 
         return True
 
@@ -101,17 +115,6 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             return
 
         try:
-            if self.csv_filename and self.excel_driver:
-                self.excel_driver.convert_csv_to_excel_and_delete(
-                    csv_filename=self.csv_filename,
-                    folder_path=self.folder_path,
-                    sub_dir=self.out_dir
-                )
-                self.log_signal_func("✅ [엑셀 변환] 성공")
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] 엑셀 변환 실패: {e}")
-
-        try:
             if self.api_client:
                 self.api_client.close()
         except Exception as e:
@@ -122,6 +125,17 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 self.file_driver.close()
         except Exception as e:
             self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
+
+        try:
+            if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
+                self.sqlite_driver.close()
+                self.log_signal_func("✅ [DB] 기존 연결 해제")
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] sqlite_driver.close 실패: {e}")
+        finally:
+            self.sqlite_driver = None
+
+        self.finalize_db_and_excel()
 
         try:
             if self.excel_driver:
@@ -146,9 +160,380 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
     def stop(self) -> None:
         self.log_signal_func("✅ stop 시작")
         self.running = False
+
+        if self.hist_status == "RUNNING":
+            self.finish_job("STOP", "사용자 중단")
+
         time.sleep(2.5)
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
+
+
+    # =========================================================
+    # DB 저장 / 마감 처리
+    # =========================================================
+    def db_set(self) -> bool:
+        self.sqlite_driver = SqliteUtils(self.log_signal_func)
+
+        db_path = self.get_runtime_db_path()
+        self.log_signal_func(f"[DB] 실제 경로 = {os.path.abspath(db_path)}")
+
+        if not self.sqlite_driver.connect(db_path):
+            self.log_signal_func("❌ [DB] 연결 실패")
+            return False
+
+        schema_files = [
+            os.path.join("resources", "customers", "common", "db", "schema_hist.sql"),
+            os.path.join("resources", "customers", self.worker_name, "db", "schema_detail.sql"),
+        ]
+
+        if not self.sqlite_driver.execute_script_files(schema_files):
+            self.log_signal_func("❌ [DB] 스키마 초기화 실패")
+            return False
+
+        self.log_signal_func("✅ [DB] 스키마 초기화 완료")
+
+        if not self.insert_hist_start():
+            return False
+
+        return True
+
+    def finish_job(self, status: str, error_message: Optional[str] = None) -> None:
+        self.hist_status = status
+        self.hist_error_message = error_message
+
+    def insert_hist_start(self) -> bool:
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.job_id = time.strftime("%Y%m%d%H%M%S")
+
+        query = """
+                INSERT INTO worker_job_hist (
+                    job_id,
+                    table_name,
+                    site_name,
+                    worker_name,
+                    user_id,
+                    start_at,
+                    status,
+                    total_count,
+                    success_count,
+                    fail_count,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
+
+        params = (
+            self.job_id,
+            self.detail_table_name,
+            self.site_name,
+            self.worker_name,
+            getattr(self.user, "user_id", None) if self.user else None,
+            now,
+            "RUNNING",
+            0,
+            0,
+            0,
+            now,
+            now,
+        )
+
+        if not self.sqlite_driver.execute(query, params):
+            self.log_signal_func("❌ [DB] hist 시작 row 저장 실패")
+            return False
+
+        row = self.sqlite_driver.fetchone("SELECT last_insert_rowid() AS hist_id")
+        self.hist_id = row["hist_id"] if row else None
+
+        self.log_signal_func(f"✅ [DB] hist 시작 row 저장 완료 | hist_id={self.hist_id}")
+        return True
+
+    def update_hist_end(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
+        sqlite_driver = sqlite_driver or self.sqlite_driver
+
+        if not sqlite_driver:
+            return False
+
+        if not self.hist_id:
+            self.log_signal_func("⚠️ [DB] hist_id 없음 - 종료 update 스킵")
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        query = """
+                UPDATE worker_job_hist
+                SET
+                    end_at = ?,
+                    status = ?,
+                    total_count = ?,
+                    success_count = ?,
+                    fail_count = ?,
+                    error_message = ?,
+                    updated_at = ?
+                WHERE hist_id = ?
+                """
+
+        params = (
+            now,
+            self.hist_status,
+            self.detail_success_count + self.detail_fail_count,
+            self.detail_success_count,
+            self.detail_fail_count,
+            self.hist_error_message,
+            now,
+            self.hist_id,
+        )
+
+        if not sqlite_driver.execute(query, params):
+            self.log_signal_func(f"❌ [DB] hist 종료 row 수정 실패 | hist_id={self.hist_id}")
+            return False
+
+        self.log_signal_func(
+            f"✅ [DB] hist 종료 row 수정 완료 | hist_id={self.hist_id} | status={self.hist_status}"
+        )
+        return True
+
+    def insert_detail_row(self, rs: Dict[str, Any]) -> bool:
+        if not self.sqlite_driver:
+            self.detail_fail_count += 1
+            self.log_signal_func("❌ [DB] sqlite_driver 없음 - detail 저장 실패")
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        db_columns = self.db_columns
+        if not db_columns:
+            self.detail_fail_count += 1
+            self.log_signal_func("❌ [DB] config columns 없음 - detail 저장 실패")
+            return False
+
+        db_rs = self.map_out_to_db(rs)
+
+        base_columns = [
+            "hist_id",
+            "site_name",
+            "worker_name",
+            "table_name",
+            "job_id",
+            "user_id",
+            "row_status",
+        ]
+
+        all_columns = base_columns + db_columns + ["created_at", "updated_at"]
+        placeholders = ", ".join(["?"] * len(all_columns))
+        column_text = ",\n                    ".join(all_columns)
+
+        query = f"""
+                INSERT INTO {self.detail_table_name} (
+                    {column_text}
+                ) VALUES ({placeholders})
+                """
+
+        params = (
+            self.hist_id,
+            self.site_name,
+            self.worker_name,
+            self.detail_table_name,
+            self.job_id,
+            getattr(self.user, "user_id", None) if self.user else None,
+            "SUCCESS",
+            *[db_rs.get(col, "") for col in db_columns],
+            now,
+            now,
+        )
+
+        ok = self.sqlite_driver.execute(query, params)
+
+        if ok:
+            self.detail_success_count += 1
+            self.log_signal_func(
+                f"✅ [DB] detail 저장 완료 | hist_id={self.hist_id} | 아이디={rs.get('아이디')} | 이름={rs.get('이름')}"
+            )
+        else:
+            self.detail_fail_count += 1
+            self.log_signal_func(
+                f"❌ [DB] detail 저장 실패 | hist_id={self.hist_id} | 아이디={rs.get('아이디')} | 이름={rs.get('이름')}"
+            )
+
+        return ok
+
+    def get_runtime_config_path(self) -> str:
+        # 개발/빌드 환경을 모두 고려해서 config.json 위치를 찾는다.
+        # 사용자가 말한 기준: runtime/customers/naver_place_loc_all/config.json
+        candidates = [
+            os.path.join(
+                self.get_resource_root(),
+                "runtime",
+                "customers",
+                self.worker_name,
+                "config.json",
+            ),
+            os.path.join(
+                self.get_project_root(),
+                "runtime",
+                "customers",
+                self.worker_name,
+                "config.json",
+            ),
+        ]
+
+        for path in candidates:
+            if os.path.exists(path):
+                return path
+
+        return candidates[0]
+
+    def load_runtime_config_columns(self) -> bool:
+        # BaseApiWorker.set_columns()는 checked된 value만 남기므로,
+        # DB 저장에 필요한 code는 runtime config.json에서 다시 읽는다.
+        config_path = self.get_runtime_config_path()
+
+        if not os.path.exists(config_path):
+            self.log_signal_func(f"❌ [config] 파일 없음: {config_path}")
+            return False
+
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                self.config_data = json.load(f)
+        except Exception as e:
+            self.log_signal_func(f"❌ [config] 로드 실패: {e}")
+            return False
+
+        columns = self.config_data.get("columns") or []
+        if not isinstance(columns, list):
+            self.log_signal_func("❌ [config] columns 형식 오류")
+            return False
+
+        self.column_defs = [
+            col for col in columns
+            if isinstance(col, dict) and str(col.get("code") or "").strip() and str(col.get("value") or "").strip()
+        ]
+
+        self.db_columns = [str(col.get("code")).strip() for col in self.column_defs]
+        self.excel_columns = [
+            str(col.get("value")).strip()
+            for col in self.column_defs
+            if bool(col.get("checked", False))
+        ]
+        self.code_value_map = {
+            str(col.get("code")).strip(): str(col.get("value")).strip()
+            for col in self.column_defs
+        }
+
+        # 화면에서 전달된 self.columns보다 runtime config의 checked 상태를 우선 사용한다.
+        self.columns = self.excel_columns
+
+        self.log_signal_func(f"✅ [config] columns 로드 완료: {config_path}")
+        self.log_signal_func(f"✅ [config] DB 컬럼 수={len(self.db_columns)} / 엑셀 컬럼 수={len(self.excel_columns)}")
+        return True
+
+    def map_out_to_db(self, out: Dict[str, Any]) -> Dict[str, Any]:
+        # 기존 수집 결과 dict의 한글 key(value)를 DB 컬럼명(code)으로 변환한다.
+        return {
+            code: str(out.get(value) or "")
+            for code, value in self.code_value_map.items()
+        }
+
+    def db_rows_to_kor_rows(self, row_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        # DB 컬럼명(code)을 엑셀 한글 컬럼명(value)으로 변환한다.
+        result: List[Dict[str, Any]] = []
+
+        for row in row_list or []:
+            out: Dict[str, Any] = {}
+            for col in self.column_defs:
+                if not bool(col.get("checked", False)):
+                    continue
+
+                code = str(col.get("code") or "").strip()
+                value = str(col.get("value") or "").strip()
+                out[value] = row.get(code, "")
+
+            result.append(out)
+
+        return result
+
+    def export_detail_to_excel(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
+        sqlite_driver = sqlite_driver or self.sqlite_driver
+
+        if not self.excel_driver:
+            self.log_signal_func("❌ [엑셀] excel_driver 없음")
+            return False
+
+        if not sqlite_driver:
+            self.log_signal_func("❌ [엑셀] sqlite_driver 없음")
+            return False
+
+        if not self.hist_id:
+            self.log_signal_func("❌ [엑셀] hist_id 없음")
+            return False
+
+        db_columns = self.db_columns
+        if not db_columns:
+            self.log_signal_func("❌ [엑셀] config columns 없음")
+            return False
+
+        select_text = ",\n                    ".join(db_columns)
+
+        query = f"""
+                SELECT
+                    {select_text}
+                FROM {self.detail_table_name}
+                WHERE hist_id = ?
+                ORDER BY detail_id
+                """
+
+        row_list = sqlite_driver.fetchall(query, (self.hist_id,))
+        if not row_list:
+            self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
+            return False
+
+        row_list = [dict(row) for row in row_list]
+        excel_row_list = self.db_rows_to_kor_rows(row_list)
+        excel_columns = self.columns or self.excel_columns
+        excel_filename = f"{self.site_name}_{self.job_id}.xlsx"
+
+        return self.excel_driver.save_db_rows_to_excel(
+            excel_filename=excel_filename,
+            row_list=excel_row_list,
+            columns=excel_columns,
+            folder_path=self.folder_path,
+            sub_dir=self.out_dir,
+        )
+
+    def finalize_db_and_excel(self) -> None:
+        temp_sqlite_driver = None
+
+        try:
+            temp_sqlite_driver = SqliteUtils(self.log_signal_func)
+            db_path = self.get_runtime_db_path()
+
+            if not temp_sqlite_driver.connect(db_path):
+                self.log_signal_func("❌ [DB] 최종 마감용 연결 실패")
+                return
+
+            if self.update_hist_end(temp_sqlite_driver):
+                self.log_signal_func("✅ [DB] hist 최종 업데이트 완료")
+            else:
+                self.log_signal_func("❌ [DB] hist 최종 업데이트 실패")
+
+            if self.auto_save_yn:
+                if self.export_detail_to_excel(temp_sqlite_driver):
+                    self.log_signal_func("✅ [엑셀] detail 자동 저장 완료")
+                else:
+                    self.log_signal_func("❌ [엑셀] detail 자동 저장 실패")
+            else:
+                self.log_signal_func("ℹ️ [엑셀] 자동 저장 미사용(auto_save_yn=False)")
+
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] finalize_db_and_excel 실패: {e}")
+
+        finally:
+            try:
+                if temp_sqlite_driver:
+                    temp_sqlite_driver.close()
+            except Exception:
+                pass
+
 
     # 실행용 지역 목록 가공
     def _get_run_region_list(self) -> List[Dict[str, str]]:
@@ -301,13 +686,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                     f"검색어: {query}, 수집: {idx} / {len(result_ids)}, 아이디: {place_id}, 이름: {place_info['이름']}"
                 )
 
-                self.excel_driver.append_to_csv(
-                    filename=self.csv_filename,
-                    data_list=[place_info],
-                    columns=self.columns,
-                    folder_path=self.folder_path,
-                    sub_dir=self.out_dir
-                )
+                self.insert_detail_row(place_info)
 
             self.current_cnt = locs_index * current_query_index * 300
             pro_value = (self.current_cnt / self.total_cnt) * 1000000 if self.total_cnt > 0 else 0
@@ -319,7 +698,6 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
     # 키워드만 조회
     def _only_keywords_keyword_list(self) -> None:
-        result_list: List[Any] = []
         all_ids_list = self._total_cnt_cal()
 
         if not all_ids_list:
@@ -342,16 +720,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
             obj = self._fetch_place_info(place_id, loc, "", "")
             if obj:
-                result_list.append(obj)
-
-            if index % 5 == 0:
-                self.excel_driver.append_to_csv(
-                    filename=self.csv_filename,
-                    data_list=result_list,
-                    columns=self.columns,
-                    folder_path=self.folder_path,
-                    sub_dir=self.out_dir
-                )
+                self.insert_detail_row(obj)
 
             self.current_cnt = self.current_cnt + 1
             pro_value = (self.current_cnt / self.total_cnt) * 1000000 if self.total_cnt > 0 else 0
@@ -360,15 +729,6 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
             self.log_signal_func(f"현재 페이지 {self.current_cnt}/{self.total_cnt} : {obj}")
             time.sleep(random.uniform(1, 2))
-
-        if result_list:
-            self.excel_driver.append_to_csv(
-                filename=self.csv_filename,
-                data_list=result_list,
-                columns=self.columns,
-                folder_path=self.folder_path,
-                sub_dir=self.out_dir
-            )
 
     # 전체 갯수 조회
     def _total_cnt_cal(self) -> Optional[List[str]]:
@@ -707,7 +1067,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             zipCode = ""
             if self.columns and "우편번호" in self.columns:
                 zipCode = self._fetch_zipcode_by_addr(address, roadAddress)
-            
+
             # 대표 이미지
             images = []
             img_origin = ""
