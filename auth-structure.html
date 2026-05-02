@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ERP 인증/권한 구조 요구사항</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 32px;
+            font-family: "Pretendard", "Noto Sans KR", Arial, sans-serif;
+            background: #f4f7fb;
+            color: #1f2937;
+        }
+
+        .page {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            margin: 0 0 8px;
+            font-size: 30px;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        .header p {
+            margin: 0;
+            color: #6b7280;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .summary-card .label {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .summary-card .value {
+            font-size: 22px;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        .section {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 22px;
+            padding: 24px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            margin: 0 0 18px;
+            font-size: 22px;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        .section-desc {
+            margin: -6px 0 20px;
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .org-wrap {
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .org-chart {
+            min-width: 1050px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .org-level {
+            display: flex;
+            justify-content: center;
+            gap: 26px;
+            position: relative;
+            width: 100%;
+        }
+
+        .org-level.level-1,
+        .org-level.level-2,
+        .org-level.level-3 {
+            margin-bottom: 30px;
+        }
+
+        .org-card {
+            width: 240px;
+            min-height: 132px;
+            border-radius: 18px;
+            padding: 18px;
+            border: 1px solid #dbe4f0;
+            background: #f8fbff;
+            text-align: center;
+            position: relative;
+        }
+
+        .org-card.admin {
+            background: linear-gradient(135deg, #1d4ed8, #2563eb);
+            color: #ffffff;
+            border: none;
+        }
+
+        .org-card.leader {
+            background: linear-gradient(135deg, #0f766e, #14b8a6);
+            color: #ffffff;
+            border: none;
+        }
+
+        .org-card.manager {
+            background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+            color: #ffffff;
+            border: none;
+        }
+
+        .org-card.staff {
+            background: linear-gradient(135deg, #374151, #4b5563);
+            color: #ffffff;
+            border: none;
+        }
+
+        .org-card h3 {
+            margin: 0 0 10px;
+            font-size: 19px;
+            font-weight: 800;
+        }
+
+        .org-card p {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.7;
+            opacity: 0.98;
+        }
+
+        .org-note {
+            margin-top: 18px;
+            padding: 16px 18px;
+            border-radius: 14px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            font-size: 14px;
+            color: #374151;
+            line-height: 1.8;
+        }
+
+        .org-note strong {
+            color: #111827;
+        }
+
+        .permission-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .permission-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            background: #f9fafb;
+            padding: 18px;
+        }
+
+        .permission-card h3 {
+            margin: 0 0 12px;
+            font-size: 18px;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        .permission-card ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .permission-card li {
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #374151;
+            line-height: 1.7;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+        }
+
+        thead th {
+            background: #111827;
+            color: #ffffff;
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        tbody td {
+            padding: 14px 16px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 14px;
+            line-height: 1.7;
+            color: #374151;
+            vertical-align: top;
+        }
+
+        tbody tr:hover td {
+            background: #f9fafb;
+        }
+
+        .col-id {
+            width: 100px;
+            font-weight: 800;
+            color: #2563eb;
+            white-space: nowrap;
+        }
+
+        .col-cat {
+            width: 110px;
+            white-space: nowrap;
+        }
+
+        .col-feature {
+            width: 170px;
+            font-weight: 700;
+            color: #111827;
+            white-space: nowrap;
+        }
+
+        .footer {
+            margin-top: 10px;
+            text-align: right;
+            color: #9ca3af;
+            font-size: 13px;
+        }
+
+        @media (max-width: 1100px) {
+            .summary-grid,
+            .permission-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 18px;
+            }
+
+            .summary-grid,
+            .permission-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .section {
+                padding: 18px;
+            }
+        }
+
+        @media print {
+            body {
+                background: #ffffff;
+                padding: 0;
+            }
+
+            .section,
+            .summary-card {
+                box-shadow: none;
+            }
+
+            tbody tr:hover td {
+                background: transparent;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <h1>ERP 인증 · 권한 구조 요구사항</h1>
+        <p>
+            업체별 ERP 환경에서 로그인, 역할 체계, 메뉴 권한, 기능 권한, 사용자 관리, 감사 로그를
+            체계적으로 관리하기 위한 인증/권한 요구사항 정리 문서
+        </p>
+    </div>
+
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="label">요구사항 수</div>
+            <div class="value">27개</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">역할 체계</div>
+            <div class="value">admin &gt; leader &gt; 팀장 &gt; 사원</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">핵심 보안</div>
+            <div class="value">로그인 로그 / IP 제한 / 권한 이력</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">핵심 원칙</div>
+            <div class="value">사원은 본인 데이터만 접근</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">조직구조도</h2>
+        <p class="section-desc">
+            기본 조직/권한 구조는 <strong>admin → leader → 팀장 → 사원</strong> 순서로 구성한다.
+            admin은 leader 권한을 부여할 수 있으며, 팀장은 본인 팀 소속 사원을 관리할 수 있다.
+        </p>
+
+        <div class="org-wrap">
+            <div class="org-chart">
+                <div class="org-level level-1">
+                    <div class="org-card admin">
+                        <h3>admin</h3>
+                        <p>
+                            최상위 관리자<br />
+                            전체 업체/시스템/권한 관리<br />
+                            leader 권한 부여 가능
+                        </p>
+                    </div>
+                </div>
+
+                <div class="org-level level-2">
+                    <div class="org-card leader">
+                        <h3>leader</h3>
+                        <p>
+                            상위 운영 권한<br />
+                            업체 주요 업무/사용자 관리<br />
+                            기본 CUD 가능
+                        </p>
+                    </div>
+                </div>
+
+                <div class="org-level level-3">
+                    <div class="org-card manager">
+                        <h3>팀장</h3>
+                        <p>
+                            본인 팀 데이터 관리<br />
+                            소속 사원 권한/상태 관리<br />
+                            팀 단위 운영 가능
+                        </p>
+                    </div>
+                </div>
+
+                <div class="org-level level-4">
+                    <div class="org-card staff">
+                        <h3>사원</h3>
+                        <p>
+                            사원 전용 페이지 접근<br />
+                            본인 데이터만 조회 가능<br />
+                            타 사원 데이터 접근 불가
+                        </p>
+                    </div>
+                    <div class="org-card staff">
+                        <h3>사원</h3>
+                        <p>
+                            사원 전용 페이지 접근<br />
+                            본인 데이터만 조회 가능<br />
+                            타 사원 데이터 접근 불가
+                        </p>
+                    </div>
+                    <div class="org-card staff">
+                        <h3>사원</h3>
+                        <p>
+                            사원 전용 페이지 접근<br />
+                            본인 데이터만 조회 가능<br />
+                            타 사원 데이터 접근 불가
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="org-note">
+            <strong>권한 핵심 원칙</strong><br />
+            1) admin은 최상위 관리 권한을 가지며 leader 권한을 부여/회수할 수 있다.<br />
+            2) leader는 업체 주요 업무와 사용자 관리에 접근할 수 있다.<br />
+            3) 팀장은 본인 팀 범위 내 사원 관리가 가능하다.<br />
+            4) 사원은 사원 페이지에만 접근 가능하며 <strong>본인 데이터만</strong> 조회할 수 있다.
+        </div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">역할별 권한 요약</h2>
+        <div class="permission-grid">
+            <div class="permission-card">
+                <h3>admin</h3>
+                <ul>
+                    <li>최상위 관리자</li>
+                    <li>전체 업체 및 시스템 설정 관리</li>
+                    <li>권한/메뉴/사용자 관리</li>
+                    <li>leader 권한 부여 및 회수 가능</li>
+                    <li>전체 CUD 가능</li>
+                </ul>
+            </div>
+
+            <div class="permission-card">
+                <h3>leader</h3>
+                <ul>
+                    <li>상위 운영자</li>
+                    <li>업체 주요 데이터 조회/관리</li>
+                    <li>사용자 및 업무 운영 관리</li>
+                    <li>기본 CUD 가능</li>
+                </ul>
+            </div>
+
+            <div class="permission-card">
+                <h3>팀장</h3>
+                <ul>
+                    <li>본인 팀 데이터 조회/관리</li>
+                    <li>본인 팀 사원 상태/권한 관리</li>
+                    <li>팀 단위 CUD 가능</li>
+                    <li>다른 팀 범위는 권한 정책에 따라 제한</li>
+                </ul>
+            </div>
+
+            <div class="permission-card">
+                <h3>사원</h3>
+                <ul>
+                    <li>사원 전용 페이지 접근</li>
+                    <li>본인 등록/담당 데이터만 조회</li>
+                    <li>다른 사원 데이터 접근 불가</li>
+                    <li>권한 범위 내 최소 기능만 허용</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2 class="section-title">인증 · 권한 요구사항 목록</h2>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>대분류</th>
+                    <th>기능명</th>
+                    <th>요구사항</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td class="col-id">AUTH-001</td>
+                    <td class="col-cat">인증</td>
+                    <td class="col-feature">로그인</td>
+                    <td>첫 화면은 로그인 페이지로 제공하며, 계정 인증 후 사용자 역할과 접근 가능 범위를 식별해야 한다. 로그인 성공/실패 이력은 중앙 서버에 기록해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-002</td>
+                    <td class="col-cat">인증</td>
+                    <td class="col-feature">업체 식별</td>
+                    <td>업체별로 별도 ERP 서버를 운영하므로, 업체 식별은 중앙 서버에서 발급한 업체 식별자 기준으로 관리해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-003</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">역할 체계</td>
+                    <td>기본 역할은 admin, leader, 팀장, 사원 구조로 구분한다. 역할별로 접근 가능한 메뉴, 기능, 데이터 범위를 다르게 제어해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-004</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">admin 권한</td>
+                    <td>admin은 최상위 관리자 권한을 가지며, 전체 업체 관리, 시스템 설정, 권한 관리, 중앙 로그 확인 등 전체 관리 기능에 접근할 수 있어야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-005</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">leader 권한</td>
+                    <td>leader는 admin이 부여할 수 있는 상위 운영 권한이며, 소속 업체의 주요 업무 데이터와 사용자 관리 기능에 접근할 수 있어야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-006</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">leader 권한 부여</td>
+                    <td>admin은 특정 사용자에게 leader 권한을 부여하거나 회수할 수 있어야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-007</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">팀장 권한</td>
+                    <td>팀장은 본인 팀의 데이터와 소속 사원 데이터를 조회하고 관리할 수 있어야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-008</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">팀장 사용자 관리</td>
+                    <td>팀장은 본인 팀에 소속된 사원의 계정, 상태, 기본 권한을 관리할 수 있어야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-009</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">사원 권한</td>
+                    <td>사원은 사원 전용 페이지에만 접근할 수 있어야 하며, 본인이 등록하거나 담당하는 데이터만 조회할 수 있어야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-010</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">사원 간 접근 제한</td>
+                    <td>사원끼리는 서로의 영업 정보, 고객 정보, 상담 이력, 계약 정보에 접근할 수 없어야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-011</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">데이터 접근 범위</td>
+                    <td>사용자 역할에 따라 전체 데이터, 업체 데이터, 팀 데이터, 본인 데이터로 접근 범위를 구분해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-012</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">메뉴 권한</td>
+                    <td>각 역할이 접근 가능한 메뉴를 DB에서 관리해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-013</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">메뉴 URL 관리</td>
+                    <td>각 메뉴의 URL, 표시 여부, 정렬 순서, 사용 여부를 DB에서 관리해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-014</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">기능 권한</td>
+                    <td>조회, 등록, 수정, 삭제, 다운로드, 설정 권한을 역할별로 세분화해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-015</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">CUD 권한</td>
+                    <td>admin과 leader는 기본적으로 등록, 수정, 삭제 권한을 가질 수 있어야 하며, 팀장과 사원은 역할과 메뉴 권한에 따라 CUD 가능 범위를 제한해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-016</td>
+                    <td class="col-cat">권한</td>
+                    <td class="col-feature">사용자별 예외 권한</td>
+                    <td>역할 권한 외에도 특정 사용자에게만 추가 권한 또는 제한 권한을 설정할 수 있어야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-017</td>
+                    <td class="col-cat">보안</td>
+                    <td class="col-feature">접근 IP 제한</td>
+                    <td>등록된 IP만 접속을 허용하는 정책을 지원해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-018</td>
+                    <td class="col-cat">보안</td>
+                    <td class="col-feature">로그인 실패 관리</td>
+                    <td>로그인 실패 횟수와 계정 잠금 정책을 관리해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-019</td>
+                    <td class="col-cat">보안</td>
+                    <td class="col-feature">접속 로그</td>
+                    <td>로그인, 로그아웃, 로그인 실패, IP 차단 등 인증 관련 로그를 관리해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-020</td>
+                    <td class="col-cat">회원관리</td>
+                    <td class="col-feature">사용자 등록</td>
+                    <td>admin과 leader는 사용자 계정을 등록할 수 있어야 하며, 팀장은 본인 팀 소속 사원을 등록하거나 관리할 수 있어야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-021</td>
+                    <td class="col-cat">회원관리</td>
+                    <td class="col-feature">조직 구조</td>
+                    <td>admin, leader, 팀장, 사원 구조를 지원해야 하며, 팀 단위 조직 관리를 지원해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-022</td>
+                    <td class="col-cat">회원관리</td>
+                    <td class="col-feature">팀 관리</td>
+                    <td>팀을 생성, 수정, 삭제하고 팀장을 지정할 수 있어야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-023</td>
+                    <td class="col-cat">회원관리</td>
+                    <td class="col-feature">사용자별 할당량</td>
+                    <td>기본 할당량과 사용자별 개별 할당량 설정을 지원해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-024</td>
+                    <td class="col-cat">회원관리</td>
+                    <td class="col-feature">사용자 상태관리</td>
+                    <td>사용자 상태는 사용, 정지, 퇴사, 잠금으로 관리해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-025</td>
+                    <td class="col-cat">회원관리</td>
+                    <td class="col-feature">비밀번호 정책</td>
+                    <td>비밀번호 초기화, 변경주기, 잠금 정책을 지원해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-026</td>
+                    <td class="col-cat">감사로그</td>
+                    <td class="col-feature">권한 변경 이력</td>
+                    <td>사용자 권한, 역할, 메뉴 권한, 데이터 접근 범위 변경 이력을 저장해야 한다.</td>
+                </tr>
+                <tr>
+                    <td class="col-id">AUTH-027</td>
+                    <td class="col-cat">감사로그</td>
+                    <td class="col-feature">중요 데이터 접근 로그</td>
+                    <td>영업 고객, 계약, 견적 등 민감 데이터 조회 이력을 남길 수 있어야 한다.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer">
+        ERP 인증 · 권한 구조 요구사항 문서
+    </div>
+</div>
+</body>
+</html>
