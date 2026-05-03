@@ -21,6 +21,8 @@ OUTPUT_ORIGIN_FILE = "서경대학교_교수_URL_이메일_원본.xlsx"
 OUTPUT_CLEAN_FILE = "서경대학교_교수_URL_이메일_정리본.xlsx"
 
 EMAIL_RE = r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
+SKUNIV_EMAIL_RE = r"[A-Za-z0-9._%+-]+@skuniv\.ac\.kr"
+NOTICE_MAX_PAGES = 30
 
 LIBERAL_ORG_URL = "https://liberal.skuniv.ac.kr/about#!/organization"
 GRAD_ORG_URL = "https://grad.skuniv.ac.kr/organization"
@@ -303,6 +305,188 @@ def get_professors(driver, professor_url):
         })
 
     return professors
+
+
+def find_skuniv_emails(text):
+    emails = re.findall(SKUNIV_EMAIL_RE, text or "", re.I)
+    return list(dict.fromkeys(emails))
+
+
+def find_skuniv_emails_from_soup(area):
+    text = area.get_text(" ", strip=True) if area else ""
+    hrefs = []
+
+    if area:
+        for a in area.select('a[href^="mailto:"]'):
+            href = a.get("href", "")
+            href = href.replace("mailto:", "")
+            href = href.split("?")[0]
+            hrefs.append(href)
+
+    return find_skuniv_emails(text + " " + " ".join(hrefs))
+
+
+def make_notice_page_url(notice_url, page):
+    if page <= 1:
+        return notice_url
+
+    if re.search(r"([?&])page=\d+", notice_url):
+        return re.sub(r"([?&])page=\d+", r"\1page=" + str(page), notice_url)
+
+    sep = "&" if "?" in notice_url else "?"
+    return notice_url + sep + "page=" + str(page)
+
+
+def find_notice_url(driver, homepage_url):
+    html = get_page_html(driver, homepage_url, 0.5)
+
+    if not html:
+        return ""
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    for a in soup.find_all("a", href=True):
+        text = clean_text(a.get_text(" ", strip=True))
+        text = re.sub(r"\s+", " ", text)
+        href = a.get("href", "")
+
+        if "학부 공지사항" in text:
+            return urljoin(homepage_url, href)
+
+    for a in soup.find_all("a", href=True):
+        text = clean_text(a.get_text(" ", strip=True))
+        text = re.sub(r"\s+", " ", text)
+        href = a.get("href", "")
+
+        if "공지사항" in text and "notice" in href.lower():
+            return urljoin(homepage_url, href)
+
+    return ""
+
+
+def get_notice_article_links(soup, notice_url):
+    links = []
+
+    for a in soup.select("table.boardList td.title a[href]"):
+        href = a.get("href", "")
+        full_url = urljoin(notice_url, href)
+
+        if "document_srl=" in full_url or re.search(r"/\d+($|[?#])", full_url):
+            links.append(full_url)
+
+    if not links:
+        for a in soup.find_all("a", href=True):
+            text = clean_text(a.get_text(" ", strip=True))
+            href = a.get("href", "")
+            full_url = urljoin(notice_url, href)
+
+            if not text:
+                continue
+
+            if "document_srl=" in full_url or re.search(r"/\d+($|[?#])", full_url):
+                links.append(full_url)
+
+    return list(dict.fromkeys(links))
+
+
+def find_notice_admin_email(driver, notice_url, professor_email_set):
+    seen_links = set()
+
+    for page in range(1, NOTICE_MAX_PAGES + 1):
+        page_url = make_notice_page_url(notice_url, page)
+        log(f"[공지사항] page={page} 접속: {page_url}")
+
+        html = get_page_html(driver, page_url, 0.4)
+
+        if not html:
+            break
+
+        soup = BeautifulSoup(html, "html.parser")
+        links = get_notice_article_links(soup, page_url)
+        new_links = []
+
+        for link in links:
+            key = link.split("#")[0]
+
+            if key in seen_links:
+                continue
+
+            seen_links.add(key)
+            new_links.append(link)
+
+        if not new_links:
+            log(f"[공지사항] page={page} 신규 게시글 없음 → 중지")
+            break
+
+        for idx, detail_url in enumerate(new_links, start=1):
+            log(f"[공지사항] page={page} 상세 {idx}/{len(new_links)} 확인")
+
+            detail_html = get_page_html(driver, detail_url, 0.3)
+
+            if not detail_html:
+                continue
+
+            detail_soup = BeautifulSoup(detail_html, "html.parser")
+            area = detail_soup.select_one(".viewDocument")
+
+            if not area:
+                area = detail_soup.select_one(".boardRead")
+
+            if not area:
+                area = detail_soup
+
+            emails = find_skuniv_emails_from_soup(area)
+
+            for email in emails:
+                if email.lower() in professor_email_set:
+                    continue
+
+                return {
+                    "이메일": email,
+                    "상세URL": detail_url
+                }
+
+    return {}
+
+
+def collect_notice_admin_row(driver, org, professor_email_set, fallback_url=""):
+    homepage_url = org.get("URL", "")
+
+    if not homepage_url:
+        return None
+
+    notice_url = find_notice_url(driver, homepage_url)
+
+    if not notice_url and fallback_url:
+        notice_url = find_notice_url(driver, fallback_url)
+
+    if not notice_url:
+        log("[공지사항] 학부 공지사항 URL 없음")
+        return None
+
+    log(f"[공지사항] 학부 공지사항 URL 발견: {notice_url}")
+
+    found = find_notice_admin_email(driver, notice_url, professor_email_set)
+
+    if not found:
+        log("[공지사항] 교수 메일이 아닌 @skuniv.ac.kr 이메일 없음")
+        return None
+
+    admin_org = dict(org)
+    admin_org["소분류"] = "행정"
+
+    log(f"[공지사항] 행정 이메일 발견: {found.get('이메일', '')}")
+
+    return make_result_row(
+        admin_org,
+        found.get("상세URL", notice_url),
+        "",
+        "행정",
+        "",
+        found.get("이메일", ""),
+        "성공",
+        "학부 공지사항 상세페이지에서 교수 메일이 아닌 @skuniv.ac.kr 이메일을 수집했습니다."
+    )
 
 
 def make_result_row(org, professor_url, position, duty, name, email, status, message):
@@ -847,6 +1031,7 @@ def collect_all(driver):
         major = org.get("대분류", "")
         middle = org.get("중분류", "")
         homepage_url = org.get("URL", "")
+        professor_email_set = set()
 
         if homepage_url:
             homepage_url = urljoin(START_URL, homepage_url)
@@ -885,6 +1070,13 @@ def collect_all(driver):
                     "홈페이지에서 교수 메뉴 링크를 찾지 못했습니다."
                 )
             )
+
+            notice_row = collect_notice_admin_row(driver, org, professor_email_set)
+
+            if notice_row:
+                result_rows.append(notice_row)
+
+            log(f"[{idx}/{total}] 완료: {major} > {middle}")
             continue
 
         log(f"[{idx}/{total}] 교수URL 발견: {professor_url}")
@@ -904,9 +1096,20 @@ def collect_all(driver):
                     "교수URL에 접속했지만 교수 목록을 찾지 못했습니다."
                 )
             )
+
+            notice_row = collect_notice_admin_row(driver, org, professor_email_set, professor_url)
+
+            if notice_row:
+                result_rows.append(notice_row)
+
+            log(f"[{idx}/{total}] 완료: {major} > {middle}")
             continue
 
         log(f"[{idx}/{total}] 교수 수집 성공: {len(professors)}명")
+
+        for professor in professors:
+            for email_item in find_emails(professor.get("이메일", "")):
+                professor_email_set.add(email_item.lower())
 
         for professor in professors:
             name = professor.get("이름", "")
@@ -930,9 +1133,14 @@ def collect_all(driver):
                 )
             )
 
+        notice_row = collect_notice_admin_row(driver, org, professor_email_set, professor_url)
+
+        if notice_row:
+            result_rows.append(notice_row)
+
         log(f"[{idx}/{total}] 완료: {major} > {middle}")
 
-    log(f"[전체] 일반 교수 정보 수집 종료: {len(result_rows)}행")
+    log(f"[전체] 일반 교수/공지사항 정보 수집 종료: {len(result_rows)}행")
 
     exception_rows = collect_exception_rows(driver)
     result_rows.extend(exception_rows)
@@ -940,7 +1148,6 @@ def collect_all(driver):
     log(f"[전체] 전체 정보 수집 종료: {len(result_rows)}행")
 
     return result_rows
-
 
 def save_excel(rows):
     columns = [
