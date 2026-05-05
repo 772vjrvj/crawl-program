@@ -4,7 +4,7 @@ import os
 import re
 import time
 from datetime import datetime
-from urllib.parse import urljoin, urldefrag
+from urllib.parse import urljoin, urldefrag, urlparse, parse_qs, urlencode, urlunparse
 
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -28,8 +28,11 @@ RESEARCH_URL = "https://research.swu.ac.kr/skin/page/about04.html"
 TEACHING_CENTER_STAFF_URL = "https://sweet.swu.ac.kr/skin/page/about03.html"
 
 ART_DESIGN_URL = "https://sites.google.com/view/swuart/%EB%8C%80%ED%95%99%EC%86%8C%EA%B0%9C/%EC%9C%84%EC%B9%98-%EB%B0%8F-%EC%97%B0%EB%9D%BD%EC%B2%98"
+GLOBAL_TRADE_URL = "https://www.swu.ac.kr/www/globa_1.html"
 
 EMAIL_RE = r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
+NOTICE_MAX_PAGES = 30
+
 
 BAD_EMAIL_WORDS = [
     "wixpress.com",
@@ -320,11 +323,204 @@ def collect_professors_from_page(driver, info, prof_url, home_urls):
     return rows
 
 
-def collect_admin_from_homepages(driver, info, home_urls):
+
+def normalize_email(email):
+    return clean_text(email).lower()
+
+
+def is_notice_email_allowed(email, source_url):
+    key = normalize_email(email)
+    url = str(source_url or "").lower()
+
+    # === 신규 === 기본 공지사항 기준은 @swu 포함 이메일만 사용한다.
+    if "@swu" in key:
+        return True
+
+    # === 신규 === 바이오헬스융합학과 qshop 게시판 예외
+    # 게시판 작성자 이메일이 swu.biohealth@gmail.com 형태로 노출된다.
+    if "biohealth.qshop.ai" in url and key.startswith("swu.biohealth@"):
+        return True
+
+    return False
+
+
+def find_notice_candidate_emails(text, professor_emails, source_url=""):
+    professor_keys = []
+
+    for email in professor_emails:
+        key = normalize_email(email)
+
+        if key and key not in professor_keys:
+            professor_keys.append(key)
+
+    result = []
+
+    for email in find_emails(text):
+        key = normalize_email(email)
+
+        if not is_notice_email_allowed(email, source_url):
+            continue
+
+        # === 신규 === 교수 목록에서 이미 수집한 이메일은 제외한다.
+        if key in professor_keys:
+            continue
+
+        if key and email not in result:
+            result.append(email)
+
+    return result
+
+
+def find_notice_urls_from_homepage(driver, home_url):
+    urls = []
+    soup = get_soup(driver, home_url, "body", 3)
+
+    for a in soup.select("a[href]"):
+        text = clean_text(a.get_text(" ", strip=True))
+        compact_text = text.replace(" ", "")
+
+        # === 신규 === 일반 공지사항 + 언론영상학부 같은 "학부 공지" 메뉴도 포함한다.
+        if "공지사항" in text or "학부공지" in compact_text:
+            urls.append(abs_url(home_url, a.get("href")))
+
+    return uniq(urls)
+
+
+def make_notice_page_url(url, page_no):
+    parsed = urlparse(url)
+    qs = parse_qs(parsed.query)
+
+    if "page_no" in qs:
+        qs["page_no"] = [str(page_no)]
+    elif "page" in qs:
+        qs["page"] = [str(page_no)]
+    elif "p" in qs:
+        qs["p"] = [str(page_no)]
+    elif "qshop.ai" in parsed.netloc:
+        qs["page"] = [str(page_no)]
+    else:
+        qs["page_no"] = [str(page_no)]
+
+    query = urlencode(qs, doseq=True)
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, query, parsed.fragment))
+
+
+def make_notice_detail_url(list_url, data_no, page_no):
+    parsed = urlparse(list_url)
+    path = parsed.path
+
+    if "view.php" not in path:
+        path = path.replace("lists.php", "view.php")
+        path = path.replace("list.php", "view.php")
+
+    qs = parse_qs(parsed.query)
+    qs["data_no"] = [str(data_no)]
+
+    if "page_no" in qs:
+        qs["page_no"] = [str(page_no)]
+    else:
+        qs["page_no"] = [str(page_no)]
+
+    query = urlencode(qs, doseq=True)
+    return urlunparse((parsed.scheme, parsed.netloc, path, parsed.params, query, parsed.fragment))
+
+
+def collect_notice_detail_urls(list_url, soup, page_no):
+    urls = []
+
+    for tr in soup.select("table tbody tr"):
+        if "secret" in tr.get("class", []):
+            continue
+
+        a = tr.select_one("a.btnRead[value]")
+
+        if a:
+            data_no = clean_text(a.get("value"))
+
+            if data_no:
+                urls.append(make_notice_detail_url(list_url, data_no, page_no))
+
+            continue
+
+        a = tr.select_one("td.subject a[href], .subject a[href], a[href]")
+
+        if a:
+            href = a.get("href", "")
+
+            if href and href != "#":
+                urls.append(abs_url(list_url, href))
+
+    # === 신규 === 바이오헬스융합학과 qshop 게시판은 table row가 아니라 /board/... 카드 링크 구조다.
+    for a in soup.select('a[href*="/board/"]'):
+        href = a.get("href", "")
+
+        if not href:
+            continue
+
+        if "/write" in href:
+            continue
+
+        urls.append(abs_url(list_url, href))
+
+    return uniq(urls)
+
+
+def collect_notice_emails_from_board(driver, notice_url, professor_emails):
+    for page_no in range(1, NOTICE_MAX_PAGES + 1):
+        page_url = make_notice_page_url(notice_url, page_no)
+        soup = get_soup(driver, page_url, "body", 3)
+        detail_urls = collect_notice_detail_urls(page_url, soup, page_no)
+
+        if not detail_urls:
+            if page_no == 1:
+                area = soup.select_one(".bbs-wrap") or soup
+                text = area.get_text(" ", strip=True) + " " + str(area)
+                emails = find_notice_candidate_emails(text, professor_emails, page_url)
+
+                if emails:
+                    print("    [공지사항 이메일] 발견:", ", ".join(emails))
+                    return emails
+
+            break
+
+        print("  [공지사항] page", page_no, "상세", len(detail_urls), "건")
+
+        for detail_url in detail_urls:
+            detail_soup = get_soup(driver, detail_url, ".bbs-wrap, body", 3)
+            area = detail_soup.select_one(".bbs-wrap") or detail_soup
+            text = area.get_text(" ", strip=True) + " " + str(area)
+            emails = find_notice_candidate_emails(text, professor_emails, detail_url)
+
+            if emails:
+                print("    [공지사항 이메일] 발견:", ", ".join(emails))
+                return emails
+
+    return []
+
+
+def collect_notice_emails_from_homepages(driver, home_urls, professor_emails):
+    result = []
+
+    for home_url in home_urls:
+        notice_urls = find_notice_urls_from_homepage(driver, home_url)
+
+        for notice_url in notice_urls:
+            print("  [공지사항] 확인:", notice_url)
+            emails = collect_notice_emails_from_board(driver, notice_url, professor_emails)
+            result.extend(emails)
+
+            if emails:
+                break
+
+    return uniq(result)
+
+def collect_admin_from_homepages(driver, info, home_urls, professor_emails):
     rows = []
 
     for home_url in home_urls:
-        emails = collect_emails_from_url(driver, home_url)
+        home_emails = collect_emails_from_url(driver, home_url)
+        notice_emails = collect_notice_emails_from_homepages(driver, [home_url], professor_emails)
+        emails = uniq(home_emails + notice_emails)
 
         if emails:
             for email in emails:
@@ -455,15 +651,52 @@ def collect_university_data(driver):
                 home_urls = dept_home_urls
 
             prof_url = find_tab_link(major_soup, major["URL"], "교수진")
+            professor_rows = []
+            professor_emails = []
 
             if prof_url:
-                rows.extend(collect_professors_from_page(driver, major, prof_url, home_urls))
+                professor_rows = collect_professors_from_page(driver, major, prof_url, home_urls)
+                rows.extend(professor_rows)
 
-            rows.extend(collect_admin_from_homepages(driver, major, home_urls))
+            for professor_row in professor_rows:
+                professor_email = professor_row.get("이메일", "")
 
+                if professor_email:
+                    professor_emails.append(professor_email)
+
+            rows.extend(collect_admin_from_homepages(driver, major, home_urls, professor_emails))
+
+    rows.extend(collect_global_trade_extra(driver))
     rows.extend(collect_teaching_center(driver))
     rows.extend(collect_university_extra_cases(driver))
     rows.extend(collect_art_design_extra(driver))
+
+    return rows
+
+
+def collect_global_trade_extra(driver):
+    print("[대학 예외] 글로벌통상학부 수집 시작")
+
+    rows = []
+    soup = get_soup(driver, GLOBAL_TRADE_URL, "#main", 3)
+    text = soup.get_text(" ", strip=True) + " " + str(soup)
+    emails = find_emails(text)
+
+    if not emails:
+        emails = [""]
+
+    for email in emails:
+        rows.append(make_row(
+            "사회과학대학",
+            "글로벌통상학부",
+            "행정실",
+            "",
+            "행정",
+            "",
+            email,
+            GLOBAL_TRADE_URL,
+            ""
+        ))
 
     return rows
 
