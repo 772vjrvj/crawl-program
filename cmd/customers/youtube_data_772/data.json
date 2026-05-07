@@ -1,0 +1,2242 @@
+{
+  'etag': 'HF0H-cpjsez3KFFPCcBMREst3fo',
+  'items': [
+    {
+      'etag': 'RtV1eTkqfKPgWuM10s3GMmVySyU',
+      'id': 'UgwPznEYw8VimanKRqt4AaABAg',
+      'kind': 'youtube#commentThread',
+      'snippet': {
+        'canReply': True,
+        'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw',
+        'isPublic': True,
+        'topLevelComment': {
+          'etag': '3l1lWGs_L8AXVfugFlvvwGVzxPI',
+          'id': 'UgwPznEYw8VimanKRqt4AaABAg',
+          'kind': 'youtube#comment',
+          'snippet': {
+            'authorChannelId': {
+              ...
+            },
+            'authorChannelUrl': 'http://www.youtube.com/@%EB%B3%84%EC%B0%8C-w4t',
+            'authorDisplayName': '@별찌-w4t',
+            'authorProfileImageUrl': 'https://yt3.ggpht.com/94hP6D-h-PdmsQstGJuSFrTIFmWUrg2IPjzdX5RfP2CLyndUO2JLOjtOgOXzZB-sAEDYLUvXk04=s48-c-k-c0x00ffffff-no-rj',
+            'canRate': True,
+            'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw',
+            'likeCount': 172,
+            'publishedAt': '2026-05-06T01:10:10Z',
+            'textDisplay': '내가 이걸보네ㅋㅋ 진짜 이걸보게될줄몰랏네',
+            'textOriginal': '내가 이걸보네ㅋㅋ 진짜 이걸보게될줄몰랏네',
+            'updatedAt': '2026-05-06T01:10:10Z',
+            'videoId': 'Z5dU-qvLW34',
+            'viewerRating': 'none'
+          }
+        },
+        'totalReplyCount': 0,
+        'videoId': 'Z5dU-qvLW34'
+      }
+    },
+    {
+      'etag': 'H6sRFezhEvCuu7BBwqSaC1toXUo',
+      'id': 'UgzQs2UukHk6SKv1xm14AaABAg',
+      'kind': 'youtube#commentThread',
+      'snippet': {
+        'canReply': True,
+        'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw',
+        'isPublic': True,
+        'topLevelComment': {
+          'etag': 'WKJIYA83DU19aC0Ug8X39u14xD4',
+          'id': 'UgzQs2UukHk6SKv1xm14AaABAg',
+          'kind': 'youtube#comment',
+          'snippet': {
+            'authorChannelId': {
+              ...
+            },
+            'authorChannelUrl': 'http://www.youtube.com/@%EA%B9%80%ED%98%84%EC%84%B1-x5j',
+            'authorDisplayName': '@김현성-x5j',
+            'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_nxVsg2YYziQ9V-yCVAEH_nxaFMNy2IQL09WwXX0TsTNrq88oE=s48-c-k-c0x00ffffff-no-rj',
+            'canRate': True,
+            'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw',
+            'likeCount': 282,
+            'publishedAt': '2026-05-06T01:33:26Z',
+            'textDisplay': '1년 전하고 이렇게 달라질수가 있나
+            그때는
+            5천
+            공약하면
+            욕먹었는데
+            ', '
+            textOriginal
+            ': '
+            1년
+            전하고
+            이렇게
+            달라질수가
+            있나
+            그때는
+            5천
+            공약하면
+            욕먹었는데
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T01: 33
+            :
+            26Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 14, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            zE4XgmJGd3MWPBClBoeox-b3Oyg
+            ', '
+            id
+            ': '
+            UgxApErWAhfNIckGtsZ4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            al9eP6sotPU0c8Xc9HsUeYYNCNY
+            ', '
+            id
+            ': '
+            UgxApErWAhfNIckGtsZ4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EB%82%A8%EA%B0%81%EC%82%B0', 'authorDisplayName': '@남각산', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_lRzK5S4ky9DOc6olvgbuerrzYVeaBc8yK1NVV96Oun3Kg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 198, 'publishedAt': '2026-05-06T00:50:31Z', 'textDisplay': '야 이젠 무섭다 무서워', 'textOriginal': '야 이젠 무섭다 무서워', 'updatedAt': '2026-05-06T00:50:31Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 4, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'IHjtAEsioujB_hqXoR2XlxZVHjM', 'id': 'UgzCNqQfxSFXY6bd2dd4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'DTgcon-ocTYZQkMVusG834bdo-c', 'id': 'UgzCNqQfxSFXY6bd2dd4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%A7%9C%EB%A5%B41%EC%84%B8', 'authorDisplayName': '@짜르1세', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ZoAKQgwzZ2tzk-2tBR_HFkQK9UDPjFWOEftBMvkFSBmWQUFZfxphiqR5MEZ0Hg1dQP4gNGoWow=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 248, 'publishedAt': '2026-05-06T00:47:30Z', 'textDisplay': '8천 9천 넘어서 1만 찍어 보자  대한민국 전국민이 부자 한번 돼보자', 'textOriginal': '8천 9천 넘어서 1만 찍어 보자  대한민국 전국민이 부자 한번 돼보자', 'updatedAt': '2026-05-06T00:47:30Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 15, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'x29-c4FY44e0NWpEtfhyR8Vgx3I', 'id': 'Ugyw-ny1DXp0204Rze14AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'D-oc5INWl4aVrf2il2CYqYltY6Y', 'id': 'Ugyw-ny1DXp0204Rze14AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@kminham', 'authorDisplayName': '@kminham', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_mnqd_Ihy-OzVmYVYWBXOmFMrkc0VMhHB8zdKkOlH_YuDMu8Y3FS7U2Wg_lEiKN4Z662urRXZIz=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 377, 'publishedAt': '2026-05-06T01:12:06Z', 'textDisplay': '다들 투표 잘하자.', 'textOriginal': '다들 투표 잘하자.', 'updatedAt': '2026-05-06T01:12:06Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 9, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'mCdi3IAhbIX3AusyCc6pnrKW0dE', 'id': 'UgznwKSqPgcYKVRaSfR4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'YjDR5KUJnGqwTjxgFKcqVjUNWLM', 'id': 'UgznwKSqPgcYKVRaSfR4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@JAJU337', 'authorDisplayName': '@JAJU337', 'authorProfileImageUrl': 'https://yt3.ggpht.com/GlGo-0icY1VJM4WCXvl1nM4jpPzkvHbbijDuCH-rfBT8hjPuFRv4W6eIvW9M5RHgo05Gjb_lUA=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 219, 'publishedAt': '2026-05-06T00:53:23Z', 'textDisplay': '8천 바로 고고!
+            곱버스
+            청산!
+            공매도
+            청산!
+            ', '
+            textOriginal
+            ': '
+            8천
+            바로
+            고고!
+            곱버스
+            청산!
+            공매도
+            청산!
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T00: 53
+            :
+            23Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 4, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            BCSjRTK4BnJnURyh6RzZVWN-vOE
+            ', '
+            id
+            ': '
+            UgzUwYk4MLHzWVMw8ep4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            LrGTXt2k0jZibrjbfQjuqEqCC8A
+            ', '
+            id
+            ': '
+            UgzUwYk4MLHzWVMw8ep4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EC%9D%B4%EB%B3%91%EC%9E%AC-p6x', 'authorDisplayName': '@이병재-p6x', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_mHABxys7o5BOumMvW-CcSaJcTwNat-vFvWX1bRKzwOsvGYa84=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 156, 'publishedAt': '2026-05-06T00:40:36Z', 'textDisplay': '8천 뉴스 곧 나오겠네', 'textOriginal': '8천 뉴스 곧 나오겠네', 'updatedAt': '2026-05-06T00:40:36Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'wgXb660GWuxx3PwT1gA7qYFH3Jc', 'id': 'Ugw6XwrmdbzjfxyLfyl4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'hEHyhIOQ5TjCYGURLMjcTC2JyzE', 'id': 'Ugw6XwrmdbzjfxyLfyl4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@Walking_brush', 'authorDisplayName': '@Walking_brush', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ruTFN-2lirZJl27RRSaHhK2TcrAynSSTZK1QiVPmTtaNPydZYZQV6POUgjFqVGGN5bSAoZm-wvA=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 67, 'publishedAt': '2026-05-06T01:25:29Z', 'textDisplay': '8천 가즈아!!!!!', 'textOriginal': '8천 가즈아!!!!!', 'updatedAt': '2026-05-06T01:25:29Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '5Kfmke7fosyHu2vwk-7ses69AgE', 'id': 'UgyITKJEPjAv7k5FjcR4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'TQWF_D5ZTcHV8UjivD8u4LzPKiU', 'id': 'UgyITKJEPjAv7k5FjcR4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@Jirumison', 'authorDisplayName': '@Jirumison', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_mgWSBQnBL4wxeHPM-kvvUwzFxkfLQkYjXKkRn4t9Absg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 124, 'publishedAt': '2026-05-06T00:52:42Z', 'textDisplay': '"주식으로 장난을 치면 패가망신"', 'textOriginal': '"주식으로 장난을 치면 패가망신"', 'updatedAt': '2026-05-06T00:52:42Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 4, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 's7-DBWqP9MhZv_NcOaKuAoj7zIs', 'id': 'UgyYuWBhooywJMEQUqN4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'CKtyeax93-uefmnyGsHevu13lM0', 'id': 'UgyYuWBhooywJMEQUqN4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EB%AA%85%EA%B8%B0%ED%99%8D-e4l', 'authorDisplayName': '@명기홍-e4l', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_lFFW-nj60JfhTG590s75U0dWxzJiGsU07Mq2tqA7-t2yj2XpI=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 176, 'publishedAt': '2026-05-06T01:13:34Z', 'textDisplay': '야~~!! 진짜 대한민국~^^ 잼프보유국', 'textOriginal': '야~~!! 진짜 대한민국~^^ 잼프보유국', 'updatedAt': '2026-05-06T01:13:34Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 2, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'zSe3ZOnoOY-YEIKgdW8-tizBr7M', 'id': 'UgyWMeh6suQFeoQDwQp4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'yBABG-mqmW0_w8KZZPUpScLDAWs', 'id': 'UgyWMeh6suQFeoQDwQp4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@MandalorianJ-s1p', 'authorDisplayName': '@MandalorianJ-s1p', 'authorProfileImageUrl': 'https://yt3.ggpht.com/-O-K8rDxcK-x6a9YafgL8XCeN_E2Jg1tvjhSaZpK9EbnEFFwedvbohglNJ2NIqenBogsibkjE00=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 100, 'publishedAt': '2026-05-06T01:20:40Z', 'textDisplay': '국민연금 그럼 도대체 얼마가 늘어나는거냐? 조만간 잔고 2배로 늘어나겠네', 'textOriginal': '국민연금 그럼 도대체 얼마가 늘어나는거냐? 조만간 잔고 2배로 늘어나겠네', 'updatedAt': '2026-05-06T01:20:40Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 4, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'ZcZabKdsl-o5MTUyNwhfhB97q7g', 'id': 'UgwrRj8Ug0fr_QCUSMt4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'Z7z8M4qXT5BW4JGQop0rWl36wPM', 'id': 'UgwrRj8Ug0fr_QCUSMt4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@the8tontruck', 'authorDisplayName': '@the8tontruck', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_mZXv1MR3p2QqF2-vbDxYuawD2rDRmGYpEWc8QjanSRxwU=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 45, 'publishedAt': '2026-05-06T01:34:48Z', 'textDisplay': '야 난 처음 5천 말 할때 임기 내 가능하지 않을까 했는데 벌써 7천이라니 ㅋㅋㅋㅋㅋ', 'textOriginal': '야 난 처음 5천 말 할때 임기 내 가능하지 않을까 했는데 벌써 7천이라니 ㅋㅋㅋㅋㅋ', 'updatedAt': '2026-05-06T01:34:48Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 1, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'HHF8rSEOG7CuJcmXDlUDo1F9CZU', 'id': 'Ugw-SHsjHGIJnBYVDO14AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'cHvrkP7AOWi-cmhcCNCKJWPAxNM', 'id': 'Ugw-SHsjHGIJnBYVDO14AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EA%B0%95%EC%9B%90%EB%8F%84-i4b', 'authorDisplayName': '@강원도-i4b', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_knOrBcbrLJdnyaU7OrS2zc0X-XeHDnrgONs8Ritko=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 116, 'publishedAt': '2026-05-06T01:38:48Z', 'textDisplay': '역시 리더가 중요하다. 효능감 쩌내 ㅋㅋ', 'textOriginal': '역시 리더가 중요하다. 효능감 쩌내 ㅋㅋ', 'updatedAt': '2026-05-06T01:39:09Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 4, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '1CzGJlWSMTMLkyLy0OyVHHwtB-k', 'id': 'Ugyc5nmkS0hmCJrxWXR4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'gs5OaFhiNwlikApB9FXvFywe0ZA', 'id': 'Ugyc5nmkS0hmCJrxWXR4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%8A%88%EC%BD%94%EB%A7%98', 'authorDisplayName': '@슈코맘', 'authorProfileImageUrl': 'https://yt3.ggpht.com/T0sLphuXzGNDl8B3LAHPCyC9IWfvbO7NKlRFkzy5Hakk8z5CVHV8MOoubpt0Yo0gvRCAPgVRwmg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 211, 'publishedAt': '2026-05-06T00:46:35Z', 'textDisplay': '대재명 ㄷㄷ', 'textOriginal': '대재명 ㄷㄷ', 'updatedAt': '2026-05-06T00:46:35Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 3, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'E7ebrSZIOiv1aVKFSDzMaOUJFNI', 'id': 'UgzZPAokqe-1OCKB_o54AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'oUHSOlXe6PnvcfIhjSrfz7dtzyw', 'id': 'UgzZPAokqe-1OCKB_o54AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@riolay9891', 'authorDisplayName': '@riolay9891', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_kkQnFkHlwKTbiEKcJ0g_mHMXUWQ4wRSqvntk8s3ZeJxwjm=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 349, 'publishedAt': '2026-05-06T01:30:56Z', 'textDisplay': '지도자 하나 바뀌었을 뿐인데......  정말 지도자가 누가 되느냐가 정말 중요하네........', 'textOriginal': '지도자 하나 바뀌었을 뿐인데......  정말 지도자가 누가 되느냐가 정말 중요하네........', 'updatedAt': '2026-05-06T01:30:56Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 21, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '_xDM0hXHavw1EbR6n7KC8KirUfY', 'id': 'Ugyqf8cviwKIMrjmP-94AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'qjrwud55LZPoIeU-ALZmIZFWgiU', 'id': 'Ugyqf8cviwKIMrjmP-94AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%99%84%EB%91%90%EC%BD%A9-v5l', 'authorDisplayName': '@완두콩-v5l', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_kl5DflvSAt5cCateTrSwaLn4GBN9r6Kpu3KbWBVHt3T53dfl0=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 21, 'publishedAt': '2026-05-06T02:11:20Z', 'textDisplay': '불과 1년전에 2000 초반 정도였는데.. 이게 현실적으로 가능한건지.. ㅋㅋㅋㅋㅋ', 'textOriginal': '불과 1년전에 2000 초반 정도였는데.. 이게 현실적으로 가능한건지.. ㅋㅋㅋㅋㅋ', 'updatedAt': '2026-05-06T02:11:20Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'J4fzhlaplol2Q77tMce1QM0FyaU', 'id': 'UgyLMDUrqDsBLqRsuIR4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'ZEJujPMzPvbgtPn4yPPbDHd24Jo', 'id': 'UgyLMDUrqDsBLqRsuIR4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EB%82%98%ED%98%84%EA%B8%B0-v6g', 'authorDisplayName': '@나현기-v6g', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_ljewYgguC4vKLux0O3OcfQ0lBFCZuwDoby8aDtFY0=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 11, 'publishedAt': '2026-05-06T03:33:31Z', 'textDisplay': '주식이 올라야 소비도 살고 서민도 산다  우리 잼프 연임', 'textOriginal': '주식이 올라야 소비도 살고 서민도 산다  우리 잼프 연임', 'updatedAt': '2026-05-06T03:36:11Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'vgQQulGZgK1c6ADIB9cim4enUos', 'id': 'UgzaadaAhkvM8XjZALp4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'msoDISyGo-kgeVPhXSJie_NN7OM', 'id': 'UgzaadaAhkvM8XjZALp4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%B5%9C%EC%9C%A0%EC%A7%84-g6s4k', 'authorDisplayName': '@최유진-g6s4k', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_l3Bm4ltPSxSvaBuGVp6c1pGs2CdccqzxylhZv_7vI=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 39, 'publishedAt': '2026-05-06T01:37:39Z', 'textDisplay': '소름돋는다!! 아파트 팔고 주식한 사람들이 위너다', 'textOriginal': '소름돋는다!! 아파트 팔고 주식한 사람들이 위너다', 'updatedAt': '2026-05-06T01:37:39Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 1, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'EJW9A6KCs-xNG8RiAPszc8l_y5Q', 'id': 'UgzzrjgD9PESKT3PK4l4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'smr5RyBfH2pqWvBO71VQiV5MVaY', 'id': 'UgzzrjgD9PESKT3PK4l4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@7dayssssx', 'authorDisplayName': '@7dayssssx', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_l1Ei_UOn3gRmgfSr7yz9KSSKyCjd8q_rgy03IhZBNtW-WLHx4=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 20, 'publishedAt': '2026-05-06T01:56:33Z', 'textDisplay': '이잼 정말 무섭다,,', 'textOriginal': '이잼 정말 무섭다,,', 'updatedAt': '2026-05-06T01:56:33Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'db9eruizPgblfom24Xw9qZ71ZYM', 'id': 'UgzAAAoS928eVCXXZvZ4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'PMcTvERc-vQoTSXJgXsiG6GbBT4', 'id': 'UgzAAAoS928eVCXXZvZ4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@choi7205', 'authorDisplayName': '@choi7205', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_lChINaMGzuGgYEdxh2b3CDLHVRP0vOCNdungwimTXwMXnLgD61gOFh7OyoNaPYCYhBMA=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 199, 'publishedAt': '2026-05-06T00:48:34Z', 'textDisplay': '내란수괴 2,200 VS 이재명 7,300', 'textOriginal': '내란수괴 2,200 VS 이재명 7,300', 'updatedAt': '2026-05-06T00:48:34Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 4, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'L06Au1FUBEoyHLwH6snoTLrxcnE', 'id': 'UgyisWl5tcfpvhrfPv54AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'rMLRVeoTGMHL3RFEp3Fpd9masxM', 'id': 'UgyisWl5tcfpvhrfPv54AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%ED%9B%84%EC%B8%84%EC%95%84%EB%B9%A0%EC%9C%A1%EC%95%84%EC%9D%BC%EA%B8%B0', 'authorDisplayName': '@후츄아빠육아일기', 'authorProfileImageUrl': 'https://yt3.ggpht.com/vyvnchMtfuNLUGiSmfJTS7VqmY5ZipS6tYNNfS6FZWBejf5MayW5h2nP8GLXz7903Ghi7GL4r4Y=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 17, 'publishedAt': '2026-05-06T01:41:57Z', 'textDisplay': '연기금이나 외인도 행정부수장 능력도 보는거지 그리고 투자하는거지...', 'textOriginal': '연기금이나 외인도 행정부수장 능력도 보는거지 그리고 투자하는거지...', 'updatedAt': '2026-05-06T01:42:16Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'tPCDJIxw1wsQ2MmudPwcIXuyHL8', 'id': 'UgyC6gOQ2V83VvZMUL54AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'oPEpvP9dNzYhc0WY9VrTykDvKs4', 'id': 'UgyC6gOQ2V83VvZMUL54AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@Dasdesdemdas%C3%BC', 'authorDisplayName': '@Dasdesdemdasü', 'authorProfileImageUrl': 'https://yt3.ggpht.com/AiIC1qreXuzVQCRoSDETQujeLrytRfNIXEFTyyNAyn742qRdANHI5d_8lc8Y2bj0rXNz0Z7X=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 16, 'publishedAt': '2026-05-06T02:35:40Z', 'textDisplay': '이게 나라다', 'textOriginal': '이게 나라다', 'updatedAt': '2026-05-06T02:35:40Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'Sg2sryoEDS7VSTqscbCGJP_IUHo', 'id': 'UgwB3J43QHb8HPonS5x4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'LZV8EkWWu7LblmqmXxMewFCeFbE', 'id': 'UgwB3J43QHb8HPonS5x4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@6232260', 'authorDisplayName': '@6232260', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_kqpNk83HKT8C9bu2EZuMHmwwh8YTQPisORnc_DDlyHigyq=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 14, 'publishedAt': '2026-05-06T01:52:08Z', 'textDisplay': '조정장 와서 6천대 내려가면 재래식 언론들... 코스피 7천선이 깨졌다.. 나라 망한다 곡소리 나올듯.. ㅋㅋ    쏠쏠한 보는 재미..', 'textOriginal': '조정장 와서 6천대 내려가면 재래식 언론들... 코스피 7천선이 깨졌다.. 나라 망한다 곡소리 나올듯.. ㅋㅋ    쏠쏠한 보는 재미..', 'updatedAt': '2026-05-06T01:52:08Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'D2Sx6Zs1xsmXgc63YMfyXGHlYMM', 'id': 'UgxRyOocWA1f1IJJdQB4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '6c9k7RiW1EChd5uL5GsL6yT1EWc', 'id': 'UgxRyOocWA1f1IJJdQB4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@777-m9g4o', 'authorDisplayName': '@777-m9g4o', 'authorProfileImageUrl': 'https://yt3.ggpht.com/JCSgjQ7GdIegNuCvmkzFaWpMTUH44vLfRrrosY7UCJnWf4IFOOmJQYwI4-OgR-fDt1AuULx6cg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 228, 'publishedAt': '2026-05-06T00:46:59Z', 'textDisplay': '이게다 이재명 대통령님 덕분이다 윤석열 같았으면 지금 북한에 무인기 띄워서 수천만에 수도권 시민들 다 죽었을 텐데~~', 'textOriginal': '이게다 이재명 대통령님 덕분이다 윤석열 같았으면 지금 북한에 무인기 띄워서 수천만에 수도권 시민들 다 죽었을 텐데~~', 'updatedAt': '2026-05-06T00:46:59Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 9, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'CX-GN1j9qCSliuQtN98wLRRbkpU', 'id': 'Ugzdzwi-ixH1paGUqHV4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'znVPUug36SgkX_mYjObxyYuqqrU', 'id': 'Ugzdzwi-ixH1paGUqHV4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@noserune', 'authorDisplayName': '@noserune', 'authorProfileImageUrl': 'https://yt3.ggpht.com/u4MPOfi_PpLIDE5VTcDoM8k-JcuckZ4Xu124lg6moE2QBHVB8yT-UP2G3dtVtGBP0m3o-54vvA=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 40, 'publishedAt': '2026-05-06T01:16:44Z', 'textDisplay': '갓재명 믿습니다', 'textOriginal': '갓재명 믿습니다', 'updatedAt': '2026-05-06T01:16:44Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'Z8Qw-mQ9gQ0puiNozqDHjp1pYZE', 'id': 'UgzSzCNwzXcs5qAGWa54AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'COjxQ-JFl-L6u5p34eL2id5NunA', 'id': 'UgzSzCNwzXcs5qAGWa54AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EB%AF%BC%EA%B2%BD%ED%99%98-f6w', 'authorDisplayName': '@민경환-f6w', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_leKBCKrN06w-KTJFjnVlnHxlDj6omNujPPPP-fBQ4=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 15, 'publishedAt': '2026-05-06T01:47:35Z', 'textDisplay': '대단하다 대단해', 'textOriginal': '대단하다 대단해', 'updatedAt': '2026-05-06T01:47:35Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'a4Ro0lqifx-k_7aq9CnsgS-YETc', 'id': 'Ugx-WmtIHfZq1HauGKB4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '8Mxa_AzCuKtauBnHHqxQ25hbvkU', 'id': 'Ugx-WmtIHfZq1HauGKB4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@GroovyPython-z9j', 'authorDisplayName': '@GroovyPython-z9j', 'authorProfileImageUrl': 'https://yt3.ggpht.com/DAeFA9BqBuWH8P1jEKOlxeoWITJVjD43LDJuI5kmO7AZWv1d8SVbEwsmHH4m8X0h0R2SUsuHmw=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 34, 'publishedAt': '2026-05-06T02:05:53Z', 'textDisplay': '무조건 연임 공론화해서 연임 시켜야한다
+            나라
+            망하라고
+            고사지내는
+            국힘
+            다
+            쓸어버리자~
+            ', '
+            textOriginal
+            ': '
+            무조건
+            연임
+            공론화해서
+            연임
+            시켜야한다
+            나라
+            망하라고
+            고사지내는
+            국힘
+            다
+            쓸어버리자~
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T02: 05
+            :
+            53Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 1, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            UCocOqGW5iz6u-GNMXANn59eUq4
+            ', '
+            id
+            ': '
+            Ugz_txqVif10wTMgJ5l4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            MHwMYaW1o7StVqG3vR5N2RgdP6c
+            ', '
+            id
+            ': '
+            Ugz_txqVif10wTMgJ5l4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@MilkyWay_00001', 'authorDisplayName': '@MilkyWay_00001', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_ng3vdmQ70ckkEDn8ODXy01T1k4iclHBSOBC5Qal-YxKcB6AAI=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 13, 'publishedAt': '2026-05-06T01:44:21Z', 'textDisplay': '와........ 대단하다.', 'textOriginal': '와........ 대단하다.', 'updatedAt': '2026-05-06T01:44:21Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'dwxgyRy6PPSDty6oHdNCJqXgN7w', 'id': 'UgxuyDL6rVtlw9PlUsp4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '2pUXYvhI6Hwgl8s0jtUXtIH1aJc', 'id': 'UgxuyDL6rVtlw9PlUsp4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@youngjukim464', 'authorDisplayName': '@youngjukim464', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_nhYNdPbubfPeR4nmgJvghaxfm69C56YuGrE8dBRfI=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 13, 'publishedAt': '2026-05-06T02:29:22Z', 'textDisplay': '이햐~ 이걸  내 눈으로 보고 있네', 'textOriginal': '이햐~ 이걸  내 눈으로 보고 있네', 'updatedAt': '2026-05-06T02:29:22Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'aqFveZuk4zqfKtNICdxGD1nrjtc', 'id': 'UgylyUxip1LLmLdvKr14AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'zAcrA3K-2IyOICibk12Wn_zAs5c', 'id': 'UgylyUxip1LLmLdvKr14AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@LSA5161', 'authorDisplayName': '@LSA5161', 'authorProfileImageUrl': 'https://yt3.ggpht.com/9V1E3uJwqaoxYMa1XK1KCjndJE73cTV3GonoNHhojYf2LpH4KzT30xq7ib5_onziMhAFhw-C=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 11, 'publishedAt': '2026-05-06T01:56:57Z', 'textDisplay': '감사합니다~…..', 'textOriginal': '감사합니다~…..', 'updatedAt': '2026-05-06T01:56:57Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '7nTq6rBeiH8Jop8tbchGWVFq0gA', 'id': 'Ugw1uRce8AMfcsMK1YN4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'w9LceYgzT_7c7Bx5jWeES2o4XOs', 'id': 'Ugw1uRce8AMfcsMK1YN4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@utopro', 'authorDisplayName': '@utopro', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_kBUBoBEmJ4oN-s2SxsJigldU2U7iRn_-03iZ5IpLOK04u7=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 19, 'publishedAt': '2026-05-06T01:52:58Z', 'textDisplay': '이런데도 대구.부산은 딴세상이야.
+            국짐
+            정권
+            박스피
+            이천오백이
+            그리워
+            죽겠나봐
+            아주
+            ', '
+            textOriginal
+            ': '
+            이런데도
+            대구.부산은
+            딴세상이야.
+            국짐
+            정권
+            박스피
+            이천오백이
+            그리워
+            죽겠나봐
+            아주
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T01: 52
+            :
+            58Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 2, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            xZhdvD8IN1L9sWJyhP3uxpbU1Bg
+            ', '
+            id
+            ': '
+            Ugy5CKSvgXLel_frf794AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            Dp4FEMVUhyFxC_zFPS9l4zinFj4
+            ', '
+            id
+            ': '
+            Ugy5CKSvgXLel_frf794AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EC%B5%9C%EC%9C%A0%EC%A7%84-j9u', 'authorDisplayName': '@최유진-j9u', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_n95AbP9Igc3kIfMwlooUakXQiWVVB29CBn38pi4qM=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 10, 'publishedAt': '2026-05-06T04:01:20Z', 'textDisplay': '대단하다 대단해 오늘 7400도 뚫었네;;;;;; 6000 뚫은 지 얼마 되지도 않았는데..', 'textOriginal': '대단하다 대단해 오늘 7400도 뚫었네;;;;;; 6000 뚫은 지 얼마 되지도 않았는데..', 'updatedAt': '2026-05-06T04:01:20Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'Yo9vkFHGhCJLQZf7WUKZHzRagfU', 'id': 'UgysmvJoVU0h7dLqhyN4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'VHdgqzfZV7TMx-u67tcAP9WJq3g', 'id': 'UgysmvJoVU0h7dLqhyN4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@dms6311-r1m', 'authorDisplayName': '@dms6311-r1m', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_l3Bz6doyOqmxnbxC7YTPEYDkB4EqydIAMsbEUjvC3cQlxG46o=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 15, 'publishedAt': '2026-05-06T02:10:35Z', 'textDisplay': '미쳤다 5000원쯤에 탔는데 벌써 수익율 40%찍음', 'textOriginal': '미쳤다 5000원쯤에 탔는데 벌써 수익율 40%찍음', 'updatedAt': '2026-05-06T02:10:35Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 2, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'uaY6ktaY9YAPYMsEyqfvWFLKqzM', 'id': 'UgxkEMAOA3o6-m0EMMd4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'siBpyvbOyRU9b7AP45MxHQsX0_0', 'id': 'UgxkEMAOA3o6-m0EMMd4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@waflol2302', 'authorDisplayName': '@waflol2302', 'authorProfileImageUrl': 'https://yt3.ggpht.com/2N45PYqKDjSggdzLLqA4Xcd_J465GSQmKPthyliONXfydRRWI7i9EmCHEhy5yWdrYQMVZJsCI3w=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 10, 'publishedAt': '2026-05-06T01:32:29Z', 'textDisplay': '공매도란, 주가 하락이 예상될 때 주식을 빌려 먼저 팔고(매도), 가격이 떨어지면 싼값에 사서(매입) 되갚아 그 차액만큼 이익을 남기는 투자 방식입니다.
+            곱버스
+            공매도
+            세력
+            폭망해라.
+            ', '
+            textOriginal
+            ': '
+            공매도란,
+            주가
+            하락이
+            예상될
+            때
+            주식을
+            빌려
+            먼저
+            팔고(매도),
+            가격이
+            떨어지면
+            싼값에
+            사서(매입)
+            되갚아
+            그
+            차액만큼
+            이익을
+            남기는
+            투자
+            방식입니다.
+            곱버스
+            공매도
+            세력
+            폭망해라.
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T01: 32
+            :
+            29Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            yl04ahAlJmnm6jjiww3RteXODD4
+            ', '
+            id
+            ': '
+            UgwgKsBpu7IxeRK6ryB4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            PMhNS6onoClO33hxSAweaFR5Lsk
+            ', '
+            id
+            ': '
+            UgwgKsBpu7IxeRK6ryB4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@dealicioustheduck', 'authorDisplayName': '@dealicioustheduck', 'authorProfileImageUrl': 'https://yt3.ggpht.com/v82g7ldSAwqeEb1JYRRFKxbpRKTyPQ2QyDMmmfHdAUteHcbXuOf8vnco4hVxogMznUtEUzyhITU=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 69, 'publishedAt': '2026-05-06T01:06:34Z', 'textDisplay': '대한민국 맞음??? 7000????', 'textOriginal': '대한민국 맞음??? 7000????', 'updatedAt': '2026-05-06T01:06:34Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 3, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '8e4wPutD1tMqCp0P8qRLEi7rwes', 'id': 'UgxsIhXpcfPGWnlpfC54AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'eioQCz0zATvvyCeomPh0fhAdhbY', 'id': 'UgxsIhXpcfPGWnlpfC54AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@ytryoo5653', 'authorDisplayName': '@ytryoo5653', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_metjsZX5SUApDmsdcCDOcUU9OOMIy2JT-JHtIENB8=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 11, 'publishedAt': '2026-05-06T01:36:49Z', 'textDisplay': '자칭 보수라는것들이 맨날하는소리가 정권을 보수가잡았으면 훨씬더 잘했을거라는데 역사적으로 그런적이 거의없어
+            경제세우는데
+            박정희공이
+            있긴하지만
+            대부분
+            민주정부야
+            근데
+            이것들은
+            누가
+            선동좀하면
+            그냥
+            다
+            믿어
+            뭐라
+            구라를쳐도
+            그걸믿고자빠진다
+            보수정권에서
+            무너지면
+            세계가어쩌고
+            전정권이어쩌고
+            이지랄만하지
+            받아쳐먹은건
+            아무소리도안함
+            석려리가
+            분명히
+            지입으로
+            말했다
+            경제는
+            대통령이
+            살리는게
+            아니라고
+            근데
+            역대
+            대통령들이
+            하나같이
+            하는말이
+            경제살린다는거였고
+            이정권에서
+            증명되고있자나
+            석려리가
+            지키고있는
+            유일한약속은
+            보수괴멸이네
+            ', '
+            textOriginal
+            ': '
+            자칭
+            보수라는것들이
+            맨날하는소리가
+            정권을
+            보수가잡았으면
+            훨씬더
+            잘했을거라는데
+            역사적으로
+            그런적이
+            거의없어
+            경제세우는데
+            박정희공이
+            있긴하지만
+            대부분
+            민주정부야
+            근데
+            이것들은
+            누가
+            선동좀하면
+            그냥
+            다
+            믿어
+            뭐라
+            구라를쳐도
+            그걸믿고자빠진다
+            보수정권에서
+            무너지면
+            세계가어쩌고
+            전정권이어쩌고
+            이지랄만하지
+            받아쳐먹은건
+            아무소리도안함
+            석려리가
+            분명히
+            지입으로
+            말했다
+            경제는
+            대통령이
+            살리는게
+            아니라고
+            근데
+            역대
+            대통령들이
+            하나같이
+            하는말이
+            경제살린다는거였고
+            이정권에서
+            증명되고있자나
+            석려리가
+            지키고있는
+            유일한약속은
+            보수괴멸이네
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T01: 38
+            :
+            42Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            xH8c0eJ_1YuP90PKLNewvh4YCLw
+            ', '
+            id
+            ': '
+            UgwO-u64usrCtDmmOPZ4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            x85Kk5SUlaW1iqfPSjCasbiQfsc
+            ', '
+            id
+            ': '
+            UgwO-u64usrCtDmmOPZ4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EC%A1%B0%EC%B0%AC%EC%9B%90-l9g', 'authorDisplayName': '@조찬원-l9g', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_l5rRCrRFsSbJ3sSuvd3w2r-69A4Igu4nZNawaDbc8=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 9, 'publishedAt': '2026-05-06T02:18:50Z', 'textDisplay': '연임.연임.연임
+            연임.연임
+            답이다
+            ', '
+            textOriginal
+            ': '
+            연임.연임.연임
+            연임.연임
+            답이다
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T02: 18
+            :
+            50Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 1, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            apKLZ89wooTUyX6_V6aIzJiP9AY
+            ', '
+            id
+            ': '
+            UgwuFa_r4KWvzxchGoF4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            G5Nkj62z1N5X1twqBmFmwu4X-rc
+            ', '
+            id
+            ': '
+            UgwuFa_r4KWvzxchGoF4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EA%B0%9C%EC%9E%91%EB%91%90%EB%A5%BC', 'authorDisplayName': '@개작두를', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ztFPuRUhwwvUK_2w5kcfptikZSobDUdhlN7fVVOaS8TcJjyx40UC8gXY7nfuibNxGZJOEo_u2Ro=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 8, 'publishedAt': '2026-05-06T02:17:37Z', 'textDisplay': '추세를 역행하지 말라 했거늘~
+            오죽하면
+            곱버스가
+            상장폐지가
+            될까~
+            5천피를
+            비웃은
+            대가가
+            너무
+            크구나...
+            다
+            본인들
+            탓이지
+            누굴
+            원망해...
+            ', '
+            textOriginal
+            ': '
+            추세를
+            역행하지
+            말라
+            했거늘~
+            오죽하면
+            곱버스가
+            상장폐지가
+            될까~
+            5천피를
+            비웃은
+            대가가
+            너무
+            크구나...
+            다
+            본인들
+            탓이지
+            누굴
+            원망해...
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T02: 17
+            :
+            37Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            JSYFEe1u_96jfSRamEk0TRnNRAU
+            ', '
+            id
+            ': '
+            UgzoN41kijKq3sHO8m14AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            9BFVgseM6QqIHxRAxtajpqp3Fkk
+            ', '
+            id
+            ': '
+            UgzoN41kijKq3sHO8m14AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@entp-t6027', 'authorDisplayName': '@entp-t6027', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_kq6YXb49jimZm2YludLYcB7k8cNgTm_4PC3ukkjBS36lsG88gBf4yVReewSB8_5Sc-1A=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 52, 'publishedAt': '2026-05-06T01:04:18Z', 'textDisplay': '대재명 대재용 대태원', 'textOriginal': '대재명 대재용 대태원', 'updatedAt': '2026-05-06T01:04:18Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'bRiqqEcaLdENSP0lTJkX4DUsi_k', 'id': 'Ugzi0Z0g6ujdlnz2HF94AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '1udoeLUCdNR8rmO6MH0ZVwTaLZk', 'id': 'Ugzi0Z0g6ujdlnz2HF94AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@leftarm6766', 'authorDisplayName': '@leftarm6766', 'authorProfileImageUrl': 'https://yt3.ggpht.com/SWUhIzAyngrEFVk5cr9BX_cw0udiyw9RJWQOo3MmD9ITJK7tKtdxt94yB9EaMZwqecveK9-YLg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 52, 'publishedAt': '2026-05-06T01:09:26Z', 'textDisplay': '꽉 잡아    9천으로 올라간다', 'textOriginal': '꽉 잡아    9천으로 올라간다', 'updatedAt': '2026-05-06T01:09:26Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 2, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '_fDHvjYLpYn9IV5AYmKam55oFgI', 'id': 'Ugyq_NafWPHR7dsI2LJ4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '_3ZmV-8vdDOQ9Z3Tz4eKI_Dfbic', 'id': 'Ugyq_NafWPHR7dsI2LJ4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@GGG-r7f', 'authorDisplayName': '@GGG-r7f', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_mxIxgwNJNJ3orBHvpfnvNNq0V7qfF1pIW4p_kgsijc8MqFCxJiW_5VgEl7JcELOv7DGQ=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 9, 'publishedAt': '2026-05-06T01:36:08Z', 'textDisplay': '아이러니한게 한국 이대남은 미장하고 미국 개미가 국장함', 'textOriginal': '아이러니한게 한국 이대남은 미장하고 미국 개미가 국장함', 'updatedAt': '2026-05-06T01:36:08Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 1, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'KvBwxiChWhkuM2R1EzdoNEJVSPU', 'id': 'UgxUC0TM9euDGODAO6Z4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'iAfUlIRSaU4e5nEbJ4ap6Ii6HOU', 'id': 'UgxUC0TM9euDGODAO6Z4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EA%B9%BD%EC%8C%8D%EB%8F%84%EC%8C%8D%EB%86%88%EC%9E%90', 'authorDisplayName': '@깽쌍도쌍놈자', 'authorProfileImageUrl': 'https://yt3.ggpht.com/gEqjI9WQjrx2q3svgoGomYMer2_isCu5eXutPRiLXPIYOpNm6P0pvSnYNQYX1YXEDFTjWyYjlQ=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 53, 'publishedAt': '2026-05-06T01:17:52Z', 'textDisplay': '대재명이 주식밭갈이 해놓으니 사람들이 돈갖고 몰려오는구나 ㅋㅋㅋ 역시 일잘하는 대통령', 'textOriginal': '대재명이 주식밭갈이 해놓으니 사람들이 돈갖고 몰려오는구나 ㅋㅋㅋ 역시 일잘하는 대통령', 'updatedAt': '2026-05-06T01:17:52Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 1, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'ZzVKQtjrOnkwpxPGB_HsPMgNISY', 'id': 'UgxID9pFrGkmxrs_VId4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'WJzeKGH7zrzDaykjCWZjQQ7MpRI', 'id': 'UgxID9pFrGkmxrs_VId4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EB%82%A0%EA%B0%9C%EB%8A%94%EA%BF%88', 'authorDisplayName': '@날개는꿈', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_kl5DflvSAt5cCateTrSwaLn4GBN9r6Kpu3KbWBVHt3T53dfl0=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 24, 'publishedAt': '2026-05-06T02:32:43Z', 'textDisplay': '정상화과정이라는게 더 놀랍네요 이잼 연임 꼭 가야 합니다', 'textOriginal': '정상화과정이라는게 더 놀랍네요 이잼 연임 꼭 가야 합니다', 'updatedAt': '2026-05-06T02:32:43Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 1, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'Ak2TGtPEHtKgV_a1ldx0LTTForM', 'id': 'UgwHgrCrATeivLNIbMp4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'MH6oI8oYdhh7dmhGk467y45_lLw', 'id': 'UgwHgrCrATeivLNIbMp4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@lattecream3104', 'authorDisplayName': '@lattecream3104', 'authorProfileImageUrl': 'https://yt3.ggpht.com/jLUkZ9nihCSoDSENnzKFyQARKbjptK0SxM0IWuzGcn2BTKcj7SEgF36hUTRI6-kMvqlLtUXD4Q=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 11, 'publishedAt': '2026-05-06T02:18:37Z', 'textDisplay': '21만전자도 저점이였나.....ㅎㄷㄷ', 'textOriginal': '21만전자도 저점이였나.....ㅎㄷㄷ', 'updatedAt': '2026-05-06T02:18:37Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 1, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'HtjF0CgexvhhNjzZC31P-LZIoZw', 'id': 'UgzYGdKj_kFGkEPcJCl4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'EdU7L33EM7m-NWIjoFiQs-OFQ2M', 'id': 'UgzYGdKj_kFGkEPcJCl4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@2%EB%82%98%EA%B9%8C%EB%AC%B4%EB%9D%BC2', 'authorDisplayName': '@2나까무라2', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_kb8d9MQcHiggmCBAHVEPHRB94fVm1iFLop1vtYP3Gy7YGzDIs=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 18, 'publishedAt': '2026-05-06T01:28:59Z', 'textDisplay': '곱버스는 백삼십원 상폐 되것네', 'textOriginal': '곱버스는 백삼십원 상폐 되것네', 'updatedAt': '2026-05-06T01:28:59Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 3, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'bGoC_QYQ2H_FXaL_y9rboJUzNSs', 'id': 'UgxBA9csTfYVLnFGjxx4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'J1Vi8mKjKEO1PzViUS0lQiZ9eTg', 'id': 'UgxBA9csTfYVLnFGjxx4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@yool8514', 'authorDisplayName': '@yool8514', 'authorProfileImageUrl': 'https://yt3.ggpht.com/kJEwhoK-1nwjNZgxvFgr-kz_p11bFBgthRXnhZJ1QBOt_EsycOIF9uDi0QWErfsaY1MO9RigtQ=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 18, 'publishedAt': '2026-05-06T01:51:42Z', 'textDisplay': '대 재 명', 'textOriginal': '대 재 명', 'updatedAt': '2026-05-06T01:51:42Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'UJM72FV_vcN0MO_5Kmqi6hnfm9o', 'id': 'UgwcfD0qV5XPF0xa8Cl4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '8mwXoEG-zRQI6XWfhwSUQxkGgdY', 'id': 'UgwcfD0qV5XPF0xa8Cl4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EA%B9%90%EC%88%98%EB%8B%88', 'authorDisplayName': '@깐수니', 'authorProfileImageUrl': 'https://yt3.ggpht.com/TJYPppmAcNiugFP-Qp-edjuGFsC13xYSRo5wRl9gUfax6GN3G-XZWD5u5B4Y1cHvS_N8WiSIpg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 10, 'publishedAt': '2026-05-06T02:02:01Z', 'textDisplay': '오늘 삼전 날라요 ㅎ', 'textOriginal': '오늘 삼전 날라요 ㅎ', 'updatedAt': '2026-05-06T02:02:01Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'KgeEO43q0AFK2_2zecMpL7pST2U', 'id': 'UgxPlLHU-w2KVbA9rGt4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'm2Ug2YFNeAEidhr9BVQU0FYon04', 'id': 'UgxPlLHU-w2KVbA9rGt4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%9E%AC%ED%99%98%ED%82%B9-y5z', 'authorDisplayName': '@재환킹-y5z', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_lRxk32FTf11vIZtkFeFIDGnSdg_e8W-Yjg9CAd-Eg7nKU=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 50, 'publishedAt': '2026-05-06T00:38:25Z', 'textDisplay': '이재명 대통령님은 마이다스의손 😎', 'textOriginal': '이재명 대통령님은 마이다스의손 😎', 'updatedAt': '2026-05-06T00:38:25Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '4f7JOHGGmnkXbtut-z4H4ojXHmQ', 'id': 'Ugzeye6XPQjZ1nBbKNh4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '8W23InINEWgbdzCRj4xmqH4wdBI', 'id': 'Ugzeye6XPQjZ1nBbKNh4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EA%B9%8C%EB%AF%B8-g1v', 'authorDisplayName': '@까미-g1v', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_ndqelPIaNoRQ1k3WRySjWMatuna-kZMQQJjYmcUyJE4uotMbMMl8ZCu3-qhT5O6J6TwMz-u-7h=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 6, 'publishedAt': '2026-05-06T04:21:54Z', 'textDisplay': '실시간 7400돌파 도랐네 ㅋㅋㅋㅋ', 'textOriginal': '실시간 7400돌파 도랐네 ㅋㅋㅋㅋ', 'updatedAt': '2026-05-06T04:22:09Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'hvH-8kjBOjhBNfUq943rqEzemwA', 'id': 'UgzZ0CBkyMGgCtgdNFd4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'tBenDddjGfwrBtAjFTXrVaywa44', 'id': 'UgzZ0CBkyMGgCtgdNFd4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@solstice2902', 'authorDisplayName': '@solstice2902', 'authorProfileImageUrl': 'https://yt3.ggpht.com/DEew57bounKUxpMbySVkw_dwL1c-olZdhDP_Ocf5wPZVVuaM_1wLWNf8UlQLWqeWHS7SniYt=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 5, 'publishedAt': '2026-05-06T04:24:43Z', 'textDisplay': '국힘 말이 결국 맞는 말이였네ㅇㅇ 5000은 말도 안되긴 했었음ㅋㅋ 7000은 가야지', 'textOriginal': '국힘 말이 결국 맞는 말이였네ㅇㅇ 5000은 말도 안되긴 했었음ㅋㅋ 7000은 가야지', 'updatedAt': '2026-05-06T04:24:43Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'uAEWOYtj2Ly2RlUwqfFf4i2Yc6s', 'id': 'Ugx7tECB9L8XMizb82J4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'FvOJXBv5A3zSWlOppm9Uz6y0WU0', 'id': 'Ugx7tECB9L8XMizb82J4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@MrJimin', 'authorDisplayName': '@MrJimin', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_nwmPXsXTDHojjsJGwtE2lgnKU3S4i9l88PzvCNyN6YBchE=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 28, 'publishedAt': '2026-05-06T02:03:25Z', 'textDisplay': '8천까지는 무난하게 갈것같다', 'textOriginal': '8천까지는 무난하게 갈것같다', 'updatedAt': '2026-05-06T02:03:25Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'PmEIMvm2PNz95-p-CzwVZ-xRfWM', 'id': 'UgwKElv77mpwdnC418Z4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'HbUP1xSD04Znv8Jdwh6-5WV9330', 'id': 'UgwKElv77mpwdnC418Z4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%A0%9C%ED%8A%B8%EB%A7%A8-l2v', 'authorDisplayName': '@제트맨-l2v', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_lkKmGYU3RXpjV88eNH67x5gKGeslvwjZR1hlQvh0O0BUw=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 6, 'publishedAt': '2026-05-06T02:11:12Z', 'textDisplay': '달달허다', 'textOriginal': '달달허다', 'updatedAt': '2026-05-06T02:11:12Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'CNOCHW17VPkfMYvMNsgV8bQaPaw', 'id': 'UgxU7DOsjj9wRXALLy54AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'GRmGOrmazaG5IukW1HPtTcH49pk', 'id': 'UgxU7DOsjj9wRXALLy54AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@rebeccamin2845', 'authorDisplayName': '@rebeccamin2845', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_lqn68rWWHWeNq9ho5muJv3qZzj_dMgUFacobabewY=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 7, 'publishedAt': '2026-05-06T01:43:26Z', 'textDisplay': '코스피 1만은 쉽겠네', 'textOriginal': '코스피 1만은 쉽겠네', 'updatedAt': '2026-05-06T01:43:26Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'BsVqQLu17vtpbN6AzHSIHgiz9MM', 'id': 'UgwRD2_IPzVhSJZ5r-R4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'hd--HlMBAM2fcW0D_JfzZ6mS2QA', 'id': 'UgwRD2_IPzVhSJZ5r-R4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@Mar00n5AdamLevine', 'authorDisplayName': '@Mar00n5AdamLevine', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_lJJNLwtvj-rMqoYgoTIardNkcMlSDfDbTx1TBAMhs=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 60, 'publishedAt': '2026-05-06T01:18:44Z', 'textDisplay': '이재명덕에 돈이 복사가되네
+            외국에있느라
+            투표는
+            못했는데
+            대신
+            투표해준분들
+            감사요~
+            ', '
+            textOriginal
+            ': '
+            이재명덕에
+            돈이
+            복사가되네
+            외국에있느라
+            투표는
+            못했는데
+            대신
+            투표해준분들
+            감사요~
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T01: 18
+            :
+            44Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 1, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            s_jAp6AvQ0jG3mnOk2jroygfUMs
+            ', '
+            id
+            ': '
+            UgzUgjNO9TxaNyxBYCB4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            xt_mmnzSOeW0CxP8aobX33bKEM0
+            ', '
+            id
+            ': '
+            UgzUgjNO9TxaNyxBYCB4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@hyunjukang3760', 'authorDisplayName': '@hyunjukang3760', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ieM-ESuyXW9l4npd1U2760nWMlcHV6eFtBFz77Ytk3M681lN_3HWwxbnHaw1MQW2590psy_psQ=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 35, 'publishedAt': '2026-05-06T01:14:36Z', 'textDisplay': '6월 지선전까지 8000찍을듯~~
+            투표로
+            주식부양관련
+            법개정에
+            힘실어야
+            합니다
+            압승으로!!!
+            ', '
+            textOriginal
+            ': '
+            6월
+            지선전까지
+            8000찍을듯~~
+            투표로
+            주식부양관련
+            법개정에
+            힘실어야
+            합니다
+            압승으로!!!
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T01: 14
+            :
+            36Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 1, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            HNkOFQH-7vQdPrFu7kzC6-nA2xA
+            ', '
+            id
+            ': '
+            UgyEqBpII7aGWPOnJwx4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            rVDBqpjg6F_ytDsRT10xgundJrU
+            ', '
+            id
+            ': '
+            UgyEqBpII7aGWPOnJwx4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EB%A1%9D%EC%9D%B4-t8j', 'authorDisplayName': '@록이-t8j', 'authorProfileImageUrl': 'https://yt3.ggpht.com/F9HFWPSUno4_YKBiGmTQaH1J-CZYPuUktPaELlt2j9jmTd64DAfDsK-ZDFOH4R7Is0fLzSGsJ2s=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 5, 'publishedAt': '2026-05-06T02:31:42Z', 'textDisplay': '전셋집에서 더큰평수 매매로 1년만에 가능하다니 꿈만같네요', 'textOriginal': '전셋집에서 더큰평수 매매로 1년만에 가능하다니 꿈만같네요', 'updatedAt': '2026-05-06T02:31:42Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'u3-BiY2GPWOh-ku_zNg0sBNnPqc', 'id': 'UgyKf7xPPhncvrbwuVB4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'kwa_WxpfzptMuzGX_ktqu3EWgMk', 'id': 'UgyKf7xPPhncvrbwuVB4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%9D%80%EB%A5%98-x1n', 'authorDisplayName': '@은류-x1n', 'authorProfileImageUrl': 'https://yt3.ggpht.com/nOUR3gpLH9E9fWaBroxEVRMTNujdEz4RLZroVYa2LKeCfStc4IyFLOsr1KXgyOyVwS4QIbre1A=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 61, 'publishedAt': '2026-05-06T01:22:46Z', 'textDisplay': '만세 이재명 연임가자~~', 'textOriginal': '만세 이재명 연임가자~~', 'updatedAt': '2026-05-06T01:22:46Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 2, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'I7wZ0kzRgR6qlqi3vB0btLJzO0M', 'id': 'UgxmcUbVrcfF0UoER314AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'sYMVkO7tN6ElWo3DRhnkMLfYs1A', 'id': 'UgxmcUbVrcfF0UoER314AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@1kiceable', 'authorDisplayName': '@1kiceable', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_k4kqTK6X9vHx6DF6Kpa0RR5Fvw6h2fGW2S4rZIRZ6zvg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 5, 'publishedAt': '2026-05-06T02:02:45Z', 'textDisplay': '1만가것네', 'textOriginal': '1만가것네', 'updatedAt': '2026-05-06T02:02:45Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'UIaAJZs-HMsrVyQ4tTxu5yHW1pI', 'id': 'UgyGOoStXuaXnEuGy5h4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'yIrk-C5TnP2bL-hgO42aH1yuajw', 'id': 'UgyGOoStXuaXnEuGy5h4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%ED%9D%AC%EB%A7%9D%EC%B0%AC%EB%82%B4%EC%9D%BC', 'authorDisplayName': '@희망찬내일', 'authorProfileImageUrl': 'https://yt3.ggpht.com/SR5kMO_rTM3k70znkSHbytRPJuxlusxVAy-bdqfzWzA2p-0FYSIbSMXj8AcSwT-Ne54k5f7xLA=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 30, 'publishedAt': '2026-05-06T01:40:49Z', 'textDisplay': '코스피 7000. 넘으니
+            유튜브든
+            5월
+            폭락
+            떠들던
+            놈들
+            싹사라짐
+            😂
+            😂
+            사기꾼들이
+            너무
+            많아
+            즈그들이
+            뭘
+            안다고
+            폭락을
+            시부리는지ㅋㅋ
+            카드라는
+            나도
+            할수있다
+            😂
+            ', '
+            textOriginal
+            ': '
+            코스피
+            7000.
+            넘으니
+            유튜브든
+            5월
+            폭락
+            떠들던
+            놈들
+            싹사라짐
+            😂
+            😂
+            사기꾼들이
+            너무
+            많아
+            즈그들이
+            뭘
+            안다고
+            폭락을
+            시부리는지ㅋㅋ
+            카드라는
+            나도
+            할수있다
+            😂
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T01: 40
+            :
+            49Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 1, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            aKSpCzFq9OKfTOA62ss9qyfywX0
+            ', '
+            id
+            ': '
+            UgwHrHQc2kq8F4n9-V54AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            -Hl79iKsPSCNEGSpGHN9wIDaTo4
+            ', '
+            id
+            ': '
+            UgwHrHQc2kq8F4n9-V54AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EC%9D%B4%ED%8C%90%EC%82%AC-r4u9w', 'authorDisplayName': '@이판사-r4u9w', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_nKOqIVC_wjCGDpD96rhr1ZSOIcdvmYOi5pFdtljKl4eJy8AVLi8mdgjfZHrXpiFTZecw=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 5, 'publishedAt': '2026-05-06T02:59:52Z', 'textDisplay': '연말엔2만간다🎉', 'textOriginal': '연말엔2만간다🎉', 'updatedAt': '2026-05-06T02:59:52Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'DKyQIzUHwL07Ax37QhCe_1Ye5mU', 'id': 'UgwCSaKQ1PB_zizc26N4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'OgEIwDs0RmSnRkiHNWoi1R_wa1I', 'id': 'UgwCSaKQ1PB_zizc26N4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%A1%B0%EC%9E%AC%ED%98%B8-l4i', 'authorDisplayName': '@조재호-l4i', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_m_Lt5vyld9raexwV1yKyNm4wr7hUWKUZuEUINoP8pj_A=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 20, 'publishedAt': '2026-05-06T01:30:05Z', 'textDisplay': '근데 ㄹㅇ 인정한데 누군 주기조작할때 잼통은 국장 멱살잡고 올라가네', 'textOriginal': '근데 ㄹㅇ 인정한데 누군 주기조작할때 잼통은 국장 멱살잡고 올라가네', 'updatedAt': '2026-05-06T01:30:05Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'ytMauVcp7E9GngUn6wa6swqF1n8', 'id': 'Ugw9OELaIMxcesr6ebd4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'Z1K6Sapydy3ptrRgsGubNmqrjSQ', 'id': 'Ugw9OELaIMxcesr6ebd4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%A1%B0%EC%A3%BC%EC%9D%B8-y4p', 'authorDisplayName': '@조주인-y4p', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_m18_OrhRNm8w21sEEKKOvr4xmFA7TIAVd6kNb9M2LtnXT-FQc=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 6, 'publishedAt': '2026-05-06T01:45:54Z', 'textDisplay': '이잼  만세  만세  만세
+            영원히
+            독재하라
+            ', '
+            textOriginal
+            ': '
+            이잼
+            만세
+            만세
+            만세
+            영원히
+            독재하라
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T01: 45
+            :
+            54Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            2hda9IY_hnHCPlFWm-V_sQjKjms
+            ', '
+            id
+            ': '
+            UgzXF-s-GUG5ft1JWJ54AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            HKy_ZJZGtCeT1Dx4ChFd5d9bork
+            ', '
+            id
+            ': '
+            UgzXF-s-GUG5ft1JWJ54AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EB%82%A8%EC%99%95', 'authorDisplayName': '@남왕', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_k7H6hAzqxuBYG7UJGmv6jqZ3VkvV6-zxuD07Nekm-liBV685DKs1LkdMRDMk-d2XlX3z4si3JG=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 2, 'publishedAt': '2026-05-06T09:27:57Z', 'textDisplay': '주식시장 에서
+            공매도.신용
+            폐지
+            해야
+            한다.
+            기관들이
+            개미들
+            호주머니를
+            탈탈
+            털어
+            갑니다.
+            ', '
+            textOriginal
+            ': '
+            주식시장
+            에서
+            공매도.신용
+            폐지
+            해야
+            한다.
+            기관들이
+            개미들
+            호주머니를
+            탈탈
+            털어
+            갑니다.
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T09: 27
+            :
+            57Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            TsM5Zye9b9zgtPBWVhSUjPJ6EnM
+            ', '
+            id
+            ': '
+            Ugx5gZC0GX7GWFUM5Ad4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            OV5aBrj4BGo_lPlILUWU5zNe500
+            ', '
+            id
+            ': '
+            Ugx5gZC0GX7GWFUM5Ad4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EC%A0%95%EB%AF%BC%ED%8A%B8-p2o', 'authorDisplayName': '@정민트-p2o', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_kC3fZqdtWbogheF_88wOEHv4lytG4AbDLBmez65-Q=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 3, 'publishedAt': '2026-05-06T02:59:05Z', 'textDisplay': '기쁩니다🎉', 'textOriginal': '기쁩니다🎉', 'updatedAt': '2026-05-06T02:59:05Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'Rv-dMdy6ve29trnl7xusdkdatK0', 'id': 'UgzuCC-uqRtorZqBtm14AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '7K6Gk8RKLpxEBRRx6qTkCha72RM', 'id': 'UgzuCC-uqRtorZqBtm14AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%95%94%EB%9E%91%EB%93%9C%EB%A1%B1', 'authorDisplayName': '@암랑드롱', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_nX4HfiXY6W7mAzsZPP4xrRi4LVwy3DxJ8n5bP9lQBRqqbrj1s=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 3, 'publishedAt': '2026-05-06T03:40:08Z', 'textDisplay': '상법개정은 신의한수', 'textOriginal': '상법개정은 신의한수', 'updatedAt': '2026-05-06T03:40:08Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'OJalRg9TVlqviVj6M2k7xqOfkzY', 'id': 'Ugy44qc4MugOlmpbv_Z4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'Jpv_aNHu9d3-blV-Pkdct6XLEz4', 'id': 'Ugy44qc4MugOlmpbv_Z4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%9D%B4%ED%8C%90%EC%82%AC-r4u9w', 'authorDisplayName': '@이판사-r4u9w', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_nKOqIVC_wjCGDpD96rhr1ZSOIcdvmYOi5pFdtljKl4eJy8AVLi8mdgjfZHrXpiFTZecw=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 5, 'publishedAt': '2026-05-06T02:58:01Z', 'textDisplay': '역사상 최고의정권이다
+            자랑스럽습니다
+            🎉
+            ', '
+            textOriginal
+            ': '
+            역사상
+            최고의정권이다
+            자랑스럽습니다
+            🎉
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T02: 58
+            :
+            01Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            07Zp4TbvIcvcyByxvfRrlE98M_0
+            ', '
+            id
+            ': '
+            Ugze4rESc5o0iyzz1SN4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            8TAlXwe8u73KxdWm6f_rk9qkSdc
+            ', '
+            id
+            ': '
+            Ugze4rESc5o0iyzz1SN4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EB%82%A8%EB%91%90-d8e', 'authorDisplayName': '@남두-d8e', 'authorProfileImageUrl': 'https://yt3.ggpht.com/1oWE6-8JJ6a7GXIftXoChyAt6zFRMmNIT5HgnHHLlr9YRb3QutSZ28n1FElVW5ytzzG7ZEhA=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 20, 'publishedAt': '2026-05-06T01:24:00Z', 'textDisplay': '이거 말이됨??? 윤통때만해도
+            2천
+            후
+            3천
+            초였던거
+            같은데..
+            ', '
+            textOriginal
+            ': '
+            이거
+            말이됨
+            ?
+            ?
+            ?
+            윤통때만해도
+            2천
+            후
+            3천
+            초였던거
+            같은데..
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T01: 24
+            :
+            00Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 2, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            jouWxcVSFACruhcEIFgfimNi54U
+            ', '
+            id
+            ': '
+            Ugw4sfYCyHLYj7NWwXR4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            koQUUU8RNXzZV2sTNZOGHyjq3Tw
+            ', '
+            id
+            ': '
+            Ugw4sfYCyHLYj7NWwXR4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@wndghkdlsalsrhdghkrnr', 'authorDisplayName': '@wndghkdlsalsrhdghkrnr', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_ltk1b7ooRMlz8ATs0x-T45HYNjsP91NCv8U0FG1FEC_blJPY--we30_G7Ws_DZWJguHg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 4, 'publishedAt': '2026-05-06T05:29:23Z', 'textDisplay': '원화가치 오르고 코스피 7400 ㅋㅋㅋㅋㅋㅋㅋㅋ극우들 벙찌는 소맄ㅋ앜ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ', 'textOriginal': '원화가치 오르고 코스피 7400 ㅋㅋㅋㅋㅋㅋㅋㅋ극우들 벙찌는 소맄ㅋ앜ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ', 'updatedAt': '2026-05-06T05:29:23Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'OpvxElTLIRZvwuzv4v5MyacPsr8', 'id': 'Ugy3A2tZfSt06GlY0X54AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'oxnyzoX5UVWx7CT_ILXPTB94rdk', 'id': 'Ugy3A2tZfSt06GlY0X54AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@chosangho23', 'authorDisplayName': '@chosangho23', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_nuNlfceTDiBSTQUhxQ56YDJFbBu1DjRfTpJMFP6ck9D0x3tsglom8eMUA2blBLpRVU8w=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 4, 'publishedAt': '2026-05-06T01:17:36Z', 'textDisplay': '숏친 기관들 해외자금들
+            커버들어간거지.
+            ', '
+            textOriginal
+            ': '
+            숏친
+            기관들
+            해외자금들
+            커버들어간거지.
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T01: 17
+            :
+            36Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            8jZyTxd5EpH7TWX5mQpu8D48QtM
+            ', '
+            id
+            ': '
+            UgyTMAVHfVfyCKRdNS14AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            XFEvxxUyNSlIFU0mq0pFxIJPv00
+            ', '
+            id
+            ': '
+            UgyTMAVHfVfyCKRdNS14AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@wsk3515', 'authorDisplayName': '@wsk3515', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_nkaVw_FkIes0hDjNTlwHX5XAW5k19NrukEDcyTJ5o=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 21, 'publishedAt': '2026-05-06T01:09:47Z', 'textDisplay': '원전주와 로봇주도 같이 가 보자....너무 더디다.....반도체와 전선주 대박이네....', 'textOriginal': '원전주와 로봇주도 같이 가 보자....너무 더디다.....반도체와 전선주 대박이네....', 'updatedAt': '2026-05-06T01:09:47Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '32NF6BBzX2AHirz2UI2r2s_SC1o', 'id': 'Ugwh-oFNJYkBiKWmT3t4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'JXvNiUda3G5BHBu9uxvfX832EnU', 'id': 'Ugwh-oFNJYkBiKWmT3t4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@islamunion4163', 'authorDisplayName': '@islamunion4163', 'authorProfileImageUrl': 'https://yt3.ggpht.com/BH3G0oUl4qCkC4DCoQAlAEEplzT6FdA9VkHN1fcjMPvp5CkWy3q0tH_S5P5vUsmgP_Ou6UkDaA=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 5, 'publishedAt': '2026-05-06T01:41:48Z', 'textDisplay': '감사합니다 이재명 대통령님. 저같은 놈도 경제적 자유 얻었네요. 이 악물고 이재명 대통령님만 믿었습니다', 'textOriginal': '감사합니다 이재명 대통령님. 저같은 놈도 경제적 자유 얻었네요. 이 악물고 이재명 대통령님만 믿었습니다', 'updatedAt': '2026-05-06T01:41:48Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '30JanQApZBjDZT4BnbTIV4QHL58', 'id': 'UgyKLLlQj1avtx618BR4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'B43TrcuxP6GSm_ojj0OIc0EV19I', 'id': 'UgyKLLlQj1avtx618BR4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@seanchoi6457', 'authorDisplayName': '@seanchoi6457', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_nj614C7z8WqMmiG-4eX7dtungkOZxT-zlfDKan0xE=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 21, 'publishedAt': '2026-05-06T01:36:51Z', 'textDisplay': '이제 8000 고지로 가즈아~~~~~~~~~', 'textOriginal': '이제 8000 고지로 가즈아~~~~~~~~~', 'updatedAt': '2026-05-06T01:36:51Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'mwrauD9I58vtzkJEt8fEDT2wDlI', 'id': 'Ugz7twNMMYAVX3bQS2V4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '5vrRJQa81x_rbYus5HGS42MIz1A', 'id': 'Ugz7twNMMYAVX3bQS2V4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%95%85%EB%A7%88%EC%84%A0%EC%83%9D', 'authorDisplayName': '@악마선생', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_nYrV8XO3DUwLSbRuNQToDm81SDnqfhGkh2VQFy_UXpPHk=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 3, 'publishedAt': '2026-05-06T01:53:40Z', 'textDisplay': '너무 상투인거 아닌가 싶어도 그냥 삼전 21만원에 샀는데 도람푸 새끼때문에 바로 하락장 쳐맞아서 포기하고 있었는데 오늘 아침에 주식보고 개깝놀했다 ㅎㅎㅎㅎㅎㅎㅎㅎ', 'textOriginal': '너무 상투인거 아닌가 싶어도 그냥 삼전 21만원에 샀는데 도람푸 새끼때문에 바로 하락장 쳐맞아서 포기하고 있었는데 오늘 아침에 주식보고 개깝놀했다 ㅎㅎㅎㅎㅎㅎㅎㅎ', 'updatedAt': '2026-05-06T01:54:19Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '9HwmetPDEmgBMjHWOCj6Pv1eHEM', 'id': 'UgwCQT9ybQAoAQahkF94AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'euJNIbNyg9Lu-X-ebBwpWpx2a8U', 'id': 'UgwCQT9ybQAoAQahkF94AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@konann-ep1', 'authorDisplayName': '@konann-ep1', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_kQmoKU8jutFWahUO7_VzxGZDtZUKEyDA85aZRpQ-gUz-JKqbFVN4C9rKZwBSJ3zld_cg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 3, 'publishedAt': '2026-05-06T02:22:30Z', 'textDisplay': '3만까지 배가 고푸다~♡', 'textOriginal': '3만까지 배가 고푸다~♡', 'updatedAt': '2026-05-06T02:22:30Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'S7SbLugbgpRN_z86YYsVElQnQoo', 'id': 'UgxUk32499NKskf1l3p4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'z21trx1jm8gndMr8eCOkIp4Nswg', 'id': 'UgxUk32499NKskf1l3p4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EA%B3%A0%EC%96%91%EC%9D%B4-y8s', 'authorDisplayName': '@고양이-y8s', 'authorProfileImageUrl': 'https://yt3.ggpht.com/Xx9NEQ3oM2EmFyxTEvWF4UgcdWbMKj654YgIRxS65_WMUQfpG3L7yLkEncwMG_D__CtpFXYkag=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 2, 'publishedAt': '2026-05-06T03:40:39Z', 'textDisplay': '7500  돌파    ㅊㅋㅊㅋ  전  주식  안하지만    왠지  뿌듯', 'textOriginal': '7500  돌파    ㅊㅋㅊㅋ  전  주식  안하지만    왠지  뿌듯', 'updatedAt': '2026-05-06T03:40:39Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'n-0tLamp8eN7Vuj3oKaIw_d8ayE', 'id': 'UgwuX7MecEHtywCWOuh4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'Xk6gx86TbpGikOeMoWTR-YmtTxY', 'id': 'UgwuX7MecEHtywCWOuh4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@10seconds_sensibility', 'authorDisplayName': '@10seconds_sensibility', 'authorProfileImageUrl': 'https://yt3.ggpht.com/Rjcbx2Zt-S12sHe--WNo6QkxtWhZNqF5JGAup46LW7aGcVh1l1RnQqBx6Y1kkvTz3rj5lKSh=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 3, 'publishedAt': '2026-05-06T02:32:07Z', 'textDisplay': '3000
+            4000
+            5000
+            6000
+            누가
+            다
+            거품이랬냐
+            ?
+            ?
+            ?
+            ㅋㅋㅋㅋㅋㅋㅋㅋㅋ
+            ', '
+            textOriginal
+            ': '
+            3000
+            4000
+            5000
+            6000
+            누가
+            다
+            거품이랬냐
+            ?
+            ?
+            ?
+            ㅋㅋㅋㅋㅋㅋㅋㅋㅋ
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T02: 32
+            :
+            07Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            eO1TVrFYWOFyrNDKT_tMZ5j1KrY
+            ', '
+            id
+            ': '
+            Ugx1QJlrdN3PKi_aYXB4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            5hjuxLSODD692jJvtnLAX2-nUVg
+            ', '
+            id
+            ': '
+            Ugx1QJlrdN3PKi_aYXB4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@fmfbjw0130', 'authorDisplayName': '@fmfbjw0130', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ksx1aQSOT3BO9vELnMfyirfWc1LkMlGrzOoED-j2oWoY7wf-6ndiXq3YaHSwXJHb3_M64mM_eQ=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 4, 'publishedAt': '2026-05-06T01:44:31Z', 'textDisplay': '반도체 비중이 큰만큼 조정을 언젠간 받긴 할텐데 1만 까지는 올랐으면 좋겠다..
+            이대통령님
+            5000이라면서요...
+            연임해주실거죠,
+            ?
+            ?
+            ?
+            ', '
+            textOriginal
+            ': '
+            반도체
+            비중이
+            큰만큼
+            조정을
+            언젠간
+            받긴
+            할텐데
+            1만
+            까지는
+            올랐으면
+            좋겠다..
+            이대통령님
+            5000이라면서요...
+            연임해주실거죠,
+            ?
+            ?
+            ?
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T01: 44
+            :
+            31Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            aWj2ZcmzpNOORoUM_E2DhCMxZHU
+            ', '
+            id
+            ': '
+            UgwpqYogqa5Lu5kAuOh4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            fvDpp9czm_2w4Tq-REqERY4MLjQ
+            ', '
+            id
+            ': '
+            UgwpqYogqa5Lu5kAuOh4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EC%98%81%ED%98%BC-t5h', 'authorDisplayName': '@영혼-t5h', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_nu6aM7Scjgue2D7Zgpkn9EVpVFIs60BGnbEl-hWd8=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 2, 'publishedAt': '2026-05-06T03:01:31Z', 'textDisplay': '서민도 코스피 덕분에
+            아파트
+            살수
+            있게
+            됐어요
+            미장에서
+            넘어
+            온것이
+            신의
+            한수
+            였습니다
+            우리나라
+            더
+            흥하길..~
+            ', '
+            textOriginal
+            ': '
+            서민도
+            코스피
+            덕분에
+            아파트
+            살수
+            있게
+            됐어요
+            미장에서
+            넘어
+            온것이
+            신의
+            한수
+            였습니다
+            우리나라
+            더
+            흥하길..~
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T03: 01
+            :
+            31Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            r2rECRiUvUWqsEGg3cki661QfE0
+            ', '
+            id
+            ': '
+            UgylVMtcXUuiR5yADGN4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            24DTE9bF2Y4ilwjtoGKIIgiplDU
+            ', '
+            id
+            ': '
+            UgylVMtcXUuiR5yADGN4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EC%82%B4%EC%95%84%EB%B3%B4%EB%8B%88%EB%B3%84%EA%B1%B0%EC%97%86%EB%8D%94%EB%9D%BC', 'authorDisplayName': '@살아보니별거없더라', 'authorProfileImageUrl': 'https://yt3.ggpht.com/tRuMN4Ma-d_IWoz23qWmRh6cKO8-S98nTsbEy3Wnt2mYkgyrWDtkzmJTC0HVRQNMbQFsIJ7mZA=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 2, 'publishedAt': '2026-05-06T03:35:00Z', 'textDisplay': '코스피 7400 뚫었는데 코스닥에만 투자한 내 인생이 레전드다.', 'textOriginal': '코스피 7400 뚫었는데 코스닥에만 투자한 내 인생이 레전드다.', 'updatedAt': '2026-05-06T03:35:00Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'qsD4x4w-6HI7QUcL6KRHJr4AQ3A', 'id': 'UgxObfrvKXvAp0ZIWx94AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'HK3lIfPWtu3Z0S76poz8t0VT-PU', 'id': 'UgxObfrvKXvAp0ZIWx94AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@G__Min', 'authorDisplayName': '@G__Min', 'authorProfileImageUrl': 'https://yt3.ggpht.com/oFQjsndHcWwhifYPl_x_ZgZ3F2LRs-k69eiIEcNaoxDsnWoSU-isn37FysxbIb9ueKMwQaFWIw=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 2, 'publishedAt': '2026-05-06T05:19:31Z', 'textDisplay': '부동산에 돈이 안묶이면 어떤 파급력이 있는지 이번에 제대로 보는중임', 'textOriginal': '부동산에 돈이 안묶이면 어떤 파급력이 있는지 이번에 제대로 보는중임', 'updatedAt': '2026-05-06T05:19:31Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'TKMgZvazcoPAAzwiaYc5BM9vOio', 'id': 'UgyAwx5H124PxQEaK7Z4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'LMtHTMqdLW0VPjpxf4Z5TnK6N7M', 'id': 'UgyAwx5H124PxQEaK7Z4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@mskim5960', 'authorDisplayName': '@mskim5960', 'authorProfileImageUrl': 'https://yt3.ggpht.com/xlEUCpwNH0oAWgQOoaGHOLWI7ktheRyRHQhmTcx6j7qWvHbmG95qdYGS53jUADa7Kc3SuRhh=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 2, 'publishedAt': '2026-05-06T03:12:11Z', 'textDisplay': '연임은 필수~', 'textOriginal': '연임은 필수~', 'updatedAt': '2026-05-06T03:12:11Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'vDk85ahDphOZAxTC8WhxNS8DynE', 'id': 'UgxzQY9gLj_IrwJGASJ4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'wLiBkGqk95Qlfs0WeiB_B17NrXE', 'id': 'UgxzQY9gLj_IrwJGASJ4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%9D%B4%EA%B7%BC%EC%97%B4-e7e', 'authorDisplayName': '@이근열-e7e', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_ntho6HYX_nIV0VnMt9utViVOPSD4dR_b5D4KfpK6Q=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 2, 'publishedAt': '2026-05-06T04:52:24Z', 'textDisplay': '시가 총액. 1경. 가자. 1만 포인트. 가자.', 'textOriginal': '시가 총액. 1경. 가자. 1만 포인트. 가자.', 'updatedAt': '2026-05-06T04:53:52Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'GfASvOwWs_Aw8-dUTXsb5sUwy8w', 'id': 'UgxIg_O88CzFYXGoJOd4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '2SnYxkduKc86-eyXdCpkG8jjgNI', 'id': 'UgxIg_O88CzFYXGoJOd4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%9E%87%ED%9E%9D-h7l', 'authorDisplayName': '@잇힝-h7l', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_m_azSFumVkviU0y5IWzaIvrVSDWetWj90EWDey-IU=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 1, 'publishedAt': '2026-05-06T01:58:23Z', 'textDisplay': 'ㄷㄷㄷ;;', 'textOriginal': 'ㄷㄷㄷ;;', 'updatedAt': '2026-05-06T01:58:23Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'I0KZ4klcve8NqUqTNELQHk_DZFk', 'id': 'UgzhFP_5a5WmByPfaZJ4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'oC8FSxXoQVyEEojYOoMBuGK0yj4', 'id': 'UgzhFP_5a5WmByPfaZJ4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%98%A4%EC%8A%B9%ED%99%98-z4s', 'authorDisplayName': '@오승환-z4s', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_k7AkC00RlcoJYGqWCghZCL5jHng1S_zJv9IGVKvg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 36, 'publishedAt': '2026-05-06T01:48:29Z', 'textDisplay': '불과 1년전에 2600이었는데 지금 7300이다 바뀐건 대통령뿐임 ㅎㅎㅎㅎ', 'textOriginal': '불과 1년전에 2600이었는데 지금 7300이다 바뀐건 대통령뿐임 ㅎㅎㅎㅎ', 'updatedAt': '2026-05-06T01:48:29Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 6, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'prf-FbIBEc0flguuuhU_s5DOD38', 'id': 'UgwLNebVAXLpoSGovPl4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '9cepI0pHqFJOyveeQV77AjEfuRg', 'id': 'UgwLNebVAXLpoSGovPl4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@kyeom-o2b', 'authorDisplayName': '@kyeom-o2b', 'authorProfileImageUrl': 'https://yt3.ggpht.com/MxzwfT-RpcXYuSn71sYdt8BcNlB3xgEiqfqwjwwFsxvq_Nq9wHimnzOfMZYB6_3wceBkuhOT-w=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 4, 'publishedAt': '2026-05-06T01:36:08Z', 'textDisplay': '반도체빠지면 다른것들은 더빠지려나?? 이거 증시가 올라가도 좋지가 않은 기분이들지;;;', 'textOriginal': '반도체빠지면 다른것들은 더빠지려나?? 이거 증시가 올라가도 좋지가 않은 기분이들지;;;', 'updatedAt': '2026-05-06T01:36:08Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 1, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '0ETyhv4XXsKRCpTyYwQ6lHJ-hQA', 'id': 'Ugxqj1eYSd2TMzYXpWp4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'p6tKrWrPsQvgNW3fByxrTGSfXC0', 'id': 'Ugxqj1eYSd2TMzYXpWp4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@tv.1026', 'authorDisplayName': '@tv.1026', 'authorProfileImageUrl': 'https://yt3.ggpht.com/kA1NNKtgRFAsFUGfyMNIQm7oXy1dh5jLDLhvb7GFLcy6FrwppiKKJwBlDx0DB27F3lSm0WiLs3A=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 1, 'publishedAt': '2026-05-06T02:38:26Z', 'textDisplay': '우와', 'textOriginal': '우와', 'updatedAt': '2026-05-06T02:38:26Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'gX7sWsUjYlgRzrklJSvcX9Z4k6I', 'id': 'UgwSFEPj6oTIBT48gwZ4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'IdyNjN_sawMzTuOAAvqY1-ENr5w', 'id': 'UgwSFEPj6oTIBT48gwZ4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EB%B9%84%EB%B9%84%EB%B9%85-k7w', 'authorDisplayName': '@비비빅-k7w', 'authorProfileImageUrl': 'https://yt3.ggpht.com/IHdr2oMYZ36DkxoijByWT6PYBsMd1xxX1JwkugmzlzSzzTP6aNKH-23Ze76xSYkw2TfT1E9PaYU=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 1, 'publishedAt': '2026-05-06T07:49:04Z', 'textDisplay': '오늘도 단타 잘 쳐서 가족들과 외식갑니다 ㅎ', 'textOriginal': '오늘도 단타 잘 쳐서 가족들과 외식갑니다 ㅎ', 'updatedAt': '2026-05-06T07:49:04Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '-HrKsY22C86G63u8mp2TBdQGeas', 'id': 'Ugxv3VW0fmvSzqw3tWt4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '2BRFu5fFjFYGMAm-21yPBd0A3Wk', 'id': 'Ugxv3VW0fmvSzqw3tWt4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%8B%A0%EC%A0%95%EC%9E%90-c1s', 'authorDisplayName': '@신정자-c1s', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_kSgzsn-PaGdvyWXb6AMhFa1gscZpG84RXiatevNLqmSu1hqWQ=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 3, 'publishedAt': '2026-05-06T02:49:30Z', 'textDisplay': '역시 이재명대통령 께서 부동산은 팔고 주식에 투자해야 한다는 말이맞았네', 'textOriginal': '역시 이재명대통령 께서 부동산은 팔고 주식에 투자해야 한다는 말이맞았네', 'updatedAt': '2026-05-06T02:49:30Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'IHMPAVn902UCXmg-o5cqWVH0x7c', 'id': 'UgwfSks-SS2HM3onzB94AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'ryl75CnHBjnQTW4sfBOTDDTb8zU', 'id': 'UgwfSks-SS2HM3onzB94AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EB%89%B4%EC%8A%A4%EB%B0%8F%EC%8B%9C%EC%82%AC', 'authorDisplayName': '@뉴스및시사', 'authorProfileImageUrl': 'https://yt3.ggpht.com/Hykj6X-t5uz7dyjK_7SZqJR6RD2Fdgh0t59MTn371Y1Ci1ecCuC5fPCqm_nH7hXgtwIpPMm77g=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 1, 'publishedAt': '2026-05-06T02:50:12Z', 'textDisplay': '와~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ㅡ.ㅡ', 'textOriginal': '와~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ㅡ.ㅡ', 'updatedAt': '2026-05-06T02:50:12Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'fXy_lk99W0nBUMzdyLQKz2jPsOM', 'id': 'UgxZHvYq3cPpwtEkJgN4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'GMVw9_PRTPJlV04uXXCcaj7J0oE', 'id': 'UgxZHvYq3cPpwtEkJgN4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@yhpark77', 'authorDisplayName': '@yhpark77', 'authorProfileImageUrl': 'https://yt3.ggpht.com/eDrVl7FiHO9F8SCv2rTzGt3VG6ITAE2Qfub7WoGprLiMkD4RTMk1W7uvJmxvZGMJUPc1Gbk=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 2, 'publishedAt': '2026-05-06T05:18:24Z', 'textDisplay': '대단하다 ㄷㄷ 10000 가자~~~~', 'textOriginal': '대단하다 ㄷㄷ 10000 가자~~~~', 'updatedAt': '2026-05-06T05:18:24Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'ojttfGm_XWhPTpOaQy75UJhDiyI', 'id': 'Ugz0UnbqEZG14P9SufZ4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'sm25Jvu45xX8ViUklUMskoFpq2k', 'id': 'Ugz0UnbqEZG14P9SufZ4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EB%B0%95%EC%A2%85%ED%9B%88-pjh', 'authorDisplayName': '@박종훈-pjh', 'authorProfileImageUrl': 'https://yt3.ggpht.com/FsvCP-FFf3OtrIVk8V9rdvDKR7ec13SC8YkT4nOAlddsaeI3fru73AOX6uLUc9SIovSV9eOwkck=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 1, 'publishedAt': '2026-05-06T03:53:01Z', 'textDisplay': '미쳤다 ㄷㄷㄷ', 'textOriginal': '미쳤다 ㄷㄷㄷ', 'updatedAt': '2026-05-06T03:53:01Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'N4LWCZO1w0s3A4jo66YQLsmbHI0', 'id': 'UgzuK5GiYYBI3tMvD_R4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'XaXMRNDAx3F7aNrWprpqW81HuBM', 'id': 'UgzuK5GiYYBI3tMvD_R4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EC%97%98%ED%82%A4%EB%9D%BC', 'authorDisplayName': '@엘키라', 'authorProfileImageUrl': 'https://yt3.ggpht.com/TaLImM7NUqalgwVTR7GJhhjU_n8bt1STgxNJNJ_bee3A1YrUs8-pvilkKWPNyyvtC6OD_7J6=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 1, 'publishedAt': '2026-05-06T08:06:11Z', 'textDisplay': '이게 가능해?
+            아
+            작년에
+            다
+            샀어야하는데...
+            ', '
+            textOriginal
+            ': '
+            이게
+            가능해
+            ?
+            아
+            작년에
+            다
+            샀어야하는데...
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T08: 06
+            :
+            11Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            9BISNyqqSPEgbtSRsg_RUR1sGlY
+            ', '
+            id
+            ': '
+            Ugy4hmA-pdKNj82QFTh4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            zlqlvRSPDsGhL_BbouJI7cIgcIw
+            ', '
+            id
+            ': '
+            Ugy4hmA-pdKNj82QFTh4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@%EC%95%BC%EA%B0%84%EC%9D%98%ED%85%8C%ED%81%AC', 'authorDisplayName': '@야간의테크', 'authorProfileImageUrl': 'https://yt3.ggpht.com/pysmXEoapHL-9SeoytFsRnVU3gA7-AS7yojc3Q4oPU9SYtyMkBM3mIvSfsB5kin05pkAEnT0=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 2, 'publishedAt': '2026-05-06T02:02:10Z', 'textDisplay': '돈은 거짓말 안한다
+            이
+            정권의
+            효과다
+            ', '
+            textOriginal
+            ': '
+            돈은
+            거짓말
+            안한다
+            이
+            정권의
+            효과다
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T02: 02
+            :
+            10Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            QWKDOTDiakqOTeXXqu1CXTML1Nw
+            ', '
+            id
+            ': '
+            UgxUX4y4fNXfvBxjE0Z4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            t3bQ-xiYKOgvLz1fdNCQp3kxlNM
+            ', '
+            id
+            ': '
+            UgxUX4y4fNXfvBxjE0Z4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@1004ek', 'authorDisplayName': '@1004ek', 'authorProfileImageUrl': 'https://yt3.ggpht.com/flZB7PLNdZcIi4A6yvOJ0CAgNZvejbmzxyAEPNdxIJ2AaaC97YBmuLiWNYzji_zP99GbU0Fwcg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 1, 'publishedAt': '2026-05-06T03:25:30Z', 'textDisplay': '키야 굿', 'textOriginal': '키야 굿', 'updatedAt': '2026-05-06T03:25:30Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'LmsWHmeb7xLQBs5IK7vA8YwDaeo', 'id': 'UgzJ6YqU7thjm7k8ALh4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'm3t7Tv9No9azIG2BJ5XjJw1W7GE', 'id': 'UgzJ6YqU7thjm7k8ALh4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@BellaLumiere-music', 'authorDisplayName': '@BellaLumiere-music', 'authorProfileImageUrl': 'https://yt3.ggpht.com/VEPjZBH9C4up5W3zXOLcYLY8x7NzXew4qP57WMeYd8ItMl53IoKeK53FsMshFnRD5fR_MpEapg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 3, 'publishedAt': '2026-05-06T02:37:12Z', 'textDisplay': 'RE100이 몬지도 모르는 모지리 뽑은  애덜은 나라 아직도 망했다고 이재명 욕하더라...', 'textOriginal': 'RE100이 몬지도 모르는 모지리 뽑은  애덜은 나라 아직도 망했다고 이재명 욕하더라...', 'updatedAt': '2026-05-06T02:37:12Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'MgR1vbaqQEfCUlReXUKlkWcxqfs', 'id': 'UgySINJ4nPr_9MTiD_54AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'LQRS_bIuW4J8KGDRGl7-JgzWX5Q', 'id': 'UgySINJ4nPr_9MTiD_54AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@12.3-d6z', 'authorDisplayName': '@12.3-d6z', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_lUtCFbskuDz6Gx2VKVk4BwdIRVztn3vO1xj2Evw6_s45qkEfNHiEWL8KP1WhQQFAiEMhk0vKkB=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 1, 'publishedAt': '2026-05-06T01:55:51Z', 'textDisplay': '외국인 사고 개인기관 파노..기관 언능 들어와라!!!', 'textOriginal': '외국인 사고 개인기관 파노..기관 언능 들어와라!!!', 'updatedAt': '2026-05-06T01:55:51Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': '_LlsLCjV2ELnsdniHyNN-20XhqM', 'id': 'UgxkfcTOOKDMqOR8B9N4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': 'vN0No4mJpeaPVt0yoqGLdU8GGHs', 'id': 'UgxkfcTOOKDMqOR8B9N4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%EB%AA%85%EC%82%AC%EC%88%98-b5n', 'authorDisplayName': '@명사수-b5n', 'authorProfileImageUrl': 'https://yt3.ggpht.com/DYB7c_qSDZlukrPrvoQmQDHRzl0V2FI77dUyccvWPOYSOWluAnjsc7ml361j2S8m1anGdh9Q=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 2, 'publishedAt': '2026-05-06T06:21:58Z', 'textDisplay': '내가 이렇게 많이 벌어도 되는거야?', 'textOriginal': '내가 이렇게 많이 벌어도 되는거야?', 'updatedAt': '2026-05-06T06:21:58Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'ycOIBdlXotzh9pXPLeqI7WlCmgk', 'id': 'UgzhjKNS1T5fzgyEsOh4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '55QxehaVc5XuVnrF-xz8bhjoR1g', 'id': 'UgzhjKNS1T5fzgyEsOh4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@goairm-RwTtds', 'authorDisplayName': '@goairm-RwTtds', 'authorProfileImageUrl': 'https://yt3.ggpht.com/jbKxfpZToDr6ZrHk91NROaN-bSIRrsq29o5NJwOyXUSg46HIo88hlDRdQmuzul1QBG9aWGggqA=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 3, 'publishedAt': '2026-05-06T00:44:44Z', 'textDisplay': '1994년 강남 아파트 최저점을 찍다.  그때는 재건축 개념이 없었다.  아파트는 그냥 쓰다 버리는 거였다. 입지보다 신축.ㅡㅡ
+            사람들은
+            새
+            집을
+            찾아
+            노원으로
+            떠났다.
+            그
+            좋은
+            강남
+            학군
+            입지
+            인프라
+            다버리고.
+            200만호
+            공급과
+            신도시
+            건설
+            때문에
+            집값이
+            잡혔다고
+            하는
+            것은
+            사실이
+            아니다.
+            재건축
+            금지라는
+            전제하이기
+            때문이다.
+            당시
+            노원과
+            강남은
+            1천만원
+            차이라는
+            통계도
+            있다.
+            곧
+            재건축
+            금지,
+            오늘
+            코스피
+            봐라.
+            난리난다.
+            ', '
+            textOriginal
+            ': '
+            1994년
+            강남
+            아파트
+            최저점을
+            찍다.
+            그때는
+            재건축
+            개념이
+            없었다.
+            아파트는
+            그냥
+            쓰다
+            버리는
+            거였다.
+            입지보다
+            신축.ㅡㅡ
+            사람들은
+            새
+            집을
+            찾아
+            노원으로
+            떠났다.
+            그
+            좋은
+            강남
+            학군
+            입지
+            인프라
+            다버리고.
+            200만호
+            공급과
+            신도시
+            건설
+            때문에
+            집값이
+            잡혔다고
+            하는
+            것은
+            사실이
+            아니다.
+            재건축
+            금지라는
+            전제하이기
+            때문이다.
+            당시
+            노원과
+            강남은
+            1천만원
+            차이라는
+            통계도
+            있다.
+            곧
+            재건축
+            금지,
+            오늘
+            코스피
+            봐라.
+            난리난다.
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T00: 44
+            :
+            44Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 1, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}, {'
+            etag
+            ': '
+            gKrbtwaK90bg0fxK25mjdCIfhQ4
+            ', '
+            id
+            ': '
+            Ugwygv3UBXOqLxXir_x4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            commentThread
+            ', '
+            snippet
+            ': {'
+            canReply
+            ': True, '
+            channelId
+            ': '
+            UCF4Wxdo3inmxP-Y59wXDsFw
+            ', '
+            isPublic
+            ': True, '
+            topLevelComment
+            ': {'
+            etag
+            ': '
+            SIN3AaerLJOwsTMFAqRkD_LarA0
+            ', '
+            id
+            ': '
+            Ugwygv3UBXOqLxXir_x4AaABAg
+            ', '
+            kind
+            ': '
+            youtube
+            #
+            comment
+            ', '
+            snippet
+            ': {'
+            authorChannelId
+            ': {...}, '
+            authorChannelUrl
+            ': '
+            http: //www.youtube.com/@annah5643', 'authorDisplayName': '@annah5643', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_mbfhg7H_wtIAB2A8uIci2BgGvhuEj4ujjhMdEQOGFpD1w=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 2, 'publishedAt': '2026-05-06T01:31:19Z', 'textDisplay': '코스닥은 왜이래요', 'textOriginal': '코스닥은 왜이래요', 'updatedAt': '2026-05-06T01:31:19Z', 'videoId': 'Z5dU-qvLW34', 'viewerRating': 'none'}}, 'totalReplyCount': 0, 'videoId': 'Z5dU-qvLW34'}}, {'etag': 'TN837AdbB2xYJ4qAMfX131hE5Zo', 'id': 'UgyON3AmNiKFVm6I72N4AaABAg', 'kind': 'youtube#commentThread', 'snippet': {'canReply': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'isPublic': True, 'topLevelComment': {'etag': '6TWKu0sR0xSuM4R7P3xc8CFNNZc', 'id': 'UgyON3AmNiKFVm6I72N4AaABAg', 'kind': 'youtube#comment', 'snippet': {'authorChannelId': {...}, 'authorChannelUrl': 'http://www.youtube.com/@%ED%8D%BC%ED%94%8C%EC%95%84%EC%9D%B4%EC%BD%94', 'authorDisplayName': '@퍼플아이코', 'authorProfileImageUrl': 'https://yt3.ggpht.com/ytc/AIdro_kVfxBemKTXVOvYzuHj3r_aqBBGDF_m8iUtvR9qB3klUkFKm43FfQihtLRU7-euWiffJg=s48-c-k-c0x00ffffff-no-rj', 'canRate': True, 'channelId': 'UCF4Wxdo3inmxP-Y59wXDsFw', 'likeCount': 1, 'publishedAt': '2026-05-06T03:44:26Z', 'textDisplay': '장투자인데ㅜ 너무 올라서 부담되지만 흔들리지 않고 격주 40만원씩 매수 합니다. 나스닥100과 sp500에도 각각 40만원씩 매수...
+
+            장투라
+            중간에
+            폭락이
+            올걸
+            내심
+            기대하기도
+            하면서도
+            겁나기도
+            하고
+            복잡한
+            마음이네요.
+            ', '
+            textOriginal
+            ': '
+            장투자인데ㅜ
+            너무
+            올라서
+            부담되지만
+            흔들리지
+            않고
+            격주
+            40만원씩
+            매수
+            합니다.
+            나스닥100과
+            sp500에도
+            각각
+            40만원씩
+            매수...
+
+            장투라
+            중간에
+            폭락이
+            올걸
+            내심
+            기대하기도
+            하면서도
+            겁나기도
+            하고
+            복잡한
+            마음이네요.
+            ', '
+            updatedAt
+            ': '
+            2026-05-06T03: 44
+            :
+            26Z
+            ', '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            ', '
+            viewerRating
+            ': '
+            none
+            '}}, '
+            totalReplyCount
+            ': 0, '
+            videoId
+            ': '
+            Z5dU-qvLW34
+            '}}], '
+            kind
+            ': '
+            youtube
+            #
+            commentThreadListResponse
+            ', '
+            nextPageToken
+            ': '
+            Z2V0X3JhbmtlZF9zdHJlYW1zLS1Db0VFQ0lBRUZSZTMwVGdhOWdNSzhRTUkyRjhRZ0FRWUJ5TG1BNHZ4NDRnaDJQQWtoWjJEMXN5VHhPZ29FRklZbDR1a0RxS1RacUliS29teERrM1JNNXBrakRBWTRoSXlGMmlYWHJaaWVGRGRGOVhDSkJWWnh2RmdaOGlDMjFXSHFOUzRGZDJ1eW9QbzI1VzRyS1FaV2pwMFRpc3BPcmVwZThjSjZ4aVMyQkhubFZPRUQ0aXRkTlJJR1V1dXNOQUcyY0p2WXJoWE01dlFQYUpJX0hNSlRYUG5ONFZxTGFrX1VzaWhGcEdOZDQyaGJKMmJfbm1ZR0pRb0k3S0FJRGxNb0ZpV0pCTENSaEJKVXhNNDZEX29QZ2pLVEdUU2MwSlk3SEtIazh3cHFoUkRySUxLdThrTGdXY3RNb3c3eXBIVFY0UUlWNWdlOWpaQzZiazY5OXlRSWhHdjg3VWgtWHpaa1Y0eDNqMWtCUk1zV3duQnk1RldRZ1FRXzl0b1lBMUNVd0lGMVkwVW5vanNnOHdteVp6a0pKb3RNcXBNQzZHR3JrSERDQmxGeG9hcEdwV3YyTGFEM1pVUlV2NVNrT1RBMUxISGxXVlFHOVpEZk1WTnFBdE1mSUVOd2pjSTQ1aVFKdXMza0RqWmJsd1hmdU5FcWJ5c1VNR1RSQ0FWS0MtS3JIR09jWjJSSmd3WVNldmJNVTMwd21DM0N0QUp0YUlfNjZKN1Z4RE1YMnlsOXc4cDdKckZoR3dWdENaallrSlVqWXZxeENaQ05QLThTOGhDamhJWE5RSksyTDgwUWhsV1RrOFdhSlhpM2d6Wm9KTE1aWmtOWWw0c2hCbVhSM3JndWUxRXVDZUtHRmtyUy04WEs3a1Y0Y0NNUk1Gck5fVUZuZm5LQ1FOalJGTFdsaEJrRWdVSWh5QVlBQklGQ0tnZ0dBQVNCUWlJSUJnQUVnVUlpU0FZQUJJSENJVWdFR1FZQVJJRkNMc2dHQUE=
+            ', '
+            pageInfo
+            ': {'
+            resultsPerPage
+            ': 100, '
+            totalResults
+            ': 100}}
