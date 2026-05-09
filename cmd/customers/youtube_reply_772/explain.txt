@@ -1,0 +1,66 @@
+
+
+
+분석방법
+
+    형태소 분석
+    TF/IDF
+
+    추후
+    N-gram 분석
+    토픽 모델링
+
+
+시각화
+    워드클라우드 :
+    키워드 연결 네트워크 :
+    감성 분석 :
+    시계열 분석 :
+
+
+
+
+DB : PostgreSQL
+사용이유 :
+
+
+youtube_video : 유튜브 영상 테이블
+
+youtube_comment : YouTube 댓글 원본 테이블
+
+youtube_analysis_method : 분석 방식 마스터 테이블
+
+youtube_token_dictionary : token 사전 테이블
+
+youtube_analysis_run : 분석 실행 이력 테이블
+
+youtube_comment_token : 댓글별 token 분석 결과 테이블
+
+youtube_token_edge : token 동시출현 네트워크 edge 테이블
+
+youtube_comment_tfidf : 댓글별 TF-IDF 결과 테이블
+
+
+
+
+
+
+
+
+
+
+■ 내용 순서 및 요약
+
+py 순서
+    0_youtube_collect.py
+
+
+
+1. 유튜브 데이터 추출
+
+    1-1. 유튜브 공식 API를 이용하여 데이터를 받아온다.
+    1-2. youtube_video, youtube_comment
+
+
+2. 형태소 분석
+

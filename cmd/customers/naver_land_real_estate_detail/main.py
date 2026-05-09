@@ -1,4 +1,4 @@
-# main.py
+# 00_youtube_collect.py
 # -*- coding: utf-8 -*-
 
 import json
