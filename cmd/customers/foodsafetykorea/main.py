@@ -23,7 +23,7 @@ OUTPUT_FILE = "foodsafety_bsn_list.json"
 
 PAGE_SIZE = 50
 
-CALL_PAGE = "4183411263476406"
+CALL_PAGE = "5409756199133579"
 
 # 테스트할 때는 1 또는 2
 # 전체 수집할 때는 None
@@ -34,8 +34,7 @@ REQUEST_DELAY_SEC = 0.3
 REGION_DELAY_SEC = 0.5
 
 # 필요하면 브라우저 개발자도구에서 복사한 cookie 전체를 넣기
-# 예: "JSESSIONID=...; callPage=..."
-COOKIE = "elevisor_for_j2ee_uid=a8jvrkducruks; GPKISecureWebSession=IPcii49IaDiFnoCsjCqk; JSESSIONID=vPXpEt6wj8leI9vKBIz1Z5aMMPIRcoq8FRmM0JJqa7DAonvctWi1KCfz1jhhdWHH.amV1c19kb21haW4veGNvd2FzMDJfSVBPMDE=; callPage=4183411263476406"
+COOKIE = "elevisor_for_j2ee_uid=f5at4pm3cf3rg; JSESSIONID=NW91b1CoAaD9At73fnEaELiYVCaW01lNaUUkK6on2BFX2WvGtBUtySe1nPev7Yer.amV1c19kb21haW4veGNvd2FzMDJfSVBPMDE=; GPKISecureWebSession=w8ksi4DjqP6T530MxXBh; notShowModalPopupYn=Y; callPage=5409756199133579"
 
 
 # ==============================
