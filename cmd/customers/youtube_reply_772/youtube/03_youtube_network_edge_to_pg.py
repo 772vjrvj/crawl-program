@@ -2,10 +2,10 @@ import os
 import re
 import sys
 import uuid
-import math
 from pathlib import Path
 from datetime import datetime
-from collections import defaultdict
+from collections import Counter
+from itertools import combinations
 
 import psycopg2
 from psycopg2.extras import Json, execute_values
@@ -13,34 +13,40 @@ from dotenv import load_dotenv
 
 
 # ============================================================
-# YouTube 댓글 TF-IDF 계산 -> PostgreSQL 저장
+# YouTube 댓글 token 동시출현 네트워크 생성 -> PostgreSQL 저장
 # ============================================================
 #
 # 목적:
 # 1) 01_youtube_tokenize_kiwi_to_pg.py 실행 후 저장된 youtube_comment_token을 조회한다.
 # 2) 최신 TOKENIZE run_id를 자동으로 찾는다.
-# 3) 댓글 1개를 document로 보고 TF-IDF를 계산한다.
-# 4) 계산 결과를 public.youtube_comment_tfidf에 저장한다.
-# 5) public.youtube_analysis_run에 TFIDF 실행 이력을 남긴다.
+# 3) 댓글 1개 안에서 같이 등장한 token 쌍을 만든다.
+# 4) token 쌍이 몇 개 댓글에서 같이 등장했는지 weight를 계산한다.
+# 5) 계산 결과를 public.youtube_token_edge에 저장한다.
+# 6) public.youtube_analysis_run에 NETWORK 실행 이력을 남긴다.
 #
 # 전제:
 # - youtube_collect.py 실행 완료
 # - 01_youtube_tokenize_kiwi_to_pg.py 실행 완료
 # - youtube_comment_token에 token 데이터가 있어야 한다.
 #
-# TF-IDF 기준:
+# 네트워크 기준:
 # - document = comment_id 1개
-# - term     = token_norm
-# - TF       = 댓글 안에서 token 등장 횟수
-# - DF       = 전체 댓글 중 해당 token이 등장한 댓글 수
-# - IDF      = log((전체 댓글 수 + 1) / (DF + 1)) + 1
-# - TF-IDF   = TF * IDF
+# - node     = token_norm
+# - edge     = 같은 댓글 안에 같이 등장한 token pair
+# - weight   = 해당 token pair가 같이 등장한 댓글 수
+#
+# 예:
+# 댓글1 token = [경제, 정책, 부동산]
+# 생성 edge:
+# - 경제 - 정책
+# - 경제 - 부동산
+# - 정책 - 부동산
 #
 # 설치:
 # pip install psycopg2-binary python-dotenv
 #
 # 실행:
-# python 02_youtube_tfidf_to_pg.py
+# python 03_youtube_network_edge_to_pg.py
 #
 # ============================================================
 
@@ -89,18 +95,6 @@ def safe_int(value):
         return 0
 
 
-def safe_float(value):
-    """
-    실수 변환 유틸.
-    """
-    try:
-        if value is None or value == "":
-            return 0.0
-        return float(value)
-    except Exception:
-        return 0.0
-
-
 def get_yn(value):
     """
     .env의 Y/N 값을 boolean으로 변환한다.
@@ -136,7 +130,7 @@ def get_video_id(value):
 
 def load_config():
     """
-    .env에서 TF-IDF 설정과 DB 설정을 읽는다.
+    .env에서 NETWORK 설정과 DB 설정을 읽는다.
 
     ANALYZE_VIDEO_CODE가 있으면 우선 사용하고,
     없으면 YOUTUBE_VIDEO_CODE / YOUTUBE_VIDEO_URL을 사용한다.
@@ -157,23 +151,25 @@ def load_config():
         "video_id": get_video_id(video_raw),
 
         # TOKENIZE 때 사용한 method_id
-        # 현재는 형태소 분석 결과 기반 TF-IDF이므로 같은 method_id를 사용한다.
+        # 현재는 형태소 분석 결과 기반 네트워크이므로 같은 method_id를 사용한다.
         "method_id": os.getenv("ANALYSIS_METHOD_ID", "MORPH_KIWI_V1").strip(),
 
         # 특정 TOKENIZE run_id를 직접 지정하고 싶을 때 사용
         # 비워두면 최신 SUCCESS TOKENIZE run을 자동 선택한다.
         "source_token_run_id": os.getenv("SOURCE_TOKEN_RUN_ID", "").strip(),
 
-        # Y이면 같은 video_id + method_id + TFIDF 기존 실행 이력을 삭제하고 다시 저장한다.
-        "reset_yn": get_yn(os.getenv("TFIDF_RESET_YN", os.getenv("ANALYSIS_RESET_YN", "Y"))),
+        # Y이면 같은 video_id + method_id + NETWORK 기존 실행 이력을 삭제하고 다시 저장한다.
+        "reset_yn": get_yn(os.getenv("NETWORK_RESET_YN", os.getenv("ANALYSIS_RESET_YN", "Y"))),
 
-        # DF가 너무 낮은 token을 제외하고 싶을 때 사용
-        # 1이면 모든 token 계산
-        "min_df": int(os.getenv("TFIDF_MIN_DF", "1")),
+        # edge 최소 weight
+        # 1이면 한 댓글에서만 같이 나온 token 쌍도 저장
+        # 2이면 최소 2개 댓글 이상 같이 나온 token 쌍만 저장
+        "min_edge_weight": int(os.getenv("NETWORK_MIN_EDGE_WEIGHT", "1")),
 
-        # TF-IDF 점수가 너무 낮은 row를 제외하고 싶을 때 사용
-        # 0이면 전부 저장
-        "min_tfidf_score": float(os.getenv("TFIDF_MIN_SCORE", "0")),
+        # 댓글 1개에서 네트워크 조합에 사용할 token 최대 개수
+        # 너무 큰 댓글에서 조합 수가 폭증하는 것을 막기 위한 안전장치다.
+        # 30이면 댓글 1개당 최대 30개 token만 edge 생성에 사용한다.
+        "max_tokens_per_comment": int(os.getenv("NETWORK_MAX_TOKENS_PER_COMMENT", "30")),
 
         # PostgreSQL DB 접속 정보
         "db_host": os.getenv("DB_HOST", ""),
@@ -225,7 +221,7 @@ def check_analysis_method(conn, method_id):
 
 def find_source_token_run_id(conn, cfg):
     """
-    TF-IDF 계산에 사용할 TOKENIZE run_id를 찾는다.
+    네트워크 생성에 사용할 TOKENIZE run_id를 찾는다.
 
     1) .env의 SOURCE_TOKEN_RUN_ID가 있으면 그 값을 사용한다.
     2) 없으면 같은 video_id + method_id 중 최신 SUCCESS TOKENIZE run을 사용한다.
@@ -300,24 +296,24 @@ def validate_source_token_run(conn, source_run_id, cfg):
         raise Exception("SOURCE_TOKEN_RUN_ID의 token 결과 수가 0입니다.")
 
 
-def delete_previous_tfidf_runs(conn, cfg):
+def delete_previous_network_runs(conn, cfg):
     """
-    기존 TFIDF 실행 이력을 삭제한다.
+    기존 NETWORK 실행 이력을 삭제한다.
 
     기준:
     - 같은 video_id
     - 같은 method_id
-    - analysis_task = TFIDF
+    - analysis_task = NETWORK
 
     주의:
-    - youtube_comment_tfidf가 run_id FK ON DELETE CASCADE로 잡혀 있으면
-      run 삭제 시 TF-IDF 결과도 같이 삭제된다.
+    - youtube_token_edge가 run_id FK ON DELETE CASCADE로 잡혀 있으면
+      run 삭제 시 edge 결과도 같이 삭제된다.
     """
     sql = """
         DELETE FROM public.youtube_analysis_run
         WHERE video_id = %s
           AND method_id = %s
-          AND analysis_task = 'TFIDF'
+          AND analysis_task = 'NETWORK'
     """
 
     with conn.cursor() as cur:
@@ -326,7 +322,7 @@ def delete_previous_tfidf_runs(conn, cfg):
 
 def create_analysis_run(conn, cfg, source_run_id):
     """
-    TFIDF 실행 이력을 youtube_analysis_run에 생성한다.
+    NETWORK 실행 이력을 youtube_analysis_run에 생성한다.
 
     source_run_id 컬럼이 없는 구조를 고려해서,
     원본 TOKENIZE run_id는 config_json에 저장한다.
@@ -355,7 +351,7 @@ def create_analysis_run(conn, cfg, source_run_id):
             %(run_id)s,
             %(video_id)s,
             %(method_id)s,
-            'TFIDF',
+            'NETWORK',
             'Y',
             'RUNNING',
             %(config_json)s,
@@ -373,9 +369,9 @@ def create_analysis_run(conn, cfg, source_run_id):
         "method_id": cfg["method_id"],
         "config_json": Json({
             "source_token_run_id": source_run_id,
-            "min_df": cfg["min_df"],
-            "min_tfidf_score": cfg["min_tfidf_score"],
-            "idf_formula": "log((total_doc_count + 1) / (df + 1)) + 1"
+            "edge_type": "CO_OCCURRENCE",
+            "min_edge_weight": cfg["min_edge_weight"],
+            "max_tokens_per_comment": cfg["max_tokens_per_comment"]
         }),
         "now": now
     }
@@ -388,10 +384,10 @@ def create_analysis_run(conn, cfg, source_run_id):
 
 def update_run_success(conn, run_id, total_comment_count, result_count):
     """
-    TFIDF 성공 처리.
+    NETWORK 성공 처리.
 
     result_count 의미:
-    - youtube_comment_tfidf에 저장한 row 수
+    - youtube_token_edge에 저장한 edge row 수
     """
     now = now_str()
 
@@ -417,7 +413,7 @@ def update_run_success(conn, run_id, total_comment_count, result_count):
 
 def update_run_fail(conn, run_id, error_message):
     """
-    TFIDF 실패 처리.
+    NETWORK 실패 처리.
     """
     now = now_str()
 
@@ -448,10 +444,10 @@ def fetch_token_rows(conn, source_run_id):
     source TOKENIZE run_id의 token 데이터를 조회한다.
 
     조회 컬럼:
-    - comment_id : document ID
-    - token_norm : term
-    - pos        : 품사
-    - token_count: TF 계산에 사용할 댓글 안 등장 횟수
+    - comment_id  : 댓글 ID. 댓글 1개가 네트워크 조합 기준이다.
+    - token_norm  : 네트워크 node 이름
+    - pos         : 품사
+    - token_count : 댓글 안 token 빈도. 댓글별 token 정렬용으로 사용한다.
     """
     sql = """
         SELECT
@@ -481,122 +477,164 @@ def fetch_token_rows(conn, source_run_id):
 
 
 # ============================================================
-# 5. TF-IDF 계산
+# 5. 네트워크 edge 생성
 # ============================================================
 
-def build_tfidf_rows(token_rows, cfg):
+def build_edge_rows(token_rows, cfg):
     """
-    youtube_comment_token row 목록을 기반으로 TF-IDF row를 만든다.
+    댓글별 token 목록을 기반으로 동시출현 edge row를 만든다.
 
-    계산 기준:
-    - 전체 댓글 수 = DISTINCT comment_id 수
-    - DF = token_norm + pos가 등장한 DISTINCT comment_id 수
-    - TF = 해당 comment_id 안에서 token_count
-    - IDF = log((전체 댓글 수 + 1) / (DF + 1)) + 1
-    - TF-IDF = TF * IDF
+    처리 방식:
+    1) comment_id 기준으로 token을 묶는다.
+    2) 댓글 1개 안의 token 목록에서 2개씩 조합을 만든다.
+    3) 같은 token pair가 여러 댓글에서 나오면 weight를 누적한다.
+    4) min_edge_weight 미만 edge는 제외한다.
 
-    pos를 같이 묶는 이유:
-    - 같은 표면형이라도 품사가 다르면 분석 결과를 구분할 수 있기 때문이다.
-    - 현재는 NNG, NNP 위주라 큰 차이는 없지만 구조상 안전하다.
+    주의:
+    - 댓글 1개에 token이 너무 많으면 조합 수가 급격히 늘어난다.
+      예: token 50개면 1,225개 조합
+    - 그래서 NETWORK_MAX_TOKENS_PER_COMMENT로 댓글당 token 수를 제한한다.
     """
-    comment_ids = set()
-
-    # token_key별 등장 댓글 집합
-    # token_key = (token_norm, pos)
-    df_comment_map = defaultdict(set)
-
-    # 댓글별 token row 목록
-    tf_rows = []
+    comment_token_map = {}
 
     for row in token_rows:
         comment_id = row["comment_id"]
-        token_norm = row["token_norm"]
-        pos = row["pos"]
-        tf = safe_int(row["token_count"])
+        token_norm = safe_text(row["token_norm"]).strip()
+        pos = safe_text(row["pos"]).strip()
+        token_count = safe_int(row["token_count"])
 
         if not comment_id or not token_norm:
             continue
 
-        if tf <= 0:
+        if comment_id not in comment_token_map:
+            comment_token_map[comment_id] = {}
+
+        # 같은 댓글에서 같은 token_norm이 여러 품사로 잡히는 경우가 있을 수 있다.
+        # 현재 edge 테이블 unique 기준은 token 텍스트 중심이므로 token_norm 기준으로 1개만 사용한다.
+        # token_count가 더 큰 품사를 대표 pos로 사용한다.
+        if token_norm not in comment_token_map[comment_id]:
+            comment_token_map[comment_id][token_norm] = {
+                "pos": pos,
+                "token_count": token_count
+            }
+        else:
+            old = comment_token_map[comment_id][token_norm]
+
+            if token_count > old["token_count"]:
+                comment_token_map[comment_id][token_norm] = {
+                    "pos": pos,
+                    "token_count": token_count
+                }
+
+    edge_counter = Counter()
+    edge_pos_map = {}
+
+    for comment_id, token_info_map in comment_token_map.items():
+        token_items = []
+
+        for token_norm, info in token_info_map.items():
+            token_items.append({
+                "token_norm": token_norm,
+                "pos": info["pos"],
+                "token_count": info["token_count"]
+            })
+
+        # 댓글 안에서 많이 등장한 token을 우선 사용한다.
+        # 같은 빈도면 token 글자 기준으로 정렬해서 결과를 안정적으로 만든다.(유니코드 순서 ㄱㄴㄷ 순)
+        token_items.sort(
+            key=lambda item: (
+                -safe_int(item["token_count"]),
+                item["token_norm"]
+            )
+        )
+
+        # 댓글당 token 수 제한
+        max_count = cfg["max_tokens_per_comment"]
+
+        if max_count > 0 and len(token_items) > max_count:
+            token_items = token_items[:max_count]
+
+        # token이 2개 미만이면 edge를 만들 수 없다.
+        if len(token_items) < 2:
             continue
 
-        token_key = (token_norm, pos)
+        # token pair 생성
+        for item_a, item_b in combinations(token_items, 2):
+            token_a = item_a["token_norm"]
+            token_b = item_b["token_norm"]
 
-        comment_ids.add(comment_id)
-        df_comment_map[token_key].add(comment_id)
+            if token_a == token_b:
+                continue
 
-        tf_rows.append({
-            "comment_id": comment_id,
-            "token_norm": token_norm,
-            "pos": pos,
-            "tf": tf
-        })
+            # 무방향 네트워크이므로 항상 사전순으로 source/target을 고정한다.
+            # 이렇게 해야 경제-정책, 정책-경제가 서로 다른 edge로 저장되지 않는다.
+            if token_a < token_b:
+                source_token = token_a
+                target_token = token_b
+                source_pos = item_a["pos"]
+                target_pos = item_b["pos"]
+            else:
+                source_token = token_b
+                target_token = token_a
+                source_pos = item_b["pos"]
+                target_pos = item_a["pos"]
 
-    total_doc_count = len(comment_ids)
+            edge_key = (source_token, target_token)
 
-    if total_doc_count <= 0:
-        return [], 0
+            # 댓글 1개에서는 같은 pair를 1번만 세는 구조다.
+            # 이미 comment_token_map에서 token_norm을 unique 처리했으므로 그대로 +1 한다.
+            edge_counter[edge_key] += 1
 
-    # token_key별 DF/IDF 계산
-    idf_map = {}
-    df_map = {}
-
-    # 이 token이 몇 개 댓글에 등장했는가
-    for token_key, comment_set in df_comment_map.items():
-        df = len(comment_set)
-
-        # 너무 적은 댓글에만 등장한 token을 제외하고 싶을 때 사용한다.
-        if df < cfg["min_df"]:
-            continue
-
-        idf = math.log((total_doc_count + 1) / (df + 1)) + 1
-
-        df_map[token_key] = df
-        idf_map[token_key] = idf
+            if edge_key not in edge_pos_map:
+                edge_pos_map[edge_key] = {
+                    "source_pos": source_pos,
+                    "target_pos": target_pos
+                }
 
     result = []
 
-    for row in tf_rows:
-        token_key = (row["token_norm"], row["pos"])
-
-        if token_key not in idf_map:
+    for edge_key, weight in edge_counter.items():
+        if weight < cfg["min_edge_weight"]:
             continue
 
-        tf = row["tf"]
-        df = df_map[token_key]
-        idf = idf_map[token_key]
-        tfidf_score = tf * idf
-
-        if tfidf_score < cfg["min_tfidf_score"]:
-            continue
+        source_token, target_token = edge_key
+        pos_info = edge_pos_map.get(edge_key, {})
 
         result.append({
-            "comment_id": row["comment_id"],
-            "token_norm": row["token_norm"],
-            "pos": row["pos"],
-            "tf": tf,
-            "df": df,
-            "total_doc_count": total_doc_count,
-            "idf": idf,
-            "tfidf_score": tfidf_score
+            "source_token": source_token,
+            "target_token": target_token,
+            "source_pos": pos_info.get("source_pos"),
+            "target_pos": pos_info.get("target_pos"),
+            "edge_type": "CO_OCCURRENCE",
+            "weight": weight,
+            "comment_count": weight
         })
 
-    return result, total_doc_count
+    # weight 높은 순으로 정렬해서 저장/확인하기 쉽게 한다.
+    result.sort(
+        key=lambda row: (
+            -safe_int(row["weight"]),
+            row["source_token"],
+            row["target_token"]
+        )
+    )
+
+    return result, len(comment_token_map)
 
 
 # ============================================================
-# 6. TF-IDF DB 저장
+# 6. edge DB 저장
 # ============================================================
 
-def insert_tfidf_rows(conn, run_id, cfg, rows):
+def insert_edge_rows(conn, run_id, cfg, rows):
     """
-    youtube_comment_tfidf에 TF-IDF 결과를 저장한다.
+    youtube_token_edge에 네트워크 edge 결과를 저장한다.
 
     저장 단위:
-    - TFIDF run_id
-    - comment_id
-    - token_norm
-    - pos
+    - NETWORK run_id
+    - source_token
+    - target_token
+    - edge_type
 
     이 조합으로 1 row를 저장한다.
     """
@@ -604,19 +642,18 @@ def insert_tfidf_rows(conn, run_id, cfg, rows):
         return 0
 
     sql = """
-        INSERT INTO public.youtube_comment_tfidf
+        INSERT INTO public.youtube_token_edge
         (
             run_id,
             method_id,
             video_id,
-            comment_id,
-            token_norm,
-            pos,
-            tf,
-            df,
-            total_doc_count,
-            idf,
-            tfidf_score,
+            source_token,
+            target_token,
+            source_pos,
+            target_pos,
+            edge_type,
+            weight,
+            comment_count,
             create_dt,
             update_dt
         )
@@ -624,16 +661,15 @@ def insert_tfidf_rows(conn, run_id, cfg, rows):
         ON CONFLICT
         (
             run_id,
-            comment_id,
-            token_norm,
-            pos
+            source_token,
+            target_token,
+            edge_type
         )
         DO UPDATE SET
-            tf = EXCLUDED.tf,
-            df = EXCLUDED.df,
-            total_doc_count = EXCLUDED.total_doc_count,
-            idf = EXCLUDED.idf,
-            tfidf_score = EXCLUDED.tfidf_score,
+            source_pos = EXCLUDED.source_pos,
+            target_pos = EXCLUDED.target_pos,
+            weight = EXCLUDED.weight,
+            comment_count = EXCLUDED.comment_count,
             update_dt = EXCLUDED.update_dt
     """
 
@@ -646,14 +682,13 @@ def insert_tfidf_rows(conn, run_id, cfg, rows):
             run_id,
             cfg["method_id"],
             cfg["video_id"],
-            row.get("comment_id"),
-            row.get("token_norm"),
-            row.get("pos"),
-            safe_int(row.get("tf")),
-            safe_int(row.get("df")),
-            safe_int(row.get("total_doc_count")),
-            safe_float(row.get("idf")),
-            safe_float(row.get("tfidf_score")),
+            row.get("source_token"),
+            row.get("target_token"),
+            row.get("source_pos"),
+            row.get("target_pos"),
+            row.get("edge_type"),
+            safe_int(row.get("weight")),
+            safe_int(row.get("comment_count")),
             now,
             now
         ))
@@ -680,13 +715,13 @@ def main():
         return
 
     print("[ENV 위치]", base_dir() / ".env")
-    print("[분석 작업]", "TFIDF")
+    print("[분석 작업]", "NETWORK")
     print("[분석 영상]", cfg["video_id"])
     print("[분석 방식]", cfg["method_id"])
     print("[지정 TOKENIZE run_id]", cfg["source_token_run_id"] or "(자동)")
-    print("[기존 TFIDF 삭제]", "Y" if cfg["reset_yn"] else "N")
-    print("[최소 DF]", cfg["min_df"])
-    print("[최소 TF-IDF score]", cfg["min_tfidf_score"])
+    print("[기존 NETWORK 삭제]", "Y" if cfg["reset_yn"] else "N")
+    print("[edge 최소 weight]", cfg["min_edge_weight"])
+    print("[댓글당 최대 token 수]", cfg["max_tokens_per_comment"])
 
     conn = get_conn(cfg)
     run_id = None
@@ -705,14 +740,14 @@ def main():
 
         if cfg["reset_yn"]:
             print("")
-            print("[3] 기존 TFIDF 실행 이력 삭제")
-            delete_previous_tfidf_runs(conn, cfg)
-            print("[기존 TFIDF 삭제 완료]")
+            print("[3] 기존 NETWORK 실행 이력 삭제")
+            delete_previous_network_runs(conn, cfg)
+            print("[기존 NETWORK 삭제 완료]")
 
         print("")
-        print("[4] TFIDF run 생성")
+        print("[4] NETWORK run 생성")
         run_id = create_analysis_run(conn, cfg, source_run_id)
-        print("[TFIDF run_id]", run_id)
+        print("[NETWORK run_id]", run_id)
 
         print("")
         print("[5] token 조회")
@@ -720,23 +755,23 @@ def main():
         print("[token rows]", len(token_rows))
 
         if not token_rows:
-            raise Exception("TF-IDF 계산할 token 데이터가 없습니다. TOKENIZE를 먼저 실행하세요.")
+            raise Exception("네트워크 생성할 token 데이터가 없습니다. TOKENIZE를 먼저 실행하세요.")
 
         print("")
-        print("[6] TF-IDF 계산")
-        tfidf_rows, total_doc_count = build_tfidf_rows(token_rows, cfg)
-        print("[전체 댓글/document 수]", total_doc_count)
-        print("[tfidf rows]", len(tfidf_rows))
+        print("[6] 네트워크 edge 생성")
+        edge_rows, total_comment_count = build_edge_rows(token_rows, cfg)
+        print("[edge 계산 기준 댓글 수]", total_comment_count)
+        print("[edge rows]", len(edge_rows))
 
         print("")
         print("[7] DB 저장")
-        inserted_count = insert_tfidf_rows(conn, run_id, cfg, tfidf_rows)
-        print("[저장 tfidf rows]", inserted_count)
+        inserted_count = insert_edge_rows(conn, run_id, cfg, edge_rows)
+        print("[저장 edge rows]", inserted_count)
 
         update_run_success(
             conn,
             run_id,
-            total_doc_count,
+            total_comment_count,
             inserted_count
         )
 
@@ -744,7 +779,7 @@ def main():
 
         print("")
         print("[완료]")
-        print("[TFIDF run_id]", run_id)
+        print("[NETWORK run_id]", run_id)
         print("[SOURCE TOKENIZE run_id]", source_run_id)
 
     except Exception as e:

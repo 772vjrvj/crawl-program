@@ -1,4 +1,4 @@
-# 00_youtube_collect.py
+# 00_youtube_collect_to_pg.py
 # -*- coding: utf-8 -*-
 
 import json
