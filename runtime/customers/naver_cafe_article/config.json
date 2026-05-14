@@ -1,0 +1,45 @@
+{
+  "label": "네이버 카페",
+  "key": "NAVER_CAFE_CTT_CNT_ONLY",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": true,
+  "db_name": "NAVER_CAFE_CTT_CNT_ONLY",
+  "db_common_name": "WORKER_JOB_HIST",
+  "worker_class": "src.workers.main.api_naver_cafe_count_only_set_worker:ApiNaverCafeCountOnlySetWorker",
+  "setting": [
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "E:\\git\\crawl-program",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    },
+    {
+      "name": "자동 엑셀 저장",
+      "code": "auto_save_yn",
+      "value": true,
+      "type": "check"
+    }
+  ],
+  "columns": [
+    {
+      "code": "url",
+      "value": "URL",
+      "checked": true
+    },
+    {
+      "code": "read_count",
+      "value": "조회수",
+      "checked": true
+    },
+    {
+      "code": "file_tag",
+      "value": "파일명",
+      "checked": true
+    }
+  ]
+}

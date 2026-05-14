@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>식품안전 통합 관리 시스템</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="loadingOverlay">
+    <div class="spinner"></div>
+    <p style="margin-top:15px; font-weight:bold; color:var(--primary);">데이터 최적화 및 렌더링 중...</p>
+</div>
+
+<div class="container">
+    <div class="search-section">
+        <div class="search-group"><label>지역</label><input type="text" id="sReg" oninput="handleSearch()" placeholder="지역명"></div>
+        <div class="search-group"><label>업체명</label><input type="text" id="sBssh" oninput="handleSearch()" placeholder="업체명"></div>
+        <div class="search-group"><label>인허가번호</label><input type="text" id="sLcns" oninput="handleSearch()" placeholder="번호"></div>
+        <div class="search-group"><label>소재지</label><input type="text" id="sAddr" oninput="handleSearch()" placeholder="주소 검색"></div>
+        <div class="search-group">
+            <label>영업상태</label>
+            <select id="sStatus" onchange="handleSearch()">
+                <option value="">전체</option>
+                <option value="정상">정상</option>
+                <option value="휴업">휴업</option>
+                <option value="폐업">폐업</option>
+            </select>
+        </div>
+        <div class="search-group">
+            <label>보기 설정</label>
+            <select id="sLimit" onchange="changeLimit()">
+                <option value="10">10개씩</option>
+                <option value="20">20개씩</option>
+                <option value="50">50개씩</option>
+            </select>
+        </div>
+    </div>
+
+    <div style="margin-bottom:10px; font-size:13px; color:#777;">결과: <b id="resCnt" style="color:var(--primary);">0</b>건</div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+            <tr>
+                <th class="w-no">번호</th><th class="w-reg">지역</th><th class="w-lcns">인허가번호</th><th class="w-name">업체명</th>
+                <th class="w-ind">업종</th><th class="w-rep">대표자</th><th class="w-addr">소재지</th><th class="w-inst">인허가기관</th>
+                <th class="w-stat">영업상태</th><th class="w-etc">비고</th>
+            </tr>
+            </thead>
+            <tbody id="listBody"></tbody>
+        </table>
+    </div>
+
+    <div class="pagination-wrapper">
+        <div id="pagination" class="pagination"></div>
+        <div class="page-jump">
+            <input type="number" id="jumpNum" min="1">
+            <span>/ <span id="totalPg">0</span> 페이지</span>
+            <button onclick="jump()">이동</button>
+        </div>
+    </div>
+</div>
+
+<!-- 상세 정보 모달 -->
+<div id="detailModal" class="modal">
+    <div class="modal-content">
+        <span style="position:absolute; top:20px; right:30px; font-size:45px; cursor:pointer; color:#bbb;" onclick="closeModal()">&times;</span>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<!-- 텍스트 확인 팝업 (X 버튼 적용됨) -->
+<div id="textPopup">
+    <div class="popup-inner">
+        <span class="popup-close-x" onclick="closePopup()">&times;</span>
+        <div class="popup-title">상세 내용 확인</div>
+        <div id="popupContent" class="popup-content"></div>
+    </div>
+</div>
+
+<script src="data.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

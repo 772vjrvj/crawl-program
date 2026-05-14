@@ -5,7 +5,7 @@
   "server_name": "CrawlProgram",
   "allow_multi_instance": true,
   "instance_key": "my_pyside_app",
-  "site_list_use": ["NAVER_PLACE_LOC_ALL"],
+  "site_list_use": ["NAVER_CAFE_CTT_CNT_ONLY"],
   "site_list": [
     {
       "key": "NAVER_BAND_MEMBER",
@@ -26,6 +26,18 @@
     {
       "key": "NAVER_PLACE_LOC_ALL",
       "config_path": "customers/naver_place_loc_all/config.json"
+    },
+    {
+      "key": "NAVER_LAND_REAL_ESTATE_DETAIL",
+      "config_path": "customers/naver_land_real_estate_detail/config.json"
+    },
+    {
+      "key": "NAVER_LAND_REAL_ESTATE_DETAIL_DOWN",
+      "config_path": "customers/naver_land_real_estate_detail_down/config.json"
+    },
+    {
+      "key": "NAVER_CAFE_CTT_CNT_ONLY",
+      "config_path": "customers/naver_cafe_ctt_cnt_only/config.json"
     },
     {
       "key": "KRX_NEXTRADE",
@@ -62,14 +74,6 @@
     {
       "key": "KMONG",
       "config_path": "customers/kmong/config.json"
-    },
-    {
-      "key": "NAVER_LAND_REAL_ESTATE_DETAIL",
-      "config_path": "customers/naver_land_real_estate_detail/config.json"
-    },
-    {
-      "key": "NAVER_LAND_REAL_ESTATE_DETAIL_DOWN",
-      "config_path": "customers/naver_land_real_estate_detail_down/config.json"
     },
     {
       "key": "COCO_LABEL",

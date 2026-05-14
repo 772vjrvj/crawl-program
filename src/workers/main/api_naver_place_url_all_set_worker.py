@@ -74,7 +74,6 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
 
             self.log_signal_func(f"크롤링 시작. 전체 {len(self.url_list)}개 URL")
 
-            # === 신규 ===
             self.csv_filename = self.get_csv_filename()
 
             self.excel_driver.init_csv(

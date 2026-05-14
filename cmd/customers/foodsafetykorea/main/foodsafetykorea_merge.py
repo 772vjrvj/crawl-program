@@ -6,11 +6,9 @@ def update_foodsafety_data():
     main_file = 'foodsafety_bsn_detail.json'
     rawdata_dir = 'rawdata'
     raw_files = [
-        'detail_1023_1312.json',
-        'detail_1313_1605.json',
-        'detail_1606_1902.json',
-        'detail_1902_2200.json',
-        'detail_2201_2499.json'
+        'missing_final_result1.json',
+        'missing_final_result2.json',
+        'missing_final_result3.json'
     ]
 
     # 1. 메인 데이터 로드

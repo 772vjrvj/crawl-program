@@ -293,9 +293,21 @@ class ExcelSetPop(QDialog):
     @Slot(list)
     def load_excel(self, file_paths: List[str]) -> None:
         dfs: List[pd.DataFrame] = []
-        self.user = None
 
-        for file in file_paths:
+        # 1. 중복 방지를 위해 기존(캐시된) 파일 경로에 없는 새 파일만 필터링
+        new_files = [f for f in file_paths if f not in self.__class__._cached_file_paths]
+
+        # 새 파일도 없고 기존 파일도 없다면 에러
+        if not new_files and not self.__class__._cached_file_paths:
+            self._set_error_hint("로드할 수 있는 파일이 없습니다.")
+            return
+
+        # 이미 추가된 동일한 파일만 또 드래그 한 경우 무시 (누적 방지)
+        if not new_files:
+            return
+
+        # 2. 새로 들어온 파일들만 DataFrame으로 읽기
+        for file in new_files:
             lower = file.lower()
             if lower.endswith(".csv"):
                 dfs.append(self._read_csv(file))
@@ -303,8 +315,19 @@ class ExcelSetPop(QDialog):
 
             df1, cred = self._read_xlsx_first_sheet(file)
             dfs.append(df1)
+
+            # 새 파일에 계정(ID/PW) 정보가 있으면 갱신
             if cred is not None:
                 self.user = cred
+
+        # 3. 기존에 로드해둔(누적된) 데이터가 있다면 리스트 맨 앞에 추가
+        if self.__class__._cached_data_list:
+            existing_df = pd.DataFrame(self.__class__._cached_data_list)
+            dfs.insert(0, existing_df)
+
+            # 새로 드래그한 엑셀에 계정 정보가 없었다면, 기존 계정 정보 유지
+            if self.user is None and self.__class__._cached_user is not None:
+                self.user = self.__class__._cached_user
 
         if not dfs:
             self._render_table(headers=[], rows=[])
@@ -314,22 +337,27 @@ class ExcelSetPop(QDialog):
             self._set_error_hint("로드할 수 있는 파일이 없습니다.")
             return
 
+        # 4. 모두 하나로 병합
         combined_df = pd.concat(dfs, ignore_index=True, sort=False).fillna("")
         combined_df = combined_df.astype(str)
 
         headers = [str(c) for c in combined_df.columns]
         rows = combined_df.values.tolist()
 
+        # 전체 누적 파일 경로 리스트 갱신
+        all_files = self.__class__._cached_file_paths + new_files
+
+        # 5. UI 테이블 그리기 및 캐시 저장
         self._render_table(headers=headers, rows=rows)
         self._set_success_hint(
-            file_count=len(file_paths),
+            file_count=len(all_files),
             row_count=len(rows),
             col_count=len(headers),
         )
 
         self.data_list = combined_df.to_dict(orient="records")
         self._save_cache(
-            file_paths=file_paths,
+            file_paths=all_files,
             headers=headers,
             rows=rows,
             data_list=self.data_list,

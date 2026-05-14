@@ -1,16 +1,15 @@
-# src/ui/popup/excel_drag_drop_label.py
 from __future__ import annotations
 
 from pathlib import Path
 from typing import List
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QDragEnterEvent, QDropEvent
+# QDragMoveEvent가 추가되었습니다.
+from PySide6.QtGui import QDragEnterEvent, QDropEvent, QDragMoveEvent
 from PySide6.QtWidgets import QLabel
 
 
 class ExcelDragDropLabel(QLabel):
-    # PySide6: Signal 사용 + 타입은 런타임 강제는 아니지만 문서화/IDE 도움 됨
     fileDropped: Signal = Signal(list)
 
     _ALLOWED_EXTS = {".xlsx", ".xlsm", ".csv"}
@@ -28,14 +27,20 @@ class ExcelDragDropLabel(QLabel):
         self.setText(text)
 
     def _is_valid_file(self, path: str) -> bool:
-        # pathlib로 확장자 판별 안정화
         try:
             return Path(path).suffix.lower() in self._ALLOWED_EXTS
         except Exception:
             return False
 
-    # Qt 이벤트 오버라이드는 시그니처만 맞추면 충분 (타입 힌트는 유지)
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # type: ignore[override]
+        md = event.mimeData()
+        if md is not None and md.hasUrls():
+            event.acceptProposedAction()
+            return
+        event.ignore()
+
+    # 다중 파일 인식을 확실히 하기 위해 dragMoveEvent 추가
+    def dragMoveEvent(self, event: QDragMoveEvent) -> None:  # type: ignore[override]
         md = event.mimeData()
         if md is not None and md.hasUrls():
             event.acceptProposedAction()
@@ -48,7 +53,6 @@ class ExcelDragDropLabel(QLabel):
             event.ignore()
             return
 
-        # urls()는 보통 None이 아니지만 방어적으로 처리
         urls = md.urls() or []
         files: List[str] = [u.toLocalFile() for u in urls if u.isLocalFile()]
 
