@@ -3,9 +3,10 @@ import os
 import re
 import time
 import threading
-from collections import defaultdict
-from typing import Optional, Dict, Any, List, Tuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from typing import Optional, Dict, Any, List
+
+from bs4 import BeautifulSoup
 
 from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
@@ -14,7 +15,7 @@ from src.utils.sqlite_utils import SqliteUtils
 from src.workers.api_base_worker import BaseApiWorker
 
 
-class ApiNaverCafeCountOnlySetWorker(BaseApiWorker):
+class ApiNaverCafeArticleSetWorker(BaseApiWorker):
 
     def __init__(self, setting: Any = None) -> None:
         super().__init__()
@@ -22,24 +23,31 @@ class ApiNaverCafeCountOnlySetWorker(BaseApiWorker):
         self._stop_event = threading.Event()
         self.setting: Any = setting
 
-        self.base_main_url: str = "https://cafe.naver.com/"
-        self.site_name: str = "네이버 카페 조회수"
+        self.site_name: str = "네이버 카페 게시글"
+        self.worker_name: str = "naver_cafe_article"
 
         self.running: bool = True
         self.before_pro_value: float = 0.0
 
-        # 병렬 처리 설정
-        self.max_workers: int = 5
-        self._executor: Optional[ThreadPoolExecutor] = None
-        self._lock = threading.Lock()
+        # UI 셋팅값
+        self.url: str = ""
+        self.fr_date: str = ""
+        self.to_date: str = ""
+        self.detail_yn: bool = False
+        self.auto_save_yn: bool = False
+
+        self.cafe_id: str = ""
+        self.menu_id: str = ""
 
         # 상태값 / 드라이버
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
         self.sqlite_driver: Optional[SqliteUtils] = None
         self.api_client: Optional[APIClient] = None
+
         self.init_flag: bool = False
         self._cleaned_up: bool = False
+
         self.folder_path: str = ""
         self.out_dir: str = "output"
 
@@ -48,11 +56,9 @@ class ApiNaverCafeCountOnlySetWorker(BaseApiWorker):
         self.job_id = None
         self.hist_status = "RUNNING"
         self.hist_error_message = None
-        self.worker_name: str = "naver_cafe_ctt_cnt_only"
-        self.detail_table_name: str = "naver_cafe_ctt_cnt_only"
+        self.detail_table_name: str = "naver_cafe_article"
         self.detail_success_count: int = 0
         self.detail_fail_count: int = 0
-        self.auto_save_yn: bool = False
 
         # config columns
         self.config_data: Dict[str, Any] = {}
@@ -67,8 +73,16 @@ class ApiNaverCafeCountOnlySetWorker(BaseApiWorker):
                 self.log_signal_func("이미 초기화 실행 완료")
                 return True
 
+            # 셋팅값 추출
             self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+            self.url = str(self.get_setting_value(self.setting, "url") or "").strip()
+            self.fr_date = str(self.get_setting_value(self.setting, "fr_date") or "").replace("-", "").strip()
+            self.to_date = str(self.get_setting_value(self.setting, "to_date") or "").replace("-", "").strip()
+            self.detail_yn = bool(self.get_setting_value(self.setting, "detail_yn"))
             self.auto_save_yn = bool(self.get_setting_value(self.setting, "auto_save_yn"))
+
+            self.log_signal_func(f"기간 : {self.fr_date} ~ {self.to_date}")
+            self.log_signal_func(f"상세보기 여부 : {self.detail_yn}")
             self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
 
             if not self.load_runtime_config_columns():
@@ -88,60 +102,120 @@ class ApiNaverCafeCountOnlySetWorker(BaseApiWorker):
             return False
 
     def driver_set(self) -> None:
-        self.log_signal_func("드라이버 세팅 ========================================")
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
-
-    def _extract_inputs(self) -> List[Tuple[str, str]]:
-        pairs: List[Tuple[str, str]] = []
-        for row in self.excel_data_list:
-            lower_map = {k.lower(): k for k in row.keys()}
-            url_key = lower_map.get("url")
-            file_key = lower_map.get("file")
-
-            url_val = str(row[url_key]).strip() if (url_key and row.get(url_key)) else ""
-            if not url_val:
-                continue
-            file_val = str(row[file_key]).strip() if (file_key and row.get(file_key)) else "__unknown__"
-            pairs.append((url_val, file_val))
-        return pairs
+        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
     def main(self) -> bool:
         try:
             self.log_signal_func("크롤링 시작")
 
-            url_file_pairs = self._extract_inputs()
-            total = len(url_file_pairs)
-            if total == 0:
-                self.log_signal_func("처리할 URL이 없습니다.")
-                self.finish_job("SUCCESS")
-                return True
+            # URL 파싱 (cafeId, menuId 추출)
+            # https://m.cafe.naver.com/ca-fe/web/cafes/28669646/menus/26
+            m = re.search(r"cafes/(\d+)/menus/(\d+)", self.url)
+            if not m:
+                self.log_signal_func("❌ URL에서 cafeId와 menuId를 추출할 수 없습니다.")
+                self.finish_job("FAIL", "URL 형식 오류")
+                return False
 
-            self._executor = ThreadPoolExecutor(max_workers=min(self.max_workers, total))
-            futures = {}
+            self.cafe_id = m.group(1)
+            self.menu_id = m.group(2)
 
-            for url, file_tag in url_file_pairs:
-                if not self.running or self._stop_event.is_set():
+            page = 1
+            is_finished = False
+
+            while self.running and not self._stop_event.is_set() and not is_finished:
+                # time.sleep(1)
+
+                # 1. 목록 조회
+                list_url = (f"https://apis.naver.com/cafe-web/cafe2/ArticleListV3dot1.json?"
+                            f"search.clubid={self.cafe_id}&search.queryType=lastArticle&"
+                            f"search.menuid={self.menu_id}&search.page={page}&search.perPage=50")
+
+                headers = {
+                    "accept": "application/json, text/plain, */*",
+                    "referer": self.url,
+                    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+                }
+
+                res_json = self.api_client.get(list_url, headers=headers)
+                if not res_json:
+                    self.log_signal_func("❌ API 응답이 없습니다. 중단합니다.")
                     break
-                fut = self._executor.submit(self._fetch_once, url, file_tag)
-                futures[fut] = (url, file_tag)
 
-            done_count = 0
-            for fut in as_completed(futures):
-                url, file_tag = futures[fut]
-                if not self.running or self._stop_event.is_set():
+                result = res_json.get("message", {}).get("result", {})
+                article_list = result.get("articleList", [])
+                has_next = result.get("hasNext", False)
+
+                if not article_list:
                     break
 
-                try:
-                    obj = fut.result()
-                except Exception as e:
-                    obj = {"URL": url, "조회수": f"요청 실패: {e}", "파일명": file_tag}
+                self.log_signal_func(f"[{page} 페이지] 탐색 중...")
 
-                with self._lock:
-                    # 메인 스레드에서 DB INSERT (SQLite Threading Issue 방지)
-                    self.insert_detail_row(obj)
-                    done_count += 1
-                    self.log_signal_func(f"전체 ({done_count}/{total}) : {url}")
+                for item in article_list:
+                    if not self.running or self._stop_event.is_set():
+                        break
+
+                    # 날짜 변환
+                    ts = item.get("writeDateTimestamp", 0)
+                    if ts == 0:
+                        continue
+
+                    dt = datetime.fromtimestamp(ts / 1000.0)
+                    write_date = dt.strftime("%Y%m%d")
+                    write_date_time = dt.strftime("%Y.%m.%d %H:%M:%S")
+
+                    # 날짜 비교 로직
+                    if write_date > self.to_date:
+                        continue # 지정 기간보다 미래 글이면 스킵 (보통 상단 고정 공지사항 등)
+
+                    if write_date < self.fr_date:
+                        # 지정 기간보다 과거로 넘어가면 전체 반복문 종료
+                        is_finished = True
+                        break
+
+                    # 데이터 맵핑
+                    article_id = str(item.get("articleId", ""))
+                    rs: Dict[str, Any] = {
+                        "글번호": article_id,
+                        "카페ID": str(item.get("cafeId", "")),
+                        "메뉴ID": str(item.get("menuId", "")),
+                        "메뉴명": item.get("menuName", ""),
+                        "제목": item.get("subject", ""),
+                        "작성자": item.get("writerNickname", ""),
+                        "타임스탬프": str(ts),
+                        "작성일(YMD)": write_date,
+                        "작성일시": write_date_time,
+                        "조회수": str(item.get("readCount", "0")),
+                        "댓글수": str(item.get("commentCount", "0")),
+                        "좋아요수": str(item.get("likeItCount", "0")),
+                        "본문내용": ""
+                    }
+
+                    # 2. 상세보기 조회 (detail_yn 옵션 켜져있을 경우)
+                    if self.detail_yn and article_id:
+                        # time.sleep(1) # API 부하 방지
+                        detail_url = f"https://article.cafe.naver.com/gw/v4/cafes/{self.cafe_id}/articles/{article_id}?fromList=true&menuId={self.menu_id}"
+                        try:
+                            detail_json = self.api_client.get(detail_url, headers=headers)
+                            content_html = detail_json.get("result", {}).get("article", {}).get("contentHtml", "")
+
+                            if content_html:
+                                # BeautifulSoup으로 html 태그 걷어내고 텍스트만 추출
+                                soup = BeautifulSoup(content_html, "html.parser")
+                                clean_text = soup.get_text(separator="\n", strip=True)
+                                rs["본문내용"] = clean_text
+                        except Exception as e:
+                            self.log_signal_func(f"⚠️ 게시글 {article_id} 상세보기 실패: {e}")
+
+                    # DB 적재
+                    self.insert_detail_row(rs)
+                
+                page += 1
+                self.log_signal_func(f"[{page} 페이지] 완료")
+                
+                if not has_next:
+                    is_finished = True
 
             if self.hist_status == "RUNNING":
                 if self.running:
@@ -156,40 +230,6 @@ class ApiNaverCafeCountOnlySetWorker(BaseApiWorker):
             self.log_signal_func(f"❌ 전체 실행 중 예외 발생: {e}")
             self.finish_job("FAIL", str(e))
             return False
-
-    def _fetch_once(self, url: str, file_tag: str) -> Dict[str, Any]:
-        """
-        한 URL에 대해 API 호출 1회만 수행
-        리턴값은 config.json 의 'value'(한글)에 맞춘 Dict
-        """
-        if not self.running or self._stop_event.is_set():
-            return {"URL": url, "조회수": "중단됨", "파일명": file_tag}
-
-        api_client = APIClient(use_cache=False)
-
-        m = re.search(r"cafe\.naver\.com/([^/]+)/(\d+)", url)
-        if not m:
-            return {"URL": url, "조회수": "URL 형식 오류", "파일명": file_tag}
-        cafe_id, article_id = m.group(1), m.group(2)
-
-        api_url = f"https://article.cafe.naver.com/gw/v3/cafes/{cafe_id}/articles/{article_id}?useCafeId=false"
-        headers = {
-            "user-agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
-            ),
-            "referer": f"https://m.cafe.naver.com/ca-fe/web/cafes/{cafe_id}/articles/{article_id}?useCafeId=false&tc",
-        }
-
-        try:
-            json_data = api_client.get(api_url, headers=headers)
-            count = json_data.get("result", {}).get("article", {}).get("readCount")
-            if count is None:
-                return {"URL": url, "조회수": "글이 삭제되었습니다", "파일명": file_tag}
-            return {"URL": url, "조회수": str(count), "파일명": file_tag}
-        except Exception as e:
-            return {"URL": url, "조회수": "글이 삭제되었습니다", "파일명": file_tag}
-
 
     # =========================================================
     # DB / Excel 공통 모듈 파트
@@ -328,7 +368,6 @@ class ApiNaverCafeCountOnlySetWorker(BaseApiWorker):
         return result
 
     def export_detail_to_excel(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
-        """기존 방식대로 파일명(file_tag) 기준으로 그룹화하여 각각 별개의 엑셀 파일로 저장하도록 오버라이딩"""
         sqlite_driver = sqlite_driver or self.sqlite_driver
         if not self.excel_driver or not sqlite_driver or not self.hist_id or not self.db_columns:
             return False
@@ -341,34 +380,16 @@ class ApiNaverCafeCountOnlySetWorker(BaseApiWorker):
             self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
             return False
 
-        # file_tag별로 그룹핑
-        grouped = defaultdict(list)
-        for row in row_list:
-            grouped[str(dict(row).get("file_tag", "__unknown__"))].append(dict(row))
+        excel_row_list = self.db_rows_to_kor_rows([dict(row) for row in row_list])
+        excel_filename = f"{self.site_name}_{self.job_id}.xlsx"
 
-        ts = time.strftime("%Y%m%d_%H%M%S")
-
-        # '파일명' 컬럼은 결과 엑셀에서 생략
-        final_excel_columns = [col for col in self.columns if col != "파일명"]
-
-        for file_tag, rows in grouped.items():
-            excel_row_list = self.db_rows_to_kor_rows(rows)
-
-            # 최종 엑셀에서는 '파일명' 필드 제거
-            for r in excel_row_list:
-                r.pop("파일명", None)
-
-            safe_file_tag = re.sub(r"[^\w\.-]+", "_", file_tag)
-            excel_filename = f"{self.site_name}__{safe_file_tag}__{ts}.xlsx"
-
-            self.excel_driver.save_db_rows_to_excel(
-                excel_filename=excel_filename,
-                row_list=excel_row_list,
-                columns=final_excel_columns,
-                folder_path=self.folder_path,
-                sub_dir=self.out_dir,
-            )
-        return True
+        return self.excel_driver.save_db_rows_to_excel(
+            excel_filename=excel_filename,
+            row_list=excel_row_list,
+            columns=self.columns,
+            folder_path=self.folder_path,
+            sub_dir=self.out_dir,
+        )
 
     def finalize_db_and_excel(self) -> None:
         temp_sqlite_driver = None
@@ -391,12 +412,6 @@ class ApiNaverCafeCountOnlySetWorker(BaseApiWorker):
             return
 
         try:
-            if self._executor:
-                self._executor.shutdown(wait=False)
-                self._executor = None
-        except: pass
-
-        try:
             if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
                 self.sqlite_driver.close()
         except: pass
@@ -408,9 +423,10 @@ class ApiNaverCafeCountOnlySetWorker(BaseApiWorker):
         try:
             if self.file_driver: self.file_driver.close()
             if self.excel_driver: self.excel_driver.close()
+            if self.api_client: self.api_client.close()
         except: pass
 
-        self.file_driver, self.excel_driver = None, None
+        self.file_driver, self.excel_driver, self.api_client = None, None, None
         self._cleaned_up = True
 
     def stop(self) -> None:
