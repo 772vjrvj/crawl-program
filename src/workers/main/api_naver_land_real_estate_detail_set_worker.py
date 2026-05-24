@@ -1153,8 +1153,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                             raise Exception(f"초기 bodyText json 파싱 실패: {e}")
 
                         first_result = initial_response_json.get("result", {}) or {}
-
-                        if not first_result:
+                        initial_list: list[dict[str, Any]] = first_result.get("list", []) or []
+                        if not initial_list:
                             self.log_signal_func("[후킹-초기] 첫 응답 result 없음 -> 첫 페이지 재요청")
                             retry_res = self._browser_fetch_json(
                                 url=self.list_api_url,
