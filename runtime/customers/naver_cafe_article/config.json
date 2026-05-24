@@ -1,12 +1,12 @@
 {
   "label": "네이버 카페",
-  "key": "NAVER_CAFE_CTT_CNT_ONLY",
+  "key": "NAVER_CAFE_ARTICLE",
   "color": "#ccc",
   "enabled": true,
-  "popup": true,
-  "db_name": "NAVER_CAFE_CTT_CNT_ONLY",
+  "popup": false,
+  "db_name": "NAVER_CAFE_ARTICLE",
   "db_common_name": "WORKER_JOB_HIST",
-  "worker_class": "src.workers.main.api_naver_cafe_count_only_set_worker:ApiNaverCafeCountOnlySetWorker",
+  "worker_class": "src.workers.main.api_naver_cafe_article_set_worker:ApiNaverCafeArticleSetWorker",
   "setting": [
     {
       "name": "저장 폴더",
@@ -23,23 +23,97 @@
       "code": "auto_save_yn",
       "value": true,
       "type": "check"
+    },
+    {
+      "name": "상세보기 여부",
+      "code": "detail_yn",
+      "value": false,
+      "type": "check"
+    },
+    {
+      "name": "URL(메뉴 URL을 복사해서 넣어주세요)",
+      "code": "url",
+      "value": "https://cafe.naver.com/f-e/cafes/23700418/menus/63",
+      "type": "input"
+    },
+    {
+      "name": "날짜(YYYYMMDD) 시작",
+      "code": "fr_date",
+      "value": 20260313,
+      "type": "input"
+    },
+    {
+      "name": "날짜(YYYYMMDD) 종료",
+      "code": "to_date",
+      "value": 20260514,
+      "type": "input"
     }
   ],
   "columns": [
     {
-      "code": "url",
-      "value": "URL",
+      "code": "articleId",
+      "value": "글번호",
       "checked": true
     },
     {
-      "code": "read_count",
+      "code": "cafeId",
+      "value": "카페ID",
+      "checked": true
+    },
+    {
+      "code": "menuId",
+      "value": "메뉴ID",
+      "checked": true
+    },
+    {
+      "code": "menuName",
+      "value": "메뉴명",
+      "checked": true
+    },
+    {
+      "code": "subject",
+      "value": "제목",
+      "checked": true
+    },
+    {
+      "code": "writerNickname",
+      "value": "작성자",
+      "checked": true
+    },
+    {
+      "code": "writeDateTimestamp",
+      "value": "타임스탬프",
+      "checked": true
+    },
+    {
+      "code": "writeDate",
+      "value": "작성일(YMD)",
+      "checked": true
+    },
+    {
+      "code": "writeDateTime",
+      "value": "작성일시",
+      "checked": true
+    },
+    {
+      "code": "readCount",
       "value": "조회수",
       "checked": true
     },
     {
-      "code": "file_tag",
-      "value": "파일명",
+      "code": "commentCount",
+      "value": "댓글수",
       "checked": true
+    },
+    {
+      "code": "likeItCount",
+      "value": "좋아요수",
+      "checked": true
+    },
+    {
+      "code": "contentHtml",
+      "value": "본문내용",
+      "checked": false
     }
   ]
 }
