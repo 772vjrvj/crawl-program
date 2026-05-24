@@ -32,7 +32,7 @@ class APIClient:
     def __init__(
             self,
             timeout: TimeoutType = 30,
-            verify: bool = True,
+            verify: bool = False,
             retries: int = 3,
             backoff: float = 0.3,
             use_cache: bool = False,
