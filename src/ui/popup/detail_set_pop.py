@@ -41,7 +41,7 @@ class DetailSetPop(QDialog):
         self._parent: Optional[QWidget] = parent
 
         self.setWindowTitle(title)
-        self.resize(700, 520)
+        self.resize(700, 200)
         self.setStyleSheet("background-color: white; color: #111;")
 
         self.checkbox_map: Dict[Tuple[str, str], QCheckBox] = {}

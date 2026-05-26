@@ -39,13 +39,13 @@
     {
       "name": "날짜(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": 20260313,
+      "value": 20260524,
       "type": "input"
     },
     {
       "name": "날짜(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": 20260514,
+      "value": 20260524,
       "type": "input"
     }
   ],

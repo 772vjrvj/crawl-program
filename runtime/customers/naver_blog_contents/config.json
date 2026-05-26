@@ -6,15 +6,40 @@
   "popup": false,
   "worker_class": "src.workers.main.api_naver_blog_contents_set_worker:ApiNaverBlogContentsSetWorker",
   "setting": [
-      {"name": "블로그 URL", "code": "url",        "value": "", "type": "button"},
-      {"name": "게시판 선택", "code": "url_select", "value": "", "type": "select"},
-      {"name": "시작 페이지", "code": "st_page",    "value": "", "type": "input"},
-      {"name": "종료 페이지", "code": "ed_page",    "value": "", "type": "input"},
-      {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
-        "button_text": "폴더 선택",
-        "dialog_title": "저장 폴더 선택",
-        "path_type": "main"
-      }
+    {
+      "name": "블로그 URL",
+      "code": "url",
+      "value": "https://blog.naver.com/ksky4329",
+      "type": "button"
+    },
+    {
+      "name": "게시판 선택",
+      "code": "url_select",
+      "value": "14",
+      "type": "select"
+    },
+    {
+      "name": "시작 페이지",
+      "code": "st_page",
+      "value": 1,
+      "type": "input"
+    },
+    {
+      "name": "종료 페이지",
+      "code": "ed_page",
+      "value": 5,
+      "type": "input"
+    },
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "E:\\git\\crawl-program",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    }
   ],
   "columns": [
     {

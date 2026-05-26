@@ -302,7 +302,7 @@ class MainWindow(QWidget):
                 return
 
             if self.setting:
-                self.setting_button = create_common_button("기본세팅", self.open_setting, self.color, 100)
+                self.setting_button = create_common_button("기본설정", self.open_setting, self.color, 100)
                 self.right_button_layout.addWidget(self.setting_button)
 
             if self.setting_detail:
@@ -318,7 +318,7 @@ class MainWindow(QWidget):
                 self.right_button_layout.addWidget(self.region_filter_favorite_setting_button)
 
             if self.columns:
-                self.column_setting_button = create_common_button("항목세팅", self.open_column_setting, self.color, 100)
+                self.column_setting_button = create_common_button("출력항목", self.open_column_setting, self.color, 100)
                 self.right_button_layout.addWidget(self.column_setting_button)
 
             if self.sites:
@@ -326,7 +326,7 @@ class MainWindow(QWidget):
                 self.right_button_layout.addWidget(self.site_setting_button)
 
             if self.region:
-                self.region_setting_button = create_common_button("지역세팅", self.open_region_setting, self.color, 100)
+                self.region_setting_button = create_common_button("지역설정", self.open_region_setting, self.color, 100)
                 self.right_button_layout.addWidget(self.region_setting_button)
 
             if self.popup:
@@ -430,7 +430,7 @@ class MainWindow(QWidget):
         self.right_button_layout.setAlignment(Qt.AlignRight)
     
         if self.setting:
-            self.setting_button = create_common_button("기본세팅", self.open_setting, self.color, 100)
+            self.setting_button = create_common_button("기본설정", self.open_setting, self.color, 100)
             self.right_button_layout.addWidget(self.setting_button)
     
         if self.setting_detail:
@@ -446,7 +446,7 @@ class MainWindow(QWidget):
             self.right_button_layout.addWidget(self.region_filter_favorite_setting_button)
 
         if self.columns:
-            self.column_setting_button = create_common_button("항목세팅", self.open_column_setting, self.color, 100)
+            self.column_setting_button = create_common_button("출력항목", self.open_column_setting, self.color, 100)
             self.right_button_layout.addWidget(self.column_setting_button)
     
         if self.sites:
@@ -454,7 +454,7 @@ class MainWindow(QWidget):
             self.right_button_layout.addWidget(self.site_setting_button)
     
         if self.region:
-            self.region_setting_button = create_common_button("지역세팅", self.open_region_setting, self.color, 100)
+            self.region_setting_button = create_common_button("지역설정", self.open_region_setting, self.color, 100)
             self.right_button_layout.addWidget(self.region_setting_button)
     
         if self.popup:
