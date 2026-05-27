@@ -5,7 +5,7 @@
   "server_name": "CrawlProgram",
   "allow_multi_instance": true,
   "instance_key": "my_pyside_app",
-  "site_list_use": ["KAKAO_TALKDEAL_RANK"],
+  "site_list_use": ["IDFARM"],
   "site_list": [
     {
       "key": "NAVER_BAND_MEMBER",
@@ -86,6 +86,10 @@
     {
       "key": "KAKAO_TALKDEAL_RANK",
       "config_path": "customers/kakao_talkdeal_rank/config.json"
+    },
+    {
+      "key": "IDFARM",
+      "config_path": "customers/idfarm/config.json"
     }
   ]
 }

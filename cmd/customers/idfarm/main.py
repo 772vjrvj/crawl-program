@@ -94,7 +94,6 @@ if response.status_code == 200:
             "직업": job,
             "거래유형": trade_type,
             "가격": price,
-            # "등록시간": upload_time,
             "URL": item_url
         }
 

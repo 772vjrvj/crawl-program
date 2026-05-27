@@ -1,0 +1,229 @@
+{
+  "label": "카카오 톡딜 랭킹",
+  "key": "IDFARM",
+  "db_name": "IDFARM",
+  "db_common_name": "WORKER_JOB_HIST",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": false,
+  "worker_class": "src.workers.main.api_idfarm_set_worker:ApiIdfarmSetWorker",
+  "setting": [
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "E:\\git\\crawl-program",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    },
+    {
+      "name": "자동 엑셀 저장",
+      "code": "auto_save_yn",
+      "value": true,
+      "type": "check"
+    },
+    {
+      "name": "키워드(제목+내용)",
+      "code": "keyword",
+      "value": "",
+      "type": "input"
+    },
+    {
+      "name": "가격(만원) 시작",
+      "code": "min",
+      "value": "",
+      "type": "input"
+    },
+    {
+      "name": "가격(만원) 종료",
+      "code": "max",
+      "value": "",
+      "type": "input"
+    }
+  ],
+  "setting_detail": [
+    {
+      "row_type": "section",
+      "id": "accountType",
+      "title": "계정 종류",
+      "col_per_row": 5
+    },
+    {
+      "row_type": "item",
+      "parent_id": "accountType",
+      "code": "전체",
+      "value": "전체",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "accountType",
+      "code": "게임사",
+      "value": "게임사",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "accountType",
+      "code": "구글",
+      "value": "구글",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "accountType",
+      "code": "페이스북",
+      "value": "페이스북",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "accountType",
+      "code": "전화번호",
+      "value": "전화번호",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "accountType",
+      "code": "카카오",
+      "value": "카카오",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "accountType",
+      "code": "네이버",
+      "value": "네이버",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "accountType",
+      "code": "기타",
+      "value": "기타",
+      "checked": true
+    },
+    {
+      "row_type": "section",
+      "id": "purchasePath",
+      "title": "구매 경로",
+      "col_per_row": 5
+    },
+    {
+      "row_type": "item",
+      "parent_id": "purchasePath",
+      "code": "전체",
+      "value": "전체",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "purchasePath",
+      "code": "본인(1대)",
+      "value": "본인(1대)",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "purchasePath",
+      "code": "그외",
+      "value": "그외",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "purchasePath",
+      "code": "아이디팜 구매",
+      "value": "아이디팜 구매",
+      "checked": true
+    }
+  ],
+  "columns": [
+    {
+      "checked": true,
+      "code": "game_name",
+      "value": "게임명"
+    },
+    {
+      "checked": true,
+      "code": "item_id",
+      "value": "게시글 ID"
+    },
+    {
+      "checked": true,
+      "code": "account_type_str",
+      "value": "계정종류"
+    },
+    {
+      "checked": true,
+      "code": "title",
+      "value": "제목"
+    },
+    {
+      "checked": true,
+      "code": "server",
+      "value": "서버"
+    },
+    {
+      "checked": true,
+      "code": "job",
+      "value": "직업"
+    },
+    {
+      "checked": true,
+      "code": "trade_type",
+      "value": "거래유형"
+    },
+    {
+      "checked": true,
+      "code": "price",
+      "value": "가격"
+    },
+    {
+      "checked": true,
+      "code": "item_url",
+      "value": "URL"
+    }
+  ],
+  "search_col_list": [
+    {
+      "code": "game_name",
+      "value": "게임명"
+    },
+    {
+      "code": "item_id",
+      "value": "게시글 ID"
+    },
+    {
+      "code": "account_type_str",
+      "value": "계정종류"
+    },
+    {
+      "code": "title",
+      "value": "제목"
+    },
+    {
+      "code": "server",
+      "value": "서버"
+    },
+    {
+      "code": "job",
+      "value": "직업"
+    },
+    {
+      "code": "trade_type",
+      "value": "거래유형"
+    },
+    {
+      "code": "price",
+      "value": "가격"
+    },
+    {
+      "code": "item_url",
+      "value": "URL"
+    }
+  ]
+}
