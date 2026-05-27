@@ -1,5 +1,5 @@
 {
-  "label": "카카오 톡딜 랭킹",
+  "label": "아이디팜",
   "key": "IDFARM",
   "db_name": "IDFARM",
   "db_common_name": "WORKER_JOB_HIST",
@@ -172,6 +172,11 @@
       "checked": true,
       "code": "item_url",
       "value": "URL"
+    },
+    {
+      "checked": true,
+      "code": "trade_status",
+      "value": "거래상태"
     }
   ],
   "search_col_list": [
@@ -210,6 +215,10 @@
     {
       "code": "item_url",
       "value": "URL"
+    },
+    {
+      "code": "trade_status",
+      "value": "거래상태"
     }
   ]
 }
