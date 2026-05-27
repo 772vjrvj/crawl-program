@@ -14,6 +14,8 @@ from src.utils.file_utils import FileUtils
 from src.utils.sqlite_utils import SqliteUtils
 from src.workers.api_base_worker import BaseApiWorker
 import urllib3
+import random
+import time
 
 # HTTPS 인증서 검증 경고 숨기기
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -2094,7 +2096,8 @@ class ApiIdfarmSetWorker(BaseApiWorker):
             # 전체 아이템 진행도 로깅을 위한 누적 카운트
             total_items_saved = 0
 
-            for game in self.game_list:
+            # 👇 [수정됨] enumerate를 사용해 현재 게임의 인덱스(game_idx_num)를 1부터 추적
+            for game_idx_num, game in enumerate(self.game_list, start=1):
                 if self._stop_event.is_set() or not self.running:
                     self.log_signal_func("⛔ 중지 감지 → 저장 후 종료")
                     break
@@ -2103,10 +2106,14 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                 game_name_setting = game.get("name")
 
                 self.log_signal_func(f"\n==================================================")
-                self.log_signal_func(f">> [{game_name_setting}({idx})] 수집 시작")
+                self.log_signal_func(f">> [{game_idx_num}/{self.total_cnt}] [{game_name_setting}({idx})] 수집 시작")
                 self.log_signal_func(f"==================================================")
 
                 page = 1
+
+                # 중복 ID 추적을 위한 Set (게임이 바뀔 때마다 초기화)
+                seen_item_ids = set()
+
                 while True:
                     if self._stop_event.is_set() or not self.running:
                         self.log_signal_func("⛔ 중지 감지 (페이징) → 종료")
@@ -2132,7 +2139,6 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                         "page": page
                     }
 
-                    # 설정된 필터 조건 반영 (requests는 리스트를 넣으면 자동으로 배열 파라미터로 변환해줍니다)
                     if self.accountType_list:
                         params["accountType[]"] = self.accountType_list
                     if self.purchasePath_list:
@@ -2150,24 +2156,43 @@ class ApiIdfarmSetWorker(BaseApiWorker):
 
                         soup = BeautifulSoup(response, 'html.parser')
 
-                        # 아이템 목록 파싱
+                        # "상품이 없습니다" 태그 확인
+                        empty_tag = soup.find('p', class_='list-empty')
+                        if empty_tag:
+                            self.log_signal_func(f"  -> ⏹️ [종료] '상품이 없습니다' 태그 감지. (Page: {page})")
+                            break
+
+                        # 아이템 목록 파싱 (PC용 UI 기준)
                         items = soup.select('ul.market-item-row.trade_mode.desktop-item-list')
 
                         if not items:
-                            self.log_signal_func(f"  -> ⏹️ [종료] 상품 데이터가 없습니다. (Page: {page})")
+                            self.log_signal_func(f"  -> ⏹️ [종료] 파싱할 상품 리스트가 없습니다. (Page: {page})")
                             break
 
                         self.log_signal_func(f"[{game_name_setting} | P.{page}] 파싱된 상품 수: {len(items)}개")
 
+                        new_item_found = False # 새 아이템이 하나라도 있는지 체크
+
                         # 3. 데이터 추출 및 즉시 DB 저장
                         for item in items:
-                            item_id = item.get('data-item-id', '')
-                            item_url = f"https://idfarm.co.kr/ItemMarket/gameItem/{item_id}" if item_id else ""
+                            if self._stop_event.is_set() or not self.running:
+                                self.log_signal_func("⛔ 중지 감지 → 저장 후 종료")
+                                break
 
-                            # 👇 --- [추가된 부분] 거래 상태(판매중/거래완료) 추출 --- 👇
+                            item_id = item.get('data-item-id', '')
+
+                            # 중복 아이템(프리미엄 등) 거르기
+                            if not item_id or item_id in seen_item_ids:
+                                continue
+
+                            seen_item_ids.add(item_id)
+                            new_item_found = True
+
+                            item_url = f"https://idfarm.co.kr/ItemMarket/gameItem/{item_id}"
+
+                            # 거래 상태(판매중/거래완료) 추출
                             item_classes = item.get('class', [])
                             trade_status = "거래완료" if 'finish' in item_classes else "판매중"
-                            # 👆 --------------------------------------------------- 👆
 
                             # 계정 종류 및 등급 배지 추출
                             account_types = []
@@ -2221,24 +2246,26 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                                 "거래유형": trade_type,
                                 "가격": price,
                                 "URL": item_url,
-                                "거래상태": trade_status  # 👇 추가됨
+                                "거래상태": trade_status
                             }
 
                             # DB(및 엑셀용 메모리)에 저장
                             self.insert_detail_row(row_data)
 
-                            # 실시간 진행 상황 출력 (ex: [1] DB 저장 완료: [거래완료] 리니지 리마스터...)
                             total_items_saved += 1
-                            self.log_signal_func(f"[{total_items_saved}] DB 저장 완료: [{trade_status}] {title}")
+                            self.log_signal_func(f"[{game_idx_num}/{self.total_cnt}] [{total_items_saved}] DB 저장: [{actual_game_name}] [{trade_status}] {title}")
+                        if not new_item_found:
+                            self.log_signal_func(f"  -> ⏹️ [종료] 새로운 상품이 없습니다 (중복/프리미엄만 존재). (Page: {page})")
+                            break
 
                         page += 1
-                        time.sleep(0.5)  # 디도스 방지 딜레이
+                        delay_time = random.uniform(1.2, 2.5)
+                        time.sleep(delay_time)
 
                     except Exception as e:
                         self.log_signal_func(f"[{game_name_setting} | P.{page}] 💥 예외 오류 발생: {e}")
                         break
 
-                # UI 프로그레스바 업데이트용
                 self.current_cnt += 1
                 pro_value = int((self.current_cnt / self.total_cnt) * 1000000) if self.total_cnt > 0 else 0
                 self.progress_signal.emit(self.before_pro_value, pro_value)
@@ -2257,7 +2284,6 @@ class ApiIdfarmSetWorker(BaseApiWorker):
             self.log_signal_func(f"❌ 전체 실행 중 예외 발생: {e}")
             self.finish_job("FAIL", str(e))
             return False
-
 
     def get_sections(self) -> List[Dict[str, Any]]:
         return [r for r in (self.setting_detail or []) if r.get("row_type") == "section"]
