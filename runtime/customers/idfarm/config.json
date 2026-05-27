@@ -27,19 +27,19 @@
     {
       "name": "키워드(제목+내용)",
       "code": "keyword",
-      "value": "",
+      "value": "니다",
       "type": "input"
     },
     {
       "name": "가격(만원) 시작",
       "code": "min",
-      "value": "",
+      "value": 1,
       "type": "input"
     },
     {
       "name": "가격(만원) 종료",
       "code": "max",
-      "value": "",
+      "value": 100,
       "type": "input"
     }
   ],
@@ -49,13 +49,6 @@
       "id": "accountType",
       "title": "계정 종류",
       "col_per_row": 5
-    },
-    {
-      "row_type": "item",
-      "parent_id": "accountType",
-      "code": "전체",
-      "value": "전체",
-      "checked": true
     },
     {
       "row_type": "item",
@@ -111,13 +104,6 @@
       "id": "purchasePath",
       "title": "구매 경로",
       "col_per_row": 5
-    },
-    {
-      "row_type": "item",
-      "parent_id": "purchasePath",
-      "code": "전체",
-      "value": "전체",
-      "checked": true
     },
     {
       "row_type": "item",

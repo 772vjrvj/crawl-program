@@ -23,13 +23,18 @@ class ApiIdfarmSetWorker(BaseApiWorker):
     def __init__(self, setting: Any = None) -> None:
         super().__init__()
 
+        self.purchasePath_list = None
+        self.accountType_list = None
+        self.max = None
+        self.min = None
+        self.keyword = None
         self.current_cnt = None
         self.total_cnt = None
         self._stop_event = threading.Event()
         self.setting: Any = setting
 
-        self.site_name: str = "카카오톡 톡딜 랭킹"
-        self.worker_name: str = "kakao_talkdeal_rank"
+        self.site_name: str = "아아디팜"
+        self.worker_name: str = "idfarm"
 
         self.running: bool = True
         self.before_pro_value: float = 0.0
@@ -55,7 +60,7 @@ class ApiIdfarmSetWorker(BaseApiWorker):
         self.job_id = None
         self.hist_status = "RUNNING"
         self.hist_error_message = None
-        self.detail_table_name: str = "KAKAO_TALKDEAL_RANK"
+        self.detail_table_name: str = "IDFARM"
         self.detail_success_count: int = 0
         self.detail_fail_count: int = 0
 
@@ -66,6 +71,16 @@ class ApiIdfarmSetWorker(BaseApiWorker):
         self.excel_columns: List[str] = []
         self.code_value_map: Dict[str, str] = {}
         self.game_list: List[dict] = [
+            {
+                "idx": "30",
+                "name": "로스트아크"
+            },
+            {
+                "idx": "2",
+                "name": "리니지 M"
+            },
+        ]
+        self.game_list_all: List[dict] = [
             {
                 "idx": "1",
                 "name": "리니지 리마스터"
@@ -2015,16 +2030,38 @@ class ApiIdfarmSetWorker(BaseApiWorker):
             self.auto_save_yn = bool(self.get_setting_value(self.setting, "auto_save_yn"))
 
             self.keyword = self.get_setting_value(self.setting, "keyword")
-            self.min = int(self.get_setting_value(self.setting, "min"))
-            self.max = int(self.get_setting_value(self.setting, "max"))
+
+            # 숫자형 예외 처리 (빈 값일 경우 None 처리)
+            min_val = self.get_setting_value(self.setting, "min")
+            max_val = self.get_setting_value(self.setting, "max")
+            self.min = int(min_val) if min_val else ""
+            self.max = int(max_val) if max_val else ""
 
             sections = self.get_sections()
+
+            for sec in sections:
+                sec_id = sec.get("id")
+
+                # 1. 계정 종류 섹션일 때
+                if sec_id == 'accountType':
+                    items = self.get_items(sec_id)
+                    # 자식들 중에서 'value'만 쏙 뽑아서 리스트로 만들기
+                    self.accountType_list = [item.get('value') for item in items]
+
+                # 2. 구매 경로 섹션일 때
+                elif sec_id == 'purchasePath':
+                    items = self.get_items(sec_id)
+                    # 자식들 중에서 'value'만 쏙 뽑아서 리스트로 만들기
+                    self.purchasePath_list = [item.get('value') for item in items]
 
             self.log_signal_func(f"저장경로 : {self.folder_path}")
             self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
             self.log_signal_func(f"키워드 : {self.keyword}")
             self.log_signal_func(f"가격 시작 : {self.min}")
             self.log_signal_func(f"가격 끝 : {self.max}")
+
+            self.log_signal_func(f"계정 종류 : {self.accountType_list}")
+            self.log_signal_func(f"구매 경로 : {self.purchasePath_list}")
             
             # 컬럼세팅
             if not self.load_runtime_config_columns():
@@ -2051,143 +2088,165 @@ class ApiIdfarmSetWorker(BaseApiWorker):
 
     def main(self) -> bool:
         try:
-            self.log_signal_func("크롤링 시작")
+            self.log_signal_func("🚀 크롤링 시작")
 
-            sections = self.get_sections()
-            if not sections:
-                self.log_signal_func("setting_detail에 section이 없습니다.")
-                return True
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Referer": "https://idfarm.co.kr/"
+            }
 
-            result_list = []
+            self.total_cnt = len(self.game_list)
+            self.current_cnt = 0
 
-            for sec in sections:
+            # 전체 아이템 진행도 로깅을 위한 누적 카운트
+            total_items_saved = 0
+
+            for game in self.game_list:
                 if self._stop_event.is_set() or not self.running:
-                    self.log_signal_func("⛔ 중지 감지 (섹션) → 저장 후 종료")
-                    return True
+                    self.log_signal_func("⛔ 중지 감지 → 저장 후 종료")
+                    break
 
-                sec_id = sec.get("id")
-                sec_title = (sec.get("title") or sec_id or "").replace("\n", "").strip()
-                self.log_signal_func(f"[섹션] {sec_title}")
+                idx = game.get("idx")
+                game_name_setting = game.get("name")
 
-                for it in self.get_items(sec_id):
+                self.log_signal_func(f"\n==================================================")
+                self.log_signal_func(f">> [{game_name_setting}({idx})] 수집 시작")
+                self.log_signal_func(f"==================================================")
+
+                page = 1
+                while True:
                     if self._stop_event.is_set() or not self.running:
-                        self.log_signal_func("⛔ 중지 감지 (카테고리) → 저장 후 종료")
+                        self.log_signal_func("⛔ 중지 감지 (페이징) → 종료")
                         return True
 
-                    if not it.get("checked", True):
-                        continue
+                    # 1. URL 및 파라미터 구성
+                    url = f"https://idfarm.co.kr/ItemMarket/character/{idx}"
 
-                    code = it.get("code")
-                    value = it.get("value")
-                    self.log_signal_func(f"\n==================================================")
-                    self.log_signal_func(f">> [{value}({code})] 카테고리 수집 시작 (최대 100개 제한)")
-                    self.log_signal_func(f"==================================================")
-
-                    # --- 톡딜 랭킹 수집 로직 시작 ---
-                    base_url = "https://store.kakao.com/a/f-s/ranking/product-sale-ranking"
-
-                    headers = {
-                        "accept": "application/json, text/plain, */*",
-                        "accept-encoding": "gzip, deflate, br, zstd",
-                        "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-                        "cache-control": "no-cache",
-                        "content-type": "application/json",
-                        "pragma": "no-cache",
-                        "priority": "u=1, i",
-                        "referer": "https://store.kakao.com/home/best?__ld__=&oldRef=https:%2F%2Fwww.google.com%2F&tab=contProduct&groupId=6&period=HOURLY",
-                        "sec-ch-ua": '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"',
-                        "sec-ch-ua-mobile": "?0",
-                        "sec-ch-ua-platform": '"Windows"',
-                        "sec-fetch-dest": "empty",
-                        "sec-fetch-mode": "cors",
-                        "sec-fetch-site": "same-origin",
-                        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
-                        "x-shopping-referrer": "https://store.kakao.com/home/best?__ld__=&oldRef=https:%2F%2Fwww.google.com%2F&tab=contProduct&groupId=4&period=HOURLY",
+                    params = {
+                        "state": "all",
+                        "sort": "new",
+                        "search_action": "1",
+                        "trx_type": "SELL",
+                        "job[]": "전체",
+                        "server[]": "전체",
+                        "serverChannel[]": "전체",
+                        "account_no": "전체",
+                        "payment_history": "전체",
+                        "account_multi_link": "전체",
+                        "min_character_level": "",
+                        "max_character_level": "",
+                        "sellMethod": "전체",
+                        "page": page
                     }
 
-                    page = 0
-                    previous_page_id_list = []
+                    # 설정된 필터 조건 반영 (requests는 리스트를 넣으면 자동으로 배열 파라미터로 변환해줍니다)
+                    if self.accountType_list:
+                        params["accountType[]"] = self.accountType_list
+                    if self.purchasePath_list:
+                        params["buyType[]"] = self.purchasePath_list
+                    if self.min:
+                        params["min"] = self.min
+                    if self.max:
+                        params["max"] = self.max
+                    if self.keyword:
+                        params["stx"] = self.keyword
 
-                    while True:
-                        # 루프 도중에도 프로그램 중단 요청이 오면 즉시 빠져나감
-                        if self._stop_event.is_set() or not self.running:
-                            self.log_signal_func("⛔ 중지 감지 (페이징) → 종료")
-                            return True
+                    try:
+                        # 2. HTML 데이터 가져오기
+                        response = self.api_client.get(url, headers=headers, params=params)
 
-                        # size=20 기준 page=5(6번째 요청)가 되는 순간 101개째이므로 루프 종료
-                        if page >= 5:
-                            self.log_signal_func(f"  -> ⏹️ [목표 달성] 100개 수집 완료 (카테고리: {code})")
+                        soup = BeautifulSoup(response, 'html.parser')
+
+                        # 아이템 목록 파싱
+                        items = soup.select('ul.market-item-row.trade_mode.desktop-item-list')
+
+                        if not items:
+                            self.log_signal_func(f"  -> ⏹️ [종료] 상품 데이터가 없습니다. (Page: {page})")
                             break
 
-                        timestamp = int(time.time() * 1000)
-                        params = {
-                            "page": page,
-                            "rankingTabType": "contProduct",
-                            "categoryType": code,
-                            "periodType": "HOURLY",
-                            "size": 20,
-                            "displayPlaceType": "RANKING_TAB",
-                            "_": timestamp
-                        }
+                        self.log_signal_func(f"[{game_name_setting} | P.{page}] 파싱된 상품 수: {len(items)}개")
 
-                        try:
-                            # API 호출 (api_client 활용)
-                            response = self.api_client.get(base_url, headers=headers, params=params)
+                        # 3. 데이터 추출 및 즉시 DB 저장
+                        for item in items:
+                            item_id = item.get('data-item-id', '')
+                            item_url = f"https://idfarm.co.kr/ItemMarket/gameItem/{item_id}" if item_id else ""
 
-                            if not response.get("result"):
-                                self.log_signal_func(f"[{code} | P.{page}] ⚠️ API 응답 'result'가 false입니다.")
-                                break
+                            # 계정 종류 및 등급 배지 추출
+                            account_types = []
+                            logo_areas = item.select('.logo-area-wrap .logo-area')
+                            for logo in logo_areas:
+                                classes = logo.get('class', [])
+                                for c in classes:
+                                    if c != 'logo-area':
+                                        account_types.append(c)
 
-                            data_node = response.get("data", {})
-                            products = data_node.get("products", [])
-                            is_last = data_node.get("last", False)
-                            current_count = len(products)
+                            svg_elem = item.select_one('.logo-area i svg')
+                            if svg_elem and svg_elem.get('aria-label'):
+                                account_types.append(svg_elem.get('aria-label'))
 
-                            self.log_signal_func(f"[{code} | P.{page}] 응답 상품 수: {current_count}개 | last 여부: {is_last}")
+                            account_type_str = ", ".join(account_types) if account_types else ""
 
-                            if current_count == 0:
-                                self.log_signal_func(f"  -> ⏹️ [종료] 상품 데이터가 없습니다.")
-                                break
+                            # 제목
+                            title_elem = item.select_one('.item-content-wrapper .one-line-trunc')
+                            title = title_elem.get_text(strip=True) if title_elem else ""
 
-                            # 현재 페이지 상품 ID 추출
-                            current_page_id_list = [prod.get("productId") for prod in products if prod.get("productId")]
+                            # 메타정보
+                            meta_info = item.select_one('.item-meta-info')
+                            server, job, trade_type = "", "", ""
+                            if meta_info:
+                                game_servers = meta_info.select('.game-server')
+                                if len(game_servers) >= 1:
+                                    server = game_servers[0].get_text(strip=True)
+                                if len(game_servers) >= 2:
+                                    trade_type = game_servers[1].get_text(strip=True)
 
-                            # 직전 데이터와 중복 시 방어 로직
-                            if current_page_id_list == previous_page_id_list:
-                                self.log_signal_func(f"  -> ⏹️ [종료] 데이터가 직전 페이지와 중복됩니다.")
-                                break
-                            previous_page_id_list = current_page_id_list
+                                career_elem = meta_info.select_one('.career')
+                                if career_elem:
+                                    job = career_elem.get_text(strip=True)
 
-                            # 데이터 추출 및 DB 적재 (상세보기 작업 전)
-                            for rank_index, prod in enumerate(products, start=1 + (page * 20)):
-                                out = {
-                                    "categoryType": value,
-                                    "ranking": str(rank_index),
-                                    "productId": str(prod.get("productId", "")),
-                                    "productName": str(prod.get("productName", "")),
-                                    "storeDomain": str(prod.get("storeDomain", ""))
-                                }
+                            # 가격
+                            price_elem = item.select_one('.price-date-container .price--minimum.sale-price')
+                            price = price_elem.get_text(strip=True).replace('\xa0', '') if price_elem else ""
 
-                                result_list.append(out)
+                            # 게임명 (페이지의 h2 태그 우선, 없으면 설정값)
+                            game_title_elem = soup.select_one('h2.content__title span')
+                            actual_game_name = game_title_elem.get_text(strip=True) if game_title_elem else game_name_setting
 
-                            if is_last is True:
-                                self.log_signal_func(f"  -> ⏹️ [종료] API 응답에서 last=true 임을 확인했습니다.")
-                                break
+                            # DB Insert 용 Dictionary 생성
+                            row_data = {
+                                "게임명": actual_game_name,
+                                "게시글 ID": item_id,
+                                "계정종류": account_type_str,
+                                "제목": title,
+                                "서버": server,
+                                "직업": job,
+                                "거래유형": trade_type,
+                                "가격": price,
+                                "URL": item_url
+                            }
 
-                            page += 1
-                            time.sleep(0.3)  # 디도스 방지를 위한 딜레이
+                            # DB(및 엑셀용 메모리)에 저장
+                            self.insert_detail_row(row_data)
 
-                        except Exception as e:
-                            self.log_signal_func(f"[{code} | P.{page}] 💥 예외 오류 발생: {e}")
-                            break
+                            # 실시간 진행 상황 출력 (ex: [1] 리니지 리마스터 - 계정팝니다...)
+                            total_items_saved += 1
+                            self.log_signal_func(f"[{total_items_saved}] DB 저장 완료: {title}")
 
-            # =========================================================
-            # 2단계: 수집된 result_list를 함수로 넘겨 상세정보 처리
-            # =========================================================
-            if result_list:
-                self.process_details(result_list)
-            else:
-                self.log_signal_func("⚠️ 수집된 목록 데이터가 없습니다.")
+                        page += 1
+                        time.sleep(0.5)  # 디도스 방지 딜레이
+
+                    except Exception as e:
+                        self.log_signal_func(f"[{game_name_setting} | P.{page}] 💥 예외 오류 발생: {e}")
+                        break
+
+                # UI 프로그레스바 업데이트용
+                self.current_cnt += 1
+                pro_value = int((self.current_cnt / self.total_cnt) * 1000000) if self.total_cnt > 0 else 0
+                self.progress_signal.emit(self.before_pro_value, pro_value)
+                self.before_pro_value = pro_value
 
             if self.hist_status == "RUNNING":
                 if self.running:
@@ -2195,94 +2254,13 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                 else:
                     self.finish_job("STOP", "사용자 중단")
 
-            self.log_signal_func("✅ main 종료")
+            self.log_signal_func("✅ main 종료 (수집 완료)")
             return True
 
         except Exception as e:
             self.log_signal_func(f"❌ 전체 실행 중 예외 발생: {e}")
             self.finish_job("FAIL", str(e))
             return False
-
-    
-    def process_details(self, result_list: List[Dict[str, Any]]) -> None:
-        """
-        1차로 수집된 목록(result_list)을 순회하며 스토어 상세 정보를 가져오고 DB에 적재합니다.
-        """
-        self.log_signal_func(f"\n🚀 목록 수집 완료. 총 {len(result_list)}건의 상세 정보 조회를 시작합니다.")
-    
-        self.total_cnt = len(result_list)
-        self.current_cnt = 0  # 프로그레스바 카운트 초기화
-    
-        # 상세 조회용 기본 헤더
-        detail_headers = {
-            "accept": "application/json, text/plain, */*",
-            "accept-encoding": "gzip, deflate, br, zstd",
-            "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-            "cache-control": "no-cache",
-            "content-type": "application/json",
-            "pragma": "no-cache",
-            "priority": "u=1, i",
-            "sec-ch-ua": '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"',
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "same-origin",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
-        }
-    
-        for rs in result_list:
-            if self._stop_event.is_set() or not self.running:
-                self.log_signal_func("⛔ 중지 감지 (상세수집) → 중단")
-                break
-    
-            domain = rs.get("storeDomain")
-
-            # 도메인이 있는 경우에만 상세 API 호출
-            if domain:
-                profile_url = f"https://store.kakao.com/a/brandstore/{domain}/profile"
-                detail_headers["referer"] = f"https://store.kakao.com/{domain}/profile"
-                detail_headers["x-shopping-referrer"] = f"https://store.kakao.com/{domain}"
-                params = {"_": int(time.time() * 1000)}
-
-                try:
-                    profile_res = self.api_client.get(profile_url, headers=detail_headers, params=params)
-
-                    # API 응답에서 store_info 추출 (없거나 에러 시 빈 딕셔너리)
-                    store_info = {}
-                    if profile_res and profile_res.get("result"):
-                        store_info = profile_res.get("data", {}).get("store", {})
-
-                    # 💡 요청하신 형태의 obj 딕셔너리 생성
-                    obj = {
-                        '상품명': rs.get('productName', ''),
-                        '사업자번호': store_info.get('businessRegistrationNumber', ''),
-                        '메일 주소': store_info.get('mainEmail', ''),
-                        '구분': rs.get('categoryType', '')
-                    }
-
-                    # 완성된 obj를 DB에 인서트
-                    self.insert_detail_row(obj)
-
-                    # 로그 출력용
-                    biz_num = obj['사업자번호'] or "없음"
-                    email = obj['메일 주소'] or "없음"
-                    self.log_signal_func(f"[{self.current_cnt + 1}/{self.total_cnt}] ✅ [사업자: {biz_num} | 메일: {email} | 상품: {obj['상품명']}]")
-
-                except Exception as e:
-                    self.log_signal_func(f"[{self.current_cnt + 1}/{self.total_cnt}] 💥 상세 조회 예외 발생: {e}")
-
-            # 카운트 증가
-            self.current_cnt += 1
-
-            # 💡 100개 단위이거나, 마지막 항목일 때만 프로그레스바 업데이트
-            if self.current_cnt % 100 == 0 or self.current_cnt == self.total_cnt:
-                pro_value = int((self.current_cnt / self.total_cnt) * 1000000) if self.total_cnt > 0 else 0
-                self.progress_signal.emit(self.before_pro_value, pro_value)
-                self.before_pro_value = pro_value
-
-            # API 차단 방지를 위한 딜레이
-            time.sleep(0.3)
 
 
     def get_sections(self) -> List[Dict[str, Any]]:
@@ -2291,9 +2269,6 @@ class ApiIdfarmSetWorker(BaseApiWorker):
     def get_items(self, parent_id: Any) -> List[Dict[str, Any]]:
         rows = self.setting_detail or []
         return [r for r in rows if r.get("row_type") == "item" and r.get("parent_id") == parent_id]
-
-
-
 
     # =========================================================
     # DB / Excel 공통 모듈 파트
