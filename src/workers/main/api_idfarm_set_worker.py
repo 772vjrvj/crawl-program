@@ -72,16 +72,6 @@ class ApiIdfarmSetWorker(BaseApiWorker):
         self.code_value_map: Dict[str, str] = {}
         self.game_list: List[dict] = [
             {
-                "idx": "30",
-                "name": "로스트아크"
-            },
-            {
-                "idx": "2",
-                "name": "리니지 M"
-            },
-        ]
-        self.game_list_all: List[dict] = [
-            {
                 "idx": "1",
                 "name": "리니지 리마스터"
             },
@@ -2057,8 +2047,8 @@ class ApiIdfarmSetWorker(BaseApiWorker):
             self.log_signal_func(f"저장경로 : {self.folder_path}")
             self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
             self.log_signal_func(f"키워드 : {self.keyword}")
-            self.log_signal_func(f"가격 시작 : {self.min}")
-            self.log_signal_func(f"가격 끝 : {self.max}")
+            self.log_signal_func(f"가격 시작 : {self.min} 만원")
+            self.log_signal_func(f"가격 끝 : {self.max} 만원")
 
             self.log_signal_func(f"계정 종류 : {self.accountType_list}")
             self.log_signal_func(f"구매 경로 : {self.purchasePath_list}")
@@ -2174,6 +2164,11 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                             item_id = item.get('data-item-id', '')
                             item_url = f"https://idfarm.co.kr/ItemMarket/gameItem/{item_id}" if item_id else ""
 
+                            # 👇 --- [추가된 부분] 거래 상태(판매중/거래완료) 추출 --- 👇
+                            item_classes = item.get('class', [])
+                            trade_status = "거래완료" if 'finish' in item_classes else "판매중"
+                            # 👆 --------------------------------------------------- 👆
+
                             # 계정 종류 및 등급 배지 추출
                             account_types = []
                             logo_areas = item.select('.logo-area-wrap .logo-area')
@@ -2225,15 +2220,16 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                                 "직업": job,
                                 "거래유형": trade_type,
                                 "가격": price,
-                                "URL": item_url
+                                "URL": item_url,
+                                "거래상태": trade_status  # 👇 추가됨
                             }
 
                             # DB(및 엑셀용 메모리)에 저장
                             self.insert_detail_row(row_data)
 
-                            # 실시간 진행 상황 출력 (ex: [1] 리니지 리마스터 - 계정팝니다...)
+                            # 실시간 진행 상황 출력 (ex: [1] DB 저장 완료: [거래완료] 리니지 리마스터...)
                             total_items_saved += 1
-                            self.log_signal_func(f"[{total_items_saved}] DB 저장 완료: {title}")
+                            self.log_signal_func(f"[{total_items_saved}] DB 저장 완료: [{trade_status}] {title}")
 
                         page += 1
                         time.sleep(0.5)  # 디도스 방지 딜레이
