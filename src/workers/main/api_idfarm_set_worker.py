@@ -2037,14 +2037,18 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                 # 1. 계정 종류 섹션일 때
                 if sec_id == 'accountType':
                     items = self.get_items(sec_id)
-                    # 자식들 중에서 'value'만 쏙 뽑아서 리스트로 만들기
-                    self.accountType_list = [item.get('value') for item in items]
+                    # checked가 True인 자식들 중에서 'value'만 쏙 뽑아서 리스트로 만들기
+                    self.accountType_list = [
+                        item.get('value') for item in items if item.get('checked')
+                    ]
 
                 # 2. 구매 경로 섹션일 때
                 elif sec_id == 'purchasePath':
                     items = self.get_items(sec_id)
-                    # 자식들 중에서 'value'만 쏙 뽑아서 리스트로 만들기
-                    self.purchasePath_list = [item.get('value') for item in items]
+                    # checked가 True인 자식들 중에서 'value'만 쏙 뽑아서 리스트로 만들기
+                    self.purchasePath_list = [
+                        item.get('value') for item in items if item.get('checked')
+                    ]
 
             self.log_signal_func(f"저장경로 : {self.folder_path}")
             self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")

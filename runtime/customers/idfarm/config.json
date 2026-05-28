@@ -27,19 +27,19 @@
     {
       "name": "키워드(제목+내용)",
       "code": "keyword",
-      "value": "니다",
+      "value": "팝니다",
       "type": "input"
     },
     {
       "name": "가격(만원) 시작",
       "code": "min",
-      "value": 1,
+      "value": 10,
       "type": "input"
     },
     {
       "name": "가격(만원) 종료",
       "code": "max",
-      "value": 100,
+      "value": 50,
       "type": "input"
     }
   ],
