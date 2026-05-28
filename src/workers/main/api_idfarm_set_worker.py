@@ -2190,9 +2190,11 @@ class ApiIdfarmSetWorker(BaseApiWorker):
 
                             item_url = f"https://idfarm.co.kr/ItemMarket/gameItem/{item_id}"
 
-                            # 거래 상태(판매중/거래완료) 추출
+                            # [수정 1] 거래 상태(판매중/거래완료) 추출 후 '거래완료(finish)'면 제외
                             item_classes = item.get('class', [])
-                            trade_status = "거래완료" if 'finish' in item_classes else "판매중"
+                            if 'finish' in item_classes:
+                                continue # 거래완료 상품은 스킵
+                            trade_status = "판매중"
 
                             # 계정 종류 및 등급 배지 추출
                             account_types = []
@@ -2206,6 +2208,24 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                             svg_elem = item.select_one('.logo-area i svg')
                             if svg_elem and svg_elem.get('aria-label'):
                                 account_types.append(svg_elem.get('aria-label'))
+
+                            # [수정 2] 선택한 계정 종류만 나오도록 필터링
+                            if self.accountType_list:
+                                extracted_str = " ".join(account_types).lower()
+                                is_allowed = False
+
+                                for sel in self.accountType_list:
+                                    if sel == '게임사' and 'game-company' in extracted_str: is_allowed = True
+                                    elif sel == '구글' and 'google' in extracted_str: is_allowed = True
+                                    elif sel == '페이스북' and ('facebook' in extracted_str or 'face' in extracted_str): is_allowed = True
+                                    elif sel == '전화번호' and 'phone' in extracted_str: is_allowed = True
+                                    elif sel == '카카오' and 'kakao' in extracted_str: is_allowed = True
+                                    elif sel == '네이버' and 'naver' in extracted_str: is_allowed = True
+                                    elif sel == '기타' and 'etc' in extracted_str: is_allowed = True
+
+                                # 사용자가 선택한 계정 조건에 하나도 부합하지 않으면 저장하지 않고 스킵
+                                if not is_allowed:
+                                    continue
 
                             account_type_str = ", ".join(account_types) if account_types else ""
 
@@ -2254,6 +2274,7 @@ class ApiIdfarmSetWorker(BaseApiWorker):
 
                             total_items_saved += 1
                             self.log_signal_func(f"[{game_idx_num}/{self.total_cnt}] [{total_items_saved}] DB 저장: [{actual_game_name}] [{trade_status}] {title}")
+
                         if not new_item_found:
                             self.log_signal_func(f"  -> ⏹️ [종료] 새로운 상품이 없습니다 (중복/프리미엄만 존재). (Page: {page})")
                             break
