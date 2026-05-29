@@ -47,7 +47,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
 
         self.api_client = APIClient(use_cache=False)
 
-        # 엑셀 파일 저장 시 출력될 표준 한글 헤더 목록 (DB 전용인 상품명, URL은 엑셀 헤더에서 제외)
+        # 엑셀 파일 저장 시 출력될 표준 헤더 목록
         self.columns: List[str] = ["컬러", "사이즈", "옵션가", "재고수량", "관리코드", "사용여부"]
 
         self.out_dir: str = "output"
@@ -58,7 +58,6 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         self.hist_status = "RUNNING"
         self.hist_error_message = None
 
-        # [수정] DDL 매칭 테이블명을 LULULEMON으로 완벽히 변경
         self.detail_table_name: str = "LULULEMON"
         self.detail_success_count: int = 0
         self.detail_fail_count: int = 0
@@ -85,7 +84,6 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                 debug=True,
                 log_func=self.log_signal_func,
             )
-            # 아카마이 우회에 성공했던 PC 브라우저 모드
             self.driver = self.selenium_driver.start_driver(
                 timeout=1200,
                 view_mode="browser",
@@ -95,7 +93,8 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             self.log_signal.emit(f"[DEBUG] base_dir = {self.get_base_dir()}")
             self.log_signal.emit(f"[DEBUG] out_dir = {self.out_dir}")
 
-            # SQLite 데이터베이스 세팅 및 히스토리 시작점 등록
+            # SQLite 데이터베이스 세팅
+            # (기존: 여기서 History를 1개 열었지만, 낱개 생성을 위해 제거함)
             if not self.db_set():
                 return False
 
@@ -125,13 +124,6 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             self.log_signal.emit(f"[INFO] URL 갯수: {self.total_cnt}")
 
             self.call_product_list()
-
-            # 실행 중 상태 에러가 없었다면 최종 상태 업데이트 처리 준비
-            if self.hist_status == "RUNNING":
-                if self.running:
-                    self.finish_job("SUCCESS")
-                else:
-                    self.finish_job("STOP", "사용자 중단")
 
             return True
 
@@ -167,13 +159,23 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                 continue
 
             # ---------------------------------------------------------
-            # 1. 즉시 SQLite 데이터베이스 실시간 저장 (전체 8개 데이터)
+            # 1. DB 히스토리 낱개 생성 (URL 1개 = 엑셀 1개 = History 1개)
+            # ---------------------------------------------------------
+            self.detail_success_count = 0
+            self.detail_fail_count = 0
+            self.hist_status = "RUNNING"
+            self.hist_error_message = None
+
+            if not self.insert_hist_start():
+                self.log_signal.emit("[DB] 히스토리 생성 실패")
+
+            # ---------------------------------------------------------
+            # 2. SQLite 데이터베이스 Row M개 저장
             # ---------------------------------------------------------
             for opt_item in options:
                 if not self.running:
                     break
 
-                # DB 저장을 위해 상품명과 원본 URL 데이터를 딕셔너리에 추가 병합
                 db_row_data = {
                     "product_name": h1_product_name,
                     "color": opt_item.get("컬러", ""),
@@ -187,12 +189,11 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                 self.insert_detail_row(db_row_data)
 
             # ---------------------------------------------------------
-            # 2. 엑셀 파일 저장 생성 영역 (상품명, URL이 제외된 순수 6개 컬럼 데이터)
+            # 3. 엑셀 파일 M개 데이터 낱개 저장
             # ---------------------------------------------------------
             filename = f"{self.safe_filename(h1_product_name)}_{self.now_stamp()}.xlsx"
 
             try:
-                # self.columns 규격(["컬러", "사이즈", "옵션가", "재고수량", "관리코드", "사용여부"])에 맞춰 엑셀 저장 실행
                 saved_path = self.excel_driver.save_obj_list_to_excel(
                     filename=filename,
                     obj_list=options,
@@ -203,15 +204,27 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                 )
 
                 if saved_path and os.path.exists(saved_path):
-                    self.log_signal.emit(f"({num}/{self.total_cnt}) 엑셀 저장완료: {saved_path}")
+                    self.log_signal.emit(f"({num}/{self.total_cnt}) 엑셀 및 DB 저장완료: {saved_path}")
                 else:
                     self.log_signal.emit(f"[저장실패] 파일이 생성되지 않음: {saved_path}")
 
             except Exception as e:
                 self.log_signal.emit(f"[저장실패] {e}")
 
+            # ---------------------------------------------------------
+            # 4. DB 히스토리 낱개 닫기 (이번 URL 작업 완료 처리)
+            # ---------------------------------------------------------
+            if self.running:
+                self.finish_job("SUCCESS")
+            else:
+                self.finish_job("STOP", "사용자 중단")
+
+            # 히스토리를 닫고, 다음 루프를 위해 hist_id 초기화
+            self.update_hist_end()
+            self.hist_id = None
+
             self.update_progress()
-            time.sleep(random.uniform(4.0, 7.0))  # 패턴 감지 우회를 위한 안전 딜레이 마진
+            time.sleep(random.uniform(4.0, 7.0))
 
     def update_progress(self) -> None:
         pro_value = (self.current_cnt / self.total_cnt) * 1000000 if self.total_cnt else 1000000
@@ -581,9 +594,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             self.log_signal_func("❌ [DB] 스키마 초기화 실패")
             return False
 
-        if not self.insert_hist_start():
-            return False
-
+        # [변경점] init에서는 DB 연동 세팅만 하고 History는 생성하지 않음. (URL 루프에서 낱개로 생성)
         return True
 
     def insert_hist_start(self) -> bool:
@@ -599,7 +610,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                 """
         params = (
             self.job_id, self.detail_table_name, self.site_name, self.worker_name,
-            getattr(self.user, "user_id", None) if self.user else None,
+            self.user,
             now, "RUNNING", 0, 0, 0, now, now,
         )
 
@@ -663,7 +674,9 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         try:
             temp_sqlite_driver = SqliteUtils(self.log_signal_func)
             if temp_sqlite_driver.connect(self.get_runtime_db_path()):
-                self.update_hist_end(temp_sqlite_driver)
+                # 중도 정지 시 열려있는 hist가 있다면 강제 업데이트
+                if self.hist_id:
+                    self.update_hist_end(temp_sqlite_driver)
         except Exception as e:
             self.log_signal_func(f"[cleanup] finalize_db_and_excel 실패: {e}")
         finally:
@@ -677,6 +690,8 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         if self._cleaned_up:
             return
 
+        self.finalize_db_and_excel()
+
         try:
             if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
                 self.sqlite_driver.close()
@@ -684,8 +699,6 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             pass
         finally:
             self.sqlite_driver = None
-
-        self.finalize_db_and_excel()
 
         try:
             if self.api_client:

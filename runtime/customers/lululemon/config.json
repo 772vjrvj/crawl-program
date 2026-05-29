@@ -1,23 +1,98 @@
 {
   "label": "LULULEMON",
   "key": "LULULEMON",
+  "db_name": "LULULEMON",
+  "db_common_name": "WORKER_JOB_HIST",
   "color": "#ccc",
   "enabled": true,
   "popup": true,
   "worker_class": "src.workers.main.api_lululemon_set_worker:ApiLululemonSetLoadWorker",
   "setting": [
-    {"name": "저장 폴더", "code": "folder_path", "value": "", "type": "folder", "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "E:\\git\\crawl-program",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
       "button_text": "폴더 선택",
       "dialog_title": "저장 폴더 선택",
       "path_type": "main"
     }
   ],
-  "columns" : [
-    {"code": "color",      "value": "컬러",     "checked": true},
-    {"code": "size",       "value": "사이즈",   "checked": true},
-    {"code": "option_price","value": "옵션가",  "checked": true},
-    {"code": "stock_qty",  "value": "재고수량", "checked": true},
-    {"code": "manage_code","value": "관리코드", "checked": true},
-    {"code": "use_yn",     "value": "사용여부", "checked": true}
+  "columns": [
+    {
+      "code": "product_name",
+      "value": "상품명",
+      "checked": true
+    },
+    {
+      "code": "color",
+      "value": "컬러",
+      "checked": true
+    },
+    {
+      "code": "size",
+      "value": "사이즈",
+      "checked": true
+    },
+    {
+      "code": "option_price",
+      "value": "옵션가",
+      "checked": true
+    },
+    {
+      "code": "stock_qty",
+      "value": "재고수량",
+      "checked": true
+    },
+    {
+      "code": "manage_code",
+      "value": "관리코드",
+      "checked": true
+    },
+    {
+      "code": "use_yn",
+      "value": "사용여부",
+      "checked": true
+    },
+    {
+      "code": "item_url",
+      "value": "URL",
+      "checked": true
+    }
+  ],
+  "search_col_list": [
+    {
+      "code": "product_name",
+      "value": "상품명"
+    },
+    {
+      "code": "color",
+      "value": "컬러"
+    },
+    {
+      "code": "size",
+      "value": "사이즈"
+    },
+    {
+      "code": "option_price",
+      "value": "옵션가"
+    },
+    {
+      "code": "stock_qty",
+      "value": "재고수량"
+    },
+    {
+      "code": "manage_code",
+      "value": "관리코드"
+    },
+    {
+      "code": "use_yn",
+      "value": "사용여부"
+    },
+    {
+      "code": "item_url",
+      "value": "URL"
+    }
   ]
 }

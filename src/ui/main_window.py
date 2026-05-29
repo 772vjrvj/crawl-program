@@ -202,20 +202,24 @@ class MainWindow(QWidget):
     # 변경값 세팅
     def common_data_set(self) -> None:
         state = GlobalState()
-        self.name = cast(Optional[str], state.get("name"))
-        self.site = cast(Optional[str], state.get("site"))
-        self.color = cast(Optional[str], state.get("color"))
-        self.setting = state.get("setting")
-        self.session = cast(Optional[Session], state.get("session"))
-        self.columns = state.get("columns")
-        self.sites = state.get("sites")
-        self.region = state.get("region")
-        self.popup = state.get("popup")
-        self.setting_detail = state.get("setting_detail")
-        self.setting_detail_all_style = state.get("setting_detail_all_style")
-        self.setting_detail_all_style_flag = state.get("setting_detail_all_style_flag")
-        self.setting_region_filter_favorite = state.get("setting_region_filter_favorite")
-        self.setting_region_filter_favorite_flag = state.get("setting_region_filter_favorite_flag")
+        self.user = state.get(GlobalState.USER_ID)
+        self.name = state.get(GlobalState.NAME)
+        self.site = state.get(GlobalState.SITE)
+        self.color = state.get(GlobalState.COLOR)
+        self.setting = state.get(GlobalState.SETTING)
+        self.session = cast(Optional[Session], state.get(GlobalState.SESSION))
+        self.columns = state.get(GlobalState.COLUMNS)
+        self.sites = state.get(GlobalState.SITES)
+        self.region = state.get(GlobalState.REGION)
+        self.popup = state.get(GlobalState.POPUP)
+
+        self.setting_detail = state.get(GlobalState.SETTING_DETAIL)
+        self.setting_detail_all_style = state.get(GlobalState.SETTING_DETAIL_ALL_STYLE)
+        self.setting_detail_all_style_flag = state.get(GlobalState.SETTING_DETAIL_ALL_STYLE_FLAG)
+
+        self.setting_region_filter_favorite = state.get(GlobalState.SETTING_REGION_FILTER_FAVORITE)
+        self.setting_region_filter_favorite_flag = state.get(GlobalState.SETTING_REGION_FILTER_FAVORITE_FLAG)
+
 
 
     # 재 초기화

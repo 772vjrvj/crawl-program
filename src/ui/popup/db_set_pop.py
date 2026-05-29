@@ -21,9 +21,8 @@ import sqlite3
 import sys
 from datetime import datetime
 from typing import Any, Optional
-
-from PySide6.QtCore import QRect, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtCore import QRect, Qt, Signal, QTimer
+from PySide6.QtGui import QColor, QPainter, QPen, QCursor
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -42,11 +41,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
 from src.core.global_state import GlobalState
 from src.ui.style.style import create_common_button
 from src.utils.excel_utils import ExcelUtils
-
+from src.ui.popup.excel_export_pop import ExcelExportPop
 
 class CheckBoxHeader(QHeaderView):
     toggled = Signal(bool)
@@ -123,8 +121,17 @@ class DbTableWidget(QTableWidget):
         self.row_meta: list[dict[str, Any]] = []
         self.display_columns: list[str] = []
 
+        # 정렬 및 렌더링용 변수 추가
+        self.check_states: dict[int, bool] = {}
+        self.start_nos: list[int] = []
+        self.visual_to_logical: list[int] = []
+        self.sort_col_idx: int = -1
+        self.sort_state: int = 0  # 0: None, 1: Desc, 2: Asc
+        self.header_labels_raw: list[str] = []
+
         header = CheckBoxHeader(Qt.Orientation.Horizontal, self)
         header.toggled.connect(self.toggle_all_checked)
+        header.sectionClicked.connect(self.on_header_clicked) # 헤더 클릭 정렬 이벤트 연결
         self.setHorizontalHeader(header)
 
         self.verticalHeader().setVisible(False)
@@ -134,10 +141,13 @@ class DbTableWidget(QTableWidget):
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.setWordWrap(False)
-        self.setSortingEnabled(False)
+        self.setSortingEnabled(False) # Qt 기본 정렬 대신 수동 정렬 사용
         self.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.setStyleSheet(self.table_style())
+
+        # 셀 더블클릭 이벤트 연결
+        self.cellDoubleClicked.connect(self.on_cell_double_clicked)
 
     @staticmethod
     def table_style() -> str:
@@ -234,7 +244,7 @@ class DbTableWidget(QTableWidget):
         }
         """
 
-    def make_checkbox_cell(self) -> QWidget:
+    def make_checkbox_cell(self, logical_idx: int) -> QWidget:
         wrap = QWidget()
         wrap.setStyleSheet("background: transparent;")
 
@@ -247,11 +257,16 @@ class DbTableWidget(QTableWidget):
         cb.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         cb.setCursor(Qt.CursorShape.PointingHandCursor)
         cb.setStyleSheet(self.checkbox_style())
-        cb.stateChanged.connect(self.sync_header_check_state)
+        cb.setChecked(self.check_states.get(logical_idx, False))
+        cb.stateChanged.connect(lambda state, l_idx=logical_idx: self.on_cb_state_changed(state, l_idx))
 
         layout.addWidget(cb)
 
         return wrap
+
+    def on_cb_state_changed(self, state: int, logical_idx: int) -> None:
+        self.check_states[logical_idx] = (state != 0)
+        self.sync_header_check_state()
 
     def load_rows(self, rows: list[dict[str, Any]], display_columns: list[str], header_labels: list[str],) -> None:
         self.blockSignals(True)
@@ -259,12 +274,19 @@ class DbTableWidget(QTableWidget):
 
         try:
             self.display_columns = list(display_columns or [])
+            self.header_labels_raw = ["", "번호", *list(header_labels or [])]
+
             self.row_meta = []
+            self.check_states = {}
+            self.start_nos = []
+            self.visual_to_logical = []
+            self.sort_col_idx = -1
+            self.sort_state = 0
 
             self.clear()
             self.setRowCount(0)
             self.setColumnCount(2 + len(self.display_columns))
-            self.setHorizontalHeaderLabels(["", "번호", *list(header_labels or [])])
+            self.setHorizontalHeaderLabels(self.header_labels_raw)
 
             header = self.horizontalHeader()
             header.setMinimumSectionSize(40)
@@ -288,25 +310,66 @@ class DbTableWidget(QTableWidget):
         if not rows:
             return
 
+        start_row = len(self.row_meta)
+        for idx, row in enumerate(rows):
+            self.row_meta.append(row)
+            self.check_states[start_row + idx] = False
+            self.start_nos.append((start_no + idx) if start_no else (start_row + idx + 1))
+
+        self.render_table()
+
+    def render_table(self) -> None:
         self.blockSignals(True)
         self.setUpdatesEnabled(False)
-
         try:
-            start_row = self.rowCount()
-            self.setRowCount(start_row + len(rows))
+            indices = list(range(len(self.row_meta)))
 
-            for idx, row in enumerate(rows):
-                row_idx = start_row + idx
-                self.row_meta.append(row)
+            # 정렬 상태에 맞춰 데이터 재배치
+            if self.sort_state != 0 and self.sort_col_idx >= 1:
+                def sort_key(idx):
+                    if self.sort_col_idx == 1:
+                        return (1, self.start_nos[idx])
 
-                self.setCellWidget(row_idx, 0, self.make_checkbox_cell())
+                    col_key = self.display_columns[self.sort_col_idx - 2]
+                    val = self.row_meta[idx].get(col_key)
 
-                no_item = QTableWidgetItem(str((start_no + idx) if start_no else (row_idx + 1)))
+                    if val is None:
+                        return (0, "")
+                    if isinstance(val, (int, float)):
+                        return (2, val)
+                    if isinstance(val, str):
+                        try:
+                            if '.' in val: return (2, float(val))
+                            return (2, int(val))
+                        except ValueError:
+                            pass
+                    return (1, str(val))
+
+                indices.sort(key=sort_key, reverse=(self.sort_state == 1))
+
+            self.visual_to_logical = indices
+
+            # 헤더 화살표 추가
+            new_labels = self.header_labels_raw.copy()
+            if self.sort_state != 0 and self.sort_col_idx >= 1:
+                arrow = "▼" if self.sort_state == 1 else "▲"
+                new_labels[self.sort_col_idx] = f"{new_labels[self.sort_col_idx]} {arrow}"
+            self.setHorizontalHeaderLabels(new_labels)
+
+            self.setRowCount(len(indices))
+
+            for visual_idx, logical_idx in enumerate(indices):
+                row_data = self.row_meta[logical_idx]
+
+                self.setCellWidget(visual_idx, 0, self.make_checkbox_cell(logical_idx))
+
+                no_item = QTableWidgetItem(str(self.start_nos[logical_idx]))
                 no_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                self.setItem(row_idx, 1, no_item)
+                self.setItem(visual_idx, 1, no_item)
 
                 for col_idx, key in enumerate(self.display_columns, start=2):
-                    text = "" if row.get(key) is None else str(row.get(key))
+                    val = row_data.get(key)
+                    text = "" if val is None else str(val)
 
                     item = QTableWidgetItem(text)
                     item.setToolTip(text)
@@ -314,13 +377,92 @@ class DbTableWidget(QTableWidget):
                     if len(text) <= 12:
                         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
-                    self.setItem(row_idx, col_idx, item)
+                    self.setItem(visual_idx, col_idx, item)
 
-            self.set_header_checked(False)
+            all_checked = (len(indices) > 0 and all(self.check_states.values()))
+            self.set_header_checked(all_checked)
 
         finally:
             self.setUpdatesEnabled(True)
             self.blockSignals(False)
+
+    def get_current_sort_info(self) -> tuple[str, int]:
+        """현재 정렬된 컬럼 코드와 상태(1:내림차순, 2:오름차순)를 반환"""
+        if self.sort_state == 0 or self.sort_col_idx < 1:
+            return "", 0
+
+        # 1번 컬럼(번호) 정렬인 경우 rowid(DB 고유순번) 기준으로 반환
+        if self.sort_col_idx == 1:
+            return "rowid", self.sort_state
+
+        # 실제 데이터 컬럼인 경우 (0번은 체크박스, 1번은 번호이므로 -2)
+        col_idx = self.sort_col_idx - 2
+        if 0 <= col_idx < len(self.display_columns):
+            return self.display_columns[col_idx], self.sort_state
+
+        return "", 0
+
+    def on_header_clicked(self, logical_index: int) -> None:
+        if logical_index == 0:
+            return
+
+        if self.sort_col_idx == logical_index:
+            self.sort_state = (self.sort_state + 1) % 3
+        else:
+            self.sort_col_idx = logical_index
+            self.sort_state = 1
+
+        self.render_table()
+
+
+    def on_cell_double_clicked(self, row: int, col: int) -> None:
+        if col == 0:
+            return
+
+        item = self.item(row, col)
+        if item:
+            text = item.text()
+
+            from PySide6.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout
+            from PySide6.QtCore import Qt, QTimer
+            from PySide6.QtGui import QCursor
+
+            QApplication.clipboard().setText(text)
+
+            # 1. 뼈대가 되는 완전히 투명한 빈 창을 생성
+            toast = QWidget(self)
+            toast.setWindowFlags(
+                Qt.WindowType.Tool |
+                Qt.WindowType.FramelessWindowHint |
+                Qt.WindowType.WindowStaysOnTopHint
+            )
+            toast.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+            toast.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+
+            # 2. 여백 없는 레이아웃 생성
+            layout = QVBoxLayout(toast)
+            layout.setContentsMargins(0, 0, 0, 0)
+
+            # 3. 실제 알약 모양으로 보일 라벨을 레이아웃 안에 추가
+            label = QLabel("복사되었습니다")
+            label.setStyleSheet("""
+                    QLabel {
+                        background-color: rgba(0, 0, 0, 200);
+                        color: white;
+                        padding: 8px 16px;
+                        border-radius: 10%;
+                        font-size: 13px;
+                        font-weight: bold;
+                    }
+                """)
+            layout.addWidget(label)
+
+            # 4. 위치 지정 및 표시
+            cursor_pos = QCursor.pos()
+            toast.move(cursor_pos.x() + 15, cursor_pos.y() + 15)
+            toast.show()
+
+            QTimer.singleShot(1500, toast.deleteLater)
 
     def mousePressEvent(self, event) -> None:
         item = self.itemAt(event.pos())
@@ -328,7 +470,8 @@ class DbTableWidget(QTableWidget):
         if item and item.column() != 0:
             self.setFocus(Qt.FocusReason.MouseFocusReason)
             super().mousePressEvent(event)
-            self.row_clicked_signal.emit(item.row())
+            logical_idx = self.visual_to_logical[item.row()]
+            self.row_clicked_signal.emit(logical_idx)
             return
 
         super().mousePressEvent(event)
@@ -352,7 +495,8 @@ class DbTableWidget(QTableWidget):
             after_row = self.currentRow()
 
             if after_row >= 0 and after_row != before_row:
-                self.row_clicked_signal.emit(after_row)
+                logical_idx = self.visual_to_logical[after_row]
+                self.row_clicked_signal.emit(logical_idx)
 
     def set_header_checked(self, checked: bool) -> None:
         header = self.horizontalHeader()
@@ -365,17 +509,13 @@ class DbTableWidget(QTableWidget):
         return wrap.findChild(QCheckBox) if wrap else None
 
     def checked_rows(self) -> list[int]:
-        rows = []
-
-        for row in range(self.rowCount()):
-            cb = self.get_checkbox(row)
-
-            if cb and cb.isChecked():
-                rows.append(row)
-
-        return rows
+        # visual_idx 기반이 아닌 논리적인 index 목록 반환
+        return [l_idx for l_idx, is_checked in self.check_states.items() if is_checked]
 
     def toggle_all_checked(self, checked: bool) -> None:
+        for l_idx in self.check_states:
+            self.check_states[l_idx] = checked
+
         for row in range(self.rowCount()):
             cb = self.get_checkbox(row)
 
@@ -387,7 +527,7 @@ class DbTableWidget(QTableWidget):
         self.set_header_checked(checked)
 
     def sync_header_check_state(self) -> None:
-        checked = self.rowCount() > 0 and len(self.checked_rows()) == self.rowCount()
+        checked = (len(self.row_meta) > 0 and all(self.check_states.values()))
         self.set_header_checked(checked)
 
 
@@ -1312,28 +1452,90 @@ class DbSetPop(QDialog):
         if not self.current_job_id:
             return []
 
+        # 1. DB에서 조건에 맞게 데이터 모두 가져오기 (기본 rowid 역순)
         with self._connect() as conn:
             search_where, search_params = self._build_detail_search_where()
             cur = conn.execute(
                 f"""
-                SELECT rowid AS __rowid__, *
-                FROM {self.db_name}
-                WHERE job_id = ?
-                {search_where}
-                ORDER BY rowid DESC
-                """,
+                    SELECT rowid AS __rowid__, *
+                    FROM {self.db_name}
+                    WHERE job_id = ?
+                    {search_where}
+                    ORDER BY rowid DESC
+                    """,
                 [self.current_job_id, *search_params],
             )
+            rows = [dict(row) for row in cur.fetchall()]
 
-            return [dict(row) for row in cur.fetchall()]
+        # 2. 파이썬 단에서 UI 화면과 100% 동일한 기준으로 재정렬 (숫자 크기 정상 인식)
+        if self.right_table:
+            sort_col, sort_state = self.right_table.get_current_sort_info()
+
+            # 정렬 상태가 존재할 경우 (1: 내림차순, 2: 오름차순)
+            if sort_col and sort_state != 0:
+                is_desc = (sort_state == 1)
+
+                def sort_key(row_dict):
+                    if sort_col == "rowid":
+                        return (1, row_dict.get("__rowid__", 0))
+
+                    val = row_dict.get(sort_col)
+
+                    if val is None:
+                        return (0, "")
+                    if isinstance(val, (int, float)):
+                        return (2, val)
+                    if isinstance(val, str):
+                        try:
+                            # 문자열이지만 숫자로 변환 가능하면 숫자로 취급하여 정렬
+                            if '.' in val:
+                                return (2, float(val))
+                            return (2, int(val))
+                        except ValueError:
+                            pass
+
+                    return (1, str(val))
+
+                rows.sort(key=sort_key, reverse=is_desc)
+
+        return rows
 
     def save_detail_to_excel(self) -> None:
         if not self.current_job_id:
             QMessageBox.information(self, "알림", "저장할게 없습니다.")
             return
 
-        job_id = ""
+        # 1. 팝업에 전달할 컬럼 데이터 생성
+        columns_data = [
+            {"code": col, "value": self.detail_header_map.get(col, col)}
+            for col in self.detail_columns
+        ]
 
+
+        pop = ExcelExportPop(
+            columns=columns_data,
+            default_folder=self._get_folder_path(),
+            parent=self
+        )
+
+        # 팝업에서 취소를 누른 경우 중단
+        if pop.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        # 3. 팝업 결과 받아오기
+        selected_cols = pop.selected_columns
+        selected_folder = pop.selected_folder
+
+        if not selected_cols:
+            QMessageBox.warning(self, "경고", "선택된 컬럼이 없습니다.")
+            return
+
+        if not selected_folder:
+            QMessageBox.warning(self, "경고", "저장 경로가 지정되지 않았습니다.")
+            return
+
+        # 4. 파일명 생성 및 데이터 가져오기
+        job_id = ""
         if self.current_hist_row:
             job_id = str(self.current_hist_row.get("job_id") or "").strip()
 
@@ -1357,24 +1559,26 @@ class DbSetPop(QDialog):
                 message_text = "저장할게 없습니다."
                 return
 
+            # 선택된 컬럼만 너비 설정에 반영
             column_widths = [
                 {
                     "컬럼": self.detail_header_map.get(col, col),
                     "너비": 16,
                 }
-                for col in self.detail_columns
+                for col in selected_cols
             ]
 
             excel = ExcelUtils(log_func=lambda msg: self.log_signal.emit(str(msg)))
 
+            # 팝업에서 선택한 컬럼과 경로를 주입하여 엑셀 저장
             ok = excel.save_db_rows_to_excel(
                 excel_filename=filename,
                 row_list=excel_rows,
-                columns=self.detail_columns,
+                columns=selected_cols,         # 전체 컬럼 대신 선택된 컬럼 사용
                 header_map=self.detail_header_map,
                 sheet_name="상세목록",
-                folder_path=self._get_folder_path(),
-                sub_dir="output",
+                folder_path=selected_folder,   # 팝업에서 선택한 경로 사용
+                sub_dir="",                    # 폴더 경로를 직접 받으므로 하위 디렉토리는 비움
                 column_widths=column_widths,
                 default_width=16,
             )
