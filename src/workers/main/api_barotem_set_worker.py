@@ -3595,11 +3595,11 @@ class ApiBarotemSetWorker(BaseApiWorker):
                         self.log_signal_func(f"[{game_name_setting} | P.{page}] 💥 예외 오류 발생: {e}")
                         break
 
-                random.uniform(2,3)
                 self.current_cnt += 1
                 pro_value = int((self.current_cnt / self.total_cnt) * 1000000) if self.total_cnt > 0 else 0
                 self.progress_signal.emit(self.before_pro_value, pro_value)
                 self.before_pro_value = pro_value
+                time.sleep(random.uniform(0.3, 0.8))
 
             if self.hist_status == "RUNNING":
                 if self.running:

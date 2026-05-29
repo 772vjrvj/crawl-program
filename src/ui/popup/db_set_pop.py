@@ -46,6 +46,46 @@ from src.ui.style.style import create_common_button
 from src.utils.excel_utils import ExcelUtils
 from src.ui.popup.excel_export_pop import ExcelExportPop
 
+class ProcessingDialog(QDialog):
+    """데이터 처리 중임을 알리는 반투명 오버레이 팝업"""
+    def __init__(self, parent=None, text="⏳ 데이터 처리 중..."):
+        super().__init__(parent)
+        self.setWindowFlags(
+            Qt.WindowType.Tool |
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        label = QLabel(text)
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setStyleSheet("""
+            QLabel {
+                background-color: rgba(0, 0, 0, 210);
+                color: white;
+                padding: 24px 36px;
+                border-radius: 12px;
+                font-size: 15px;
+                font-weight: bold;
+                line-height: 1.5;
+            }
+        """)
+        layout.addWidget(label)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.adjustSize() # 정확한 폭/높이 사전 계산
+        if self.parentWidget():
+            parent = self.parentWidget()
+            # 부모 위젯의 순수 내부 중앙 좌표를 모니터 전체(Global) 좌표로 변환
+            center_point = parent.mapToGlobal(parent.rect().center())
+            self.move(center_point.x() - (self.width() // 2), center_point.y() - (self.height() // 2))
+
 class CheckBoxHeader(QHeaderView):
     toggled = Signal(bool)
 
@@ -318,13 +358,13 @@ class DbTableWidget(QTableWidget):
 
         self.render_table()
 
+
     def render_table(self) -> None:
         self.blockSignals(True)
         self.setUpdatesEnabled(False)
         try:
             indices = list(range(len(self.row_meta)))
 
-            # 정렬 상태에 맞춰 데이터 재배치
             if self.sort_state != 0 and self.sort_col_idx >= 1:
                 def sort_key(idx):
                     if self.sort_col_idx == 1:
@@ -338,9 +378,11 @@ class DbTableWidget(QTableWidget):
                     if isinstance(val, (int, float)):
                         return (2, val)
                     if isinstance(val, str):
+                        clean_val = val.replace(',', '').replace('원', '').strip()
                         try:
-                            if '.' in val: return (2, float(val))
-                            return (2, int(val))
+                            if '.' in clean_val:
+                                return (2, float(clean_val))
+                            return (2, int(clean_val))
                         except ValueError:
                             pass
                     return (1, str(val))
@@ -349,7 +391,6 @@ class DbTableWidget(QTableWidget):
 
             self.visual_to_logical = indices
 
-            # 헤더 화살표 추가
             new_labels = self.header_labels_raw.copy()
             if self.sort_state != 0 and self.sort_col_idx >= 1:
                 arrow = "▼" if self.sort_state == 1 else "▲"
@@ -412,7 +453,17 @@ class DbTableWidget(QTableWidget):
             self.sort_col_idx = logical_index
             self.sort_state = 1
 
+        # --- [수정됨] render_table 대신 클릭 시점에만 팝업 호출 ---
+        loading_popup = None
+        if len(self.row_meta) > 300:
+            loading_popup = ProcessingDialog(self, "📊 데이터를 정렬 중입니다...\n잠시만 기다려주세요.")
+            loading_popup.show()
+            QApplication.processEvents()
+
         self.render_table()
+
+        if loading_popup:
+            QTimer.singleShot(150, loading_popup.accept)
 
 
     def on_cell_double_clicked(self, row: int, col: int) -> None:
@@ -1148,6 +1199,7 @@ class DbSetPop(QDialog):
             f"전체 row수 {self.detail_total_count:,} / 표시 {self.detail_loaded_count:,}"
         )
 
+
     def set_detail_loading(self, loading: bool) -> None:
         self.detail_loading = bool(loading)
         self.update_detail_count_label()
@@ -1155,10 +1207,20 @@ class DbSetPop(QDialog):
         if loading:
             if QApplication.overrideCursor() is None:
                 QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+
+            if not hasattr(self, '_loading_popup'):
+                self._loading_popup = ProcessingDialog(self, "⏳ 데이터를 처리 중입니다...\n잠시만 기다려주세요.")
+            self._loading_popup.show()
+            QApplication.processEvents()
         else:
             while QApplication.overrideCursor() is not None:
                 QApplication.restoreOverrideCursor()
-        QApplication.processEvents()
+
+            # [수정] 표가 화면에 완전히 그려질 수 있도록 0.15초(150ms) 후 닫기 예약
+            if hasattr(self, '_loading_popup') and self._loading_popup.isVisible():
+                QTimer.singleShot(150, self._loading_popup.hide)
+
+            QApplication.processEvents()
 
     def on_left_row_clicked(self, row_index: int) -> None:
         if row_index < 0 or row_index >= len(self.hist_rows):
