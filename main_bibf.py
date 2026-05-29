@@ -147,16 +147,21 @@ def main():
     # 1개씩 안전하게 수집
     for i, ex_id in enumerate(exhibitor_ids):
         res = fetch_detail(ex_id)
+
+        progress_percent = ((i + 1) / total_count) * 100
+
         if res:
             all_exhibitor_data.append(res)
-
-        # [수정됨] 매 1건마다 무조건 로그 출력 + ID 포함
-        progress_percent = ((i + 1) / total_count) * 100
-        logging.info(f"⚡ [상세 진행률] {i + 1} / {total_count} 완료 ({progress_percent:.2f}%) - 완료된 ID: {ex_id}")
-        logging.info(f"⚡ [상세 진행률] {i + 1} / {total_count} 완료 ({progress_percent:.2f}%) - 완료된 name: {res['name']}")
+            # 데이터를 성공적으로 가져온 경우
+            logging.info(f"⚡ [상세 진행률] {i + 1} / {total_count} 완료 ({progress_percent:.2f}%) - 완료된 ID: {ex_id}")
+            logging.info(f"⚡ [상세 진행률] {i + 1} / {total_count} 완료 ({progress_percent:.2f}%) - 완료된 name: {res.get('name', '이름 없음')}")
+        else:
+            # 3회 재시도 후 최종 실패하여 res가 None인 경우
+            logging.warning(f"⚠️ [상세 진행률] {i + 1} / {total_count} 실패 ({progress_percent:.2f}%) - 수집 실패 ID: {ex_id}")
 
         # 서버 차단 방지 딜레이
         time.sleep(0.3)
+
 
     logging.info(f"✅ [STEP 2 완료] 총 {len(all_exhibitor_data)}개의 상세 데이터 확보 성공!\n")
 

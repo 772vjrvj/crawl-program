@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
+from src.utils.selenium_utils import SeleniumUtils
 from src.workers.api_base_worker import BaseApiWorker
 
 
@@ -22,6 +23,9 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
 
     def __init__(self) -> None:
         super().__init__()
+
+        self.driver = None
+        self.selenium_driver = None
 
         self.folder_path = None
         self.file_driver: Optional[FileUtils] = None
@@ -53,6 +57,16 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+        self.selenium_driver = SeleniumUtils(
+            headless=False,
+            debug=True,
+            log_func=self.log_signal_func,
+        )
+        self.driver = self.selenium_driver.start_driver(
+            timeout=1200,
+            view_mode="browser",
+            window_size=(1024, 768),
+        )
         self.folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
         self.log_signal.emit(f"[DEBUG] base_dir = {self.get_base_dir()}")
         self.log_signal.emit(f"[DEBUG] out_dir = {self.out_dir}")
@@ -198,40 +212,27 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
     # HTML 가져오기
     # -----------------------------------------------------
     def fetch_product_soup(self, url: str) -> BeautifulSoup:
-        u = urlparse(url)
-        origin = f"{u.scheme}://{u.netloc}"
-        referer = origin + "/"
-        path = u.path + (("?" + u.query) if u.query else "")
+        """
+        아카마이 방화벽(Akamai Bot Manager)을 정공법으로 우회하기 위해
+        기존 requests(api_client) 방식을 폐기하고, init에서 기동되어 상주 중인
+        self.driver(undetected_chromedriver)를 이용하여 최종 렌더링된 HTML을 수집합니다.
+        """
+        # 1. 브라우저가 직접 주소로 이동 (아카마이 암호화 및 핑거프린트 프리패스)
+        self.driver.get(url)
 
-        headers: Dict[str, str] = {
-            "authority": u.netloc,
-            "method": "GET",
-            "path": path,
-            "scheme": u.scheme,
-            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
-            "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-            "cache-control": "max-age=0",
-            "priority": "u=0, i",
-            "sec-ch-ua": '"Google Chrome";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
-            "sec-fetch-dest": "document",
-            "sec-fetch-mode": "navigate",
-            "sec-fetch-site": "same-origin",
-            "sec-fetch-user": "?1",
-            "upgrade-insecure-requests": "1",
-            "user-agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/143.0.0.0 Safari/537.36"
-            ),
-            "host": u.netloc,
-            "origin": origin,
-            "referer": referer,
-        }
+        # 2. SeleniumUtils에 구현된 검증된 메서드로 페이지 및 보안 스크립트 로드 완동 대기
+        self.selenium_driver.wait_ready_state_complete(timeout_sec=7)
 
-        resp = self.api_client.get(url, headers=headers)
-        return BeautifulSoup(resp, "html.parser")
+        # 자바스크립트 변수 및 동적 아카마이 챌린지 응답 처리를 위한 최소한의 인간 행동 모사 마진 대기
+        time.sleep(2)
+
+        # 3. 아카마이를 완벽히 속이고 받아온 최종 렌더링 소스(HTML) 획득
+        html_content = self.driver.page_source
+
+        # 4. 기존 후속 파싱 로직(__NEXT_DATA__ 추출 등)이 100% 동일하게 흘러가도록
+        # 동일한 BeautifulSoup 객체 구조로 반환합니다.
+        return BeautifulSoup(html_content, "html.parser")
+
 
     # -----------------------------------------------------
     # __NEXT_DATA__ 추출
@@ -573,6 +574,14 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                 self.api_client.close()
         except Exception as e:
             self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
+
+        try:
+            if self.selenium_driver:
+                self.selenium_driver.quit()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] selenium_driver.quit 실패: {e}")
+        finally:
+            self.selenium_driver = None
 
         try:
             if self.file_driver:
