@@ -16,6 +16,7 @@ from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
+from src.utils.sqlite_utils import SqliteUtils
 from src.workers.api_base_worker import BaseApiWorker
 
 
@@ -30,13 +31,15 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         self.folder_path = None
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
+        self.sqlite_driver: Optional[SqliteUtils] = None
         self.api_client: Optional[APIClient] = None
 
         self.url_list: List[str] = []
         self.running: bool = True
 
-        self.company_name: str = "lululemon_option"
-        self.site_name: str = "lululemon_option"
+        self.company_name: str = "lululemon"
+        self.site_name: str = "lululemon"
+        self.worker_name: str = "lululemon"
 
         self.total_cnt: int = 0
         self.current_cnt: int = 0
@@ -44,33 +47,62 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
 
         self.api_client = APIClient(use_cache=False)
 
+        # 엑셀 파일 저장 시 출력될 표준 한글 헤더 목록 (DB 전용인 상품명, URL은 엑셀 헤더에서 제외)
         self.columns: List[str] = ["컬러", "사이즈", "옵션가", "재고수량", "관리코드", "사용여부"]
 
-        self.out_dir: str = "output_lululemon"
+        self.out_dir: str = "output"
+
+        # DB 저장용 상태 관리 필드
+        self.hist_id = None
+        self.job_id = None
+        self.hist_status = "RUNNING"
+        self.hist_error_message = None
+
+        # [수정] DDL 매칭 테이블명을 LULULEMON으로 완벽히 변경
+        self.detail_table_name: str = "LULULEMON"
+        self.detail_success_count: int = 0
+        self.detail_fail_count: int = 0
+
+        # 데이터베이스 매핑을 위한 컬럼 명세 정의 (총 8개 컬럼)
+        self.db_columns: List[str] = [
+            "product_name", "color", "size", "option_price",
+            "stock_qty", "manage_code", "use_yn", "item_url"
+        ]
 
         self._size_rank: Dict[str, int] = {}
+        self._cleaned_up: bool = False
 
     # -----------------------------------------------------
     # 초기화
     # -----------------------------------------------------
     def init(self) -> bool:
-        self.excel_driver = ExcelUtils(self.log_signal_func)
-        self.file_driver = FileUtils(self.log_signal_func)
-        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
-        self.selenium_driver = SeleniumUtils(
-            headless=False,
-            debug=True,
-            log_func=self.log_signal_func,
-        )
-        self.driver = self.selenium_driver.start_driver(
-            timeout=1200,
-            view_mode="browser",
-            window_size=(1024, 768),
-        )
-        self.folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
-        self.log_signal.emit(f"[DEBUG] base_dir = {self.get_base_dir()}")
-        self.log_signal.emit(f"[DEBUG] out_dir = {self.out_dir}")
-        return True
+        try:
+            self.excel_driver = ExcelUtils(self.log_signal_func)
+            self.file_driver = FileUtils(self.log_signal_func)
+            self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+            self.selenium_driver = SeleniumUtils(
+                headless=False,
+                debug=True,
+                log_func=self.log_signal_func,
+            )
+            # 아카마이 우회에 성공했던 PC 브라우저 모드
+            self.driver = self.selenium_driver.start_driver(
+                timeout=1200,
+                view_mode="browser",
+                window_size=(1024, 768),
+            )
+            self.folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
+            self.log_signal.emit(f"[DEBUG] base_dir = {self.get_base_dir()}")
+            self.log_signal.emit(f"[DEBUG] out_dir = {self.out_dir}")
+
+            # SQLite 데이터베이스 세팅 및 히스토리 시작점 등록
+            if not self.db_set():
+                return False
+
+            return True
+        except Exception as e:
+            self.log_signal_func(f"❌ init 실패: {e}")
+            return False
 
     # -----------------------------------------------------
     # 메인
@@ -93,10 +125,19 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             self.log_signal.emit(f"[INFO] URL 갯수: {self.total_cnt}")
 
             self.call_product_list()
+
+            # 실행 중 상태 에러가 없었다면 최종 상태 업데이트 처리 준비
+            if self.hist_status == "RUNNING":
+                if self.running:
+                    self.finish_job("SUCCESS")
+                else:
+                    self.finish_job("STOP", "사용자 중단")
+
             return True
 
         except Exception as e:
             self.log_signal_func(f"❌ 전체 실행 중 예외 발생: {e}")
+            self.finish_job("FAIL", str(e))
             return False
 
     # -----------------------------------------------------
@@ -125,9 +166,33 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                 time.sleep(random.uniform(1, 2))
                 continue
 
+            # ---------------------------------------------------------
+            # 1. 즉시 SQLite 데이터베이스 실시간 저장 (전체 8개 데이터)
+            # ---------------------------------------------------------
+            for opt_item in options:
+                if not self.running:
+                    break
+
+                # DB 저장을 위해 상품명과 원본 URL 데이터를 딕셔너리에 추가 병합
+                db_row_data = {
+                    "product_name": h1_product_name,
+                    "color": opt_item.get("컬러", ""),
+                    "size": opt_item.get("사이즈", ""),
+                    "option_price": opt_item.get("옵션가", 0),
+                    "stock_qty": opt_item.get("재고수량", 0),
+                    "manage_code": opt_item.get("관리코드", ""),
+                    "use_yn": opt_item.get("사용여부", "Y"),
+                    "item_url": url
+                }
+                self.insert_detail_row(db_row_data)
+
+            # ---------------------------------------------------------
+            # 2. 엑셀 파일 저장 생성 영역 (상품명, URL이 제외된 순수 6개 컬럼 데이터)
+            # ---------------------------------------------------------
             filename = f"{self.safe_filename(h1_product_name)}_{self.now_stamp()}.xlsx"
 
             try:
+                # self.columns 규격(["컬러", "사이즈", "옵션가", "재고수량", "관리코드", "사용여부"])에 맞춰 엑셀 저장 실행
                 saved_path = self.excel_driver.save_obj_list_to_excel(
                     filename=filename,
                     obj_list=options,
@@ -138,15 +203,15 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                 )
 
                 if saved_path and os.path.exists(saved_path):
-                    self.log_signal.emit(f"({num}/{self.total_cnt}) 저장완료: {saved_path}")
+                    self.log_signal.emit(f"({num}/{self.total_cnt}) 엑셀 저장완료: {saved_path}")
                 else:
                     self.log_signal.emit(f"[저장실패] 파일이 생성되지 않음: {saved_path}")
 
             except Exception as e:
-                self.log_signal.emit(f"[저장실패]  {e}")
+                self.log_signal.emit(f"[저장실패] {e}")
 
             self.update_progress()
-            time.sleep(random.uniform(2, 4))
+            time.sleep(random.uniform(4.0, 7.0))  # 패턴 감지 우회를 위한 안전 딜레이 마진
 
     def update_progress(self) -> None:
         pro_value = (self.current_cnt / self.total_cnt) * 1000000 if self.total_cnt else 1000000
@@ -171,8 +236,6 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             if not variants:
                 self.log_signal.emit(f"[SKIP] variants 없음: {url}")
                 return [], "product"
-
-            # product_name = self.extract_product_name(variants, next_data)
 
             rows = []
             for v in variants:
@@ -209,30 +272,14 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             return [], "product"
 
     # -----------------------------------------------------
-    # HTML 가져오기
+    # HTML 가져오기 (아카마이 우회 로직)
     # -----------------------------------------------------
     def fetch_product_soup(self, url: str) -> BeautifulSoup:
-        """
-        아카마이 방화벽(Akamai Bot Manager)을 정공법으로 우회하기 위해
-        기존 requests(api_client) 방식을 폐기하고, init에서 기동되어 상주 중인
-        self.driver(undetected_chromedriver)를 이용하여 최종 렌더링된 HTML을 수집합니다.
-        """
-        # 1. 브라우저가 직접 주소로 이동 (아카마이 암호화 및 핑거프린트 프리패스)
         self.driver.get(url)
-
-        # 2. SeleniumUtils에 구현된 검증된 메서드로 페이지 및 보안 스크립트 로드 완동 대기
         self.selenium_driver.wait_ready_state_complete(timeout_sec=7)
-
-        # 자바스크립트 변수 및 동적 아카마이 챌린지 응답 처리를 위한 최소한의 인간 행동 모사 마진 대기
         time.sleep(2)
-
-        # 3. 아카마이를 완벽히 속이고 받아온 최종 렌더링 소스(HTML) 획득
         html_content = self.driver.page_source
-
-        # 4. 기존 후속 파싱 로직(__NEXT_DATA__ 추출 등)이 100% 동일하게 흘러가도록
-        # 동일한 BeautifulSoup 객체 구조로 반환합니다.
         return BeautifulSoup(html_content, "html.parser")
-
 
     # -----------------------------------------------------
     # __NEXT_DATA__ 추출
@@ -253,16 +300,14 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             return {}
 
     # -----------------------------------------------------
-    # __NEXT_DATA__ 에서 allSize 순서 추출 ['0', '2', '4', '6', '8', '10', '12', '14', '16', '18', '20']
+    # __NEXT_DATA__ 에서 allSize 순서 추출
     # -----------------------------------------------------
     def extract_all_size_order_from_next_data(self, next_data: Dict[str, Any]) -> List[str]:
         result: List[str] = []
 
         for candidate in self.find_all_values_by_key(next_data, "allSize"):
             for item in candidate:
-                size_text = str(
-                    item.get("size") or ""
-                ).strip()
+                size_text = str(item.get("size") or "").strip()
                 if size_text and size_text not in result:
                     result.append(size_text)
 
@@ -318,26 +363,6 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                     return obj.get("hasVariant") or []
 
         return []
-
-    # -----------------------------------------------------
-    # 상품명 추출
-    # -----------------------------------------------------
-    def extract_product_name(self, variants: List[Dict[str, Any]], next_data: Dict[str, Any]) -> str:
-        for nm in self.find_all_values_by_key(next_data, "name"):
-            text = str(nm).strip()
-            if len(text) >= 3:
-                return self.clean_product_name(text)
-
-        for v in variants:
-            nm = str(v.get("name", "")).strip()
-            if nm:
-                return self.clean_product_name(nm)
-
-        return "product"
-
-    def clean_product_name(self, name: str) -> str:
-        parts = [p.strip() for p in name.split(" - ") if p.strip()]
-        return parts[0] if parts else (name.strip() or "product")
 
     # -----------------------------------------------------
     # variant 정규화
@@ -400,7 +425,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         }
 
     # -----------------------------------------------------
-    # 최소가
+    # 최소가 및 계산 모듈
     # -----------------------------------------------------
     def find_min_price(self, rows: List[Dict[str, Any]]) -> Optional[Decimal]:
         prices = [self.to_decimal(r.get("price")) for r in rows]
@@ -416,15 +441,12 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         except Exception:
             return None
 
-    # -----------------------------------------------------
-    # 재고 판별
-    # -----------------------------------------------------
     def is_in_stock(self, availability: Any) -> bool:
         text = str(availability or "").strip().lower()
         return "instock" in text or text in {"available", "in_stock", "in stock", "available_now"}
 
     # -----------------------------------------------------
-    # rows 정렬
+    # 정렬 및 랭크 처리
     # -----------------------------------------------------
     def sort_rows_by_color_and_size(self, rows: List[Dict[str, Any]]) -> None:
         for r in rows:
@@ -448,7 +470,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             int(row.get("_size_order", 9999)),
             str(row.get("_sort_size_text", "")),
         )
-    # {'0': 0, '10': 5, '12': 6, '14': 7, '16': 8, '18': 9, '2': 1, '20': 10, '4': 2, '6': 3, '8': 4} 순서 매김
+
     def build_size_rank(self, size_order: List[str]) -> Dict[str, int]:
         rank: Dict[str, int] = {}
         for idx, s in enumerate(size_order):
@@ -461,18 +483,8 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         s = str(size or "").strip().upper()
 
         base_rank = {
-            "XXXS": 1,
-            "XXS": 2,
-            "XS": 3,
-            "S": 4,
-            "M": 5,
-            "L": 6,
-            "XL": 7,
-            "XXL": 8,
-            "1X": 9,
-            "2X": 10,
-            "3X": 11,
-            "4X": 12,
+            "XXXS": 1, "XXS": 2, "XS": 3, "S": 4, "M": 5,
+            "L": 6, "XL": 7, "XXL": 8, "1X": 9, "2X": 10, "3X": 11, "4X": 12,
         }
 
         if s in base_rank:
@@ -488,9 +500,6 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
 
         return 9999
 
-    # -----------------------------------------------------
-    # 이름에서 color/size 추출
-    # -----------------------------------------------------
     def parse_color_size_from_name(self, name: str) -> Tuple[str, str]:
         parts = [p.strip() for p in name.split(" - ") if p.strip()]
         if len(parts) >= 3:
@@ -499,9 +508,6 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             return "", parts[-1]
         return "", ""
 
-    # -----------------------------------------------------
-    # 컬러명 25자 제한 축약
-    # -----------------------------------------------------
     def shorten_color(self, color: str) -> str:
         color = color.strip()
         if len(color) <= 25:
@@ -514,30 +520,18 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         short_name = parts[0] + " " + "".join(p[0].upper() for p in parts[1:] if p)
         return short_name[:25]
 
-    # -----------------------------------------------------
-    # 파일명 안전 처리
-    # -----------------------------------------------------
     def safe_filename(self, name: str) -> str:
         name = re.sub(r'[\\/:*?"<>|]', "_", name.strip())
         return (name or "product")[:80]
 
-    # -----------------------------------------------------
-    # yyyyMMdd_HHmmss
-    # -----------------------------------------------------
     def now_stamp(self) -> str:
         return time.strftime("%Y%m%d_%H%M%S")
 
-    # -----------------------------------------------------
-    # 경로 기준
-    # -----------------------------------------------------
     def get_base_dir(self) -> str:
         if getattr(sys, "frozen", False):
             return os.path.dirname(sys.executable)
         return os.getcwd()
 
-    # -----------------------------------------------------
-    # 공용 유틸
-    # -----------------------------------------------------
     def pick_first_text(self, *values: Any) -> str:
         for value in values:
             text = str(value or "").strip()
@@ -567,8 +561,132 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         walk(data)
         return found
 
+    # =========================================================
+    # SQLite DB 관리 공용 모듈 파트
+    # =========================================================
+    def db_set(self) -> bool:
+        self.sqlite_driver = SqliteUtils(self.log_signal_func)
+        db_path = self.get_runtime_db_path()
 
+        if not self.sqlite_driver.connect(db_path):
+            self.log_signal_func("❌ [DB] 연결 실패")
+            return False
+
+        schema_files = [
+            os.path.join("resources", "customers", "common", "db", "schema_hist.sql"),
+            os.path.join("resources", "customers", self.worker_name, "db", "schema_detail.sql"),
+        ]
+
+        if not self.sqlite_driver.execute_script_files(schema_files):
+            self.log_signal_func("❌ [DB] 스키마 초기화 실패")
+            return False
+
+        if not self.insert_hist_start():
+            return False
+
+        return True
+
+    def insert_hist_start(self) -> bool:
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.job_id = time.strftime("%Y%m%d%H%M%S")
+
+        query = """
+                INSERT INTO worker_job_hist (
+                    job_id, table_name, site_name, worker_name, user_id,
+                    start_at, status, total_count, success_count, fail_count,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
+        params = (
+            self.job_id, self.detail_table_name, self.site_name, self.worker_name,
+            getattr(self.user, "user_id", None) if self.user else None,
+            now, "RUNNING", 0, 0, 0, now, now,
+        )
+
+        if not self.sqlite_driver.execute(query, params):
+            return False
+
+        row = self.sqlite_driver.fetchone("SELECT last_insert_rowid() AS hist_id")
+        self.hist_id = row["hist_id"] if row else None
+        return True
+
+    def finish_job(self, status: str, error_message: Optional[str] = None) -> None:
+        self.hist_status = status
+        self.hist_error_message = error_message
+
+    def update_hist_end(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
+        sqlite_driver = sqlite_driver or self.sqlite_driver
+        if not sqlite_driver or not self.hist_id:
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        query = """
+                UPDATE worker_job_hist
+                SET end_at = ?, status = ?, total_count = ?, success_count = ?, fail_count = ?,
+                    error_message = ?, updated_at = ?
+                WHERE hist_id = ?
+                """
+        params = (
+            now, self.hist_status, self.detail_success_count + self.detail_fail_count,
+            self.detail_success_count, self.detail_fail_count, self.hist_error_message, now, self.hist_id,
+        )
+        return sqlite_driver.execute(query, params)
+
+    def insert_detail_row(self, rs: Dict[str, Any]) -> bool:
+        if not self.sqlite_driver or not self.db_columns:
+            self.detail_fail_count += 1
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        base_columns = ["hist_id", "site_name", "worker_name", "table_name", "job_id", "user_id", "row_status"]
+        all_columns = base_columns + self.db_columns + ["created_at", "updated_at"]
+        placeholders = ", ".join(["?"] * len(all_columns))
+        column_text = ",\n                    ".join(all_columns)
+
+        query = f"INSERT INTO {self.detail_table_name} ({column_text}) VALUES ({placeholders})"
+        params = (
+            self.hist_id, self.site_name, self.worker_name, self.detail_table_name, self.job_id,
+            getattr(self.user, "user_id", None) if self.user else None, "SUCCESS",
+            *[rs.get(col, "") for col in self.db_columns], now, now,
+        )
+
+        ok = self.sqlite_driver.execute(query, params)
+        if ok:
+            self.detail_success_count += 1
+        else:
+            self.detail_fail_count += 1
+        return ok
+
+    def finalize_db_and_excel(self) -> None:
+        temp_sqlite_driver = None
+        try:
+            temp_sqlite_driver = SqliteUtils(self.log_signal_func)
+            if temp_sqlite_driver.connect(self.get_runtime_db_path()):
+                self.update_hist_end(temp_sqlite_driver)
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] finalize_db_and_excel 실패: {e}")
+        finally:
+            if temp_sqlite_driver:
+                temp_sqlite_driver.close()
+
+    # =========================================================
+    # 종료 / 자원 해제 정리
+    # =========================================================
     def cleanup(self) -> None:
+        if self._cleaned_up:
+            return
+
+        try:
+            if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
+                self.sqlite_driver.close()
+        except:
+            pass
+        finally:
+            self.sqlite_driver = None
+
+        self.finalize_db_and_excel()
+
         try:
             if self.api_client:
                 self.api_client.close()
@@ -595,19 +713,19 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
         except Exception as e:
             self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
 
+        self.file_driver, self.excel_driver, self.api_client = None, None, None
+        self._cleaned_up = True
 
-    # -----------------------------------------------------
-    # 종료
-    # -----------------------------------------------------
+    def stop(self) -> None:
+        self.log_signal_func("✅ stop 시작")
+        self.running = False
+        if self.hist_status == "RUNNING":
+            self.finish_job("STOP", "사용자 중단")
+        self.cleanup()
+        self.log_signal_func("✅ stop 완료")
+
     def destroy(self) -> None:
         self.progress_signal.emit(self.before_pro_value, 1000000)
         self.log_signal_func("✅ destroy")
         time.sleep(2.5)
         self.progress_end_signal.emit()
-
-
-    def stop(self) -> None:
-        self.log_signal_func("✅ stop 시작")
-        self.running = False
-        self.cleanup()
-        self.log_signal_func("✅ stop 완료")
