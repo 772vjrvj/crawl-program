@@ -3,6 +3,7 @@ import pandas as pd
 import time
 import re
 import logging
+import urllib3 # 추가
 
 # 터미널에 시간과 함께 상세 로그를 찍기 위한 설정
 logging.basicConfig(
@@ -14,6 +15,8 @@ logging.basicConfig(
 # 엑셀/CSV 오류를 일으키는 불법 제어 문자 패턴 (제거용)
 ILLEGAL_CHARACTERS_RE = re.compile(r'[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f-\x9f]')
 
+
+
 def clean_text(val):
     if isinstance(val, str):
         return ILLEGAL_CHARACTERS_RE.sub('', val)
@@ -23,18 +26,22 @@ def clean_text(val):
 headers = {
     "accept": "application/json, text/plain, */*",
     "accept-encoding": "gzip, deflate, br, zstd",
-    "accept-language": "ko-KR,ko;q=0.9",
+    "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7", # 언어 우선순위에 영어 추가
     "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
+    "i18n": "en",           # 🌟 핵심: 영문 데이터를 요청하는 파라미터
+    "platform": "pc",       # 추가된 파라미터
+    "version": "100001",    # 추가된 파라미터
+    "deviceid": "",         # 빈 값
     "origin": "https://www.bibf.net",
     "referer": "https://www.bibf.net/",
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
 }
 
 cookies = {
-    "Hm_lpvt_e23d4ac494167c713a7147f5af01d850": "1779964666",
-    "Hm_lvt_e23d4ac494167c713a7147f5af01d850": "1779963907",
-    "HMACCOUNT": "E38541DC594A52D1",
-    "JSESSIONID": "5FFD69032B4F977293BE6711AAB9247A" # 반드시 최신 쿠키로 갱신하세요!
+    "Hm_lpvt_e23d4ac494167c713a7147f5af01d850": "1780072633",
+    "Hm_lvt_e23d4ac494167c713a7147f5af01d850": "1780072614",
+    "HMACCOUNT": "AFAABF5A09DA14AC",
+    "HMACCOUNT_BFESS": "AFAABF5A09DA14AC" # 반드시 최신 쿠키로 갱신하세요!
 }
 
 info_url = "https://wapi.bibf.net/api/v1/exhibitor/info"
@@ -46,7 +53,7 @@ def fetch_detail(ex_id):
 
     for attempt in range(max_retries):
         try:
-            response = requests.get(info_url, params=params, headers=headers, cookies=cookies, timeout=10)
+            response = requests.get(info_url, params=params, headers=headers, cookies=cookies, timeout=10, verify=False)
 
             if response.status_code == 200:
                 info_data = response.json()
@@ -103,7 +110,7 @@ def main():
         payload = {"pageNo": page_no, "pageSize": page_size, "filterRegion": "", "filterParentExhibitor": ""}
         try:
             logging.info(f"-> {page_no} 페이지 요청 중...")
-            response = requests.post(f"{search_url}?_t={time.time()}", data=payload, headers=headers, cookies=cookies, timeout=10)
+            response = requests.post(f"{search_url}?_t={time.time()}", data=payload, headers=headers, cookies=cookies, timeout=10, verify=False)
 
             if response.status_code != 200:
                 logging.warning(f"서버 응답 오류 (Status Code: {response.status_code}). 반복을 종료합니다.")

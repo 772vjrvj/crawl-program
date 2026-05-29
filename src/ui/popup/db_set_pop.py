@@ -1457,12 +1457,12 @@ class DbSetPop(QDialog):
             search_where, search_params = self._build_detail_search_where()
             cur = conn.execute(
                 f"""
-                    SELECT rowid AS __rowid__, *
-                    FROM {self.db_name}
-                    WHERE job_id = ?
-                    {search_where}
-                    ORDER BY rowid DESC
-                    """,
+                        SELECT rowid AS __rowid__, *
+                        FROM {self.db_name}
+                        WHERE job_id = ?
+                        {search_where}
+                        ORDER BY rowid DESC
+                        """,
                 [self.current_job_id, *search_params],
             )
             rows = [dict(row) for row in cur.fetchall()]
@@ -1486,13 +1486,15 @@ class DbSetPop(QDialog):
                     if isinstance(val, (int, float)):
                         return (2, val)
                     if isinstance(val, str):
+                        # 가격 포맷("99,000원") 등을 숫자로 변환하기 위해 방해되는 문자 제거
+                        clean_val = val.replace(',', '').replace('원', '').strip()
                         try:
                             # 문자열이지만 숫자로 변환 가능하면 숫자로 취급하여 정렬
-                            if '.' in val:
-                                return (2, float(val))
-                            return (2, int(val))
+                            if '.' in clean_val:
+                                return (2, float(clean_val))
+                            return (2, int(clean_val))
                         except ValueError:
-                            pass
+                            pass # 숫자 변환에 실패하면 원래대로 문자열 정렬 수행
 
                     return (1, str(val))
 

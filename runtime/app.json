@@ -5,7 +5,7 @@
   "server_name": "CrawlProgram",
   "allow_multi_instance": true,
   "instance_key": "my_pyside_app",
-  "site_list_use": ["LULULEMON"],
+  "site_list_use": ["BAROTEM"],
   "site_list": [
     {
       "key": "NAVER_BAND_MEMBER",
@@ -90,6 +90,10 @@
     {
       "key": "IDFARM",
       "config_path": "customers/idfarm/config.json"
+    },
+    {
+      "key": "BAROTEM",
+      "config_path": "customers/barotem/config.json"
     }
   ]
 }

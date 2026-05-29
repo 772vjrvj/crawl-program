@@ -1,12 +1,12 @@
 {
-  "label": "아이디팜",
-  "key": "IDFARM",
-  "db_name": "IDFARM",
+  "label": "바로템",
+  "key": "BAROTEM",
+  "db_name": "BAROTEM",
   "db_common_name": "WORKER_JOB_HIST",
   "color": "#ccc",
   "enabled": true,
   "popup": false,
-  "worker_class": "src.workers.main.api_idfarm_set_worker:ApiIdfarmSetWorker",
+  "worker_class": "src.workers.main.api_barotem_set_worker:ApiBarotemSetWorker",
   "setting": [
     {
       "name": "저장 폴더",
@@ -25,21 +25,21 @@
       "type": "check"
     },
     {
-      "name": "키워드(제목+내용)",
+      "name": "물품 검색",
       "code": "keyword",
-      "value": "팝니다",
+      "value": 1,
       "type": "input"
     },
     {
       "name": "가격(만원) 시작",
       "code": "min",
-      "value": 100,
+      "value": 1,
       "type": "input"
     },
     {
       "name": "가격(만원) 종료",
       "code": "max",
-      "value": 1000,
+      "value": 111,
       "type": "input"
     }
   ],
@@ -47,83 +47,90 @@
     {
       "row_type": "section",
       "id": "accountType",
-      "title": "계정 종류",
+      "title": "계정종류",
       "col_per_row": 5
     },
     {
       "row_type": "item",
       "parent_id": "accountType",
-      "code": "게임사",
+      "code": "15961",
       "value": "게임사",
       "checked": true
     },
     {
       "row_type": "item",
       "parent_id": "accountType",
-      "code": "구글",
+      "code": "15962",
       "value": "구글",
       "checked": true
     },
     {
       "row_type": "item",
       "parent_id": "accountType",
-      "code": "페이스북",
+      "code": "15963",
       "value": "페이스북",
       "checked": true
     },
     {
       "row_type": "item",
       "parent_id": "accountType",
-      "code": "전화번호",
-      "value": "전화번호",
-      "checked": true
-    },
-    {
-      "row_type": "item",
-      "parent_id": "accountType",
-      "code": "카카오",
-      "value": "카카오",
-      "checked": true
-    },
-    {
-      "row_type": "item",
-      "parent_id": "accountType",
-      "code": "네이버",
+      "code": "15965",
       "value": "네이버",
       "checked": true
     },
     {
       "row_type": "item",
       "parent_id": "accountType",
-      "code": "기타",
+      "code": "15966",
+      "value": "카카오",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "accountType",
+      "code": "15967",
+      "value": "게스트",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "accountType",
+      "code": "15968",
+      "value": "전화번호",
+      "checked": true
+    },
+    {
+      "row_type": "item",
+      "parent_id": "accountType",
+      "code": "15964",
       "value": "기타",
       "checked": true
     },
     {
       "row_type": "section",
       "id": "purchasePath",
-      "title": "구매 경로",
+      "title": "구매경로",
       "col_per_row": 5
     },
     {
       "row_type": "item",
       "parent_id": "purchasePath",
-      "code": "본인(1대)",
+      "code": "35781",
       "value": "본인(1대)",
       "checked": true
     },
     {
       "row_type": "item",
       "parent_id": "purchasePath",
-      "code": "그외",
-      "value": "그외",
+      "code": "35782",
+      "value": "바로템 구매",
       "checked": true
     },
     {
       "row_type": "item",
       "parent_id": "purchasePath",
-      "code": "아이디팜 구매",
-      "value": "아이디팜 구매",
+      "code": "35783",
+      "value": "그외",
       "checked": true
     }
   ],
