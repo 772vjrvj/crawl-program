@@ -3599,7 +3599,7 @@ class ApiBarotemSetWorker(BaseApiWorker):
                 pro_value = int((self.current_cnt / self.total_cnt) * 1000000) if self.total_cnt > 0 else 0
                 self.progress_signal.emit(self.before_pro_value, pro_value)
                 self.before_pro_value = pro_value
-                time.sleep(random.uniform(0.3, 0.8))
+                time.sleep(1)
 
             if self.hist_status == "RUNNING":
                 if self.running:

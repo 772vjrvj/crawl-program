@@ -29,3 +29,8 @@ pyinstaller .\main.py `
 --exclude-module Tcl `
 --exclude-module tcl `
 --add-data ".\resources\icons\crawling.ico;resources\icons"
+
+
+
+--add-data ".\resources\customers\idfarm\db\schema_detail.sql;resources\customers\idfarm\db" `
+--hidden-import "src.workers.main.api_idfarm_set_worker" `

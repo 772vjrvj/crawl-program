@@ -1,5 +1,12 @@
-■ 2026-03-12
+■ 2026-05-30
+사이트 보안 강화
 
+
+
+
+
+
+■ 2026-03-12
 저장 파일이 이름이 이상함
 실제 상품명으로 저장되도록 수정함 h1 태그 사용
 
@@ -10,12 +17,7 @@
 
 
 
-
-
-
-
 ■ 2026-01-08
-
 날짜 : 2026-01-08  
 고객 : K6507677452
 거래금액 : 0
@@ -73,3 +75,26 @@ pyinstaller .\main.py `
 --exclude-module tk `
 --exclude-module Tcl `
 --exclude-module tcl
+
+
+pyinstaller .\main.py `
+--noconfirm `
+--clean `
+--console `
+--windowed `
+--name "LULULEMON" `
+--icon ".\resources\icons\crawling.ico" `
+--version-file ".\docs\customers\lululemon\version_info.txt" `
+--distpath ".\dist" `
+--workpath ".\build" `
+--hidden-import "src.workers.main.api_lululemon_set_worker" `
+--hidden-import "pandas" `
+--hidden-import "openpyxl" `
+--exclude-module tkinter `
+--exclude-module _tkinter `
+--add-data ".\resources\customers\common\db\schema_hist.sql;resources\customers\common\db" `
+--add-data ".\resources\customers\lululemon\db\schema_detail.sql;resources\customers\lululemon\db" `
+--exclude-module tk `
+--exclude-module Tcl `
+--exclude-module tcl `
+--add-data ".\resources\icons\crawling.ico;resources\icons"
