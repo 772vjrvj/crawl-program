@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
+from src.utils.selenium_utils import SeleniumUtils
 from src.utils.sqlite_utils import SqliteUtils
 from src.workers.api_base_worker import BaseApiWorker
 
@@ -24,6 +25,8 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
+        self.driver = None
+        self.selenium_driver = None
 
         self.folder_path = None
         self.file_driver: Optional[FileUtils] = None
@@ -76,6 +79,16 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             self.excel_driver = ExcelUtils(self.log_signal_func)
             self.file_driver = FileUtils(self.log_signal_func)
             self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+            self.selenium_driver = SeleniumUtils(
+                headless=False,
+                debug=True,
+                log_func=self.log_signal_func,
+            )
+            self.driver = self.selenium_driver.start_driver(
+                timeout=1200,
+                view_mode="browser",
+                window_size=(1024, 768),
+            )
             self.folder_path: str = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
             self.log_signal.emit(f"[DEBUG] base_dir = {self.get_base_dir()}")
             self.log_signal.emit(f"[DEBUG] out_dir = {self.out_dir}")
@@ -275,20 +288,11 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
     # HTML 가져오기 (아카마이 우회 로직)
     # -----------------------------------------------------
     def fetch_product_soup(self, url: str) -> BeautifulSoup:
-        # http://172.30.1.70:5000/api/crawl
-        # http://220.94.196.1:5000/api/crawl
-
-        headers = {
-            "Content-Type": "application/json",
-            "X-API-KEY": "my-secret-key-1234"
-        }
-        payload = {
-            "url": url
-        }
-
-        data = self.api_client.post(url='http://172.30.1.70:5000/api/crawl', headers=headers, json=payload)
-
-        return BeautifulSoup(data['soup'], "html.parser")
+        self.driver.get(url)
+        self.selenium_driver.wait_ready_state_complete(timeout_sec=7)
+        time.sleep(2)
+        html_content = self.driver.page_source
+        return BeautifulSoup(html_content, "html.parser")
 
     # -----------------------------------------------------
     # __NEXT_DATA__ 추출
@@ -701,6 +705,14 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
                 self.api_client.close()
         except Exception as e:
             self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
+
+        try:
+            if self.selenium_driver:
+                self.selenium_driver.quit()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] selenium_driver.quit 실패: {e}")
+        finally:
+            self.selenium_driver = None
 
         try:
             if self.file_driver:
