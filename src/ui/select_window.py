@@ -280,6 +280,8 @@ class SelectWindow(QWidget):
             path_type = str(item.get("path_type", "") or "").strip().lower()
 
             if code == "folder_path" and path_type == "main":
-                item["value"] = main_start_dir
+                current_value = str(item.get("value", "") or "").strip()
+                if not current_value:
+                    item["value"] = main_start_dir
 
         return copied

@@ -11,7 +11,7 @@
     {
       "name": "저장 폴더",
       "code": "folder_path",
-      "value": "E:\\git\\crawl-program",
+      "value": "C:/Users/772vj/Desktop",
       "type": "folder",
       "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
       "button_text": "폴더 선택",
@@ -27,7 +27,7 @@
     {
       "name": "물품 검색",
       "code": "keyword",
-      "value": 1,
+      "value": "",
       "type": "input"
     },
     {
@@ -39,7 +39,7 @@
     {
       "name": "가격(만원) 종료",
       "code": "max",
-      "value": 111,
+      "value": 10,
       "type": "input"
     }
   ],

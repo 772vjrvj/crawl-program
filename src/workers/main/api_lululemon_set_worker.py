@@ -276,7 +276,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
     # -----------------------------------------------------
     def fetch_product_soup(self, url: str) -> BeautifulSoup:
         # http://172.30.1.70:5000/api/crawl
-        # http://220.94.196.1:5000/api/crawl
+        # http://220.94.196.191:5000/api/crawl
 
         headers = {
             "Content-Type": "application/json",
@@ -286,7 +286,7 @@ class ApiLululemonSetLoadWorker(BaseApiWorker):
             "url": url
         }
 
-        data = self.api_client.post(url='http://172.30.1.70:5000/api/crawl', headers=headers, json=payload)
+        data = self.api_client.post(url='http://220.94.196.191:5000/api/crawl', headers=headers, json=payload)
 
         return BeautifulSoup(data['soup'], "html.parser")
 

@@ -197,7 +197,7 @@ class ParamSetPop(QDialog):
             }
         """
 
-    # === 신규 === 현재 site의 config_old.json 경로 해석
+    # 현재 site의 config_old.json 경로 해석
     def _resolve_site_config_path(self) -> Optional[str]:
         try:
             state = GlobalState()
@@ -254,7 +254,7 @@ class ParamSetPop(QDialog):
             self._emit_log(f"[설정저장] config 경로 해석 중 오류: {str(e)}")
             return None
 
-    # === 신규 === runtime config.json의 setting.value 동기화
+    # runtime config.json의 setting.value 동기화
     def _save_setting_to_runtime_config(self, setting: List[_SettingItem]) -> None:
         try:
             config_path = self._resolve_site_config_path()

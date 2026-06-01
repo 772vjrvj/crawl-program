@@ -12,6 +12,9 @@ ID : K685632817
   목록 → 상세 진입 → 상세 수집 → 다음 페이지 이며,
   30개씩 112페이지(약 3,360개 업체) 가 필요한 상황입니다!
 
+아이디 :daniel.park@koreabridging
+PW: vBg9oCF4
+
 
 업체명
 Type of Business：

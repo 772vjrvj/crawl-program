@@ -3342,6 +3342,12 @@ class ApiBarotemSetWorker(BaseApiWorker):
                 "name": "그외 게임"
             }
         ]
+        # self.game_list: List[dict] = [
+        #     {
+        #         "idx": "3084",
+        #         "name": "피파온라인4(FC온라인)"
+        #     }
+        # ]
 
     def init(self) -> bool:
         try:
