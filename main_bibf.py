@@ -27,22 +27,31 @@ headers = {
     "accept": "application/json, text/plain, */*",
     "accept-encoding": "gzip, deflate, br, zstd",
     "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+    "cache-control": "no-cache",
     "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
-    "i18n": "en",
-    "platform": "pc",
-    "version": "100001",
     "deviceid": "",
+    "i18n": "en",
     "origin": "https://www.bibf.net",
+    "platform": "pc",
+    "pragma": "no-cache",
     "referer": "https://www.bibf.net/",
+    "sec-ch-ua": '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"Windows"',
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-site",
+    "token": "6a1d54b9f64a843e716258ea", # 🚨 필수: 요청 권한 토큰 (만료 시 갱신 필요)
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+    "version": "100001",
 }
 
 # 🚨 [주의] 잦은 재시작 시 쿠키가 만료될 수 있으니 주기적으로 확인하세요.
 cookies = {
-    "Hm_lpvt_e23d4ac494167c713a7147f5af01d850": "1780072633",
-    "Hm_lvt_e23d4ac494167c713a7147f5af01d850": "1780072614",
-    "HMACCOUNT": "AFAABF5A09DA14AC",
-    "HMACCOUNT_BFESS": "AFAABF5A09DA14AC"
+    "Hm_lpvt_e23d4ac494167c713a7147f5af01d850": "1780307149",
+    "Hm_lvt_e23d4ac494167c713a7147f5af01d850": "1780132615,1780298791",
+    "HMACCOUNT": "A7EDB3E51F603BF3",
+    "HMACCOUNT_BFESS": "A7EDB3E51F603BF3"
 }
 
 info_url = "https://wapi.bibf.net/api/v1/exhibitor/info"
@@ -182,7 +191,7 @@ def main():
 
         if res:
             all_exhibitor_data.append(res)
-            logging.info(f"⚡ [진행률] {i + 1}/{total_count} ({progress_percent:.2f}%) - 완료: {res.get('name', '이름 없음')} (ID: {ex_id})")
+            logging.info(f"⚡ [진행률] {i + 1}/{total_count} ({progress_percent:.2f}%) - 완료: {res.get('name', '이름 없음')} (ID: {ex_id}) (NAME: {res.get('name', '이름 없음')}) (EMAIL: {res.get('Email', 'EMAIL 없음')})")
         else:
             logging.warning(f"⚠️ [진행률] {i + 1}/{total_count} ({progress_percent:.2f}%) - 수집 실패 ID: {ex_id}")
 
