@@ -224,3 +224,31 @@ body { background-color: #ffffff; color: #222222; overflow: hidden; }
 }
 .modal-reason-box h4 { margin-bottom: 10px; color: #888; font-size: 1rem; }
 .modal-reason { font-size: 1.3rem; line-height: 1.6; color: #444; background: #fffdf0; padding: 25px; border-radius: 20px; border-left: 6px solid #ffe066; }
+
+#scene-6 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #ffffff;
+}
+
+/* 타이틀 색상 변경 */
+#scene-6 .scene-title {
+    color: #1e293b; /* 어두운 남색 계열 */
+}
+
+/* 화이트 배경 + 하늘색 블러 그림자 */
+#word-cloud-chart {
+    width: 900px;
+    height: 600px;
+    background: #ffffff;
+    border-radius: 40px;
+    /* 중앙에서 퍼지는 하늘색 블러 효과 */
+    box-shadow: 0 0 80px 20px rgba(135, 206, 250, 0.3);
+    border: 1px solid rgba(0, 176, 255, 0.1);
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

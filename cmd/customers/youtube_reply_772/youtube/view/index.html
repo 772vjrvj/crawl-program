@@ -6,6 +6,7 @@
     <title>YouTube Data Storytelling</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
 </head>
 <body>
 <div id="presentation-container">
@@ -77,7 +78,6 @@
             </div>
         </div>
     </section>
-
     <section id="scene-3" class="scene">
         <div id="chart-wrapper" style="display: flex; flex-direction: column; align-items: center;">
             <h1 class="scene-title">📊 감정 분석 비율</h1>
@@ -95,12 +95,14 @@
         <h1 class="scene-title">📊 긍정 댓글 TOP 5</h1>
         <div class="rank-container" id="pos-container"></div>
     </section>
-
     <section id="scene-5" class="scene">
         <h1 class="scene-title">⚠️ 부정 댓글 TOP 5</h1>
         <div class="rank-container" id="neg-container"></div>
     </section>
-
+    <section id="scene-6" class="scene">
+        <h1 class="scene-title">☁️ 주요 키워드 분석</h1>
+        <div id="word-cloud-chart"></div>
+    </section>
     <div id="detail-modal" class="modal">
         <div class="modal-content">
             <h2 id="modal-author">작성자</h2>
