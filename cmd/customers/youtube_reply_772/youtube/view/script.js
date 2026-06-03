@@ -113,6 +113,10 @@ function switchScene(sceneNumber) {
 
             initWordCloud(finalData);
         }
+
+        if (sceneNumber === '7') {
+            initNetworkGraph();
+        }
     }
 }
 
@@ -402,7 +406,7 @@ function addRankCard(type) {
 // 이 아래는 이미 있는 'keydown' 이벤트를 찾아 수정하거나 추가하세요
 document.addEventListener("keydown", (e) => {
     const key = e.key.toLowerCase();
-    if (['1', '2', '3', '4', '5', '6'].includes(key)) switchScene(key);
+    if (['1', '2', '3', '4', '5', '6', '7'].includes(key)) switchScene(key);
     if (key === 'q') crackEgg('cta-q');
     if (key === 'w') crackEgg('cta-w');
     if (key === 'e') crackEgg('cta-e');
@@ -468,4 +472,71 @@ function initWordCloud(data) {
         }]
     };
     myChart.setOption(option);
+}
+
+
+function initNetworkGraph() {
+    const container = document.getElementById("network");
+    // 이미 생성되어 있다면 초기화 방지
+    if (container.innerHTML !== "") return;
+
+    // 제공해주신 vis.js 로직을 그대로 사용
+    const MIN_WEIGHT = 1;
+    const filteredEdges = edgeData.filter(edge => edge.weight >= MIN_WEIGHT);
+    const colors = ["#00E5FF", "#00FFA3", "#FF5EA8", "#FFD54F", "#A970FF", "#FF7043", "#26C6DA", "#42A5F5"];
+
+    const nodeMap = {};
+
+    filteredEdges.forEach(edge => {
+        if(!nodeMap[edge.source_token]) nodeMap[edge.source_token] = { count: 0 };
+        if(!nodeMap[edge.target_token]) nodeMap[edge.target_token] = { count: 0 };
+        nodeMap[edge.source_token].count++;
+        nodeMap[edge.target_token].count++;
+    });
+
+    let id = 1;
+    const nodeIds = {};
+    const nodes = [];
+
+    Object.keys(nodeMap).forEach(word => {
+        nodeIds[word] = id++;
+        nodes.push({
+            id: nodeIds[word],
+            label: word,
+            value: 15 + nodeMap[word].count * 10,
+            shape: "dot",
+            color: { background: colors[Math.floor(Math.random() * colors.length)], border: "#ffffff" },
+            font: { color: "#ffffff", size: 20, face: "Pretendard" }
+        });
+    });
+
+    const edges = filteredEdges.map(edge => ({
+        from: nodeIds[edge.source_token],
+        to: nodeIds[edge.target_token],
+        width: Math.log(edge.weight + 1) * 2,
+        color: {
+            color: colors[Math.floor(Math.random() * colors.length)],
+            opacity: 0.7
+        },
+        smooth: false
+    }));
+
+
+    const data = {
+        nodes: new vis.DataSet(nodes),
+        edges: new vis.DataSet(edges)
+    };
+
+    const options = {
+        physics: {
+            enabled: true,
+            stabilization: false,
+            barnesHut: { gravitationalConstant: -3000, springLength: 180, springConstant: 0.02 }
+        },
+        nodes: { borderWidth: 2, shadow: { enabled: true, size: 20 } },
+        edges: { shadow: { enabled: true, size: 10 } },
+        interaction: { hover: true, zoomView: true, dragView: true }
+    };
+
+    new vis.Network(container, data, options);
 }
