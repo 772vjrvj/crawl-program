@@ -261,8 +261,17 @@ function updateSentimentChart(dataArray) {
     if (!sentimentChart) {
         sentimentChart = echarts.init(document.getElementById('chart'));
     }
-
     var option = {
+        graphic: [{
+            type: 'text',
+            left: 'center', // 가로 중앙
+            top: 'middle',  // 세로 중앙
+            style: {
+                text: `총 ${total}건`, // 표시할 텍스트
+                font: 'bold 30px Pretendard',
+                fill: '#333'
+            }
+        }],
         series: [{
             type: 'pie',
             radius: ['45%', '75%'],
