@@ -15,29 +15,17 @@
 
     <section id="scene-1" class="scene active">
         <div class="video-card">
-            <div class="thumbnail-wrapper">
-                <img id="vid-thumb" src="" alt="유튜브 썸네일">
-            </div>
+            <div class="thumbnail-wrapper"><img id="vid-thumb" src="" alt="유튜브 썸네일"></div>
             <div class="info-wrapper">
                 <h2 id="vid-channel" class="channel-name">채널명</h2>
                 <h1 id="vid-title" class="video-title">영상 제목이 여기에 표시됩니다.</h1>
                 <div class="stats-container">
-                    <div class="stat-box">
-                        <span class="stat-label">조회수</span>
-                        <span class="stat-value" id="vid-views">0</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">좋아요</span>
-                        <span class="stat-value" id="vid-likes">0</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">댓글 수</span>
-                        <span class="stat-value" id="vid-comments">0</span>
-                    </div>
+                    <div class="stat-box"><span class="stat-label">조회수</span><span class="stat-value" id="vid-views">0</span></div>
+                    <div class="stat-box"><span class="stat-label">좋아요</span><span class="stat-value" id="vid-likes">0</span></div>
+                    <div class="stat-box"><span class="stat-label">댓글 수</span><span class="stat-value" id="vid-comments">0</span></div>
                 </div>
             </div>
         </div>
-
         <div class="branding-section">
             <div class="cta-container">
                 <div class="cta-item" id="cta-q"><div class="mystery-egg"><span class="egg-text">?</span></div><div class="revealed-btn"><div class="css-icon-box"><div class="css-heart"></div></div><span class="cta-text">좋아요</span></div></div>
@@ -50,7 +38,19 @@
     </section>
 
     <section id="scene-2" class="scene">
+        <h1 class="scene-title">🔍 분석 프레임워크</h1>
+        <div class="framework-container">
+            <div class="f-step">1. 데이터 수집</div>
+            <div class="f-arrow">→</div>
+            <div class="f-step">2. 감성 분석</div>
+            <div class="f-arrow">→</div>
+            <div class="f-step">3. 키워드 분석</div>
+            <div class="f-arrow">→</div>
+            <div class="f-step">4. 네트워크 분석</div>
+        </div>
+    </section>
 
+    <section id="scene-3" class="scene">
         <div class="crawler-header">
             <div class="crawler-status-text">
                 <span class="status-badge ocean">DEEP SEA MINING</span>
@@ -58,34 +58,21 @@
                 <span class="status-count"><b id="current-count">0</b> / <span id="total-count">4,319</span> ROWS</span>
             </div>
         </div>
-
         <div class="ocean-stage-vertical">
-            <div class="stage-overlay" id="stage-overlay">
-                <button class="start-btn ocean-btn" onclick="triggerCrawling()">데이터 수집 시작</button>
-            </div>
-
-            <div class="simple-clear-popup" id="clear-popup">
-                데이터 수집 완료
-            </div>
-
+            <div class="stage-overlay" id="stage-overlay"><button class="start-btn ocean-btn" onclick="triggerCrawling()">데이터 수집 시작</button></div>
+            <div class="simple-clear-popup" id="clear-popup">데이터 수집 완료</div>
             <div class="water-circle-container">
                 <canvas id="wave-canvas" width="240" height="240"></canvas>
                 <div class="circle-percentage" id="cylinder-percent">0%</div>
             </div>
         </div>
-
-        <div class="wide-log-terminal">
-            <div class="terminal-scroller" id="terminal-log">
-                <div class='log-line sys'>&gt;&gt; SYSTEM READY. INITIALIZE BUTTON TO STREAM DATA PIPELINE...</div>
-            </div>
-        </div>
+        <div class="wide-log-terminal"><div class="terminal-scroller" id="terminal-log"><div class='log-line sys'>&gt;&gt; SYSTEM READY. INITIALIZE BUTTON...</div></div></div>
     </section>
-    <section id="scene-3" class="scene">
+
+    <section id="scene-4" class="scene">
         <div id="chart-wrapper" style="display: flex; flex-direction: column; align-items: center;">
             <h1 class="scene-title">📊 감정 분석 비율</h1>
-
             <div id="chart"></div>
-
             <div id="summary">
                 <div class="item pos"><div class="color-box"></div>긍정: <b id="pos-val">0% (0건)</b></div>
                 <div class="item neg"><div class="color-box"></div>부정: <b id="neg-val">0% (0건)</b></div>
@@ -93,44 +80,54 @@
             </div>
         </div>
     </section>
-    <section id="scene-4" class="scene">
+
+    <section id="scene-5" class="scene">
         <h1 class="scene-title">📊 긍정 댓글 TOP 5</h1>
         <div class="rank-container" id="pos-container"></div>
     </section>
-    <section id="scene-5" class="scene">
+
+    <section id="scene-6" class="scene">
         <h1 class="scene-title">⚠️ 부정 댓글 TOP 5</h1>
         <div class="rank-container" id="neg-container"></div>
     </section>
-    <section id="scene-6" class="scene">
+
+    <section id="scene-7" class="scene">
         <h1 class="scene-title">☁️ 주요 키워드 분석</h1>
         <div class="word-cloud-wrapper">
             <div id="word-cloud-chart"></div>
-            <div class="keyword-rank-table">
-                <h3>Top 10 키워드</h3>
-                <table id="rank-table-body">
-                </table>
+            <div class="keyword-rank-table"><h3>Top 10 키워드</h3><table id="rank-table-body"></table></div>
+        </div>
+    </section>
+
+    <section id="scene-8" class="scene">
+        <h1 class="scene-title" style="color: #ffffff;">🔗 키워드 네트워크 분석</h1>
+        <div style="width: 100%; display: flex; gap: 20px; padding: 20px;">
+            <div id="network" style="flex: 3; height: 70vh;"></div>
+            <div class="network-summary" style="flex: 1; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; color: white;">
+                <h3>핵심 키워드 (Top 3)</h3>
+                <table id="network-table" style="width: 100%; text-align: left; margin-top: 15px;"><tr><th>순위</th><th>키워드</th><th>연결성</th></tr></table>
             </div>
         </div>
     </section>
-    <section id="scene-7" class="scene">
-        <h1 class="scene-title" style="color: #ffffff;">🔗 키워드 네트워크 분석</h1>
-        <div id="network-wrapper" style="width: 100%; height: 80vh; position: relative;">
-            <div id="network"></div>
+    <section id="scene-9" class="scene">
+        <h1 class="scene-title">🔍 구조 분석: 의미 연결망 해석</h1>
+        <div class="analysis-wrapper">
+            <div class="analysis-card">
+                <h3>핵심 클러스터(군집)</h3>
+                <p id="cluster-info">데이터를 분석 중입니다...</p>
+            </div>
+            <div class="analysis-card">
+                <h3>주요 브리지 키워드</h3>
+                <p id="bridge-info">데이터를 분석 중입니다...</p>
+            </div>
         </div>
     </section>
     <div id="detail-modal" class="modal">
         <div class="modal-content">
             <h2 id="modal-author">작성자</h2>
             <p id="modal-text" class="modal-body-text"></p>
-
-            <div class="modal-stats">
-                <div>감정 점수: <b id="modal-score"></b></div>
-            </div>
-
-            <div class="modal-reason-box">
-                <h4>💡 분석 사유</h4>
-                <p id="modal-reason" class="modal-reason"></p>
-            </div>
+            <div class="modal-stats"><div>감정 점수: <b id="modal-score"></b></div></div>
+            <div class="modal-reason-box"><h4>💡 분석 사유</h4><p id="modal-reason" class="modal-reason"></p></div>
         </div>
     </div>
 </div>

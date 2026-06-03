@@ -45,73 +45,32 @@ body { background-color: #ffffff; color: #222222; overflow: hidden; }
 .css-clock { position: relative; width: 26px; height: 26px; border: 4px solid #2ed573; border-radius: 50%; }
 .css-clock::before { content: ""; position: absolute; top: 50%; left: 50%; width: 7px; height: 3px; background: #2ed573; transform-origin: left center; transform: translateY(-50%) rotate(-90deg); border-radius: 3px;} .css-clock::after { content: ""; position: absolute; top: 50%; left: 50%; width: 9px; height: 3px; background: #2ed573; transform-origin: left center; transform: translateY(-50%) rotate(0deg); border-radius: 3px;}
 
+/* [Scene 2] 분석 프레임워크 */
+#scene-2 { background: #f8f9fa; }
+.framework-container { display: flex; align-items: center; justify-content: center; gap: 20px; font-size: 1.5rem; font-weight: 800; }
+.f-step { padding: 20px 40px; background: #ffffff; border-radius: 20px; border: 3px solid #00b0ff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.f-arrow { font-size: 2rem; color: #00b0ff; }
 
-/* =========================================
-   [Scene 2] 화이트 무대 & 자연스러운 캔버스 워터 게이지
-   ========================================= */
+/* [Scene 3] 데이터 수집 */
 .crawler-header { width: 100%; max-width: 1300px; margin-bottom: 25px; }
 .crawler-status-text { display: flex; align-items: center; gap: 15px; }
 .status-badge.ocean { background: #00b0ff; color: #fff; padding: 5px 14px; border-radius: 6px; font-weight: 900; font-size: 0.9rem; }
 .status-main { font-size: 1.4rem; font-weight: 800; color: #333; }
 .status-count { margin-left: auto; font-size: 1.5rem; font-weight: 900; color: #00b0ff; }
-
-/* 배경 무대 흰색 고정 */
 .ocean-stage-vertical {
     width: 100%; max-width: 1300px; height: 390px;
     background: #ffffff; border-radius: 28px; position: relative;
-    display: flex; justify-content: center; align-items: center;
-    margin-bottom: 25px;
+    display: flex; justify-content: center; align-items: center; margin-bottom: 25px;
     border: 1px solid #eef2f5; box-shadow: 0 10px 30px rgba(0,0,0,0.01);
 }
-
-/* 대기 오버레이 버튼 */
-.stage-overlay {
-    position: absolute; top:0; left:0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.94);
-    z-index: 15; display: flex; justify-content: center; align-items: center; border-radius: 28px; transition: opacity 0.3s ease;
-}
-.start-btn {
-    padding: 18px 50px; font-size: 1.25rem; font-weight: 800; color: #fff; background: linear-gradient(135deg, #40c4ff, #00b0ff); border: none;
-    border-radius: 35px; cursor: pointer; box-shadow: 0 10px 25px rgba(0, 176, 255, 0.25); transition: all 0.2s;
-}
+.stage-overlay { position: absolute; top:0; left:0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.94); z-index: 15; display: flex; justify-content: center; align-items: center; border-radius: 28px; transition: opacity 0.3s ease; }
+.start-btn { padding: 18px 50px; font-size: 1.25rem; font-weight: 800; color: #fff; background: linear-gradient(135deg, #40c4ff, #00b0ff); border: none; border-radius: 35px; cursor: pointer; box-shadow: 0 10px 25px rgba(0, 176, 255, 0.25); transition: all 0.2s; }
 .start-btn:hover { transform: scale(1.02); background: linear-gradient(135deg, #00b0ff, #0091ea); }
-
-/* 완료 팝업 */
-.simple-clear-popup {
-    position: absolute; top: 6%; left: 50%; transform: translateX(-50%) scale(0.85);
-    background: #111827; color: #ffffff; padding: 12px 35px; border-radius: 12px; font-size: 1.25rem; font-weight: 800;
-    opacity: 0; visibility: hidden; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 20;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-}
+.simple-clear-popup { position: absolute; top: 6%; left: 50%; transform: translateX(-50%) scale(0.85); background: #111827; color: #ffffff; padding: 12px 35px; border-radius: 12px; font-size: 1.25rem; font-weight: 800; opacity: 0; visibility: hidden; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 20; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
 .simple-clear-popup.show { opacity: 1; visibility: visible; transform: translateX(-50%) scale(1); }
-
-/* ------------------------------------------------
-   🎯 완벽한 정원(Circle) 콘테이너 기틀
-   ------------------------------------------------ */
-.water-circle-container {
-    width: 240px; height: 240px;
-    background: #fafafa;
-    border: 6px solid #00b0ff;
-    border-radius: 50%; /* 완벽한 원 */
-    position: relative; overflow: hidden; z-index: 5;
-    box-shadow: 0 15px 45px rgba(0, 176, 255, 0.15), inset 0 0 20px rgba(0,0,0,0.02);
-}
-
-/* 내부 캔버스 */
-#wave-canvas {
-    position: absolute; top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: 6;
-}
-
-/* 원형 정중앙에 고정 배치되는 반전 퍼센트 글자 */
-.circle-percentage {
-    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    font-size: 2.6rem; font-weight: 900; color: #0091ea; z-index: 10;
-    mix-blend-mode: difference; /* 물이 차오르면 글자가 흰색으로 자연스럽게 반전 */
-    pointer-events: none; text-shadow: 0 1px 2px rgba(255,255,255,0.1);
-}
-
-/* 💻 로그 터미널 */
+.water-circle-container { width: 240px; height: 240px; background: #fafafa; border: 6px solid #00b0ff; border-radius: 50%; position: relative; overflow: hidden; z-index: 5; box-shadow: 0 15px 45px rgba(0, 176, 255, 0.15), inset 0 0 20px rgba(0,0,0,0.02); }
+#wave-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 6; }
+.circle-percentage { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2.6rem; font-weight: 900; color: #0091ea; z-index: 10; mix-blend-mode: difference; pointer-events: none; text-shadow: 0 1px 2px rgba(255,255,255,0.1); }
 .wide-log-terminal { width: 100%; max-width: 1300px; height: 160px; background: #04060a; border-radius: 12px; padding: 20px; overflow: hidden; border: 1px solid #111a2e; }
 .terminal-scroller { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; font-family: 'Consolas', monospace; font-size: 0.95rem; line-height: 1.6; color: #8da2fb; }
 .log-line { margin-bottom: 2px; opacity: 0; transform: translateY(10px); animation: logSlide 0.25s ease-out forwards; white-space: nowrap; }
@@ -120,165 +79,62 @@ body { background-color: #ffffff; color: #222222; overflow: hidden; }
 .log-line.run { color: #ffffff; opacity: 0.85; }
 .log-line.ok  { color: #3cd070; font-weight: bold; }
 
-
-
-
-
-/* 씬3 메인 레이아웃: 중앙 정렬 */
-#scene-3 {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.scene-title {
-    font-size: 2.5rem;
-    font-weight: 800;
-    color: #111;
-    margin-bottom: 20px; /* 차트와의 간격 */
-    text-align: center;
-}
-
-/* 차트 영역: 고정 크기 및 배경 투명 */
-#chart {
-    width: 800px;   /* 800px에서 900px로 확대 */
-    height: 600px;  /* 600px에서 700px로 확대 */
-}
-
-/* 통계 영역: 세로 정렬 */
-#summary {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
-}
-
-/* 각 항목: 가로 정렬(아이콘+텍스트) */
-.item {
-    display: flex;
-    align-items: center;
-    font-size: 25px;
-    font-weight: 600;
-}
-
-/* 각각의 색상 지정 */
+/* [Scene 4] 감성 분석 비율 */
+#scene-4 { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.scene-title { font-size: 2.5rem; font-weight: 800; color: #111; margin-bottom: 20px; text-align: center; }
+#chart { width: 900px; height: 700px; }
+#summary { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.item { display: flex; align-items: center; font-size: 25px; font-weight: 600; }
 .item.pos { color: #2064b2; }
 .item.neg { color: #ff6b6b; }
 .item.neu { color: #a0a0a0; }
+.color-box { width: 16px; height: 16px; margin-right: 10px; border-radius: 3px; flex-shrink: 0; }
 
-
-/* 색상 박스 */
-.color-box {
-    width: 16px;
-    height: 16px;
-    margin-right: 10px;
-    border-radius: 3px;
-    flex-shrink: 0;
-}
-
-
-/* [Scene 4, 5 순위표 컨테이너] */
-.rank-container {
-    display: flex;
-    flex-direction: column-reverse;
-    gap: 15px;
-    width: 900px;
-    margin-top: 20px;
-}
-
-/* [순위표 카드] - 더 크게, 더 시원하게 */
-.rank-card {
-    width: 1000px; height: 120px; background: #fff; border: 3px solid #ddd;
-    border-radius: 25px; display: flex; align-items: center; padding: 0 40px;
-    margin-bottom: 20px; opacity: 0; transform: translateY(20px) scale(0.9);
-    transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    cursor: pointer; position: relative; box-shadow: 0 6px 15px rgba(0,0,0,0.05);
-}
+/* [Scene 5, 6] 순위표 */
+.rank-container { display: flex; flex-direction: column-reverse; gap: 15px; width: 900px; margin-top: 20px; }
+.rank-card { width: 1000px; height: 120px; background: #fff; border: 3px solid #ddd; border-radius: 25px; display: flex; align-items: center; padding: 0 40px; margin-bottom: 20px; opacity: 0; transform: translateY(20px) scale(0.9); transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; position: relative; box-shadow: 0 6px 15px rgba(0,0,0,0.05); }
 .rank-card.show { opacity: 1; transform: translateY(0) scale(1); }
 .rank-card.pos { border-left: 12px solid #2064b2; }
 .rank-card.neg { border-left: 12px solid #ff6b6b; }
 .rank-card:hover { transform: scale(1.02); background: #fafafa; }
-
 .rank-num { font-size: 2.5rem; font-weight: 900; min-width: 120px; color: #333; }
 .rank-text { font-size: 1.8rem; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* [상세 보기 팝업] - 닫기 버튼 X로 변경 */
-.modal {
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center;
-}
-.modal-content {
-    background: white; width: 900px; padding: 60px; border-radius: 40px;
-    position: relative; box-shadow: 0 30px 60px rgba(0,0,0,0.3);
-}
-.close-x {
-    position: absolute; top: 20px; right: 30px; font-size: 3rem; cursor: pointer; color: #aaa;
-}
-.close-x:hover { color: #000; }
-
-.modal-body-text { font-size: 1.8rem; margin: 30px 0; font-weight: 700; line-height: 1.4; color: #222; }
-.modal-stats {
-    display: flex; gap: 30px; margin-bottom: 30px; background: #f8f9fa;
-    padding: 20px; border-radius: 20px; font-size: 1.3rem; color: #555;
-}
-.modal-reason-box h4 { margin-bottom: 10px; color: #888; font-size: 1rem; }
-.modal-reason { font-size: 1.3rem; line-height: 1.6; color: #444; background: #fffdf0; padding: 25px; border-radius: 20px; border-left: 6px solid #ffe066; }
-
-#scene-6 {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background-color: #ffffff;
-}
-
-/* 타이틀 색상 변경 */
-#scene-6 .scene-title {
-    color: #1e293b; /* 어두운 남색 계열 */
-}
-
-/* 화이트 배경 + 하늘색 블러 그림자 */
-#word-cloud-chart {
-    width: 900px;
-    height: 600px;
-    background: #ffffff;
-    border-radius: 40px;
-    /* 중앙에서 퍼지는 하늘색 블러 효과 */
-    box-shadow: 0 0 80px 20px rgba(135, 206, 250, 0.3);
-    border: 1px solid rgba(0, 176, 255, 0.1);
-    margin-top: 30px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.word-cloud-wrapper {
-    display: flex; gap: 40px; align-items: center; justify-content: center;
-    width: 100%; max-width: 1200px; margin-top: 30px;
-}
-
-.keyword-rank-table {
-    width: 300px; background: #fff; padding: 25px; border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #eee;
-}
+/* [Scene 7] 키워드 분석 */
+#scene-7 { display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #ffffff; }
+#word-cloud-chart { width: 900px; height: 600px; background: #ffffff; border-radius: 40px; box-shadow: 0 0 80px 20px rgba(135, 206, 250, 0.3); border: 1px solid rgba(0, 176, 255, 0.1); margin-top: 30px; display: flex; justify-content: center; align-items: center; }
+.word-cloud-wrapper { display: flex; gap: 40px; align-items: center; justify-content: center; width: 100%; max-width: 1200px; margin-top: 30px; }
+.keyword-rank-table { width: 300px; background: #fff; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #eee; }
 .keyword-rank-table h3 { margin-bottom: 15px; font-size: 1.2rem; color: #333; text-align: center; }
 .keyword-rank-table table { width: 100%; border-collapse: collapse; }
 .keyword-rank-table td { padding: 10px 5px; border-bottom: 1px solid #f9f9f9; font-size: 1rem; }
 .rank-num-col { font-weight: 800; color: #007bff; width: 60px; }
 .rank-val-col { text-align: right; color: #666; font-weight: 600; }
 
+/* [Scene 8] 네트워크 */
+#scene-8 { background: radial-gradient(circle at center, #1f2d50 0%, #111827 40%, #05070d 100%); padding: 20px; }
+#network { width: 100%; height: 100%; }
+.network-summary th { border-bottom: 2px solid #00b0ff; padding: 10px 0; color: #00b0ff; }
+.network-summary td { padding: 10px 0; }
 
-#scene-7 {
-    background: radial-gradient(circle at center, #1f2d50 0%, #111827 40%, #05070d 100%);
-    padding: 20px;
+/* 모달 */
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+.modal-content { background: white; width: 900px; padding: 60px; border-radius: 40px; position: relative; box-shadow: 0 30px 60px rgba(0,0,0,0.3); }
+.close-x { position: absolute; top: 20px; right: 30px; font-size: 3rem; cursor: pointer; color: #aaa; }
+.close-x:hover { color: #000; }
+.modal-body-text { font-size: 1.8rem; margin: 30px 0; font-weight: 700; line-height: 1.4; color: #222; }
+.modal-stats { display: flex; gap: 30px; margin-bottom: 30px; background: #f8f9fa; padding: 20px; border-radius: 20px; font-size: 1.3rem; color: #555; }
+.modal-reason-box h4 { margin-bottom: 10px; color: #888; font-size: 1rem; }
+.modal-reason { font-size: 1.3rem; line-height: 1.6; color: #444; background: #fffdf0; padding: 25px; border-radius: 20px; border-left: 6px solid #ffe066; }
+
+/* [Scene 9] 구조 분석 */
+.analysis-wrapper { display: flex; gap: 30px; margin-top: 40px; justify-content: center; }
+.analysis-card {
+    width: 450px; /* 조금 더 넓게 */
+    padding: 30px;
+    background: #ffffff;
+    border-radius: 30px;
+    text-align: left; /* 왼쪽 정렬로 변경 */
 }
-#network {
-    width: 100%;
-    height: 100%;
-}
-/* 기존 스타일과 충돌 방지 */
-#scene-7 .scene-title {
-    margin-bottom: 10px;
-    z-index: 10;
-}
+.analysis-card h3 { text-align: center; margin-bottom: 25px; } /* 제목만 중앙 */
+.analysis-card p { font-size: 1.2rem; line-height: 1.6; color: #555; }
