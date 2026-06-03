@@ -91,7 +91,31 @@
             </div>
         </div>
     </section>
-    <section id="scene-4" class="scene"><h1 class="scene-title">🕸️ 키워드 문맥 & 베스트 댓글</h1></section>
+    <section id="scene-4" class="scene">
+        <h1 class="scene-title">📊 긍정 댓글 TOP 5</h1>
+        <div class="rank-container" id="pos-container"></div>
+    </section>
+
+    <section id="scene-5" class="scene">
+        <h1 class="scene-title">⚠️ 부정 댓글 TOP 5</h1>
+        <div class="rank-container" id="neg-container"></div>
+    </section>
+
+    <div id="detail-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-author">작성자</h2>
+            <p id="modal-text" class="modal-body-text"></p>
+
+            <div class="modal-stats">
+                <div>감정 점수: <b id="modal-score"></b></div>
+            </div>
+
+            <div class="modal-reason-box">
+                <h4>💡 분석 사유</h4>
+                <p id="modal-reason" class="modal-reason"></p>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script src="script.js"></script>

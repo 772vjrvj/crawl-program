@@ -77,6 +77,16 @@ function switchScene(sceneNumber) {
     const targetScene = document.getElementById(`scene-${sceneNumber}`);
     if (targetScene) {
         targetScene.classList.add('active');
+
+        if (sceneNumber === '4') {
+            revealIdx.pos = 4; // 5위(인덱스 4)부터 시작
+            initRankCards('pos');
+        }
+        if (sceneNumber === '5') {
+            revealIdx.neg = 4; // 5위(인덱스 4)부터 시작
+            initRankCards('neg');
+        }
+
         if (sceneNumber === '1') animateNumbers(youtubeVideoData[0]);
         if (sceneNumber === '2') {
             document.getElementById('total-count').textContent = youtubeVideoData[0].comment_count;
@@ -86,6 +96,8 @@ function switchScene(sceneNumber) {
         if (sceneNumber === '3') {
             updateSentimentChart(chartData.pos, chartData.neg, chartData.neu);
         }
+
+
     }
 }
 
@@ -294,3 +306,94 @@ function updateSentimentChart(pos, neg, neu) {
     };
     sentimentChart.setOption(option);
 }
+
+const rankData = {
+    pos: [
+        { "comment_text": "1위 내용", "author_name": "@u1", "sentiment_score": 0.9, "positive_score": 0.9, "negative_score": 0.1, "reason_text": "사유 1" },
+        { "comment_text": "2위 내용", "author_name": "@u2", "sentiment_score": 0.8, "positive_score": 0.8, "negative_score": 0.1, "reason_text": "사유 2" },
+        { "comment_text": "3위 내용", "author_name": "@u3", "sentiment_score": 0.7, "positive_score": 0.7, "negative_score": 0.1, "reason_text": "사유 3" },
+        { "comment_text": "4위 내용", "author_name": "@u4", "sentiment_score": 0.6, "positive_score": 0.6, "negative_score": 0.1, "reason_text": "사유 4" },
+        { "comment_text": "5위 내용", "author_name": "@u5", "sentiment_score": 0.5, "positive_score": 0.5, "negative_score": 0.1, "reason_text": "사유 5" }
+    ],
+    neg: [
+        { "comment_text": "1위 내용", "author_name": "@h1", "sentiment_score": -0.9, "positive_score": 0.1, "negative_score": 0.9, "reason_text": "사유 1" },
+        { "comment_text": "2위 내용", "author_name": "@h2", "sentiment_score": -0.8, "positive_score": 0.1, "negative_score": 0.8, "reason_text": "사유 2" },
+        { "comment_text": "3위 내용", "author_name": "@h3", "sentiment_score": -0.7, "positive_score": 0.1, "negative_score": 0.7, "reason_text": "사유 3" },
+        { "comment_text": "4위 내용", "author_name": "@h4", "sentiment_score": -0.6, "positive_score": 0.1, "negative_score": 0.6, "reason_text": "사유 4" },
+        { "comment_text": "5위 내용", "author_name": "@h5", "sentiment_score": -0.5, "positive_score": 0.1, "negative_score": 0.5, "reason_text": "사유 5" }
+    ]
+};
+
+let revealIdx = { pos: 4, neg: 4 };
+
+function showDetail(data) {
+    document.getElementById('modal-author').textContent = `작성자: ${data.author_name.substring(0,3)}***`;
+    document.getElementById('modal-text').textContent = data.comment_text;
+    document.getElementById('modal-score').textContent = data.sentiment_score.toFixed(4);
+    document.getElementById('modal-reason').textContent = data.reason_text;
+
+    const modal = document.getElementById('detail-modal');
+    modal.style.display = 'flex';
+
+    // X 버튼 생성 로직
+    if(!document.querySelector('.close-x')) {
+        const x = document.createElement('span');
+        x.className = 'close-x'; x.innerHTML = '&times;';
+        x.onclick = closeModal;
+        document.querySelector('.modal-content').prepend(x);
+    }
+}
+
+function closeModal() { document.getElementById('detail-modal').style.display = 'none'; }
+
+// 1. 카드 미리 깔기 (DOMContentLoaded 내부 혹은 switchScene 시 실행)
+function initRankCards(type) {
+    const container = document.getElementById(`${type}-container`);
+    container.innerHTML = '';
+
+    // 카드는 5위(ID 4)부터 생성됨
+    for (let i = 4; i >= 0; i--) {
+        const card = document.createElement('div');
+        card.className = `rank-card ${type}`;
+        card.id = `${type}-card-${i}`;
+
+        // [수정] ID가 4(5위)면 화면에도 '5위'라고 나오게 수정
+        // (5 - i)가 아니라, 카드 ID i가 곧 순위 텍스트가 되도록 매칭
+        // 카드 ID 4 -> 5위, 카드 ID 0 -> 1위
+        const rankText = (i + 1) + "위";
+
+        card.innerHTML = `<span class="rank-num">${rankText}</span><span class="rank-text">비공개</span>`;
+        container.appendChild(card);
+    }
+}
+function addRankCard(type) {
+    if (revealIdx[type] < 0) return;
+
+    // 카드는 5위 카드(revealIdx: 4)부터 시작
+    const card = document.getElementById(`${type}-card-${revealIdx[type]}`);
+
+    // revealIdx가 4일 때: rankData[type][4] (데이터의 5위 내용)를 가져옴
+    // revealIdx가 0일 때: rankData[type][0] (데이터의 1위 내용)를 가져옴
+    const data = rankData[type][revealIdx[type]];
+
+    card.classList.add('show');
+    card.querySelector('.rank-text').textContent = data.comment_text;
+    card.onclick = () => showDetail(data);
+
+    revealIdx[type]--;
+}
+
+// 이 아래는 이미 있는 'keydown' 이벤트를 찾아 수정하거나 추가하세요
+document.addEventListener("keydown", (e) => {
+    const key = e.key.toLowerCase();
+    if (['1', '2', '3', '4', '5'].includes(key)) switchScene(key);
+    if (key === 'q') crackEgg('cta-q');
+    if (key === 'w') crackEgg('cta-w');
+    if (key === 'e') crackEgg('cta-e');
+    if (key === 'r') crackEgg('cta-r');
+    if (key === 'u') {
+        const activeScene = document.querySelector('.scene.active').id;
+        if (activeScene === 'scene-4') addRankCard('pos');
+        if (activeScene === 'scene-5') addRankCard('neg');
+    }
+});
