@@ -595,26 +595,20 @@ function analyzeStructure() {
         // 1. 연결성(count) 기준 내림차순 정렬
         const sorted = Object.keys(nodeMap).sort((a, b) => nodeMap[b].count - nodeMap[a].count);
 
-        // 2. 데이터가 충분한지 체크 (최소 9개 이상 있어야 3개씩 3그룹 구성 가능)
+        // 2. 데이터가 충분한지 체크
         if (sorted.length < 9) {
-            document.getElementById('cluster-info').innerHTML = "분석할 데이터가 부족합니다.";
+            document.querySelectorAll('.analysis-card p').forEach(p => p.textContent = "분석할 데이터가 충분하지 않습니다.");
             return;
         }
 
-        // 3. 3개의 클러스터 정의 (그룹당 3개씩 키워드 배정)
-        const groupA = sorted.slice(0, 3); // 활동 관련
-        const groupB = sorted.slice(3, 6); // 시설/행정 관련
-        const groupC = sorted.slice(6, 9); // 이해관계자 관련
+        // 3. 3개의 클러스터 정의
+        const groupA = sorted.slice(0, 3); // 활용 그룹
+        const groupB = sorted.slice(3, 6); // 시설/행정 그룹
+        const groupC = sorted.slice(6, 9); // 이해관계자 그룹
 
-        // 4. 화면 출력 (분석 보고서 스타일)
-        document.getElementById('cluster-info').innerHTML =
-            `논의는 크게 세 가지 핵심 축으로 분류됩니다:<br><br>` +
-            `① <b>실질적 활용 그룹:</b> ${groupA.join(', ')}<br>` +
-            `② <b>행정 및 시설 그룹:</b> ${groupB.join(', ')}<br>` +
-            `③ <b>주요 이해관계자 그룹:</b> ${groupC.join(', ')}`;
-
-        document.getElementById('bridge-info').innerHTML =
-            `이 네트워크에서 <b>${groupA[0]}</b>와 <b>${groupB[0]}</b>을 잇는 가교 역할은 <b>${groupC[0]}</b>이 수행하고 있으며, ` +
-            `이는 사용자들의 교육 환경에 대한 요구사항이 행정적 개선으로 이어지는 경로를 보여줍니다.`;
+        // 4. 화면 출력 (3개 카드로 분산 배치)
+        document.getElementById('group-1').innerHTML = `<b>관련 키워드:</b> ${groupA.join(', ')}`;
+        document.getElementById('group-2').innerHTML = `<b>관련 키워드:</b> ${groupB.join(', ')}`;
+        document.getElementById('group-3').innerHTML = `<b>관련 키워드:</b> ${groupC.join(', ')}`;
     }
 }
