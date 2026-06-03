@@ -1,6 +1,5 @@
-/* 기본 리셋 */
+/* 기존 설정 및 씬1 (완벽 보존) */
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Pretendard', -apple-system, sans-serif; }
-
 body { background-color: #ffffff; color: #222222; overflow: hidden; }
 #presentation-container { width: 100vw; height: 100vh; position: relative; }
 
@@ -10,37 +9,9 @@ body { background-color: #ffffff; color: #222222; overflow: hidden; }
     padding: 40px; opacity: 0; visibility: hidden; transition: opacity 0.5s ease, visibility 0.5s ease;
 }
 .scene.active { opacity: 1; visibility: visible; }
-.scene-title { font-size: 3rem; margin-bottom: 2rem; color: #111; }
 
-/* ================================
-   1. 비디오 카드 (연한 회색 선 + 무채색 은은한 그림자)
-   ================================ */
-.video-card {
-    display: flex; flex-direction: row; gap: 40px; background: #ffffff;
-    padding: 30px; border-radius: 30px; max-width: 1300px; width: 100%;
-
-    /* 애플/토스 스타일: 투명도 5%의 검정 그림자로 아주 은은한 깊이감만 부여 */
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
-
-    /* 튀지 않는 아주 연한 회색 1px 테두리로 깔끔하게 마감 */
-    border: 1px solid #f0f0f0;
-
-    margin-bottom: 70px;
-}
-
-.thumbnail-wrapper img {
-    width: 560px; height: 315px; object-fit: cover; border-radius: 20px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06); /* 그림자 톤다운 */
-    border: 1px solid #f5f5f5;
-}
-
-/* iframe 확장프로그램 테두리 처리 (동일한 모던 스타일 적용) */
-#itemscout-extension-gtag {
-    border-radius: 20px !important;
-    border: 1px solid #f0f0f0 !important;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06) !important;
-}
-
+.video-card { display: flex; flex-direction: row; gap: 40px; background: #ffffff; padding: 30px; border-radius: 30px; max-width: 1300px; width: 100%; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05); border: 1px solid #f0f0f0; margin-bottom: 70px; }
+.thumbnail-wrapper img { width: 560px; height: 315px; object-fit: cover; border-radius: 20px; border: 1px solid #f5f5f5;}
 .info-wrapper { display: flex; flex-direction: column; justify-content: center; flex: 1; }
 .channel-name { font-size: 1.3rem; color: #555555; margin-bottom: 12px; font-weight: 700; }
 .video-title { font-size: 2.2rem; line-height: 1.35; margin-bottom: 30px; word-break: keep-all; color: #111111; font-weight: 800; }
@@ -49,155 +20,104 @@ body { background-color: #ffffff; color: #222222; overflow: hidden; }
 .stat-label { font-size: 1rem; color: #777777; margin-bottom: 8px; font-weight: 600; }
 .stat-value { font-size: 2rem; font-weight: 800; color: #1a73e8; }
 
-/* ================================
-   2. 돌고래 프로필 (캐릭터에만 생동감 있는 그림자 유지)
-   ================================ */
-.branding-section {
-    display: flex; flex-direction: column; align-items: center; gap: 20px;
-}
+.branding-section { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.mascot-img { width: 150px; height: 150px; object-fit: cover; border-radius: 50%; background: #fff; border: 4px solid #ffffff; box-shadow: 0 15px 30px rgba(58, 172, 255, 0.2), 0 5px 15px rgba(0, 0, 0, 0.08); animation: float 3s ease-in-out infinite; z-index: 2; }
+@keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
 
-.mascot-img {
-    width: 150px; height: 150px;
-    object-fit: cover;
-    border-radius: 50%;
-    background: #fff;
-    border: 4px solid #ffffff;
-
-    /* 돌고래는 캐릭터성이 있으므로 약간의 하늘색+무채색 섞인 부드러운 그림자 */
-    box-shadow: 0 15px 30px rgba(58, 172, 255, 0.2), 0 5px 15px rgba(0, 0, 0, 0.08);
-
-    animation: float 3s ease-in-out infinite;
-    z-index: 2;
-}
-
-@keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-    100% { transform: translateY(0px); }
-}
-
-/* ================================
-   3. 좋댓구알 애니메이션 (리얼 파편 폭발 알 깨기)
-   ================================ */
 .cta-container { display: flex; gap: 60px; margin-bottom: 15px; }
 .cta-item { position: relative; width: 80px; height: 110px; display: flex; justify-content: center; align-items: center; }
+.mystery-egg { position: absolute; width: 70px; height: 85px; background: radial-gradient(circle at 30% 30%, #ffffff, #f0f8ff); border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; border: 1px solid #e0f0ff; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05); display: flex; justify-content: center; align-items: center; z-index: 3; }
+.egg-text { font-size: 2.2rem; font-weight: 800; color: #cce0f5; }
+.revealed-btn { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 12px; opacity: 0; transform: scale(0.5) translateY(20px); transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 1; }
+.cta-item.cracked .mystery-egg { animation: popBubble 0.4s forwards; }
+.cta-item.cracked .revealed-btn { opacity: 1; transform: scale(1) translateY(0); z-index: 4; transition-delay: 0.15s; }
+@keyframes popBubble { 0% { transform: scale(1); } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; visibility: hidden; } }
 
-/* 미스터리 알 래퍼 */
-.mystery-egg {
-    position: absolute; width: 70px; height: 85px;
-    display: flex; justify-content: center; align-items: center;
-    z-index: 3;
-}
-
-.egg-text { font-size: 2.2rem; font-weight: 800; color: #cce0f5; z-index: 2; }
-
-/* 알 껍질 공통 (Top / Bottom) */
-.egg-shell {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: radial-gradient(circle at 30% 30%, #ffffff, #f0f8ff);
-    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
-    border: 1px solid #e0f0ff;
-}
-
-/* 윗 껍질과 아래 껍질을 지그재그로 정교하게 자름 */
-.egg-shell.top {
-    clip-path: polygon(0% 0%, 100% 0%, 100% 45%, 80% 35%, 60% 55%, 40% 35%, 20% 55%, 0% 45%);
-}
-.egg-shell.bottom {
-    clip-path: polygon(0% 45%, 20% 55%, 40% 35%, 60% 55%, 80% 35%, 100% 45%, 100% 100%, 0% 100%);
-}
-
-/* 💥 사방으로 튀어 나갈 파편 조각들 디자인 (초기엔 투명) */
-.shards { position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: 4; pointer-events: none; }
-.shards i {
-    position: absolute; display: block;
-    background: #ffffff; border: 1px solid #e0f0ff; opacity: 0;
-}
-/* 다양한 크기와 모양의 삼각형 파편들 */
-.shards i:nth-child(1) { width: 15px; height: 15px; top: 40%; left: 20%; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
-.shards i:nth-child(2) { width: 12px; height: 12px; top: 50%; left: 70%; clip-path: polygon(0% 0%, 100% 50%, 50% 100%); }
-.shards i:nth-child(3) { width: 18px; height: 10px; top: 45%; left: 45%; clip-path: polygon(0% 50%, 50% 0%, 100% 100%); }
-.shards i:nth-child(4) { width: 10px; height: 14px; top: 30%; left: 50%; clip-path: polygon(50% 0%, 100% 100%, 0% 100%); }
-.shards i:nth-child(5) { width: 14px; height: 14px; top: 60%; left: 30%; clip-path: polygon(0% 0%, 100% 0%, 50% 100%); }
-.shards i:nth-child(6) { width: 16px; height: 12px; top: 35%; left: 80%; clip-path: polygon(0% 0%, 100% 100%, 0% 100%); }
-
-/* 숨겨진 예쁜 버튼 (초기 상태) */
-.revealed-btn {
-    position: absolute; display: flex; flex-direction: column; align-items: center; gap: 12px;
-    opacity: 0; transform: scale(0.5) translateY(20px);
-    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-    z-index: 1;
-}
-
-/* === 🎬 애니메이션 트리거 (cracked 클래스) === */
-.cta-item.cracked .mystery-egg { animation: shakeEgg 0.4s forwards; }
-.cta-item.cracked .egg-shell.top { animation: flyTop 0.6s 0.4s forwards cubic-bezier(0.15, 1, 0.3, 1); }
-.cta-item.cracked .egg-shell.bottom { animation: flyBottom 0.6s 0.4s forwards cubic-bezier(0.15, 1, 0.3, 1); }
-.cta-item.cracked .egg-text { animation: fadeOut 0.1s 0.4s forwards; }
-.cta-item.cracked .revealed-btn { opacity: 1; transform: scale(1) translateY(0); z-index: 5; transition-delay: 0.4s; }
-
-/* 💥 6개의 파편이 사방으로 회전하며 폭발! */
-.cta-item.cracked .shards i:nth-child(1) { animation: explode1 0.5s 0.4s forwards cubic-bezier(0.15, 1, 0.3, 1); }
-.cta-item.cracked .shards i:nth-child(2) { animation: explode2 0.5s 0.4s forwards cubic-bezier(0.15, 1, 0.3, 1); }
-.cta-item.cracked .shards i:nth-child(3) { animation: explode3 0.6s 0.4s forwards cubic-bezier(0.15, 1, 0.3, 1); }
-.cta-item.cracked .shards i:nth-child(4) { animation: explode4 0.5s 0.4s forwards cubic-bezier(0.15, 1, 0.3, 1); }
-.cta-item.cracked .shards i:nth-child(5) { animation: explode5 0.6s 0.4s forwards cubic-bezier(0.15, 1, 0.3, 1); }
-.cta-item.cracked .shards i:nth-child(6) { animation: explode6 0.5s 0.4s forwards cubic-bezier(0.15, 1, 0.3, 1); }
-
-/* 애니메이션 상세 모션 */
-@keyframes shakeEgg {
-    0% { transform: rotate(0deg); }
-    20% { transform: rotate(-15deg) scale(1.05); }
-    40% { transform: rotate(15deg) scale(1.05); }
-    60% { transform: rotate(-10deg) scale(1.05); filter: brightness(1.2); }
-    80% { transform: rotate(10deg) scale(1.05); }
-    100% { transform: rotate(0deg) scale(1); }
-}
-
-@keyframes flyTop {
-    0% { transform: translateY(0) translateX(0) rotate(0); opacity: 1; }
-    100% { transform: translateY(-70px) translateX(-40px) rotate(-60deg); opacity: 0; visibility: hidden; }
-}
-@keyframes flyBottom {
-    0% { transform: translateY(0) translateX(0) rotate(0); opacity: 1; }
-    100% { transform: translateY(70px) translateX(40px) rotate(60deg); opacity: 0; visibility: hidden; }
-}
-
-/* 파편 폭발 궤적 (각기 다른 방향과 각도로 날아감) */
-@keyframes explode1 { 0% { opacity: 1; transform: translate(0,0) rotate(0); } 100% { opacity: 0; transform: translate(-60px, -50px) rotate(-180deg); visibility: hidden; } }
-@keyframes explode2 { 0% { opacity: 1; transform: translate(0,0) rotate(0); } 100% { opacity: 0; transform: translate(70px, -40px) rotate(120deg); visibility: hidden; } }
-@keyframes explode3 { 0% { opacity: 1; transform: translate(0,0) rotate(0); } 100% { opacity: 0; transform: translate(0, -70px) rotate(-90deg); visibility: hidden; } }
-@keyframes explode4 { 0% { opacity: 1; transform: translate(0,0) rotate(0); } 100% { opacity: 0; transform: translate(-40px, 60px) rotate(180deg); visibility: hidden; } }
-@keyframes explode5 { 0% { opacity: 1; transform: translate(0,0) rotate(0); } 100% { opacity: 0; transform: translate(50px, 50px) rotate(-120deg); visibility: hidden; } }
-@keyframes explode6 { 0% { opacity: 1; transform: translate(0,0) rotate(0); } 100% { opacity: 0; transform: translate(60px, 0px) rotate(200deg); visibility: hidden; } }
-
-@keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
-
-/* ================================
-   4. CSS 아이콘 디자인 (그대로 유지)
-   ================================ */
-.css-icon-box {
-    width: 65px; height: 65px; background: #ffffff; border-radius: 50%;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
-    display: flex; justify-content: center; align-items: center;
-    border: 1px solid #f0f0f0;
-}
-
+.css-icon-box { width: 65px; height: 65px; background: #ffffff; border-radius: 50%; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05); display: flex; justify-content: center; align-items: center; border: 1px solid #f0f0f0; }
 .cta-text { font-size: 1.05rem; font-weight: 800; color: #333; }
-
 .css-heart { position: relative; width: 22px; height: 22px; background: linear-gradient(45deg, #ff6b81, #ff4757); transform: rotate(-45deg); margin-top: 4px; border-radius: 4px; }
 .css-heart::before, .css-heart::after { content: ""; position: absolute; width: 22px; height: 22px; background: linear-gradient(45deg, #ff6b81, #ff4757); border-radius: 50%; }
-.css-heart::before { top: -11px; left: 0; }
-.css-heart::after { top: 0; left: 11px; }
-
+.css-heart::before { top: -11px; left: 0; } .css-heart::after { top: 0; left: 11px; }
 .css-bubble { position: relative; width: 30px; height: 22px; background: linear-gradient(45deg, #70a1ff, #1e90ff); border-radius: 8px; }
 .css-bubble::after { content: ""; position: absolute; bottom: -6px; left: 6px; border-width: 6px 6px 0 0; border-style: solid; border-color: #1e90ff transparent transparent transparent; }
-
 .css-bell { position: relative; width: 24px; height: 24px; background: linear-gradient(45deg, #eccc68, #ffa502); border-radius: 12px 12px 0 0; }
-.css-bell::before { content: ""; position: absolute; bottom: -3px; left: -4px; width: 32px; height: 4px; background: #ffa502; border-radius: 4px; }
-.css-bell::after { content: ""; position: absolute; bottom: -8px; left: 8px; width: 8px; height: 8px; background: #ffa502; border-radius: 50%; }
-
+.css-bell::before { content: ""; position: absolute; bottom: -3px; left: -4px; width: 32px; height: 4px; background: #ffa502; border-radius: 4px; } .css-bell::after { content: ""; position: absolute; bottom: -8px; left: 8px; width: 8px; height: 8px; background: #ffa502; border-radius: 50%; }
 .css-clock { position: relative; width: 26px; height: 26px; border: 4px solid #2ed573; border-radius: 50%; }
-.css-clock::before { content: ""; position: absolute; top: 50%; left: 50%; width: 7px; height: 3px; background: #2ed573; transform-origin: left center; transform: translateY(-50%) rotate(-90deg); border-radius: 3px;}
-.css-clock::after { content: ""; position: absolute; top: 50%; left: 50%; width: 9px; height: 3px; background: #2ed573; transform-origin: left center; transform: translateY(-50%) rotate(0deg); border-radius: 3px;}
+.css-clock::before { content: ""; position: absolute; top: 50%; left: 50%; width: 7px; height: 3px; background: #2ed573; transform-origin: left center; transform: translateY(-50%) rotate(-90deg); border-radius: 3px;} .css-clock::after { content: ""; position: absolute; top: 50%; left: 50%; width: 9px; height: 3px; background: #2ed573; transform-origin: left center; transform: translateY(-50%) rotate(0deg); border-radius: 3px;}
+
+
+/* =========================================
+   [Scene 2] 화이트 무대 & 자연스러운 캔버스 워터 게이지
+   ========================================= */
+.crawler-header { width: 100%; max-width: 1300px; margin-bottom: 25px; }
+.crawler-status-text { display: flex; align-items: center; gap: 15px; }
+.status-badge.ocean { background: #00b0ff; color: #fff; padding: 5px 14px; border-radius: 6px; font-weight: 900; font-size: 0.9rem; }
+.status-main { font-size: 1.4rem; font-weight: 800; color: #333; }
+.status-count { margin-left: auto; font-size: 1.5rem; font-weight: 900; color: #00b0ff; }
+
+/* 배경 무대 흰색 고정 */
+.ocean-stage-vertical {
+    width: 100%; max-width: 1300px; height: 390px;
+    background: #ffffff; border-radius: 28px; position: relative;
+    display: flex; justify-content: center; align-items: center;
+    margin-bottom: 25px;
+    border: 1px solid #eef2f5; box-shadow: 0 10px 30px rgba(0,0,0,0.01);
+}
+
+/* 대기 오버레이 버튼 */
+.stage-overlay {
+    position: absolute; top:0; left:0; width: 100%; height: 100%; background: rgba(255, 255, 255, 0.94);
+    z-index: 15; display: flex; justify-content: center; align-items: center; border-radius: 28px; transition: opacity 0.3s ease;
+}
+.start-btn {
+    padding: 18px 50px; font-size: 1.25rem; font-weight: 800; color: #fff; background: linear-gradient(135deg, #40c4ff, #00b0ff); border: none;
+    border-radius: 35px; cursor: pointer; box-shadow: 0 10px 25px rgba(0, 176, 255, 0.25); transition: all 0.2s;
+}
+.start-btn:hover { transform: scale(1.02); background: linear-gradient(135deg, #00b0ff, #0091ea); }
+
+/* 완료 팝업 */
+.simple-clear-popup {
+    position: absolute; top: 6%; left: 50%; transform: translateX(-50%) scale(0.85);
+    background: #111827; color: #ffffff; padding: 12px 35px; border-radius: 12px; font-size: 1.25rem; font-weight: 800;
+    opacity: 0; visibility: hidden; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 20;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+.simple-clear-popup.show { opacity: 1; visibility: visible; transform: translateX(-50%) scale(1); }
+
+/* ------------------------------------------------
+   🎯 완벽한 정원(Circle) 콘테이너 기틀
+   ------------------------------------------------ */
+.water-circle-container {
+    width: 240px; height: 240px;
+    background: #fafafa;
+    border: 6px solid #00b0ff;
+    border-radius: 50%; /* 완벽한 원 */
+    position: relative; overflow: hidden; z-index: 5;
+    box-shadow: 0 15px 45px rgba(0, 176, 255, 0.15), inset 0 0 20px rgba(0,0,0,0.02);
+}
+
+/* 내부 캔버스 */
+#wave-canvas {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 6;
+}
+
+/* 원형 정중앙에 고정 배치되는 반전 퍼센트 글자 */
+.circle-percentage {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 2.6rem; font-weight: 900; color: #0091ea; z-index: 10;
+    mix-blend-mode: difference; /* 물이 차오르면 글자가 흰색으로 자연스럽게 반전 */
+    pointer-events: none; text-shadow: 0 1px 2px rgba(255,255,255,0.1);
+}
+
+/* 💻 로그 터미널 */
+.wide-log-terminal { width: 100%; max-width: 1300px; height: 160px; background: #04060a; border-radius: 12px; padding: 20px; overflow: hidden; border: 1px solid #111a2e; }
+.terminal-scroller { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; font-family: 'Consolas', monospace; font-size: 0.95rem; line-height: 1.6; color: #8da2fb; }
+.log-line { margin-bottom: 2px; opacity: 0; transform: translateY(10px); animation: logSlide 0.25s ease-out forwards; white-space: nowrap; }
+@keyframes logSlide { to { opacity: 1; transform: translateY(0); } }
+.log-line.sys { color: #00e5ff; font-weight: bold; }
+.log-line.run { color: #ffffff; opacity: 0.85; }
+.log-line.ok  { color: #3cd070; font-weight: bold; }
+
+
