@@ -414,16 +414,34 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
+/**
+ * 워드 클라우드 차트 초기화 및 우측 랭킹 테이블 렌더링
+ * @param {Array} data - {name: string, value: number} 형태의 데이터 배열
+ */
 function initWordCloud(data) {
     const chartDom = document.getElementById('word-cloud-chart');
-    if (!chartDom) return;
+    const tableBody = document.getElementById('rank-table-body');
+    if (!chartDom || !tableBody) return;
 
+    // 1. 데이터 정렬 (내림차순) 및 Top 10 추출
+    const sortedData = [...data].sort((a, b) => b.value - a.value);
+    const top10 = sortedData.slice(0, 10);
+
+    // 2. 테이블 렌더링 (순위 데이터 삽입)
+    tableBody.innerHTML = top10.map((item, index) => `
+        <tr>
+            <td class="rank-num-col">${index + 1}위</td>
+            <td>${item.name}</td>
+            <td class="rank-val-col">${item.value / 20}회</td>
+        </tr>
+    `).join('');
+
+    // 3. 기존 인스턴스 정리 및 차트 초기화
     if (echarts.getInstanceByDom(chartDom)) {
         echarts.dispose(chartDom);
     }
     const myChart = echarts.init(chartDom);
 
-    // 흰 배경에서 잘 보이는 선명한 컬러 팔레트
     const vibrantPalette = [
         '#007bff', '#20c997', '#fd7e14', '#e83e8c',
         '#6f42c1', '#17a2b8', '#d63384', '#0d6efd'
@@ -435,25 +453,19 @@ function initWordCloud(data) {
             shape: 'circle',
             width: '85%', height: '85%',
             sizeRange: [20, 90],
-            rotationRange: [0, 0], // 가로 고정
+            rotationRange: [0, 0],
             gridSize: 12,
             textStyle: {
                 fontFamily: 'Pretendard',
                 fontWeight: 'bold',
-                color: function () {
-                    return vibrantPalette[Math.floor(Math.random() * vibrantPalette.length)];
-                }
+                color: () => vibrantPalette[Math.floor(Math.random() * vibrantPalette.length)]
             },
             emphasis: {
                 focus: 'self',
-                textStyle: {
-                    shadowBlur: 10,
-                    shadowColor: 'rgba(0, 0, 0, 0.3)' // 호버 시 그림자
-                }
+                textStyle: { shadowBlur: 10, shadowColor: 'rgba(0, 0, 0, 0.3)' }
             },
-            data: data
+            data: sortedData
         }]
     };
-
     myChart.setOption(option);
 }
