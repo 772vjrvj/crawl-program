@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Data Storytelling</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="presentation-container">
+    <section id="scene-1" class="scene active">
+
+        <div class="video-card">
+            <div class="thumbnail-wrapper">
+                <img id="vid-thumb" src="" alt="유튜브 썸네일">
+            </div>
+            <div class="info-wrapper">
+                <h2 id="vid-channel" class="channel-name">채널명</h2>
+                <h1 id="vid-title" class="video-title">영상 제목이 여기에 표시됩니다.</h1>
+
+                <div class="stats-container">
+                    <div class="stat-box">
+                        <span class="stat-label">조회수</span>
+                        <span class="stat-value" id="vid-views">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">좋아요</span>
+                        <span class="stat-value" id="vid-likes">0</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">댓글 수</span>
+                        <span class="stat-value" id="vid-comments">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="branding-section">
+            <img src="goodbye772vjrvj_main.png" alt="GB7 돌고래 마스코트" class="mascot-img">
+
+            <div class="cta-container">
+                <div class="cta-item">
+                    <div class="cta-icon-box">👍</div>
+                    <span class="cta-text">좋아요</span>
+                </div>
+                <div class="cta-item">
+                    <div class="cta-icon-box">💬</div>
+                    <span class="cta-text">댓글</span>
+                </div>
+                <div class="cta-item">
+                    <div class="cta-icon-box">🔔</div>
+                    <span class="cta-text">구독</span>
+                </div>
+                <div class="cta-item">
+                    <div class="cta-icon-box">⏰</div>
+                    <span class="cta-text">알림설정</span>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+    <section id="scene-2" class="scene">
+        <h1 class="scene-title">📊 긍정/부정 감성 분석</h1>
+    </section>
+
+    <section id="scene-3" class="scene">
+        <h1 class="scene-title">☁️ 핵심 키워드 (TF-IDF)</h1>
+    </section>
+
+    <section id="scene-4" class="scene">
+        <h1 class="scene-title">🕸️ 키워드 문맥 & 베스트 댓글</h1>
+    </section>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

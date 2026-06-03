@@ -1,0 +1,185 @@
+/* 기본 리셋 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Pretendard', -apple-system, sans-serif;
+}
+
+/* 하얀색 퓨어 테마 설정 */
+body {
+    background-color: #ffffff;
+    color: #222222;
+    overflow: hidden;
+}
+
+#presentation-container {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+}
+
+/* 씬(Scene) 공통 효과 */
+.scene {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.scene.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.scene-title {
+    font-size: 3rem;
+    margin-bottom: 2rem;
+    color: #111;
+}
+
+/* ================================
+   [Scene 1] 비디오 카드 (블러 제거, 깔끔한 그림자)
+   ================================ */
+.video-card {
+    display: flex;
+    flex-direction: row;
+    gap: 40px;
+    background: #ffffff;
+    padding: 30px;
+    border-radius: 24px;
+    /* 과했던 하늘색 블러를 제거하고 부드럽고 자연스러운 그림자로 변경 */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    max-width: 1300px;
+    width: 100%;
+    margin-bottom: 30px; /* 마스코트와의 간격 조절 */
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.thumbnail-wrapper img {
+    width: 560px;
+    height: 315px;
+    object-fit: cover;
+    border-radius: 16px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.info-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+}
+
+.channel-name {
+    font-size: 1.3rem;
+    color: #555555; /* 무서운 빨간색 -> 세련된 진회색 */
+    margin-bottom: 12px;
+    font-weight: 700;
+}
+
+.video-title {
+    font-size: 2.2rem;
+    line-height: 1.35;
+    margin-bottom: 30px;
+    word-break: keep-all;
+    color: #111111;
+    font-weight: 800;
+}
+
+.stats-container {
+    display: flex;
+    gap: 20px;
+}
+
+.stat-box {
+    background: #f8f9fa; /* 차분한 밝은 회색 */
+    padding: 15px 25px;
+    border-radius: 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    border: 1px solid #eeeeee;
+}
+
+.stat-label {
+    font-size: 1rem;
+    color: #777777; /* 차분한 라벨 색상 */
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #1a73e8; /* 빨간색 -> 구글 블루 톤으로 신뢰감 있게 변경 */
+}
+
+/* ================================
+   [Scene 1] 마스코트 및 좋댓구알 (신규 UI)
+   ================================ */
+.branding-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: float 3s ease-in-out infinite;
+}
+
+/* 돌고래 이미지: 배경에 자연스럽게 묻어가도록 drop-shadow 완전 제거 */
+.mascot-img {
+    width: 170px;
+    height: auto;
+    margin-bottom: 20px;
+}
+
+/* 둥둥 떠다니는 애니메이션 */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+    100% { transform: translateY(0px); }
+}
+
+/* 좋댓구알 래퍼: 투명하게 배경 제거 */
+.cta-container {
+    display: flex;
+    gap: 30px; /* 아이콘 사이 간격 */
+}
+
+/* 개별 아이콘+텍스트 그룹 */
+.cta-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 동그랗고 예쁜 아이콘 박스 */
+.cta-icon-box {
+    width: 65px;
+    height: 65px;
+    background: #f0f4f8; /* 아주 연한 블루/그레이 톤 */
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.8rem;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+}
+
+/* 아이콘 아래 작고 귀여운 글씨 */
+.cta-text {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #666666;
+}

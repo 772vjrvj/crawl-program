@@ -72,7 +72,7 @@ class ApiBarotemSetWorker(BaseApiWorker):
         self.db_columns: List[str] = []
         self.excel_columns: List[str] = []
         self.code_value_map: Dict[str, str] = {}
-        self.game_list: List[dict] = [
+        self.game_list_bak: List[dict] = [
             {
                 "idx": "1",
                 "name": "리니지M"
@@ -3342,12 +3342,12 @@ class ApiBarotemSetWorker(BaseApiWorker):
                 "name": "그외 게임"
             }
         ]
-        # self.game_list: List[dict] = [
-        #     {
-        #         "idx": "3084",
-        #         "name": "피파온라인4(FC온라인)"
-        #     }
-        # ]
+        self.game_list: List[dict] = [
+            {
+                "idx": "3084",
+                "name": "피파온라인4(FC온라인)"
+            }
+        ]
 
     def init(self) -> bool:
         try:

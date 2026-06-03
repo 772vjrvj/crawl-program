@@ -27,7 +27,7 @@
     {
       "name": "물품 검색",
       "code": "keyword",
-      "value": "",
+      "value": "팝니다",
       "type": "input"
     },
     {
@@ -39,7 +39,7 @@
     {
       "name": "가격(만원) 종료",
       "code": "max",
-      "value": 10,
+      "value": 30,
       "type": "input"
     }
   ],
