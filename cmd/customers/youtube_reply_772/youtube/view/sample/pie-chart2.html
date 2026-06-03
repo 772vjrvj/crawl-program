@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body {
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Pretendard', sans-serif;
+        }
+        /* 차트 크기 확대 */
+        #chart { width: 800px; height: 600px; }
+
+        /* 세로형 통계 영역 */
+        #summary {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .item {
+            display: flex;
+            align-items: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        .color-box {
+            width: 16px;
+            height: 16px;
+            margin-right: 10px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="chart"></div>
+
+<div id="summary">
+    <div class="item"><div class="color-box" style="background-color: #ff6b6b;"></div>부정: 50% (188건)</div>
+    <div class="item"><div class="color-box" style="background-color: #20b2aa;"></div>긍정: 50% (200건)</div>
+    <div class="item"><div class="color-box" style="background-color: #a0a0a0;"></div>중립: 0% (0건)</div>
+</div>
+
+<script>
+    var chartDom = document.getElementById('chart');
+    var myChart = echarts.init(chartDom);
+
+    var option = {
+        series: [{
+            type: 'pie',
+            radius: ['45%', '75%'], // 차트 도넛 두께 조절
+            avoidLabelOverlap: false,
+            label: {
+                show: true,
+                position: 'inside',
+                formatter: '{d}%',
+                color: '#fff',
+                fontSize: 20, // 내부 글자 크기 확대
+                fontWeight: 'bold'
+            },
+            itemStyle: {
+                borderRadius: 12,
+                borderColor: '#fff',
+                borderWidth: 4,
+                shadowBlur: 0
+            },
+            data: [
+                { value: 188, name: '부정', itemStyle: { color: '#ff6b6b' } },
+                { value: 200, name: '긍정', itemStyle: { color: '#20b2aa' } },
+                { value: 0, name: '중립', itemStyle: { color: '#a0a0a0' } }
+            ]
+        }]
+    };
+
+    myChart.setOption(option);
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/highcharts-3d.js"></script>
+    <style>
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #fff; font-family: 'Malgun Gothic', sans-serif; }
+        #container { width: 900px; height: 600px; }
+    </style>
+</head>
+<body>
+
+<div id="container"></div>
+
+<script>
+    Highcharts.chart('container', {
+        chart: {
+            type: 'pie',
+            options3d: { enabled: true, alpha: 50, beta: 0 }
+        },
+        title: { text: '데이터 분석 결과', style: { fontSize: '24px' } },
+        plotOptions: {
+            pie: {
+                depth: 80,
+                slicedOffset: 30,
+                dataLabels: [{
+                    enabled: true,
+                    distance: -50,
+                    format: '{point.percentage:.0f}%',
+                    style: { fontSize: '28px', color: 'white', textOutline: 'none' }
+                },
+                    {
+                        enabled: true,
+                        distance: 40,
+                        format: '<b>{point.name}</b><br>{point.count}명',
+                        style: { fontSize: '18px', color: '#333' }
+                    }]
+            }
+        },
+        series: [{
+            data: [
+                { name: '부정', y: 70, count: 80, color: '#FF6B6B', sliced: true },
+                { name: '긍정', y: 10, count: 50, color: '#20B2AA', sliced: true },
+                { name: '중립', y: 20, count: 20, color: '#ff9f43', sliced: true }
+            ]
+        }]
+    });
+</script>
+</body>
+</html>

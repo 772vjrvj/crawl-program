@@ -121,3 +121,58 @@ body { background-color: #ffffff; color: #222222; overflow: hidden; }
 .log-line.ok  { color: #3cd070; font-weight: bold; }
 
 
+
+
+
+/* 씬3 메인 레이아웃: 중앙 정렬 */
+#scene-3 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.scene-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #111;
+    margin-bottom: 20px; /* 차트와의 간격 */
+    text-align: center;
+}
+
+/* 차트 영역: 고정 크기 및 배경 투명 */
+#chart {
+    width: 800px;   /* 800px에서 900px로 확대 */
+    height: 600px;  /* 600px에서 700px로 확대 */
+}
+
+/* 통계 영역: 세로 정렬 */
+#summary {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+/* 각 항목: 가로 정렬(아이콘+텍스트) */
+.item {
+    display: flex;
+    align-items: center;
+    font-size: 25px;
+    font-weight: 600;
+}
+
+/* 각각의 색상 지정 */
+.item.pos { color: #2064b2; }
+.item.neg { color: #ff6b6b; }
+.item.neu { color: #a0a0a0; }
+
+
+/* 색상 박스 */
+.color-box {
+    width: 16px;
+    height: 16px;
+    margin-right: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}

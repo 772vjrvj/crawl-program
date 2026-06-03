@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Data Storytelling</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 </head>
 <body>
 <div id="presentation-container">
@@ -79,12 +79,15 @@
     </section>
 
     <section id="scene-3" class="scene">
-        <div class="sentiment-container">
-            <h1 class="scene-title">📊 감성 분석 결과 (Sentiment Cloud)</h1>
-            <div id="canvas-3d-container"></div>
-            <div id="sentiment-info">
-                <span class="sentiment-badge pos">긍정: <b id="pos-count">0</b></span>
-                <span class="sentiment-badge neg">부정: <b id="neg-count">0</b></span>
+        <div id="chart-wrapper" style="display: flex; flex-direction: column; align-items: center;">
+            <h1 class="scene-title">📊 감정 분석 비율</h1>
+
+            <div id="chart"></div>
+
+            <div id="summary">
+                <div class="item pos"><div class="color-box"></div>긍정: <b id="pos-val">0% (0건)</b></div>
+                <div class="item neg"><div class="color-box"></div>부정: <b id="neg-val">0% (0건)</b></div>
+                <div class="item neu"><div class="color-box"></div>중립: <b id="neu-val">0% (0건)</b></div>
             </div>
         </div>
     </section>
