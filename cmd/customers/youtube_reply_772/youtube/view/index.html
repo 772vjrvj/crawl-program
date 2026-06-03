@@ -8,6 +8,7 @@
 </head>
 <body>
 <div id="presentation-container">
+    <!-- [Scene 1] 영상 기본 정보 -->
     <section id="scene-1" class="scene active">
 
         <div class="video-card">
@@ -36,41 +37,74 @@
         </div>
 
         <div class="branding-section">
-            <img src="goodbye772vjrvj_main.png" alt="GB7 돌고래 마스코트" class="mascot-img">
 
+            <!-- 좋댓구알 (물음표 미스터리 에그) -->
+            <!-- 좋댓구알 (리얼 파편 폭발 에그) -->
             <div class="cta-container">
-                <div class="cta-item">
-                    <div class="cta-icon-box">👍</div>
-                    <span class="cta-text">좋아요</span>
+                <!-- Q: 좋아요 -->
+                <div class="cta-item" id="cta-q">
+                    <div class="mystery-egg">
+                        <span class="egg-text">?</span>
+                        <div class="egg-shell top"></div>
+                        <div class="egg-shell bottom"></div>
+                        <!-- 사방으로 튀어 나갈 6개의 파편 조각들 -->
+                        <div class="shards"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="revealed-btn">
+                        <div class="css-icon-box"><div class="css-heart"></div></div>
+                        <span class="cta-text">좋아요</span>
+                    </div>
                 </div>
-                <div class="cta-item">
-                    <div class="cta-icon-box">💬</div>
-                    <span class="cta-text">댓글</span>
+                <!-- W: 댓글 -->
+                <div class="cta-item" id="cta-w">
+                    <div class="mystery-egg">
+                        <span class="egg-text">?</span>
+                        <div class="egg-shell top"></div>
+                        <div class="egg-shell bottom"></div>
+                        <div class="shards"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="revealed-btn">
+                        <div class="css-icon-box"><div class="css-bubble"></div></div>
+                        <span class="cta-text">댓글</span>
+                    </div>
                 </div>
-                <div class="cta-item">
-                    <div class="cta-icon-box">🔔</div>
-                    <span class="cta-text">구독</span>
+                <!-- E: 구독 -->
+                <div class="cta-item" id="cta-e">
+                    <div class="mystery-egg">
+                        <span class="egg-text">?</span>
+                        <div class="egg-shell top"></div>
+                        <div class="egg-shell bottom"></div>
+                        <div class="shards"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="revealed-btn">
+                        <div class="css-icon-box"><div class="css-bell"></div></div>
+                        <span class="cta-text">구독</span>
+                    </div>
                 </div>
-                <div class="cta-item">
-                    <div class="cta-icon-box">⏰</div>
-                    <span class="cta-text">알림설정</span>
+                <!-- R: 알림설정 -->
+                <div class="cta-item" id="cta-r">
+                    <div class="mystery-egg">
+                        <span class="egg-text">?</span>
+                        <div class="egg-shell top"></div>
+                        <div class="egg-shell bottom"></div>
+                        <div class="shards"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="revealed-btn">
+                        <div class="css-icon-box"><div class="css-clock"></div></div>
+                        <span class="cta-text">알림</span>
+                    </div>
                 </div>
             </div>
+            <!-- 마스코트 (원형 + 하늘색 블러 그림자) -->
+            <img src="goodbye772vjrvj_main.png" alt="GB7 돌고래 마스코트" class="mascot-img">
         </div>
 
     </section>
 
-    <section id="scene-2" class="scene">
-        <h1 class="scene-title">📊 긍정/부정 감성 분석</h1>
-    </section>
-
-    <section id="scene-3" class="scene">
-        <h1 class="scene-title">☁️ 핵심 키워드 (TF-IDF)</h1>
-    </section>
-
-    <section id="scene-4" class="scene">
-        <h1 class="scene-title">🕸️ 키워드 문맥 & 베스트 댓글</h1>
-    </section>
+    <!-- 나머지 씬 -->
+    <section id="scene-2" class="scene"><h1 class="scene-title">📊 긍정/부정 감성 분석</h1></section>
+    <section id="scene-3" class="scene"><h1 class="scene-title">☁️ 핵심 키워드 (TF-IDF)</h1></section>
+    <section id="scene-4" class="scene"><h1 class="scene-title">🕸️ 키워드 문맥 & 베스트 댓글</h1></section>
 </div>
 
 <script src="script.js"></script>
