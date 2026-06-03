@@ -252,4 +252,3 @@ function addLogLine(type, text) {
     terminal.appendChild(line);
     terminal.scrollTop = terminal.scrollHeight;
 }
-
