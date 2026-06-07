@@ -5,6 +5,7 @@ import random
 import json
 from decimal import Decimal, InvalidOperation
 
+from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
@@ -54,6 +55,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
         self.sqlite_driver: Optional[SqliteUtils] = None
+        self.api_client: Optional[APIClient] = None
 
         self.folder_path: str = ""
         self.out_dir: str = "output"
@@ -78,6 +80,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         try:
             self.excel_driver = ExcelUtils(self.log_signal_func)
             self.file_driver = FileUtils(self.log_signal_func)
+            self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
             if not self.db_set():
                 return False
@@ -350,6 +353,67 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         return ok
 
+
+    def bulk_insert_detail_rows(self, rs_list: list[dict[str, Any]]) -> bool:
+        """
+        리스트에 담긴 여러 row를 executemany를 사용해 한 번에 DB에 밀어 넣는 함수
+        """
+        if not self.sqlite_driver or not rs_list:
+            self.detail_fail_count += len(rs_list)
+            self.log_signal_func("❌ [DB] sqlite_driver 없거나 저장할 데이터가 없음")
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        db_columns = self._get_db_columns()
+
+        base_columns = [
+            "hist_id", "site_name", "worker_name", "table_name", "job_id", "user_id", "row_status"
+        ]
+        all_columns = base_columns + db_columns + ["created_at", "updated_at"]
+        placeholders = ", ".join(["?"] * len(all_columns))
+        column_text = ",\n                    ".join(all_columns)
+
+        query = f"""
+                    INSERT INTO {self.detail_table_name} (
+                        {column_text}
+                    ) VALUES ({placeholders})
+                    """
+
+        # executemany에 던질 파라미터 리스트(튜플들의 리스트) 생성
+        params_list = []
+        for rs in rs_list:
+            db_rs = self._map_out_to_db(rs)
+            params = (
+                self.hist_id,
+                self.site_name,
+                self.worker_name,
+                self.detail_table_name,
+                self.job_id,
+                getattr(self.user, "user_id", None) if self.user else None,
+                "SUCCESS",
+                *[db_rs.get(col, "") for col in db_columns],
+                now,
+                now,
+            )
+            params_list.append(params)
+
+        try:
+            # sqlite3 커넥션에 직접 접근하여 executemany 실행 (가장 빠름)
+            conn = self.sqlite_driver.conn
+            cursor = conn.cursor()
+            cursor.executemany(query, params_list)
+            conn.commit()
+
+            self.detail_success_count += len(rs_list)
+            self.log_signal_func(f"✅ [DB] bulk insert 완료 | hist_id={self.hist_id} | count={len(rs_list)}")
+            return True
+
+        except Exception as e:
+            self.detail_fail_count += len(rs_list)
+            self.log_signal_func(f"❌ [DB] bulk insert 실패 | hist_id={self.hist_id} | error={e}")
+            return False
+
+
     def _get_db_columns(self) -> List[str]:
         # === 신규 ===
         # 기존 columns.json의 위치/한글명/checked/title/content는 유지하고,
@@ -412,6 +476,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 'searchRequirement',
                 'articlePriceInfo',
                 'rank']
+
 
     def _get_kor_header_map(self) -> Dict[str, str]:
         # === 신규 ===
@@ -1133,7 +1198,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                             success = True
                             break
 
-                        time.sleep(3)
+                        time.sleep(10)
 
                         # 정렬 전, 먼저 초기 목록 응답 확보
                         initial_hook_data: dict[str, Any] = self._get_first_list_hook_data(5)
@@ -1286,7 +1351,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 if self.detail_column_yn:
                     self._collect_detail(items, region_item)
                 else:
-                    self._save_list_items(items, region_item)
+                    # self._save_list_items(items, region_item)
+                    self._save_list_items_multi(items, region_item)
 
                 emit_region_progress()
                 time.sleep(random.uniform(2, 4))
@@ -1929,6 +1995,124 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         except Exception as e:
             self.detail_fail_count += 1
             self.log_signal_func(f"[DB저장] 일반목록 저장 실패 / {e}")
+
+
+    def _save_list_items_multi(self, items: list[dict[str, Any]], region_item) -> None:
+        try:
+            if not items:
+                self.log_signal_func("[DB저장] 저장할 데이터 없음")
+                return
+
+            chunk_size = 20
+            total_save_count = 0
+
+            for i in range(0, len(items), chunk_size):
+                chunk = items[i:i + chunk_size]
+
+                # 1. 서버에서 주소 목록 받아오기
+                api_results = self._fetch_addresses_from_server(chunk, region_item)
+
+                # 🌟 2. 서버 응답을 'id(매물번호)'를 키로 가지는 딕셔너리로 변환 (검색 속도 O(1))
+                api_res_map = {
+                    res.get("id"): res
+                    for res in api_results if isinstance(res, dict) and res.get("id")
+                }
+
+                rows_to_insert = []
+
+                # 3. 매핑 작업 (ID 기반으로 정확하게 매칭)
+                for info in chunk:
+                    rs = self._make_list_row(info, region_item)
+                    article_no = str(info.get("articleNumber", ""))
+
+                    # 🌟 응답 맵에서 해당 매물번호의 결과를 가져옴
+                    api_res = api_res_map.get(article_no)
+
+                    # API 응답이 정상적으로 존재할 경우 주소 덮어쓰기
+                    if api_res:
+                        road_info = api_res.get("road_address") or {}
+                        jibun_info = api_res.get("address") or {}
+
+                        road_name = road_info.get("address_name", "")
+                        jibun_name = jibun_info.get("address_name", "")
+
+                        if road_name:
+                            rs["도로명주소"] = road_name
+                            rs["전체주소"] = road_name # 도로명 우선
+                        if jibun_name:
+                            rs["번지"] = jibun_name
+                            # 도로명이 없으면 지번을 전체주소로 사용
+                            if not road_name:
+                                rs["전체주소"] = jibun_name
+
+                    rows_to_insert.append(rs)
+
+                # 4. 20개 데이터를 DB에 한 번에 Bulk Insert
+                if self.bulk_insert_detail_rows(rows_to_insert):
+                    total_save_count += len(rows_to_insert)
+
+            if total_save_count == 0:
+                self.log_signal_func("[DB저장] 저장된 데이터 없음")
+                return
+
+            self.log_signal_func(f"✅ [DB저장] 일반목록 벌크 저장 완료 | 누적 count={total_save_count}")
+
+        except Exception as e:
+            self.detail_fail_count += len(items)
+            self.log_signal_func(f"❌ [DB저장] 일반목록 벌크 저장 실패 / {e}")
+
+    def _fetch_addresses_from_server(self, items_chunk: list[dict[str, Any]], region_item) -> list[dict[str, Any]]:
+        """
+        20개 단위의 배열을 서버로 보내서 지번/도로명 주소를 받아오는 함수
+        """
+        # SERVER_URL = "http://localhost:5001/geocode/reverse-batch"
+        SERVER_URL = "http://220.94.196.191:5001/geocode/reverse-batch"
+        MASTER_API_KEY = "my_secret_master_key_1234!"
+
+        payload = []
+        for info in items_chunk:
+            article_no = str(info.get("articleNumber", ""))  # 🌟 매물번호 추출
+            list_address = info.get("address", {}) or {}
+            list_coords = list_address.get("coordinates", {}) or {}
+
+            try:
+                lat = float(list_coords.get("yCoordinate") or 0.0)
+                lng = float(list_coords.get("xCoordinate") or 0.0)
+            except ValueError:
+                lat, lng = 0.0, 0.0
+
+            payload.append({
+                "id": article_no,  # 🌟 고유 ID로 매물번호를 담아서 보냄
+                "lat": lat,
+                "lng": lng,
+                "sido": region_item.get("시도", ""),
+                "sigungu": region_item.get("시군구", ""),
+                "eupmyeondong": region_item.get("읍면동", "")
+            })
+
+        headers = {
+            "X-API-KEY": MASTER_API_KEY,
+            "Content-Type": "application/json"
+        }
+
+        try:
+            # 🌟 수정: response 객체가 리스트(list) 자체일 확률이 높음
+            response = self.api_client.post(url=SERVER_URL, headers=headers, json=payload, timeout=60)
+
+            # 1. response가 list라면 성공으로 간주
+            if isinstance(response, list):
+                return response
+
+            # 2. 만약 response가 특정 객체(응답랩퍼)라면 여기서 status 체크를 해야 함
+            # 하지만 현재 에러로 보아 response가 list이므로, 위 1번 조건에서 바로 통과될 거야.
+
+            self.log_signal_func(f"⚠️ [API 서버 응답 오류] 리스트 형식이 아님: {type(response)}")
+            return []
+
+        except Exception as e:
+            self.log_signal_func(f"❌ [API 서버 통신 실패] {e}")
+            return []
+
 
     def _append_save_row(self, rs):
         try:
