@@ -1,13 +1,13 @@
 {
   "label": "네이버 부동산",
-  "key": "NAVER_LAND_REAL_ESTATE_AD",
-  "db_name": "NAVER_LAND_REAL_ESTATE_AD",
+  "key": "NAVER_LAND_REAL_ESTATE_AUTO",
+  "db_name": "NAVER_LAND_REAL_ESTATE_AUTO",
   "db_common_name": "WORKER_JOB_HIST",
   "color": "#ccc",
   "enabled": true,
   "popup": false,
   "region": false,
-  "worker_class": "src.workers.main.api_naver_land_real_estate_ad_set_worker:ApiNaverLandRealEstateAdSetWorker",
+  "worker_class": "src.workers.main.api_naver_land_real_estate_auto_set_worker:ApiNaverLandRealEstateAutoSetWorker",
   "setting": [
     {
       "name": "저장 폴더",

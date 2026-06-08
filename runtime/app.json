@@ -40,6 +40,10 @@
       "config_path": "customers/naver_land_real_estate_ad/config.json"
     },
     {
+      "key": "NAVER_LAND_REAL_ESTATE_AUTO",
+      "config_path": "customers/naver_land_real_estate_auto/config.json"
+    },
+    {
       "key": "NAVER_LAND_REAL_ESTATE_DETAIL_DOWN",
       "config_path": "customers/naver_land_real_estate_detail_down/config.json"
     },

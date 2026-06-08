@@ -15,7 +15,7 @@ from src.utils.time_utils import yyyy_mm_dd_to
 from urllib.parse import quote
 from pyproj import Transformer
 
-class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
+class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
     def __init__(self) -> None:
         super().__init__()
@@ -27,8 +27,8 @@ class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
         self.job_id = None
         self.hist_status = "RUNNING"
         self.hist_error_message = None
-        self.worker_name: str = "naver_land_real_estate_ad"
-        self.detail_table_name: str = "naver_land_real_estate_ad"
+        self.worker_name: str = "naver_land_real_estate_auto"
+        self.detail_table_name: str = "naver_land_real_estate_auto"
         self.detail_success_count: int = 0
         self.detail_fail_count: int = 0
         self.auto_save_yn: bool = False
@@ -669,7 +669,7 @@ class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
 
         self.filter_data = self.file_driver.read_json_array_from_resources(
             "filter_data.json",
-            "customers/naver_land_real_estate_ad",
+            "customers/naver_land_real_estate_auto",
         )
 
         self._load_js_assets()
@@ -677,7 +677,7 @@ class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
         # 1. 전체 지역 원본 로드
         self.naver_loc_all_real_detail = self.file_driver.read_json_array_from_resources(
             "korea_eup_myeon_dong.json",
-            "customers/naver_land_real_estate_ad/region",
+            "customers/naver_land_real_estate_auto/region",
         )
 
         # 2. 등록일
@@ -1036,7 +1036,7 @@ class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
         return db_out
 
     def _load_js_assets(self) -> None:
-        js_dir = "customers/naver_land_real_estate_ad/js"
+        js_dir = "customers/naver_land_real_estate_auto/js"
         self.list_hook_js = self.file_driver.read_text_from_resources("list_hook.js", js_dir)
         self.browser_fetch_json_js = self.file_driver.read_text_from_resources("browser_fetch_json.js", js_dir)
         self.click_sort_button_js = self.file_driver.read_text_from_resources("click_sort_button.js", js_dir)
