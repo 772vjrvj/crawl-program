@@ -131,7 +131,7 @@
           "name": "매매",
           "code": "A1",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "전세",

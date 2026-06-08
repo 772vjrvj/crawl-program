@@ -1167,13 +1167,13 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 base_payload: dict[str, Any] = {}
                 first_result: dict[str, Any] = {}
 
-                for attempt in range(1, 4):
+                for attempt in range(1, 5):
 
                     if not self.running:
                         return True
 
                     try:
-                        self.log_signal_func(f"[지역 진입] 시도 {attempt}/3")
+                        self.log_signal_func(f"[지역 진입] 시도 {attempt}/5")
 
                         self.driver.get(url)
                         time.sleep(5)
@@ -1191,17 +1191,17 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
                         self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
                         try:
-                            self._click_article_button(wait_sec=5)
+                            self._click_article_button(wait_sec=10)
                         except Exception as e:
                             self.log_signal_func(f"[목록] 매물 버튼 없음/클릭 실패 -> 다음 지역으로 이동 / {e}")
                             skip_current_region = True
                             success = True
                             break
 
-                        time.sleep(10)
+                        time.sleep(8)
 
                         # 정렬 전, 먼저 초기 목록 응답 확보
-                        initial_hook_data: dict[str, Any] = self._get_first_list_hook_data(5)
+                        initial_hook_data: dict[str, Any] = self._get_first_list_hook_data(20)
                         initial_body_text: str = initial_hook_data.get("bodyText", "")
                         initial_response_json: dict[str, Any] = initial_hook_data.get("responseJson", {}) or {}
 
@@ -1272,7 +1272,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                             self._click_sort_button_by_setting(wait_sec=5)
                             time.sleep(3)
 
-                            sorted_hook_data: dict[str, Any] = self._get_first_list_hook_data(5)
+                            sorted_hook_data: dict[str, Any] = self._get_first_list_hook_data(20)
                             sorted_body_text: str = sorted_hook_data.get("bodyText", "")
                             sorted_response_json: dict[str, Any] = sorted_hook_data.get("responseJson", {}) or {}
 
@@ -1319,14 +1319,14 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     except Exception as e:
                         self.log_signal_func(
                             f"[지역 처리 실패] {sido} {sigungu} {eup_myeon_dong} "
-                            f"/ 시도 {attempt}/3 / {e}"
+                            f"/ 시도 {attempt}/5 / {e}"
                         )
 
-                        if attempt < 3:
+                        if attempt < 5:
                             self.log_signal_func("[재시도] 화면 새로 로드 후 다시 시도")
                             time.sleep(2)
                         else:
-                            self.log_signal_func("[재시도 실패] 3회 모두 실패하여 다음 지역으로 이동")
+                            self.log_signal_func("[재시도 실패] 5회 모두 실패하여 다음 지역으로 이동")
 
                 if not success:
                     emit_region_progress()
@@ -1533,18 +1533,59 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         script = self.list_hook_js.replace("__TARGET__", "/front-api/v1/article/boundedArticles")
         self.driver.execute_script(script)
 
-    def _get_first_list_hook_data(self, wait_sec: int = 5):
+
+    def _get_first_list_hook_data(self, wait_sec=20):
         end = time.time() + wait_sec
 
         while time.time() < end:
             try:
-                data = self.driver.execute_script("return window.__naverListHookData;")
-                if data:
-                    return data
-            except Exception as e:
-                self.log_signal_func(f"[후킹] 데이터 조회 실패: {e}")
+                hook_list = self.driver.execute_script(
+                    "return window.__naverListHookList || [];"
+                )
 
-            time.sleep(1)
+                if not hook_list:
+                    time.sleep(0.5)
+                    continue
+
+                for item in hook_list:
+                    response_json = item.get("responseJson") or {}
+                    url = item.get("url", "")
+
+                    if (
+                            "/boundedArticles" in url
+                            and "boundedArticlesCount" not in url
+                    ):
+                        self.log_signal_func(
+                            f"[HOOK SUCCESS] "
+                            f"url={url} "
+                            f"keys={list(response_json.keys())}"
+                        )
+                        return item
+
+            except Exception as e:
+                self.log_signal_func(
+                    f"[후킹] 데이터 조회 실패: {e}"
+                )
+
+            time.sleep(0.5)
+
+        try:
+            hook_info = self.driver.execute_script("""
+            return {
+                data: window.__naverListHookData,
+                urls: window.__naverListHookUrls || [],
+                listCount: (window.__naverListHookList || []).length
+            };
+            """)
+
+            self.log_signal_func(
+                f"[HOOK TIMEOUT] {hook_info}"
+            )
+
+        except Exception as e:
+            self.log_signal_func(
+                f"[HOOK TIMEOUT] hook_data 조회 실패: {e}"
+            )
 
         return {}
 
