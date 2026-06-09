@@ -2104,7 +2104,6 @@ class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
                 d_val = str(rs.get("매물확인일") or rs.get("등록일자") or "").replace("-", "").replace(".", "").replace("/", "").strip()
                 if self.fr_date and self.to_date and d_val:
                     if not (self.fr_date <= d_val <= self.to_date):
-                        self.log_signal_func(f'날짜 범위 밖 데이터 제외 : {rs["매매가"]}')
                         continue # 날짜 범위 밖 데이터 제외
 
                 final_rows_to_insert.append(rs)
