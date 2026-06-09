@@ -17,12 +17,12 @@ pyinstaller .\main.py `
 --noconfirm `
 --clean `
 --windowed `
---name "naver_land_real_estate_detail_auto" `
+--name "naver_land_real_estate_auto" `
 --icon ".\resources\icons\crawling.ico" `
---version-file ".\docs\customers\naver_land_real_estate_detail_auto\version_info.txt" `
+--version-file ".\docs\customers\naver_land_real_estate_auto\version_info.txt" `
 --distpath ".\dist" `
 --workpath ".\build" `
---hidden-import "src.workers.main.naver_land_real_estate_detail_auto_set_worker" `
+--hidden-import "src.workers.main.naver_land_real_estate_auto_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `
 --exclude-module tkinter `
@@ -30,13 +30,13 @@ pyinstaller .\main.py `
 --exclude-module tk `
 --exclude-module Tcl `
 --exclude-module tcl `
---add-data ".\resources\customers\naver_land_real_estate_detail_auto\filter_data.json;resources\customers\naver_land_real_estate_detail_auto" `
---add-data ".\resources\customers\naver_land_real_estate_detail_auto\region\korea_eup_myeon_dong.json;resources\customers\naver_land_real_estate_detail_auto\region" `
---add-data ".\resources\customers\naver_land_real_estate_detail_auto\js\list_hook.js;resources\customers\naver_land_real_estate_detail_auto\js" `
---add-data ".\resources\customers\naver_land_real_estate_detail_auto\js\browser_fetch_json.js;resources\customers\naver_land_real_estate_detail_auto\js" `
---add-data ".\resources\customers\naver_land_real_estate_detail_auto\js\click_sort_button.js;resources\customers\naver_land_real_estate_detail_auto\js" `
---add-data ".\resources\customers\naver_land_real_estate_detail_auto\js\click_article_button.js;resources\customers\naver_land_real_estate_detail_auto\js" `
+--add-data ".\resources\customers\naver_land_real_estate_auto\filter_data.json;resources\customers\naver_land_real_estate_auto" `
+--add-data ".\resources\customers\naver_land_real_estate_auto\region\korea_eup_myeon_dong.json;resources\customers\naver_land_real_estate_auto\region" `
+--add-data ".\resources\customers\naver_land_real_estate_auto\js\list_hook.js;resources\customers\naver_land_real_estate_auto\js" `
+--add-data ".\resources\customers\naver_land_real_estate_auto\js\browser_fetch_json.js;resources\customers\naver_land_real_estate_auto\js" `
+--add-data ".\resources\customers\naver_land_real_estate_auto\js\click_sort_button.js;resources\customers\naver_land_real_estate_auto\js" `
+--add-data ".\resources\customers\naver_land_real_estate_auto\js\click_article_button.js;resources\customers\naver_land_real_estate_auto\js" `
 --add-data ".\resources\customers\naver_place_loc_all\naver_loc_all_real.json;resources\customers\naver_place_loc_all" `
---add-data ".\resources\customers\naver_land_real_estate_detail_auto\db\schema_detail.sql;resources\customers\naver_land_real_estate_detail_auto\db" `
+--add-data ".\resources\customers\naver_land_real_estate_auto\db\schema_detail.sql;resources\customers\naver_land_real_estate_auto\db" `
 --add-data ".\resources\customers\common\db\schema_hist.sql;resources\customers\common\db" `
 --add-data ".\resources\icons\crawling.ico;resources\icons"

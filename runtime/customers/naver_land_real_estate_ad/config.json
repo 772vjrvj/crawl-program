@@ -22,13 +22,13 @@
     {
       "name": "등록일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": 20260605,
+      "value": 20260609,
       "type": "input"
     },
     {
       "name": "등록일(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": 20260608,
+      "value": 20260609,
       "type": "input"
     },
     {
@@ -847,16 +847,16 @@
       "value": "매물번호"
     },
     {
-      "code": "atclNm",
-      "value": "상위매물명"
+      "code": "articleName",
+      "value": "매물명"
     },
     {
-      "code": "complexName",
-      "value": "단지명"
+      "code": "jibun",
+      "value": "번지"
     },
     {
-      "code": "dongName",
-      "value": "동이름"
+      "code": "roadName",
+      "value": "도로명주소"
     }
   ],
   "columns": [
