@@ -22,7 +22,7 @@ pyinstaller .\main.py `
 --version-file ".\docs\customers\naver_land_real_estate_auto\version_info.txt" `
 --distpath ".\dist" `
 --workpath ".\build" `
---hidden-import "src.workers.main.naver_land_real_estate_auto_set_worker" `
+--hidden-import "src.workers.main.api_naver_land_real_estate_auto_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `
 --exclude-module tkinter `

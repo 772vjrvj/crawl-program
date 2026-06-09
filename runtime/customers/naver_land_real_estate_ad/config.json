@@ -38,38 +38,6 @@
       "type": "check"
     },
     {
-      "name": "정렬방식",
-      "code": "articleSortType",
-      "value": "DATE_DESC",
-      "type": "select",
-      "options": [
-        {
-          "key": "랭킹순",
-          "value": "RANKING_DESC"
-        },
-        {
-          "key": "높은가격순",
-          "value": "PRICE_DESC"
-        },
-        {
-          "key": "낮은가격순",
-          "value": "PRICE_ASC"
-        },
-        {
-          "key": "최신순",
-          "value": "DATE_DESC"
-        },
-        {
-          "key": "넓은면적순",
-          "value": "SPACE_DESC"
-        },
-        {
-          "key": "좁은면적순",
-          "value": "SPACE_ASC"
-        }
-      ]
-    },
-    {
       "name": "기준금액",
       "code": "baseAmount",
       "value": "10K",
@@ -99,12 +67,6 @@
       "name": "영어컬럼",
       "code": "eng_yn",
       "value": false,
-      "type": "check"
-    },
-    {
-      "name": "부동산 중개사 기준 매물 가져오기",
-      "code": "brokerage_yn",
-      "value": true,
       "type": "check"
     },
     {

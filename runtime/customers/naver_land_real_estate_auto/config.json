@@ -20,6 +20,18 @@
       "path_type": "main"
     },
     {
+      "name": "자동반복",
+      "code": "auto_flag",
+      "value": true,
+      "type": "check"
+    },
+    {
+      "name": "반복 시간 (숫자 입력)",
+      "code": "auto_num",
+      "value": 6,
+      "type": "input"
+    },
+    {
       "name": "등록일(YYYYMMDD) 시작",
       "code": "fr_date",
       "value": 20260605,
@@ -30,44 +42,6 @@
       "code": "to_date",
       "value": 20260608,
       "type": "input"
-    },
-    {
-      "name": "자동 엑셀 저장",
-      "code": "auto_save_yn",
-      "value": true,
-      "type": "check"
-    },
-    {
-      "name": "정렬방식",
-      "code": "articleSortType",
-      "value": "DATE_DESC",
-      "type": "select",
-      "options": [
-        {
-          "key": "랭킹순",
-          "value": "RANKING_DESC"
-        },
-        {
-          "key": "높은가격순",
-          "value": "PRICE_DESC"
-        },
-        {
-          "key": "낮은가격순",
-          "value": "PRICE_ASC"
-        },
-        {
-          "key": "최신순",
-          "value": "DATE_DESC"
-        },
-        {
-          "key": "넓은면적순",
-          "value": "SPACE_DESC"
-        },
-        {
-          "key": "좁은면적순",
-          "value": "SPACE_ASC"
-        }
-      ]
     },
     {
       "name": "기준금액",
@@ -88,24 +62,6 @@
           "value": "KRW"
         }
       ]
-    },
-    {
-      "name": "상세정보조회",
-      "code": "detail_column_yn",
-      "value": false,
-      "type": "check"
-    },
-    {
-      "name": "영어컬럼",
-      "code": "eng_yn",
-      "value": false,
-      "type": "check"
-    },
-    {
-      "name": "부동산 중개사 기준 매물 가져오기",
-      "code": "brokerage_yn",
-      "value": true,
-      "type": "check"
     },
     {
       "name": "링크(주소,매물번호)",
@@ -1127,32 +1083,32 @@
     {
       "code": "supplySpaceName",
       "value": "평수",
-      "checked": false
+      "checked": true
     },
     {
       "code": "buildingPrincipalUse",
       "value": "건축물용도",
-      "checked": false
+      "checked": true
     },
     {
       "code": "articleDescription",
       "value": "매물상세설명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "broker_address",
       "value": "중개사무소주소",
-      "checked": false
+      "checked": true
     },
     {
       "code": "phone",
       "value": "중개사무소번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "phone_mobile",
       "value": "중개사핸드폰번호",
-      "checked": false
+      "checked": true
     }
   ]
 }

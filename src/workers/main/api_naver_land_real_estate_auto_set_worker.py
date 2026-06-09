@@ -21,8 +21,11 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         super().__init__()
 
         self.global_address_history = {}
-
-        # === 신규 === DB 저장용 공통 상태
+        # 중개사핸드폰번호 완전 중복제거용 전역 변수
+        self.global_mobile_numbers = set()
+        self.auto_flag = None
+        self.auto_num = 6
+        # DB 저장용 공통 상태
         self.hist_id = None
         self.job_id = None
         self.hist_status = "RUNNING"
@@ -39,7 +42,7 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         self.filter_data = None
         self.brokerage_yn = None
         self.link_yn = None
-        self.detail_column_yn = None
+        self.detail_column_yn = True
         self.eng = None
         self.article_sort_type = None
         self.to_date = None
@@ -657,7 +660,7 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         # 저장경로
         self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
 
-        # === 신규 === DB 저장 후 종료 시 엑셀 자동 저장 여부
+        # DB 저장 후 종료 시 엑셀 자동 저장 여부
         self.auto_save_yn = bool(self.get_setting_value(self.setting, "auto_save_yn"))
         self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
 
@@ -680,9 +683,16 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
             "customers/naver_land_real_estate_auto/region",
         )
 
-        # 2. 등록일
-        self.fr_date: str = str(self.get_setting_value(self.setting, "fr_date") or "").strip()
-        self.to_date: str = str(self.get_setting_value(self.setting, "to_date") or "").strip()
+        # === 신규 === 2. 자동반복 및 등록일 처리
+        self.auto_flag = bool(self.get_setting_value(self.setting, "auto_flag"))
+        auto_num_str = str(self.get_setting_value(self.setting, "auto_num") or "").strip()
+        try:
+            self.auto_num = int(auto_num_str) if auto_num_str else 6
+        except ValueError:
+            self.auto_num = 6
+
+        self.fr_date = str(self.get_setting_value(self.setting, "fr_date") or "").strip()
+        self.to_date = str(self.get_setting_value(self.setting, "to_date") or "").strip()
         self.log_signal_func(f"등록 시작일 : {self.fr_date}")
         self.log_signal_func(f"등록 종료일 : {self.to_date}")
 
@@ -701,7 +711,6 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         self.link_yn: bool = self.get_setting_value(self.setting, "link_yn")
         self.log_signal_func(f"링크 여부 : {self.link_yn}")
 
-        self.detail_column_yn: bool = self.get_setting_value(self.setting, "detail_column_yn")
         self.log_signal_func(f"상세조회 여부 : {self.detail_column_yn}")
 
         self.base_amount: str = self.get_setting_value(self.setting, "baseAmount")
@@ -720,7 +729,6 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
             if isinstance(row, dict) and row.get("checked"):
                 checked_favorite_list.append(row)
 
-        # favorite가 있으면 기존 self.region, self.setting_detail_all_style는 사용하지 않음
         if checked_favorite_list:
             self.log_signal_func(f"[즐겨찾기 모드] 사용 즐겨찾기 수 : {len(checked_favorite_list)}")
 
@@ -793,8 +801,38 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
             self.log_signal_func(f"[선택한 상세 지역] 목록 : {detail_region_article_list}")
             self.log_signal_func(f"filter 확인 : {self.setting_detail_all_style}")
 
+
         # 8. 작업목록에 따라 매물 목록 크롤링
-        self._crawl_article_list()
+        if self.auto_flag:
+            self.log_signal_func(f"[자동반복] 자동 모드 활성화. {self.auto_num}시간 주기로 반복합니다.")
+
+            # 1. 처음엔 무조건 즉시 시작
+            while self.running:
+                self.log_signal_func("[자동반복] 크롤링 작업을 시작합니다.")
+                self._crawl_article_list()
+
+                if not self.running:
+                    break
+
+                # 2. 작업이 끝난 후 설정 시간만큼 대기
+                self.log_signal_func(f"[자동대기] {self.auto_num}시간 동안 대기합니다...")
+
+                # 정지 버튼 클릭 시 즉시 반응하도록 1초씩 끊어서 대기
+                wait_time = self.auto_num * 3600
+                start_wait = time.time()
+                while time.time() - start_wait < wait_time and self.running:
+                    time.sleep(1)
+
+                if not self.running:
+                    break
+
+                self.log_signal_func("[자동반복] 대기 완료. 다음 사이클을 시작합니다.")
+        else:
+            # 자동 모드가 아닐 땐 딱 한 번만 실행
+            self._crawl_article_list()
+
+
+
 
         if self.hist_status == "RUNNING":
             if self.running:
@@ -1348,12 +1386,37 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                     time.sleep(random.uniform(1, 2))
                     continue
 
-                if self.detail_column_yn:
-                    self._collect_detail(items, region_item)
-                else:
-                    # self._save_list_items(items, region_item)
-                    self._save_list_items_multi(items, region_item)
+                # ---------------------------------------------------------
+                # === 신규 === 중개사 번호(일반 & 핸드폰) 기준 전역 중복 스킵
+                # 상세조회 여부(detail_column_yn)와 상관없이 무조건 필터링합니다.
+                # ---------------------------------------------------------
+                filtered_items = []
+                for info in items:
+                    broker_info = info.get("brokerInfo") or {}
+                    mobile = str(broker_info.get("mobilePhone", "")).strip()
+                    tel = str(broker_info.get("brokeragePhone", "")).strip()
 
+                    # 두 번호 중 하나라도 이미 수집된 이력이 있다면 가차 없이 스킵
+                    if (mobile and mobile in self.global_mobile_numbers) or \
+                            (tel and tel in self.global_mobile_numbers):
+                        continue
+
+                    # 완전 신규 중개사라면 전역 세트에 추가
+                    if mobile:
+                        self.global_mobile_numbers.add(mobile)
+                    if tel:
+                        self.global_mobile_numbers.add(tel)
+
+                    filtered_items.append(info)
+
+                if not filtered_items:
+                    self.log_signal_func("[목록] 신규 중개사 매물 없음 -> 전체 스킵")
+                else:
+                    # 필터링되어 살아남은 순수 신규 중개사 매물만 다음 단계로 넘김
+                    if self.detail_column_yn:
+                        self._collect_detail(filtered_items, region_item)
+                    else:
+                        self._save_list_items_multi(filtered_items, region_item)
                 emit_region_progress()
                 time.sleep(random.uniform(2, 4))
 
@@ -2542,5 +2605,15 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
             rs["위도"] = y
         if x not in [None, ""]:
             rs["경도"] = x
+
+        # === 신규 === 중개사핸드폰번호 최종 중복 체크 및 이력 등록
+        final_mobile = str(rs.get("중개사핸드폰번호") or "").strip()
+        if final_mobile:
+            if final_mobile in self.global_mobile_numbers:
+                self.log_signal_func(f"[상세 스킵] 이미 수집된 중개사핸드폰번호: {final_mobile}")
+                return # 중복이므로 저장하지 않고 리턴
+
+            # 완전 신규 번호면 전역 세트에 추가하여 향후 완벽 차단
+            self.global_mobile_numbers.add(final_mobile)
 
         self._append_save_row(rs)
