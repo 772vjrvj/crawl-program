@@ -2010,6 +2010,12 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                 "name": "그외게임"
             }
         ]
+        # self.game_list: List[dict] = [
+        #     {
+        #         "idx": "2",
+        #         "name": "리니지 M"
+        #     }
+        # ]
 
     def init(self) -> bool:
         try:
@@ -2167,7 +2173,7 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                             break
 
                         # 아이템 목록 파싱 (PC용 UI 기준)
-                        items = soup.select('ul.market-item-row.trade_mode.desktop-item-list')
+                        items = soup.select('ul.market-item-card.market-item-card--desktop')
 
                         if not items:
                             self.log_signal_func(f"  -> ⏹️ [종료] 파싱할 상품 리스트가 없습니다. (Page: {page})")
@@ -2183,35 +2189,57 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                                 self.log_signal_func("⛔ 중지 감지 → 저장 후 종료")
                                 break
 
+                            # [수정 1] 거래 상태(판매중/거래완료) 추출 후 '거래완료(finish)'면 제외
+                            item_classes = item.get('class', [])
+                            if 'finish' in item_classes or 'blind-item' in item_classes:
+                                continue # 거래완료 상품은 스킵
+                            trade_status = "판매중"
+
                             item_id = item.get('data-item-id', '')
+
+                            if not item_id:
+                                x_data = item.get('x-data', '')
+                                if 'itemListData(' in x_data:
+                                    item_id = x_data.split('itemListData(', 1)[1].split(',', 1)[0].replace(')', '').strip()
 
                             # 중복 아이템(프리미엄 등) 거르기
                             if not item_id or item_id in seen_item_ids:
                                 continue
 
                             seen_item_ids.add(item_id)
-                            new_item_found = True
 
                             item_url = f"https://idfarm.co.kr/ItemMarket/gameItem/{item_id}"
 
-                            # [수정 1] 거래 상태(판매중/거래완료) 추출 후 '거래완료(finish)'면 제외
-                            item_classes = item.get('class', [])
-                            if 'finish' in item_classes:
-                                continue # 거래완료 상품은 스킵
-                            trade_status = "판매중"
-
                             # 계정 종류 및 등급 배지 추출
                             account_types = []
-                            logo_areas = item.select('.logo-area-wrap .logo-area')
+                            logo_areas = item.select('.market-item-card__logo-wrap .market-item-card__logo')
                             for logo in logo_areas:
                                 classes = logo.get('class', [])
                                 for c in classes:
-                                    if c != 'logo-area':
+                                    if c != 'market-item-card__logo' and c != 'market-item-card__logo--empty':
                                         account_types.append(c)
 
-                            svg_elem = item.select_one('.logo-area i svg')
-                            if svg_elem and svg_elem.get('aria-label'):
-                                account_types.append(svg_elem.get('aria-label'))
+                                img_elem = logo.select_one('img')
+                                if img_elem:
+                                    img_alt = img_elem.get('alt', '').strip()
+                                    img_title = img_elem.get('title', '').strip()
+                                    img_src = img_elem.get('src', '').strip()
+
+                                    if img_alt:
+                                        account_types.append(img_alt)
+                                    if img_title:
+                                        account_types.append(img_title)
+                                    if img_src:
+                                        img_file_name = img_src.split('/')[-1].split('?')[0]
+                                        img_account_type = img_file_name.rsplit('.', 1)[0].strip()
+                                        if img_account_type:
+                                            account_types.append(img_account_type)
+
+                            account_types_unique = []
+                            for account_type in account_types:
+                                if account_type and account_type not in account_types_unique:
+                                    account_types_unique.append(account_type)
+                            account_types = account_types_unique
 
                             # [수정 2] 선택한 계정 종류만 나오도록 필터링
                             if self.accountType_list:
@@ -2234,30 +2262,38 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                             account_type_str = ", ".join(account_types) if account_types else ""
 
                             # 제목
-                            title_elem = item.select_one('.item-content-wrapper .one-line-trunc')
-                            title = title_elem.get_text(strip=True) if title_elem else ""
+                            title_elem = item.select_one('.market-item-card__title-wrap .one-line-trunc')
+                            title = title_elem.get_text(" ", strip=True) if title_elem else ""
 
                             # 메타정보
-                            meta_info = item.select_one('.item-meta-info')
                             server, job, trade_type = "", "", ""
-                            if meta_info:
-                                game_servers = meta_info.select('.game-server')
-                                if len(game_servers) >= 1:
-                                    server = game_servers[0].get_text(strip=True)
-                                if len(game_servers) >= 2:
-                                    trade_type = game_servers[1].get_text(strip=True)
+                            item_game_name = ""
 
-                                career_elem = meta_info.select_one('.career')
-                                if career_elem:
-                                    job = career_elem.get_text(strip=True)
+                            meta_values = item.select('.market-item-card__meta > div')
+                            if len(meta_values) >= 1:
+                                item_game_name = meta_values[0].get_text(" ", strip=True)
+
+                            channel_elem = item.select_one('.market-item-card__channel')
+                            if channel_elem:
+                                server = channel_elem.get_text(" ", strip=True)
+                            elif len(meta_values) >= 2:
+                                server = meta_values[1].get_text(" ", strip=True)
+
+                            if len(meta_values) >= 3:
+                                job = meta_values[2].get_text(" ", strip=True)
+
+                            if params.get("trx_type") == "SELL":
+                                trade_type = "판매"
+                            elif params.get("trx_type") == "BUY":
+                                trade_type = "구매"
 
                             # 가격
-                            price_elem = item.select_one('.price-date-container .price--minimum.sale-price')
+                            price_elem = item.select_one('.market-item-card__sale-price')
                             price = price_elem.get_text(strip=True).replace('\xa0', '') if price_elem else ""
 
                             # 게임명 (페이지의 h2 태그 우선, 없으면 설정값)
                             game_title_elem = soup.select_one('h2.content__title span')
-                            actual_game_name = game_title_elem.get_text(strip=True) if game_title_elem else game_name_setting
+                            actual_game_name = game_title_elem.get_text(strip=True) if game_title_elem else (item_game_name if item_game_name else game_name_setting)
 
                             # DB Insert 용 Dictionary 생성
                             row_data = {
@@ -2276,6 +2312,7 @@ class ApiIdfarmSetWorker(BaseApiWorker):
                             # DB(및 엑셀용 메모리)에 저장
                             self.insert_detail_row(row_data)
 
+                            new_item_found = True
                             total_items_saved += 1
                             self.log_signal_func(f"[{game_idx_num}/{self.total_cnt}] [{total_items_saved}] DB 저장: [{actual_game_name}] [{trade_status}] {title}")
 

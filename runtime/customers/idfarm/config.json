@@ -33,13 +33,13 @@
     {
       "name": "가격(만원) 시작",
       "code": "min",
-      "value": 100,
+      "value": 0,
       "type": "input"
     },
     {
       "name": "가격(만원) 종료",
       "code": "max",
-      "value": 1000,
+      "value": 100,
       "type": "input"
     }
   ],
