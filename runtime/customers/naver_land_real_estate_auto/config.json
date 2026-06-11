@@ -32,38 +32,6 @@
       "type": "input"
     },
     {
-      "name": "등록일(YYYYMMDD) 시작",
-      "code": "fr_date",
-      "value": 20260605,
-      "type": "input"
-    },
-    {
-      "name": "등록일(YYYYMMDD) 종료",
-      "code": "to_date",
-      "value": 20260608,
-      "type": "input"
-    },
-    {
-      "name": "기준금액",
-      "code": "baseAmount",
-      "value": "10K",
-      "type": "select",
-      "options": [
-        {
-          "key": "만(10,000)",
-          "value": "10K"
-        },
-        {
-          "key": "억(100,000,000)",
-          "value": "100M"
-        },
-        {
-          "key": "일(1)",
-          "value": "KRW"
-        }
-      ]
-    },
-    {
       "name": "링크(주소,매물번호)",
       "code": "link_yn",
       "value": true,
@@ -1076,9 +1044,6 @@
     },
     {
       "title": "상세목록"
-    },
-    {
-      "content": "※ 아래 항목은 기본설정에서 '상세정보조회'를 체크한 경우에만 수집됩니다. 상세 조회는 매물을 1건씩 처리하므로 수집 속도가 느릴 수 있습니다."
     },
     {
       "code": "supplySpaceName",

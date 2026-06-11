@@ -5,7 +5,6 @@ import random
 import json
 from decimal import Decimal, InvalidOperation
 
-from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
@@ -20,9 +19,8 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
-        self.global_address_history = {}
-        # 중개사핸드폰번호 완전 중복제거용 전역 변수
-        self.global_mobile_numbers = set()
+        # 중개번호 최종 중복제거용 전역 변수
+        self.global_broker_numbers = set()
         self.auto_flag = None
         self.auto_num = 6
         # DB 저장용 공통 상태
@@ -38,21 +36,11 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
         self.base_amount = None
         self.eng_yn = None
-        self.remove_duplicate_yn = True
         self.filter_data = None
-        self.brokerage_yn = None
         self.link_yn = None
-        self.detail_column_yn = True
-        self.eng = None
-        self.article_sort_type = None
-        self.to_date = None
-        self.fr_date = None
         self.columns: Optional[List[str]] = None
-        self.csv_filename: Optional[str] = None
 
         self.site_name: str = "네이버 부동산"
-        self.total_cnt: int = 0
-        self.current_cnt: int = 0
         self.before_pro_value: float = 0.0
 
         self.driver = None
@@ -60,13 +48,11 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
         self.sqlite_driver: Optional[SqliteUtils] = None
-        self.api_client: Optional[APIClient] = None
 
         self.folder_path: str = ""
         self.out_dir: str = "output"
 
         self.naver_loc_all_real_detail = None
-        self.detail_region_article_list = None
         self.work_items: list[dict[str, Any]] = []
 
         self.list_api_url: str = "https://fin.land.naver.com/front-api/v1/article/boundedArticles"
@@ -78,7 +64,6 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
         self.list_hook_js = None
         self.browser_fetch_json_js = None
-        self.click_sort_button_js = None
         self.click_article_button_js = None
 
 
@@ -87,7 +72,6 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         try:
             self.excel_driver = ExcelUtils(self.log_signal_func)
             self.file_driver = FileUtils(self.log_signal_func)
-            self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
             if not self.db_set():
                 return False
@@ -301,64 +285,6 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         )
         return True
 
-    def insert_detail_row(self, rs: Dict[str, Any]) -> bool:
-        if not self.sqlite_driver:
-            self.detail_fail_count += 1
-            self.log_signal_func("❌ [DB] sqlite_driver 없음 - detail 저장 실패")
-            return False
-
-        now = time.strftime("%Y-%m-%d %H:%M:%S")
-
-        db_columns = self._get_db_columns()
-        db_rs = self._map_out_to_db(rs)
-
-        base_columns = [
-            "hist_id",
-            "site_name",
-            "worker_name",
-            "table_name",
-            "job_id",
-            "user_id",
-            "row_status",
-        ]
-
-        all_columns = base_columns + db_columns + ["created_at", "updated_at"]
-        placeholders = ", ".join(["?"] * len(all_columns))
-        column_text = ",\n                    ".join(all_columns)
-
-        query = f"""
-                INSERT INTO {self.detail_table_name} (
-                    {column_text}
-                ) VALUES ({placeholders})
-                """
-
-        params = (
-            self.hist_id,
-            self.site_name,
-            self.worker_name,
-            self.detail_table_name,
-            self.job_id,
-            getattr(self.user, "user_id", None) if self.user else None,
-            "SUCCESS",
-            *[db_rs.get(col, "") for col in db_columns],
-            now,
-            now,
-        )
-
-        ok = self.sqlite_driver.execute(query, params)
-
-        if ok:
-            self.detail_success_count += 1
-            self.log_signal_func(
-                f"✅ [DB] detail 저장 완료 | hist_id={self.hist_id} | 매물번호={rs.get('매물번호')}"
-            )
-        else:
-            self.detail_fail_count += 1
-            self.log_signal_func(
-                f"❌ [DB] detail 저장 실패 | hist_id={self.hist_id} | 매물번호={rs.get('매물번호')}"
-            )
-
-        return ok
 
 
     def bulk_insert_detail_rows(self, rs_list: list[dict[str, Any]]) -> bool:
@@ -654,6 +580,7 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
             except Exception:
                 pass
 
+
     def main(self) -> bool:
         self.log_signal_func(" main 시작")
 
@@ -683,7 +610,7 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
             "customers/naver_land_real_estate_auto/region",
         )
 
-        # === 신규 === 2. 자동반복 및 등록일 처리
+        # === 신규 === 2. 자동반복 처리
         self.auto_flag = bool(self.get_setting_value(self.setting, "auto_flag"))
         auto_num_str = str(self.get_setting_value(self.setting, "auto_num") or "").strip()
         try:
@@ -691,29 +618,10 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         except ValueError:
             self.auto_num = 6
 
-        self.fr_date = str(self.get_setting_value(self.setting, "fr_date") or "").strip()
-        self.to_date = str(self.get_setting_value(self.setting, "to_date") or "").strip()
-        self.log_signal_func(f"등록 시작일 : {self.fr_date}")
-        self.log_signal_func(f"등록 종료일 : {self.to_date}")
-
-        # 3. 정렬방식
-        self.article_sort_type: str = str(self.get_setting_value(self.setting, "articleSortType") or "").strip()
-        self.log_signal_func(f"정렬 방식 : {self.article_sort_type}")
-
-        # 4. 영어컬럼 여부
-        self.eng: str = self.get_setting_value(self.setting, "eng")
-        self.log_signal_func(f"영어컬럼 여부 : {self.eng}")
-
-        # 5. 부동산 중개사 기준 매물 가져오기 여부
-        self.brokerage_yn: bool = self.get_setting_value(self.setting, "brokerage_yn")
-        self.log_signal_func(f"부동산 중개사 기준 매물 가져오기 여부 : {self.brokerage_yn}")
-
         self.link_yn: bool = self.get_setting_value(self.setting, "link_yn")
         self.log_signal_func(f"링크 여부 : {self.link_yn}")
 
-        self.log_signal_func(f"상세조회 여부 : {self.detail_column_yn}")
-
-        self.base_amount: str = self.get_setting_value(self.setting, "baseAmount")
+        self.base_amount: str = '10K'
         self.log_signal_func(f"기준금액 : {self.base_amount}")
 
         # 7. 작업목록 생성
@@ -830,8 +738,6 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         else:
             # 자동 모드가 아닐 땐 딱 한 번만 실행
             self._crawl_article_list()
-
-
 
 
         if self.hist_status == "RUNNING":
@@ -1073,11 +979,11 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
         return db_out
 
+
     def _load_js_assets(self) -> None:
         js_dir = "customers/naver_land_real_estate_auto/js"
         self.list_hook_js = self.file_driver.read_text_from_resources("list_hook.js", js_dir)
         self.browser_fetch_json_js = self.file_driver.read_text_from_resources("browser_fetch_json.js", js_dir)
-        self.click_sort_button_js = self.file_driver.read_text_from_resources("click_sort_button.js", js_dir)
         self.click_article_button_js = self.file_driver.read_text_from_resources("click_article_button.js", js_dir)
 
     def _split_codes(self, code_value: Any) -> list[str]:
@@ -1144,7 +1050,11 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
         return row
 
+
     def _crawl_article_list(self):
+        self.global_broker_numbers = set()
+        self.before_pro_value = 0.0
+
         total_region_count = 0
         for work_item in self.work_items:
             total_region_count += len(work_item.get("detail_region_article_list") or [])
@@ -1182,14 +1092,15 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                 sido = region_item.get("시도")
                 sigungu = region_item.get("시군구")
                 eup_myeon_dong = region_item.get("읍면동")
+                region_name = f"{sido} {sigungu} {eup_myeon_dong}"
 
                 if work_type == "favorite":
                     self.log_signal_func(
                         f"[즐겨찾기 {favorite_index}] "
-                        f"[지역] {sido} {sigungu} {eup_myeon_dong}"
+                        f"[지역] {region_name}"
                     )
                 else:
-                    self.log_signal_func(f"[지역] {sido} {sigungu} {eup_myeon_dong}")
+                    self.log_signal_func(f"[지역] {region_name}")
 
                 data = region_item.get("data", {})
                 coordinates = data.get("coordinates", {})
@@ -1208,7 +1119,7 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                 for attempt in range(1, 5):
 
                     if not self.running:
-                        return True
+                        return
 
                     try:
                         self.log_signal_func(f"[지역 진입] 시도 {attempt}/5")
@@ -1238,7 +1149,7 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
                         time.sleep(8)
 
-                        # 정렬 전, 먼저 초기 목록 응답 확보
+                        # 초기 목록 응답 확보
                         initial_hook_data: dict[str, Any] = self._get_first_list_hook_data(20)
                         initial_body_text: str = initial_hook_data.get("bodyText", "")
                         initial_response_json: dict[str, Any] = initial_hook_data.get("responseJson", {}) or {}
@@ -1292,71 +1203,13 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                             success = True
                             break
 
-                        # 1건 이하이면 정렬 버튼이 없을 수 있으므로 스킵
-                        if initial_total_count <= 1 or len(initial_list) <= 1:
-                            self.log_signal_func("[정렬] 매물 1건 이하 -> 정렬 클릭 스킵")
-                            success = True
-                            break
-
-                        # 2건 이상일 때만 정렬 시도
-                        try:
-                            self.driver.execute_script("window.__naverListHookData = null;")
-                            self.log_signal_func("[후킹] 정렬 전 hook 데이터 초기화")
-                        except Exception as e:
-                            self.log_signal_func(f"[후킹] 초기화 실패: {e}")
-
-                        try:
-                            self.log_signal_func(f"[정렬] 정렬 클릭 시도 : {self.article_sort_type}")
-                            self._click_sort_button_by_setting(wait_sec=5)
-                            time.sleep(3)
-
-                            sorted_hook_data: dict[str, Any] = self._get_first_list_hook_data(20)
-                            sorted_body_text: str = sorted_hook_data.get("bodyText", "")
-                            sorted_response_json: dict[str, Any] = sorted_hook_data.get("responseJson", {}) or {}
-
-                            self.log_signal_func(f"[후킹-정렬] 수신 여부={bool(sorted_hook_data)}")
-                            self.log_signal_func(f"[후킹-정렬] bodyText 존재={bool(sorted_body_text)}")
-                            self.log_signal_func(f"[후킹-정렬] responseJson 존재={bool(sorted_response_json)}")
-
-                            if not sorted_body_text:
-                                raise Exception("정렬 후 목록 후킹 bodyText 없음")
-
-                            try:
-                                base_payload = json.loads(sorted_body_text)
-                            except Exception as e:
-                                raise Exception(f"정렬 후 bodyText json 파싱 실패: {e}")
-
-                            first_result = sorted_response_json.get("result", {}) or {}
-
-                            if not first_result:
-                                self.log_signal_func("[후킹-정렬] 첫 응답 result 없음 -> 첫 페이지 재요청")
-                                retry_res = self._browser_fetch_json(
-                                    url=self.list_api_url,
-                                    method="POST",
-                                    payload=base_payload,
-                                    wait_sec=30,
-                                )
-
-                                self.log_signal_func(
-                                    f"[후킹-정렬 재요청] status={retry_res.get('status')} ok={retry_res.get('ok')}"
-                                )
-
-                                retry_json: dict[str, Any] = retry_res.get("json") or {}
-                                first_result = retry_json.get("result", {}) or {}
-
-                            if not first_result:
-                                raise Exception("정렬 후 첫 페이지 result 확보 실패")
-
-                        except Exception as e:
-                            # 정렬 버튼이 없거나 정렬 실패해도 초기 목록으로 계속 진행
-                            self.log_signal_func(f"[정렬] 버튼 없음 또는 정렬 실패 -> 초기 목록으로 진행 / {e}")
-
+                        self.log_signal_func("[목록] 초기 목록 기준으로 진행")
                         success = True
                         break
 
                     except Exception as e:
                         self.log_signal_func(
-                            f"[지역 처리 실패] {sido} {sigungu} {eup_myeon_dong} "
+                            f"[지역 처리 실패] {region_name} "
                             f"/ 시도 {attempt}/5 / {e}"
                         )
 
@@ -1386,37 +1239,21 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                     time.sleep(random.uniform(1, 2))
                     continue
 
-                # ---------------------------------------------------------
-                # === 신규 === 중개사 번호(일반 & 핸드폰) 기준 전역 중복 스킵
-                # 상세조회 여부(detail_column_yn)와 상관없이 무조건 필터링합니다.
-                # ---------------------------------------------------------
-                filtered_items = []
-                for info in items:
-                    broker_info = info.get("brokerInfo") or {}
-                    mobile = str(broker_info.get("mobilePhone", "")).strip()
-                    tel = str(broker_info.get("brokeragePhone", "")).strip()
+                article_filtered_items = self._filter_items_by_article_no(items)
 
-                    # 두 번호 중 하나라도 이미 수집된 이력이 있다면 가차 없이 스킵
-                    if (mobile and mobile in self.global_mobile_numbers) or \
-                            (tel and tel in self.global_mobile_numbers):
-                        continue
+                if not article_filtered_items:
+                    self.log_signal_func("[목록] 매물번호 중복 제거 후 상세조회 대상 없음 -> 저장 스킵")
+                    emit_region_progress()
+                    time.sleep(random.uniform(1, 2))
+                    continue
 
-                    # 완전 신규 중개사라면 전역 세트에 추가
-                    if mobile:
-                        self.global_mobile_numbers.add(mobile)
-                    if tel:
-                        self.global_mobile_numbers.add(tel)
+                region_rows = self._collect_detail(article_filtered_items, region_item)
 
-                    filtered_items.append(info)
-
-                if not filtered_items:
-                    self.log_signal_func("[목록] 신규 중개사 매물 없음 -> 전체 스킵")
+                if region_rows:
+                    self._save_region_rows_by_broker_numbers(region_rows, region_name)
                 else:
-                    # 필터링되어 살아남은 순수 신규 중개사 매물만 다음 단계로 넘김
-                    if self.detail_column_yn:
-                        self._collect_detail(filtered_items, region_item)
-                    else:
-                        self._save_list_items_multi(filtered_items, region_item)
+                    self.log_signal_func("[지역저장] 이번 지역 저장 후보 없음")
+
                 emit_region_progress()
                 time.sleep(random.uniform(2, 4))
 
@@ -1564,33 +1401,6 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
         raise Exception(f"매물 버튼을 찾지 못했습니다. reason={last_reason}")
 
-    def _click_sort_button_by_setting(self, wait_sec: int = 5) -> None:
-        click_map: dict[str, tuple[str, int]] = {
-            "RANKING_DESC": ("filterOrder1", 1),
-            "PRICE_DESC": ("filterOrder2", 1),
-            "PRICE_ASC": ("filterOrder2", 2),
-            "DATE_DESC": ("filterOrder3", 1),
-            "SPACE_DESC": ("filterOrder4", 1),
-            "SPACE_ASC": ("filterOrder4", 2),
-        }
-
-        sort_id, click_count = click_map.get(self.article_sort_type or "", ("filterOrder1", 1))
-
-        end = time.time() + wait_sec
-
-        while time.time() < end:
-            try:
-                clicked = self.driver.execute_script(self.click_sort_button_js, sort_id, click_count)
-
-                if clicked and clicked.get("ok"):
-                    self.log_signal_func(f"[정렬] 클릭 완료 : {clicked.get('labelText')}")
-                    return
-            except Exception as e:
-                self.log_signal_func(f"[정렬] 클릭 실패: {e}")
-
-            time.sleep(1)
-
-        raise Exception(f"정렬 버튼 클릭 실패: {self.article_sort_type}")
 
     def _inject_list_hook(self) -> None:
         script = self.list_hook_js.replace("__TARGET__", "/front-api/v1/article/boundedArticles")
@@ -1657,40 +1467,9 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         self.driver.set_script_timeout(wait_sec)
         return self.driver.execute_async_script(script, url, method, payload, params)
 
+
     def _collect_next_list_pages(self, base_payload: dict[str, Any], first_result: dict[str, Any]) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
-        seen: set[str] = set()
-
-        use_date_filter: bool = bool(self.fr_date and self.to_date)
-
-        def normalize_date_yyyymmdd(value: Any) -> str:
-            return str(value or "").replace("-", "").replace(".", "").replace("/", "").strip()
-
-        def get_confirm_date_from_info(info: dict[str, Any]) -> str:
-            verification_info: dict[str, Any] = info.get("verificationInfo", {}) or {}
-            return normalize_date_yyyymmdd(verification_info.get("articleConfirmDate", ""))
-
-        def get_confirm_date_from_item(item: dict[str, Any]) -> str:
-            info: dict[str, Any] = item.get("representativeArticleInfo", {}) or {}
-            return get_confirm_date_from_info(info)
-
-        def is_target_date(confirm_date: str) -> bool:
-            if not use_date_filter:
-                return True
-            if not confirm_date:
-                return False
-            return self.fr_date <= confirm_date <= self.to_date
-
-        def should_stop_by_date(page_list: list[dict[str, Any]]) -> bool:
-            if not use_date_filter:
-                return False
-
-            for item in page_list:
-                confirm_date: str = get_confirm_date_from_item(item)
-                if confirm_date and confirm_date < self.fr_date:
-                    return True
-
-            return False
 
         def build_same_addr_meta(dup_info: dict[str, Any]) -> dict[str, Any]:
             article_info_list: list[dict[str, Any]] = dup_info.get("articleInfoList", []) or []
@@ -1746,88 +1525,44 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                 duplicated_info: dict[str, Any] = item.get("duplicatedArticleInfo", {}) or {}
                 article_info_list: list[dict[str, Any]] = duplicated_info.get("articleInfoList", []) or []
 
-                confirm_date: str = get_confirm_date_from_info(representative_info)
-
-                if not is_target_date(confirm_date):
-                    continue
-
-                # 1) 부동산 중개사 기준으로 가져오는 경우
-                if self.brokerage_yn:
-                    if article_info_list:
-                        same_addr_meta = build_same_addr_meta(duplicated_info)
-
-                        for article_info in article_info_list:
-                            article_no: str = str(article_info.get("articleNumber", "")).strip()
-
-                            if article_no:
-                                merged_info = self._merge_list_item_with_representative(
-                                    representative_info,
-                                    article_info,
-                                )
-                                row = apply_same_addr_meta(merged_info, same_addr_meta)
-                                row = enrich_parent_meta(row, representative_info, "N")
-
-                                if self.remove_duplicate_yn:
-                                    if article_no not in seen:
-                                        seen.add(article_no)
-                                        items.append(row)
-                                        added_count += 1
-                                else:
-                                    items.append(row)
-                                    added_count += 1
-                        continue
-
-                    article_no: str = str(representative_info.get("articleNumber", "")).strip()
-                    confirm_date = get_confirm_date_from_info(representative_info)
-
-                    if not is_target_date(confirm_date):
-                        continue
-
-                    if article_no:
-                        if self.remove_duplicate_yn and article_no in seen:
-                            continue
-                        if self.remove_duplicate_yn:
-                            seen.add(article_no)
-
-                        single_info = dict(representative_info)
-                        deal_price = ((single_info.get("priceInfo") or {}).get("dealPrice", ""))
-                        single_info.update({
-                            "sameAddrCnt": 1,
-                            "sameAddrMinPrc": deal_price,
-                            "sameAddrMaxPrc": deal_price,
-                        })
-
-                        single_info = enrich_parent_meta(single_info, representative_info, "Y")
-                        items.append(single_info)
-                        added_count += 1
-                    continue
-
-                # 2) 부동산 중개사 기준이 아닌 경우 -> 무조건 대표 1개만
                 article_no: str = str(representative_info.get("articleNumber", "")).strip()
+
+                # 1) 대표 매물 데이터 추가
                 if article_no:
-                    if self.remove_duplicate_yn and article_no in seen:
-                        continue
-
-                    if self.remove_duplicate_yn:
-                        seen.add(article_no)
-
                     if article_info_list:
                         same_addr_meta = build_same_addr_meta(duplicated_info)
-                        row = apply_same_addr_meta(representative_info, same_addr_meta)
-                        row = enrich_parent_meta(row, representative_info, "Y")
-                        items.append(row)
-                        added_count += 1
+                        rep_row = apply_same_addr_meta(representative_info, same_addr_meta)
+                        rep_row = enrich_parent_meta(rep_row, representative_info, "Y")
                     else:
-                        single_info = dict(representative_info)
-                        deal_price = ((single_info.get("priceInfo") or {}).get("dealPrice", ""))
-                        single_info.update({
+                        rep_row = dict(representative_info)
+                        deal_price = ((rep_row.get("priceInfo") or {}).get("dealPrice", ""))
+                        rep_row.update({
                             "sameAddrCnt": 1,
                             "sameAddrMinPrc": deal_price,
                             "sameAddrMaxPrc": deal_price,
                         })
-                        single_info = enrich_parent_meta(single_info, representative_info, "Y")
-                        items.append(single_info)
-                        added_count += 1
+                        rep_row = enrich_parent_meta(rep_row, representative_info, "Y")
+
+                    items.append(rep_row)
+                    added_count += 1
+
+                # 2) 숨겨져 있던 동일 매물 배열(article_info_list)도 모두 추가
+                if article_info_list:
+                    same_addr_meta = build_same_addr_meta(duplicated_info)
+
+                    for article_info in article_info_list:
+                        sub_article_no = str(article_info.get("articleNumber", "")).strip()
+                        if sub_article_no:
+                            # 묶인 매물은 대표 매물의 상세 정보를 상속받아야 데이터가 완전해짐
+                            merged_info = self._merge_list_item_with_representative(
+                                representative_info,
+                                article_info,
+                            )
+                            sub_row = apply_same_addr_meta(merged_info, same_addr_meta)
+                            sub_row = enrich_parent_meta(sub_row, representative_info, "N")
+
+                            items.append(sub_row)
+                            added_count += 1
 
             return added_count
 
@@ -1846,15 +1581,6 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
             return items
 
         add_items(first_list)
-
-        if total_count > 0 and len(items) >= total_count:
-            self.log_signal_func(f"[목록] totalCount 도달로 중단 collected={len(items)} total={total_count}")
-            return items
-
-        if should_stop_by_date(first_list):
-            self.log_signal_func(f"[목록] 시작일({self.fr_date}) 이전 데이터 발견으로 목록 조회 중단")
-            self.log_signal_func(f"[목록] 최종 수집 건수={len(items)}")
-            return items
 
         seed: str | None = first_result.get("seed")
         last_info: list[Any] = first_result.get("lastInfo", []) or []
@@ -1875,10 +1601,6 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
             if not last_info:
                 self.log_signal_func("[목록] lastInfo 없음으로 종료")
-                break
-
-            if total_count > 0 and len(items) >= total_count:
-                self.log_signal_func(f"[목록] totalCount 도달로 종료 collected={len(items)} total={total_count}")
                 break
 
             if page > max_page:
@@ -1931,8 +1653,8 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                 self.log_signal_func(f"[목록] page={page} list 없음으로 종료")
                 break
 
-            if total_count > 0 and len(items) >= total_count:
-                self.log_signal_func(f"[목록] totalCount 도달로 종료 collected={len(items)} total={total_count}")
+            if added_now == 0:
+                self.log_signal_func("[목록] 이번 페이지 추가 0건으로 종료")
                 break
 
             next_seed = result.get("seed", seed)
@@ -1945,17 +1667,9 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                 self.log_signal_func("[목록] seed/lastInfo 변화 없음으로 무한루프 방지 종료")
                 break
 
-            if added_now == 0 and self.remove_duplicate_yn:
-                self.log_signal_func("[목록] 이번 페이지 신규 추가 0건으로 종료")
-                break
-
             seed = next_seed
             last_info = next_last_info
             has_next = next_has_next
-
-            if should_stop_by_date(page_list):
-                self.log_signal_func(f"[목록] 시작일({self.fr_date}) 이전 데이터 발견으로 목록 조회 중단")
-                break
 
             prev_seed = seed
             prev_last_info_text = json.dumps(last_info, ensure_ascii=False, sort_keys=True)
@@ -1968,13 +1682,14 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         self.log_signal_func(f"[목록] 최종 수집 건수={len(items)}")
         return items
 
+
     def _collect_detail(self, items: list[dict[str, Any]], region_item) -> list[dict[str, Any]]:
-        details: list[dict[str, Any]] = []
+        detail_rows: list[dict[str, Any]] = []
 
         for i, info in enumerate(items, 1):
 
             if not self.running:
-                return details
+                return detail_rows
 
             try:
                 article_no: str = str(info["articleNumber"])
@@ -2068,9 +1783,9 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                     "complex_detail": complex_fetch_res.get("json"),
                 }
 
-                self._detail_map_save(detail, region_item)
-
-                details.append(detail)
+                row = self._detail_map_save(detail, region_item)
+                if row:
+                    detail_rows.append(row)
 
                 time.sleep(random.uniform(2.2, 3.2))
 
@@ -2078,233 +1793,158 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                 self.log_signal_func(f"[상세] 실패 {i}/{len(items)} articleNumber={info.get('articleNumber')} / {e}")
                 continue
 
-        self.log_signal_func(f"[상세] 최종 수집 건수={len(details)}")
-        return details
+        self.log_signal_func(f"[상세] 최종 변환 건수={len(detail_rows)}")
+        return detail_rows
 
-    def _save_list_items(self, items: list[dict[str, Any]], region_item) -> None:
+
+
+    def _get_article_no_from_item(self, item: Dict[str, Any]) -> str:
+        for key in ["articleNumber", "atclNo", "articleNo", "article_no"]:
+            article_no = str((item or {}).get(key) or "").strip()
+            if article_no:
+                return article_no
+
+        return ""
+
+
+    def _filter_items_by_article_no(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        filtered_items: list[dict[str, Any]] = []
+        article_no_set = set()
+        duplicate_count = 0
+        no_article_no_count = 0
+
+        for item in items or []:
+            article_no = self._get_article_no_from_item(item)
+
+            # 매물번호가 없는 item은 중복 판단이 불가능하므로 유지
+            if not article_no:
+                no_article_no_count += 1
+                filtered_items.append(item)
+                continue
+
+            if article_no in article_no_set:
+                duplicate_count += 1
+                continue
+
+            article_no_set.add(article_no)
+            filtered_items.append(item)
+
+        self.log_signal_func(
+            f"[지역중복] 매물번호 기준 처리 완료 | "
+            f"원본={len(items or [])} / 중복제거={duplicate_count} / "
+            f"번호없음유지={no_article_no_count} / 최종={len(filtered_items)}"
+        )
+
+        return filtered_items
+
+
+    def _normalize_broker_number(self, value: Any) -> str:
+        text = str(value or "").strip()
+        if not text:
+            return ""
+
+        return "".join([ch for ch in text if ch.isdigit()])
+
+
+    def _get_broker_number_keys(self, rs: Dict[str, Any]) -> list[str]:
+        keys: list[str] = []
+
+        for field in ["중개사핸드폰번호", "중개사무소번호"]:
+            number_key = self._normalize_broker_number(rs.get(field, ""))
+            if number_key and number_key not in keys:
+                keys.append(number_key)
+
+        return keys
+
+
+    def _filter_rows_by_broker_numbers(self, rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[list[str]]]:
+        filtered_rows: list[dict[str, Any]] = []
+        filtered_row_keys: list[list[str]] = []
+        pending_broker_numbers = set()
+        duplicate_count = 0
+        no_number_count = 0
+
+        for rs in rows or []:
+            broker_number_keys = self._get_broker_number_keys(rs)
+
+            # 중개번호가 없는 row는 번호 기준 중복판단이 불가능하므로 유지
+            if not broker_number_keys:
+                no_number_count += 1
+                filtered_rows.append(rs)
+                filtered_row_keys.append([])
+                continue
+
+            # 이전 지역에서 이미 저장 성공한 중개번호면 제외
+            if any(number_key in self.global_broker_numbers for number_key in broker_number_keys):
+                duplicate_count += 1
+                continue
+
+            # 이번 지역 안에서 이미 저장 예정인 중개번호면 제외
+            if any(number_key in pending_broker_numbers for number_key in broker_number_keys):
+                duplicate_count += 1
+                continue
+
+            for number_key in broker_number_keys:
+                pending_broker_numbers.add(number_key)
+
+            filtered_rows.append(rs)
+            filtered_row_keys.append(broker_number_keys)
+
+        self.log_signal_func(
+            f"[지역중복] 중개번호 기준 처리 완료 | "
+            f"원본={len(rows or [])} / 중복제거={duplicate_count} / "
+            f"번호없음유지={no_number_count} / 최종={len(filtered_rows)}"
+        )
+
+        return filtered_rows, filtered_row_keys
+
+
+    def _save_region_rows_by_broker_numbers(self, rows: list[dict[str, Any]], region_name: str = "") -> None:
         try:
-            save_count = 0
-
-            for info in items:
-                rs = self._make_list_row(info, region_item)
-                if self.insert_detail_row(rs):
-                    save_count += 1
-
-            if save_count == 0:
-                self.log_signal_func("[DB저장] 저장된 데이터 없음")
+            if not rows:
+                self.log_signal_func("[지역저장] 저장할 데이터 없음")
                 return
 
-            self.log_signal_func(f"✅ [DB저장] 일반목록 저장 완료 | count={save_count}")
+            final_rows, final_row_keys = self._filter_rows_by_broker_numbers(rows)
 
-        except Exception as e:
-            self.detail_fail_count += 1
-            self.log_signal_func(f"[DB저장] 일반목록 저장 실패 / {e}")
-
-
-    def _save_list_items_multi(self, items: list[dict[str, Any]], region_item) -> None:
-        try:
-            if not items:
-                self.log_signal_func("[DB저장] 저장할 데이터 없음")
+            if not final_rows:
+                self.log_signal_func("[지역저장] 중개번호 중복 제거 후 저장할 데이터 없음")
                 return
 
             chunk_size = 20
-            rows_to_insert_all = []
-
-            # 20개 단위 청크 처리
-            for i in range(0, len(items), chunk_size):
-                chunk = items[i:i + chunk_size]
-
-                # 요구사항 3: 도로명주소, 지번을 상세가 아닌 일반 레벨로 격상시키기 위해 서버 API 호출
-                api_results = self._fetch_addresses_from_server(chunk, region_item)
-
-                api_res_map = {
-                    res.get("id"): res
-                    for res in api_results if isinstance(res, dict) and res.get("id")
-                }
-
-                for info in chunk:
-                    rs = self._make_list_row(info, region_item)
-                    article_no = str(info.get("articleNumber", ""))
-
-                    # API 응답 매핑 (주소 격상)
-                    api_res = api_res_map.get(article_no)
-
-                    if api_res:
-                        road_info = api_res.get("road_address") or {}
-                        jibun_info = api_res.get("address") or {}
-
-                        road_name = road_info.get("address_name", "")
-                        jibun_name = jibun_info.get("address_name", "")
-
-                        # 우선순위: 도로명주소 > 지번
-                        if road_name:
-                            rs["도로명주소"] = road_name
-                            rs["전체주소"] = road_name
-                        if jibun_name:
-                            rs["번지"] = jibun_name
-                            if not road_name:
-                                rs["전체주소"] = jibun_name
-
-                    # 요구사항 0: 저장 직전 날짜 체크
-                    d_val = str(rs.get("매물확인일") or rs.get("등록일자") or "").replace("-", "").replace(".", "").replace("/", "").strip()
-                    if self.fr_date and self.to_date and d_val:
-                        if not (self.fr_date <= d_val <= self.to_date):
-                            continue # 날짜 범위 밖 스킵
-
-                    road_val = str(rs.get("도로명주소") or "").strip()
-                    jibun_val = str(rs.get("번지") or "").strip()
-
-                    # 도로명주소와 번지 둘 다 없으면 무조건 스킵
-                    if not road_val and not jibun_val:
-                        continue
-
-                    # --- 정밀 교차 검증 및 영구 제명 로직 ---
-                    is_banned = False
-                    is_diff_day = False
-                    is_same_day = False
-
-                    # 도로명과 지번 각각에 대해 이력을 검사합니다.
-                    for val in [road_val, jibun_val]:
-                        if val and val in self.global_address_history:
-                            record = self.global_address_history[val]
-                            if record['banned']:
-                                is_banned = True
-                            elif record['date'] != d_val:
-                                is_diff_day = True
-                            else:
-                                is_same_day = True
-
-                    # 1. 이미 다른 날짜 중복으로 영구 제명된 주소라면 무조건 스킵
-                    if is_banned:
-                        continue
-
-                    # 2. 이력에 있는데 날짜가 다름 -> 다른 날짜 중복 (기존 DB 삭제 + 영구 제명)
-                    if is_diff_day:
-                        try:
-                            conn = self.sqlite_driver.conn
-                            cursor = conn.cursor()
-
-                            del_query = f"DELETE FROM {self.detail_table_name} WHERE hist_id = ?"
-                            del_params = [self.hist_id]
-
-                            conds = []
-                            if road_val:
-                                conds.append("roadName = ?")
-                                del_params.append(road_val)
-                            if jibun_val:
-                                conds.append("jibun = ?")
-                                del_params.append(jibun_val)
-
-                            if conds:
-                                del_query += " AND (" + " OR ".join(conds) + ")"
-                                cursor.execute(del_query, tuple(del_params))
-                                deleted_count = cursor.rowcount
-                                conn.commit()
-
-                                if deleted_count > 0:
-                                    self.detail_success_count -= deleted_count
-                                    self.log_signal_func(f"[DB삭제] 다른 날짜 중복(영구제명) 처리 | 삭제건수={deleted_count} | 대상={road_val or jibun_val}")
-                        except Exception as e:
-                            self.log_signal_func(f"❌ [DB삭제] 영구 제명에 따른 삭제 실패 / {e}")
-
-                        # 앞으로 영원히 저장되지 못하도록 Banned 처리
-                        if road_val:
-                            self.global_address_history[road_val] = {'date': d_val, 'banned': True}
-                        if jibun_val:
-                            self.global_address_history[jibun_val] = {'date': d_val, 'banned': True}
-
-                        continue # 이번 것도 당연히 스킵
-
-                    # 3. 이력에 있는데 날짜가 같음 -> 같은 날짜 중복 (하루 10개 중 1개만 저장하는 룰)
-                    if is_same_day:
-                        # 삭제는 하지 않고 가볍게 이번 것만 스킵 (이미 저장된 최초 1개 유지)
-                        continue
-
-                    # 4. 위 조건에 모두 해당하지 않는 완전 새로운 매물
-                    if road_val:
-                        self.global_address_history[road_val] = {'date': d_val, 'banned': False}
-                    if jibun_val:
-                        self.global_address_history[jibun_val] = {'date': d_val, 'banned': False}
-
-                    rows_to_insert_all.append(rs)
-
-            if not rows_to_insert_all:
-                self.log_signal_func("[DB저장] 날짜/중복 필터링 후 저장할 데이터 없음")
-                return
-
-            # 필터링이 완료된 순수 데이터를 20개 단위로 다시 분할하여 Bulk Insert
             total_save_count = 0
-            for i in range(0, len(rows_to_insert_all), chunk_size):
-                chunk_to_insert = rows_to_insert_all[i:i + chunk_size]
+            total_key_count = 0
+
+            for i in range(0, len(final_rows), chunk_size):
+                chunk_to_insert = final_rows[i:i + chunk_size]
+                chunk_keys = final_row_keys[i:i + chunk_size]
+
                 if self.bulk_insert_detail_rows(chunk_to_insert):
                     total_save_count += len(chunk_to_insert)
 
-            self.log_signal_func(f"✅ [DB저장] 전역 중복제거/날짜필터 적용 벌크 저장 완료 | 누적 count={total_save_count}")
+                    # DB 저장에 성공한 chunk의 중개번호만 전역 set에 반영한다.
+                    for broker_number_keys in chunk_keys:
+                        for number_key in broker_number_keys:
+                            if number_key not in self.global_broker_numbers:
+                                self.global_broker_numbers.add(number_key)
+                                total_key_count += 1
+                else:
+                    self.log_signal_func(
+                        f"❌ [지역저장] bulk insert 실패 chunk는 전역 중개번호에 반영하지 않음 | "
+                        f"region={region_name} / chunk={i // chunk_size + 1}"
+                    )
+
+            self.log_signal_func(
+                f"✅ [지역저장] 중개번호 기준 중복제거 후 벌크 저장 완료 | "
+                f"region={region_name} / count={total_save_count} / 중개번호반영={total_key_count} / "
+                f"전역중개번호={len(self.global_broker_numbers)}"
+            )
 
         except Exception as e:
-            self.detail_fail_count += len(items)
-            self.log_signal_func(f"❌ [DB저장] 일반목록 벌크 저장 실패 / {e}")
+            self.detail_fail_count += len(rows or [])
+            self.log_signal_func(f"❌ [지역저장] 중개번호 기준 저장 실패 / {e}")
 
 
-    def _fetch_addresses_from_server(self, items_chunk: list[dict[str, Any]], region_item) -> list[dict[str, Any]]:
-        """
-        20개 단위의 배열을 서버로 보내서 지번/도로명 주소를 받아오는 함수
-        """
-        # SERVER_URL = "http://localhost:5001/geocode/reverse-batch"
-        SERVER_URL = "http://220.94.196.191:5001/geocode/reverse-batch"
-        MASTER_API_KEY = "my_secret_master_key_1234!"
-
-        payload = []
-        for info in items_chunk:
-            article_no = str(info.get("articleNumber", ""))  # 🌟 매물번호 추출
-            list_address = info.get("address", {}) or {}
-            list_coords = list_address.get("coordinates", {}) or {}
-
-            try:
-                lat = float(list_coords.get("yCoordinate") or 0.0)
-                lng = float(list_coords.get("xCoordinate") or 0.0)
-            except ValueError:
-                lat, lng = 0.0, 0.0
-
-            payload.append({
-                "id": article_no,  # 🌟 고유 ID로 매물번호를 담아서 보냄
-                "lat": lat,
-                "lng": lng,
-                "sido": region_item.get("시도", ""),
-                "sigungu": region_item.get("시군구", ""),
-                "eupmyeondong": region_item.get("읍면동", "")
-            })
-
-        headers = {
-            "X-API-KEY": MASTER_API_KEY,
-            "Content-Type": "application/json"
-        }
-
-        try:
-            # 🌟 수정: response 객체가 리스트(list) 자체일 확률이 높음
-            response = self.api_client.post(url=SERVER_URL, headers=headers, json=payload, timeout=60)
-
-            # 1. response가 list라면 성공으로 간주
-            if isinstance(response, list):
-                return response
-
-            # 2. 만약 response가 특정 객체(응답랩퍼)라면 여기서 status 체크를 해야 함
-            # 하지만 현재 에러로 보아 response가 list이므로, 위 1번 조건에서 바로 통과될 거야.
-
-            self.log_signal_func(f"⚠️ [API 서버 응답 오류] 리스트 형식이 아님: {type(response)}")
-            return []
-
-        except Exception as e:
-            self.log_signal_func(f"❌ [API 서버 통신 실패] {e}")
-            return []
-
-
-    def _append_save_row(self, rs):
-        try:
-            self.insert_detail_row(rs)
-        except Exception as e:
-            self.detail_fail_count += 1
-            self.log_signal_func(f"[DB저장] 단건 저장 실패 / {e}")
 
     def _join_tag_list(self, tag_list):
         if isinstance(tag_list, list):
@@ -2468,9 +2108,6 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
         return rs
 
-    def _list_map_save(self, list_item, region_item):
-        rs = self._make_list_row(list_item, region_item)
-        self._append_save_row(rs)
 
     def _detail_map_save(self, detail, region_item):
         list_item = (detail or {}).get("listItem") or {}
@@ -2606,14 +2243,4 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         if x not in [None, ""]:
             rs["경도"] = x
 
-        # === 신규 === 중개사핸드폰번호 최종 중복 체크 및 이력 등록
-        final_mobile = str(rs.get("중개사핸드폰번호") or "").strip()
-        if final_mobile:
-            if final_mobile in self.global_mobile_numbers:
-                self.log_signal_func(f"[상세 스킵] 이미 수집된 중개사핸드폰번호: {final_mobile}")
-                return # 중복이므로 저장하지 않고 리턴
-
-            # 완전 신규 번호면 전역 세트에 추가하여 향후 완벽 차단
-            self.global_mobile_numbers.add(final_mobile)
-
-        self._append_save_row(rs)
+        return rs
