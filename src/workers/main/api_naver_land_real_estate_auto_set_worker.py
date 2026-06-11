@@ -5,6 +5,7 @@ import random
 import json
 from decimal import Decimal, InvalidOperation
 
+from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
@@ -48,6 +49,7 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
         self.sqlite_driver: Optional[SqliteUtils] = None
+        self.api_client: Optional[APIClient] = None
 
         self.folder_path: str = ""
         self.out_dir: str = "output"
@@ -72,6 +74,7 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         try:
             self.excel_driver = ExcelUtils(self.log_signal_func)
             self.file_driver = FileUtils(self.log_signal_func)
+            self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
             if not self.db_set():
                 return False
@@ -120,6 +123,8 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
             self.log_signal_func(f"[cleanup] sqlite_driver.close 실패: {e}")
         finally:
             self.sqlite_driver = None
+
+        self.api_client = None
 
         self.finalize_db_and_excel()
 
@@ -1249,7 +1254,9 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
                 region_rows = self._collect_detail(article_filtered_items, region_item)
 
+                # === 신규 === 상세조회 후에도 도로명주소/번지가 비어 있으면 좌표 기반으로 보정
                 if region_rows:
+                    region_rows = self._enrich_address_rows_from_server(region_rows, region_item)
                     self._save_region_rows_by_broker_numbers(region_rows, region_name)
                 else:
                     self.log_signal_func("[지역저장] 이번 지역 저장 후보 없음")
@@ -1943,6 +1950,132 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         except Exception as e:
             self.detail_fail_count += len(rows or [])
             self.log_signal_func(f"❌ [지역저장] 중개번호 기준 저장 실패 / {e}")
+
+
+
+    # === 신규 === 좌표 기반 도로명/지번 주소 보정
+    def _enrich_address_rows_from_server(self, rows: list[dict[str, Any]], region_item) -> list[dict[str, Any]]:
+        if not rows:
+            return []
+
+        if not self.api_client:
+            self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+
+        chunk_size = 20
+        enriched_rows = []
+
+        for i in range(0, len(rows), chunk_size):
+            chunk = rows[i:i + chunk_size]
+
+            # 도로명주소와 번지가 모두 있는 row는 서버 호출 대상에서 제외한다.
+            address_target_rows = []
+            for rs in chunk:
+                road_val = str((rs or {}).get("도로명주소") or "").strip()
+                jibun_val = str((rs or {}).get("번지") or "").strip()
+                if not road_val or not jibun_val:
+                    address_target_rows.append(rs)
+
+            api_res_map = {}
+            if address_target_rows:
+                api_results = self._fetch_addresses_from_server(address_target_rows, region_item)
+                api_res_map = {
+                    str(res.get("id")): res
+                    for res in api_results
+                    if isinstance(res, dict) and res.get("id")
+                }
+
+            for rs in chunk:
+                row = dict(rs or {})
+                article_no = str(row.get("매물번호") or "").strip()
+
+                road_val = str(row.get("도로명주소") or "").strip()
+                jibun_val = str(row.get("번지") or "").strip()
+                full_addr_val = str(row.get("전체주소") or "").strip()
+
+                api_res = api_res_map.get(article_no)
+                if api_res:
+                    road_info = api_res.get("road_address") or {}
+                    jibun_info = api_res.get("address") or {}
+
+                    road_name = str(road_info.get("address_name") or "").strip()
+                    jibun_name = str(jibun_info.get("address_name") or "").strip()
+                    address_updated = False
+
+                    # 기존 값은 유지하고, 비어 있는 주소만 보정한다.
+                    if not road_val and road_name:
+                        row["도로명주소"] = road_name
+                        road_val = road_name
+                        address_updated = True
+
+                    if not jibun_val and jibun_name:
+                        row["번지"] = jibun_name
+                        jibun_val = jibun_name
+                        address_updated = True
+
+                    if address_updated:
+                        if road_name:
+                            row["전체주소"] = road_name
+                        elif jibun_name:
+                            row["전체주소"] = jibun_name
+                    elif not full_addr_val:
+                        if road_val:
+                            row["전체주소"] = road_val
+                        elif jibun_val:
+                            row["전체주소"] = jibun_val
+
+                enriched_rows.append(row)
+
+        return enriched_rows
+
+
+    # === 신규 === ad와 동일한 좌표 기반 주소 변환 API 호출
+    def _fetch_addresses_from_server(self, items_chunk: list[dict[str, Any]], region_item) -> list[dict[str, Any]]:
+        """
+        20개 단위의 배열을 서버로 보내서 지번/도로명 주소를 받아오는 함수
+        """
+        # SERVER_URL = "http://localhost:5001/geocode/reverse-batch"
+        SERVER_URL = "http://220.94.196.191:5001/geocode/reverse-batch"
+        MASTER_API_KEY = "my_secret_master_key_1234!"
+
+        payload = []
+        for info in items_chunk:
+            article_no = str(info.get("articleNumber", "") or info.get("매물번호", "")).strip()
+
+            list_address = info.get("address", {}) or {}
+            list_coords = list_address.get("coordinates", {}) or {}
+
+            try:
+                lat = float(list_coords.get("yCoordinate") or info.get("위도") or 0.0)
+                lng = float(list_coords.get("xCoordinate") or info.get("경도") or 0.0)
+            except ValueError:
+                lat, lng = 0.0, 0.0
+
+            payload.append({
+                "id": article_no,
+                "lat": lat,
+                "lng": lng,
+                "sido": region_item.get("시도", ""),
+                "sigungu": region_item.get("시군구", ""),
+                "eupmyeondong": region_item.get("읍면동", "")
+            })
+
+        headers = {
+            "X-API-KEY": MASTER_API_KEY,
+            "Content-Type": "application/json"
+        }
+
+        try:
+            response = self.api_client.post(url=SERVER_URL, headers=headers, json=payload, timeout=60)
+
+            if isinstance(response, list):
+                return response
+
+            self.log_signal_func(f"⚠️ [API 서버 응답 오류] 리스트 형식이 아님: {type(response)}")
+            return []
+
+        except Exception as e:
+            self.log_signal_func(f"❌ [API 서버 통신 실패] {e}")
+            return []
 
 
 

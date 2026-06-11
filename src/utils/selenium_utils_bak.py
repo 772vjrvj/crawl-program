@@ -340,79 +340,6 @@ class SeleniumUtils:
         os.makedirs(path, exist_ok=True)
         return path
 
-    def _kill_chrome_by_profile_path(self, profile_dir: Optional[str]) -> None:
-        """
-        특정 user-data-dir 프로필을 사용 중인 chrome.exe만 종료한다.
-        - 일반 사용자가 켜둔 Chrome은 건드리지 않는다.
-        - uc.Chrome 생성 실패 시 driver 객체가 없는데 Chrome 창만 남는 케이스를 정리한다.
-        """
-        if not profile_dir:
-            return
-
-        # 현재 유틸은 Windows 기준이다. 혹시 다른 OS에서 실행되면 아무 것도 하지 않는다.
-        if os.name != "nt":
-            return
-
-        try:
-            profile_path = os.path.abspath(profile_dir)
-            profile_path_ps = profile_path.replace("'", "''")
-
-            ps_cmd = """
-                $profile = '%s'
-                Get-CimInstance Win32_Process -Filter "name = 'chrome.exe'" |
-                Where-Object {
-                    $_.CommandLine -and $_.CommandLine.Contains($profile)
-                } |
-                ForEach-Object {
-                    try {
-                        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-                    } catch {}
-                }
-                """ % profile_path_ps
-
-            subprocess.run(
-                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_cmd],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=5,
-                check=False,
-            )
-
-            self._log("profile chrome kill checked:", profile_path, force=True)
-
-        except Exception as e:
-            self._log("profile chrome kill failed:", str(e), force=True)
-
-    def _kill_chrome_by_profile_dir(self) -> None:
-        """
-        현재 self._profile_dir을 사용하는 chrome.exe만 종료한다.
-        """
-        self._kill_chrome_by_profile_path(self._profile_dir)
-
-    def _reset_profile_for_retry(self) -> None:
-        """
-        uc.Chrome 재시도 전에 기존 임시 프로필과 해당 프로필을 물고 있는 Chrome을 정리하고,
-        새 임시 프로필을 생성한다.
-        """
-        old_profile_dir = self._profile_dir
-
-        try:
-            self._kill_chrome_by_profile_path(old_profile_dir)
-        except Exception:
-            pass
-
-        try:
-            if old_profile_dir and os.path.isdir(old_profile_dir):
-                shutil.rmtree(old_profile_dir, ignore_errors=True)
-        except Exception:
-            pass
-
-        self._profile_dir = self._new_tmp_profile()
-        self._net_enabled = False
-        self._perf_supported = None
-
-        self._log("new retry profile:", self._profile_dir, force=True)
-
     # ---------------------------------------------------------------------
     # Chrome discovery / version
     # ---------------------------------------------------------------------
@@ -1056,19 +983,15 @@ class SeleniumUtils:
         """
         driver.quit()를 안전하게 수행한다(예외 무시).
         - quit 중 예외가 나더라도 이후 cleanup이 진행되도록 보호한다.
-        - driver 객체 생성 전에 Chrome 창만 떠버린 경우도 현재 임시 프로필 기준으로 정리한다.
         """
         d = self.driver
         self.driver = None
-
         if not d:
-            self._kill_chrome_by_profile_dir()
             return
-
         try:
             d.quit()
         except Exception:
-            self._kill_chrome_by_profile_dir()
+            pass
 
     def start_driver(
             self,
@@ -1194,9 +1117,6 @@ class SeleniumUtils:
                     last_err = e
                     self._log("uc major version failed:", str(e), force=True)
 
-                    # === 신규 === uc.Chrome 실패 시 Chrome 창만 남아 프로필 락을 잡을 수 있으므로 정리
-                    self._reset_profile_for_retry()
-
                     # 에러 메시지에서 실제 Chrome 버전 추출 후 재시도
                     extracted_major = _extract_browser_major_from_error(e)
                     if extracted_major and extracted_major != int(major):
@@ -1210,9 +1130,6 @@ class SeleniumUtils:
                             last_err = e2
                             self._log("uc extracted major failed:", str(e2), force=True)
 
-                            # === 신규 === 다음 재시도 전에 잔여 Chrome/프로필 정리
-                            self._reset_profile_for_retry()
-
             # 2차: version_main 없이 uc 자동 방식
             try:
                 self._log("retry with uc auto version", force=True)
@@ -1220,9 +1137,6 @@ class SeleniumUtils:
             except Exception as e3:
                 last_err = e3
                 self._log("uc auto version failed:", str(e3), force=True)
-
-                # === 신규 === 자동 방식 실패 후 마지막 재시도 전에도 잔여 Chrome/프로필 정리
-                self._reset_profile_for_retry()
 
                 # 자동 방식 실패 시에도 에러에서 실제 버전 추출해서 마지막 재시도
                 extracted_major = _extract_browser_major_from_error(e3)
@@ -1236,9 +1150,6 @@ class SeleniumUtils:
                     except Exception as e4:
                         last_err = e4
                         self._log("uc final extracted major failed:", str(e4), force=True)
-
-                        # === 신규 === 최종 실패 시에도 떠버린 Chrome 창 정리
-                        self._kill_chrome_by_profile_dir()
 
             if last_err:
                 raise last_err
@@ -1273,9 +1184,6 @@ class SeleniumUtils:
                 self.wipe_uc_driver_cache()
             except Exception:
                 pass
-
-            # === 신규 === 캐시 삭제 후 재시도는 새 프로필로 시작
-            self._reset_profile_for_retry()
 
             # 캐시 삭제 후 한 번 더 현재 Chrome major 재확인
             chrome_exe = self._find_chrome_exe_windows()
@@ -1314,7 +1222,6 @@ class SeleniumUtils:
             except Exception as e2:
                 self.last_error = e2
                 self._safe_quit_driver()
-                self._kill_chrome_by_profile_dir()
                 raise e2
 
     def quit(self) -> None:
@@ -1324,7 +1231,6 @@ class SeleniumUtils:
         self._quit_done = True
 
         self._safe_quit_driver()
-        self._kill_chrome_by_profile_dir()
 
         try:
             if self._profile_dir and os.path.isdir(self._profile_dir):

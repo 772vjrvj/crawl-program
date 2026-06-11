@@ -28,7 +28,7 @@
     {
       "name": "반복 시간 (숫자 입력)",
       "code": "auto_num",
-      "value": 6,
+      "value": 1,
       "type": "input"
     },
     {
