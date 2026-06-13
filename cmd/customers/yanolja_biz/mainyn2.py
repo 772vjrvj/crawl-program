@@ -1,6 +1,5 @@
 import csv
 import json
-import re
 import time
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -36,26 +35,6 @@ def create_options():
         "timeout": 20,
         "logValueLimit": 0,   # 0이면 전체, 예: 80이면 값이 길 때 80자까지만 로그
     }
-
-
-# ==================================================
-# 최종 결과 컬럼
-# ==================================================
-FINAL_FIELDNAMES = [
-    "아이디",
-    "키워드",
-    "카테고리",
-    "시도",
-    "시군구",
-    "이름",
-    "상호",
-    "대표자명",
-    "사업자번호",
-    "주소",
-    "이메일",
-    "전화번호",
-    "통신판매업 신고번호",
-]
 
 
 # ==================================================
@@ -115,7 +94,11 @@ def csv_to_xlsx(csv_path, xlsx_path):
                     value=safe_excel_value(value)
                 )
 
-                # 연락처 010, 사업자번호, ID 등 앞자리 0 보존
+                # ==================================================
+                # 중요:
+                # 연락처 010, 사업자번호, ID 등 앞자리 0이 빠지지 않도록
+                # 모든 셀을 텍스트 형식으로 저장
+                # ==================================================
                 cell.number_format = "@"
 
                 col_no += 1
@@ -135,6 +118,7 @@ def csv_to_xlsx(csv_path, xlsx_path):
         column_letter = get_column_letter(col_idx)
         width = 10
 
+        # 너무 많은 행을 전부 보면 느릴 수 있어서 앞 200행 기준
         for row_idx in range(1, min(ws.max_row, 200) + 1):
             cell_value = ws.cell(row=row_idx, column=col_idx).value
             if cell_value is not None:
@@ -208,7 +192,6 @@ def parse_seller_table(resp_json):
         block = j[i] or {}
         if block.get("type") == "table":
             comps = block.get("tableComponent") or []
-
             k = 0
             while k < len(comps):
                 c = comps[k] or {}
@@ -224,7 +207,6 @@ def parse_seller_table(resp_json):
                     out[title] = val
 
                 k += 1
-
             break
 
         i += 1
@@ -281,7 +263,7 @@ def fetch_seller_info(stay_id, opt):
 
 
 # ==================================================
-# 로그
+# 로그 (컬럼명 + 값까지)
 # ==================================================
 def shorten_value(v, limit):
     if v is None:
@@ -311,6 +293,7 @@ def log_done(done_cnt, total_cnt, ok_cnt, stay_id, res, opt):
         )
     )
 
+    # === 값까지 출력 ===
     if table:
         limit = opt.get("logValueLimit", 0) or 0
 
@@ -320,7 +303,7 @@ def log_done(done_cnt, total_cnt, ok_cnt, stay_id, res, opt):
 
 
 # ==================================================
-# 메인 처리: 멀티스레드
+# 메인 처리: 멀티스레드 8개
 # ==================================================
 def merge_rows_with_seller(rows, opt):
     tasks = []
@@ -377,6 +360,7 @@ def merge_rows_with_seller(rows, opt):
 
             seller_map_by_index[index] = res
 
+            # === 로그: 숙소 1건 끝날 때마다 (컬럼명+값) ===
             log_done(done_cnt, len(tasks), ok_cnt, stay_id, res, opt)
 
             if opt["sleepSec"] and opt["sleepSec"] > 0:
@@ -403,142 +387,51 @@ def merge_rows_with_seller(rows, opt):
     return out_rows, sorted(list(all_new_cols))
 
 
-# ==================================================
-# 최종 한글 컬럼 변환
-# ==================================================
-def normalize_key(key):
-    if key is None:
-        return ""
+def build_fieldnames(original_rows, new_cols):
+    base_fields = []
 
-    s = str(key)
-    s = s.replace("\r", " ")
-    s = s.replace("\n", " ")
-    s = re.sub(r"\s+", " ", s)
-    s = s.strip()
+    if original_rows:
+        base_fields = list(original_rows[0].keys())
 
-    return s
+    union = set(base_fields)
 
+    i = 0
+    while i < len(original_rows):
+        for k in original_rows[i].keys():
+            if k not in union:
+                union.add(k)
+                base_fields.append(k)
 
-def get_by_key(row, key):
-    if key in row:
-        return row.get(key, "")
+        i += 1
 
-    target = normalize_key(key)
+    j = 0
+    while j < len(new_cols):
+        if new_cols[j] not in base_fields:
+            base_fields.append(new_cols[j])
 
-    for k in row.keys():
-        if normalize_key(k) == target:
-            return row.get(k, "")
+        j += 1
 
-    return ""
+    return base_fields
 
 
-def get_first_value(row, keys):
-    for key in keys:
-        value = get_by_key(row, key)
-        if value is not None and str(value).strip() != "":
-            return value
+def fill_missing_columns(rows, fieldnames):
+    i = 0
 
-    return ""
+    while i < len(rows):
+        r = rows[i]
+        j = 0
 
+        while j < len(fieldnames):
+            k = fieldnames[j]
 
-def collect_texts_from_json(obj, out):
-    if obj is None:
-        return
+            if k not in r:
+                r[k] = ""
 
-    if isinstance(obj, str):
-        s = obj.strip()
-        if s:
-            out.append(s)
-        return
+            j += 1
 
-    if isinstance(obj, int) or isinstance(obj, float):
-        return
+        i += 1
 
-    if isinstance(obj, list):
-        for item in obj:
-            collect_texts_from_json(item, out)
-        return
-
-    if isinstance(obj, dict):
-        for v in obj.values():
-            collect_texts_from_json(v, out)
-        return
-
-
-def extract_sigungu(location_details_json, sido):
-    if not location_details_json:
-        return ""
-
-    try:
-        obj = json.loads(location_details_json)
-    except Exception:
-        text = str(location_details_json).strip()
-
-        if sido and text.startswith(sido):
-            text = text.replace(sido, "", 1).strip()
-
-        return text
-
-    texts = []
-    collect_texts_from_json(obj, texts)
-
-    cleaned = []
-    sido_text = str(sido or "").strip()
-
-    for t in texts:
-        t = str(t).strip()
-
-        if not t:
-            continue
-
-        if sido_text and t == sido_text:
-            continue
-
-        if sido_text and t.startswith(sido_text):
-            t = t.replace(sido_text, "", 1).strip()
-
-        if t and t not in cleaned:
-            cleaned.append(t)
-
-    if not cleaned:
-        return ""
-
-    # 보통 첫 번째 상세 지역을 시군구로 사용
-    return cleaned[0]
-
-
-def build_final_output_rows(rows):
-    final_rows = []
-
-    for row in rows:
-        sido = get_first_value(row, ["regionName"])
-        sigungu = extract_sigungu(get_first_value(row, ["locationDetails_json"]), sido)
-
-        final_row = {
-            "아이디": get_first_value(row, ["id"]),
-            "키워드": get_first_value(row, ["topCategory"]),
-            "카테고리": get_first_value(row, ["searchType", "pageName"]),
-            "시도": sido,
-            "시군구": sigungu,
-            "이름": get_first_value(row, ["title"]),
-            "상호": get_first_value(row, ["상호명"]),
-
-            "대표자명": get_first_value(row, ["대표자명"]),
-            "사업자번호": get_first_value(row, ["사업자등록번호", "사업자번호"]),
-            "주소": get_first_value(row, ["사업자주소", "주소"]),
-            "이메일": get_first_value(row, ["전자우편주소", "이메일"]),
-            "전화번호": get_first_value(row, ["연락처", "전화번호"]),
-            "통신판매업 신고번호": get_first_value(row, [
-                "통신판매업자 신고번호",
-                "통신판매업 신고번호",
-                "통신판매업자\n신고번호",
-                "통신판매업\n신고번호",
-            ]),
-        }
-
-        final_rows.append(final_row)
-
-    return final_rows
+    return rows
 
 
 # ==================================================
@@ -553,20 +446,22 @@ def main():
         safe_print("[EXIT] input csv empty: " + INPUT_CSV)
         return
 
-    merged_rows, new_cols = merge_rows_with_seller(rows, opt)
+    out_rows, new_cols = merge_rows_with_seller(rows, opt)
 
-    # 기존 영문 컬럼 + API 원본 컬럼을 최종 한글 컬럼으로 변환
-    final_rows = build_final_output_rows(merged_rows)
+    fieldnames = build_fieldnames(rows, new_cols)
+    out_rows = fill_missing_columns(out_rows, fieldnames)
 
-    write_csv_rows(OUTPUT_CSV, final_rows, FINAL_FIELDNAMES)
+    write_csv_rows(OUTPUT_CSV, out_rows, fieldnames)
 
+    # ==================================================
     # CSV 저장 후 XLSX도 생성
+    # 모든 셀을 텍스트로 저장하므로 연락처 앞 0이 빠지지 않음
+    # ==================================================
     csv_to_xlsx(OUTPUT_CSV, OUTPUT_XLSX)
 
-    safe_print("[OK] output_rows={} -> {}".format(len(final_rows), OUTPUT_CSV))
-    safe_print("[OK] output_xlsx={} -> {}".format(len(final_rows), OUTPUT_XLSX))
-    safe_print("[OK] final_cols={} -> {}".format(len(FINAL_FIELDNAMES), ", ".join(FINAL_FIELDNAMES)))
-    safe_print("[OK] original_added_cols={} -> {}".format(len(new_cols), ", ".join(new_cols)))
+    safe_print("[OK] output_rows={} -> {}".format(len(out_rows), OUTPUT_CSV))
+    safe_print("[OK] output_xlsx={} -> {}".format(len(out_rows), OUTPUT_XLSX))
+    safe_print("[OK] added_cols={} -> {}".format(len(new_cols), ", ".join(new_cols)))
 
 
 if __name__ == "__main__":
