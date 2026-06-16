@@ -12,7 +12,7 @@
     {
       "name": "1. 키워드(콤마(,)로 구분해주세요)",
       "code": "keyword",
-      "value": "필라테스",
+      "value": "리조트, 펜션, 호스텔, 민박, 한옥, 글램핑, 카라반, 캠핑",
       "type": "input"
     },
     {
@@ -48,6 +48,12 @@
     {
       "name": "자동 엑셀 저장",
       "code": "auto_save_yn",
+      "value": true,
+      "type": "check"
+    },
+    {
+      "name": "중복제거",
+      "code": "remove_duplicate_yn",
       "value": true,
       "type": "check"
     }
@@ -241,42 +247,42 @@
     {
       "code": "zip_code",
       "value": "우편번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "agency_name",
       "value": "대행사 상호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "agency_ceo",
       "value": "대행사 대표자명",
-      "checked": false
+      "checked": true
     },
     {
       "code": "agency_address",
       "value": "대행사 소재지",
-      "checked": false
+      "checked": true
     },
     {
       "code": "agency_bizno",
       "value": "대행사 사업자번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "agency_mailno",
       "value": "대행사 통신판매업번호",
-      "checked": false
+      "checked": true
     },
     {
       "code": "agency_phone",
       "value": "대행사 연락처",
-      "checked": false
+      "checked": true
     },
     {
       "code": "agency_site",
       "value": "대행사 홈페이지",
-      "checked": false
+      "checked": true
     }
   ],
   "search_col_list": [
