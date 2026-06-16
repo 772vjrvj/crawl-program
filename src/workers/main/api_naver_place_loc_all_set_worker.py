@@ -37,6 +37,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         self.excel_driver: Optional[ExcelUtils] = None
         self.api_client: Optional[APIClient] = None
         self.saved_ids: Set[str] = set()
+        self.remove_duplicate_yn = None
         self._destroyed: bool = False
         self._cleaned_up: bool = False
         self.naver_loc: str = "읍면동"
@@ -75,6 +76,9 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         # DB 저장 후 종료 시 엑셀 자동 저장 여부
         self.auto_save_yn = bool(self.get_setting_value(self.setting, "auto_save_yn"))
         self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
+        # 6. 중복제거 여부
+        self.remove_duplicate_yn: bool = self.get_setting_value(self.setting, "remove_duplicate_yn")
+        self.log_signal_func(f"중복제거 여부 : {self.remove_duplicate_yn}")
 
         self.driver_set()
 
@@ -107,7 +111,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
-        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func, verify=True)
 
 
     def cleanup(self) -> None:
@@ -667,7 +671,8 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                     self.log_signal_func("크롤링이 중지되었습니다.")
                     break
 
-                if place_id in self.saved_ids:
+                # 중복제거 사용 시, 이미 저장한 place_id는 스킵
+                if self.remove_duplicate_yn and place_id in self.saved_ids:
                     self.log_signal_func(
                         f"전국: {locs_index} / {total_locs}, 키워드: {current_query_index} / {total_queries}, "
                         f"검색어: {query}, 수집: {idx} / {len(result_ids)}, 중복 아이디: {place_id}"
@@ -686,7 +691,11 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                     f"검색어: {query}, 수집: {idx} / {len(result_ids)}, 아이디: {place_id}, 이름: {place_info['이름']}"
                 )
 
-                self.insert_detail_row(place_info)
+                save_ok = self.insert_detail_row(place_info)
+
+                # DB 저장 성공한 경우에만 중복 목록에 추가
+                if save_ok and self.remove_duplicate_yn:
+                    self.saved_ids.add(place_id)
 
             self.current_cnt = locs_index * current_query_index * 300
             pro_value = (self.current_cnt / self.total_cnt) * 1000000 if self.total_cnt > 0 else 0
