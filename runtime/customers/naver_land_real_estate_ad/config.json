@@ -4,6 +4,8 @@
   "db_name": "NAVER_LAND_REAL_ESTATE_AD",
   "db_common_name": "WORKER_JOB_HIST",
   "color": "#ccc",
+  "server_url": "http://220.94.196.191:5001/geocode/reverse-batch",
+  "master_api_key": "my_secret_master_key_1234!",
   "enabled": true,
   "popup": false,
   "region": false,
@@ -22,13 +24,13 @@
     {
       "name": "등록일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": 20260609,
+      "value": 20260618,
       "type": "input"
     },
     {
       "name": "등록일(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": 20260609,
+      "value": 20260620,
       "type": "input"
     },
     {
