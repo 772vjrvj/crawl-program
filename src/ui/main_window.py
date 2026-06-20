@@ -89,7 +89,7 @@ class OnDemandWorkerProto(StoppableThreadProto, Protocol):
     def set_region(self, regions: List[Any]) -> None: ...
     def set_excel_data_list(self, excel_data_list: List[Any]) -> None: ...
     def set_user(self, user: Any) -> None: ...
-
+    def set_session(self, session: Optional[Session]) -> None: ...
     
 
 
@@ -710,6 +710,9 @@ class MainWindow(QWidget):
 
             if self.user:
                 self.on_demand_worker.set_user(self.user)
+
+            if self.session:
+                self.on_demand_worker.set_session(self.session)
 
             self.on_demand_worker.start()
 

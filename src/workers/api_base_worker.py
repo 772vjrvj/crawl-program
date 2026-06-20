@@ -8,6 +8,9 @@ import time
 import os
 import sys
 import json
+import requests
+from requests import Session
+from src.utils.config import server_name, server_url
 
 class BaseApiWorker(QThread):
     # =========================
@@ -37,6 +40,11 @@ class BaseApiWorker(QThread):
         self.setting: Optional[Any] = None
         self.running: bool = True
 
+        self.session: Optional[Session] = None
+
+        self.program_start_sent: bool = False
+        self.program_end_sent: bool = False
+
     # =========================
     # thread entry
     # =========================
@@ -54,8 +62,12 @@ class BaseApiWorker(QThread):
 
             self.log_signal_func("초기화 성공")
 
+            # init 성공 후 중앙 서버에 프로그램 시작 전송
+            self.send_program_start()
+
             if not self.running:
                 self.log_signal_func("중단 요청 감지")
+                self.destroy_with_program_end()
                 return
 
             if not self.main():
@@ -64,15 +76,20 @@ class BaseApiWorker(QThread):
                 self.log_signal_func("메인 성공")
 
             if self.running:
-                self.destroy()
+                self.destroy_with_program_end()
+            else:
+                self.send_program_end()
 
             self.log_signal_func("종료 완료")
 
         except Exception as e:
             self.log_signal_func("❌ 예외 발생: " + str(e))
+
             try:
                 if self.running:
-                    self.destroy()
+                    self.destroy_with_program_end()
+                else:
+                    self.send_program_end()
             except Exception:
                 pass
 
@@ -117,6 +134,9 @@ class BaseApiWorker(QThread):
 
     def set_user(self, user: Any) -> None:
         self.user = user
+
+    def set_session(self, session: Optional[Session]) -> None:
+        self.session = session
 
     def set_columns(self, columns: Optional[Sequence[dict[str, Any]]]) -> None:
         self.columns = []
@@ -237,6 +257,128 @@ class BaseApiWorker(QThread):
                 return False
             time.sleep(0.05)
         return True
+
+
+    def get_program_id(self) -> Optional[str]:
+        """
+        runtime/customers/{worker_name}/config.json 에서 key 값을 programId로 사용.
+        """
+        program_id = self.get_runtime_customer_config_value("key")
+        return str(program_id) if program_id else None
+
+
+    def get_center_server_base_url(self) -> str:
+        """
+        중앙 서버 base url 반환.
+        server_url 우선 사용, 없으면 server_name 사용.
+        """
+        base_url = str(server_url or "").strip()
+
+        if not base_url:
+            base_url = str(server_name or "").strip()
+
+        return base_url.rstrip("/")
+
+
+    def send_program_status(self, status: str) -> bool:
+        """
+        중앙 서버에 프로그램 시작/종료 상태 전송.
+
+        status:
+            start -> /user/program/start
+            end   -> /user/program/end
+        """
+        if status not in ("start", "end"):
+            self.log_signal_func(f"⚠️ 잘못된 프로그램 상태값: {status}")
+            return False
+
+        user_id = str(self.user).strip() if self.user else None
+        program_id = self.get_program_id()
+        base_url = self.get_center_server_base_url()
+
+        if not user_id:
+            self.log_signal_func("⚠️ 프로그램 상태 전송 실패: 사용자 id 없음")
+            return False
+
+        if not program_id:
+            self.log_signal_func("⚠️ 프로그램 상태 전송 실패: programId 없음(config.json key 확인)")
+            return False
+
+        if not base_url:
+            self.log_signal_func("⚠️ 프로그램 상태 전송 실패: 중앙 서버 주소 없음")
+            return False
+
+        url = f"{base_url}/user/program/{status}"
+
+        params = {
+            "id": user_id,
+            "programId": program_id,
+        }
+
+        headers = {
+            "Accept": "application/json"
+        }
+
+        try:
+            client = self.session if self.session is not None else requests
+
+            response = client.get(url, params=params, headers=headers, timeout=5)
+
+            if 200 <= response.status_code < 300:
+                self.log_signal_func(
+                    f"✅ 프로그램 {status} 전송 성공: id={user_id}, programId={program_id}"
+                )
+                return True
+
+            self.log_signal_func(
+                f"⚠️ 프로그램 {status} 전송 실패: "
+                f"status={response.status_code}, body={response.text[:300]}"
+            )
+            return False
+
+        except Exception as e:
+            self.log_signal_func(f"⚠️ 프로그램 {status} 전송 예외: {e}")
+            return False
+
+
+    def send_program_start(self) -> None:
+        """
+        프로그램 시작 전송.
+        중복 전송 방지.
+        """
+        if self.program_start_sent:
+            return
+
+        if self.send_program_status("start"):
+            self.program_start_sent = True
+
+
+    def send_program_end(self) -> None:
+        """
+        프로그램 종료 전송.
+        start가 성공한 경우에만 end 전송.
+        중복 전송 방지.
+        """
+        if self.program_end_sent:
+            return
+
+        if not self.program_start_sent:
+            return
+
+        if self.send_program_status("end"):
+            self.program_end_sent = True
+
+
+    def destroy_with_program_end(self) -> None:
+        """
+        destroy 실행 후 프로그램 종료 상태 전송.
+        destroy에서 예외가 나도 end는 최대한 전송 시도.
+        """
+        try:
+            self.destroy()
+        finally:
+            self.send_program_end()
+
 
     # =========================
     # hooks (override required)
