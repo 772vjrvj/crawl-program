@@ -7,6 +7,7 @@ from PySide6.QtCore import QThread, Signal
 import time
 import os
 import sys
+import json
 
 class BaseApiWorker(QThread):
     # =========================
@@ -153,6 +154,81 @@ class BaseApiWorker(QThread):
             "db",
             db_name
         )
+
+    def get_runtime_customer_config_path(
+            self,
+            customer_name: Optional[str] = None,
+            file_name: str = "config.json"
+    ) -> str:
+        """
+        runtime/customers/{customer_name}/config.json 경로 반환.
+        customer_name이 없으면 worker_name을 사용.
+        """
+        target_customer_name = customer_name or getattr(self, "worker_name", None)
+
+        if not target_customer_name:
+            raise ValueError("customer_name 또는 self.worker_name이 필요합니다.")
+
+        return os.path.join(
+            self.get_project_root(),
+            "runtime",
+            "customers",
+            str(target_customer_name),
+            file_name
+        )
+
+
+    def read_runtime_customer_config(
+            self,
+            customer_name: Optional[str] = None,
+            file_name: str = "config.json"
+    ) -> dict[str, Any]:
+        """
+        runtime 고객 config.json 읽기.
+        파일이 없거나 JSON이 잘못되면 빈 dict 반환.
+        """
+        config_path = self.get_runtime_customer_config_path(
+            customer_name=customer_name,
+            file_name=file_name
+        )
+
+        if not os.path.exists(config_path):
+            self.log_signal_func(f"⚠️ config 파일 없음: {config_path}")
+            return {}
+
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            if not isinstance(data, dict):
+                self.log_signal_func(f"⚠️ config 형식 오류(dict 아님): {config_path}")
+                return {}
+
+            return data
+
+        except Exception as e:
+            self.log_signal_func(f"❌ config 읽기 실패: {config_path} / {e}")
+            return {}
+
+
+    def get_runtime_customer_config_value(
+            self,
+            key_name: str,
+            default: Optional[Any] = None,
+            customer_name: Optional[str] = None,
+            file_name: str = "config.json"
+    ) -> Optional[Any]:
+        """
+        runtime 고객 config.json에서 특정 key 값 반환.
+        기본적으로 self.worker_name 기준 config를 읽음.
+        """
+        config = self.read_runtime_customer_config(
+            customer_name=customer_name,
+            file_name=file_name
+        )
+
+        return config.get(key_name, default)
+
 
     def sleep_s(self, seconds: float) -> bool:
         end = time.time() + float(seconds)
