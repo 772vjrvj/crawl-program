@@ -3,7 +3,7 @@ import time
 from typing import Any, Dict, List, Optional
 import random
 import json
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, ROUND_DOWN, InvalidOperation
 
 from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
@@ -14,6 +14,7 @@ from src.workers.api_base_worker import BaseApiWorker
 from src.utils.time_utils import yyyy_mm_dd_to
 from urllib.parse import quote
 from pyproj import Transformer
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
@@ -22,6 +23,13 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
         # 중개번호 최종 중복제거용 전역 변수
         self.global_broker_numbers = set()
+
+        # 목록의 brokerageName + brokerName 기준 상세조회 중복제거용 전역 변수
+        self.global_broker_info_keys = set()
+
+        # 같은 실행 안에서 동일 좌표의 주소 API 결과를 재사용한다.
+        self.address_cache: dict[str, dict[str, Any]] = {}
+
         self.auto_flag = None
         self.auto_num = 6
         # DB 저장용 공통 상태
@@ -51,6 +59,10 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         self.sqlite_driver: Optional[SqliteUtils] = None
         self.api_client: Optional[APIClient] = None
 
+        # resources/customers/naver_land_real_estate_auto 설정에서 읽는다.
+        self.geocode_server_url: str = ""
+        self.geocode_master_api_key: str = ""
+
         self.folder_path: str = ""
         self.out_dir: str = "output"
 
@@ -75,6 +87,32 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
             self.excel_driver = ExcelUtils(self.log_signal_func)
             self.file_driver = FileUtils(self.log_signal_func)
             self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+
+            self.geocode_server_url = str(
+                self.get_runtime_customer_config_value(
+                    key_name="server_url",
+                    default="",
+                    customer_name=self.worker_name,
+                ) or ""
+            ).strip()
+
+            self.geocode_master_api_key = str(
+                self.get_runtime_customer_config_value(
+                    key_name="master_api_key",
+                    default="",
+                    customer_name=self.worker_name,
+                ) or ""
+            ).strip()
+
+            if not self.geocode_server_url:
+                self.log_signal_func("❌ server_url 설정 없음")
+                return False
+
+            if not self.geocode_master_api_key:
+                self.log_signal_func("❌ master_api_key 설정 없음")
+                return False
+
+            self.log_signal_func(f"✅ 주소 API 서버 설정 완료: {self.geocode_server_url}")
 
             if not self.db_set():
                 return False
@@ -1058,6 +1096,7 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
     def _crawl_article_list(self):
         self.global_broker_numbers = set()
+        self.global_broker_info_keys = set()
         self.before_pro_value = 0.0
 
         total_region_count = 0
@@ -1703,6 +1742,20 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                 real_estate_type: str = str(info["realEstateType"])
                 trade_type: str = str(info["tradeType"])
 
+                # 목록의 brokerageName + brokerName이 이미 상세조회 완료된 경우 스킵한다.
+                broker_info_key = self._get_broker_info_key(info)
+
+                if broker_info_key and broker_info_key in self.global_broker_info_keys:
+                    broker_info = info.get("brokerInfo", {}) or {}
+
+                    self.log_signal_func(
+                        f"[상세 스킵] 동일 중개사무소 | "
+                        f"articleNumber={article_no} / "
+                        f"brokerageName={broker_info.get('brokerageName', '')} / "
+                        f"brokerName={broker_info.get('brokerName', '')}"
+                    )
+                    continue
+
                 self.log_signal_func(f"[상세] {i}/{len(items)} articleNumber={article_no} 시작")
 
                 detail_fetch_res = self._browser_fetch_json(
@@ -1777,7 +1830,7 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                             f"body={complex_fetch_res.get('text', '')[:500]}"
                         )
 
-                time.sleep(random.uniform(1.5, 2.2))
+                time.sleep(random.uniform(1.5, 2.0))
 
                 detail = {
                     "articleNumber": article_no,
@@ -1794,7 +1847,14 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                 if row:
                     detail_rows.append(row)
 
-                time.sleep(random.uniform(2.2, 3.2))
+                    # 중개번호를 정상적으로 가져온 경우에만
+                    # 동일한 brokerageName + brokerName의 다음 매물을 스킵한다.
+                    broker_number_keys = self._get_broker_number_keys(row)
+
+                    if broker_info_key and broker_number_keys:
+                        self.global_broker_info_keys.add(broker_info_key)
+
+                time.sleep(random.uniform(2.0, 2.5))
 
             except Exception as e:
                 self.log_signal_func(f"[상세] 실패 {i}/{len(items)} articleNumber={info.get('articleNumber')} / {e}")
@@ -1843,6 +1903,31 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
         )
 
         return filtered_items
+
+
+    def _normalize_broker_text(self, value: Any) -> str:
+        text = str(value or "").strip().lower()
+        if not text:
+            return ""
+
+        return "".join(text.split())
+
+
+    def _get_broker_info_key(self, item: Dict[str, Any]) -> str:
+        broker_info = (item or {}).get("brokerInfo", {}) or {}
+
+        brokerage_name = self._normalize_broker_text(
+            broker_info.get("brokerageName", "")
+        )
+        broker_name = self._normalize_broker_text(
+            broker_info.get("brokerName", "")
+        )
+
+        # 두 값이 모두 있어야 brokerageName + brokerName 중복제거를 적용한다.
+        if not brokerage_name or not broker_name:
+            return ""
+
+        return f"{brokerage_name}|{broker_name}"
 
 
     def _normalize_broker_number(self, value: Any) -> str:
@@ -1953,101 +2038,258 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
 
 
 
-    # === 신규 === 좌표 기반 도로명/지번 주소 보정
-    def _enrich_address_rows_from_server(self, rows: list[dict[str, Any]], region_item) -> list[dict[str, Any]]:
+    # =========================================================
+    # 좌표 기반 주소 보정: 100건 batch + 좌표 캐시
+    # =========================================================
+    def _get_address_article_no(self, info: dict[str, Any]) -> str:
+        return str(
+            info.get("articleNumber")
+            or info.get("매물번호")
+            or info.get("atclNo")
+            or ""
+        ).strip()
+
+    def _get_address_coordinates(self, info: dict[str, Any]) -> tuple[Any, Any]:
+        list_address = info.get("address", {}) or {}
+        list_coords = list_address.get("coordinates", {}) or {}
+
+        lat = list_coords.get("yCoordinate")
+        lng = list_coords.get("xCoordinate")
+
+        if lat in [None, ""]:
+            lat = info.get("위도") or info.get("lat")
+        if lng in [None, ""]:
+            lng = info.get("경도") or info.get("lng")
+
+        return lat, lng
+
+    def _normalize_coord_for_cache(self, value: Any, scale: str = "0.00001") -> str:
+        try:
+            text = str(value or "").strip()
+            if not text:
+                return ""
+
+            return str(Decimal(text).quantize(Decimal(scale), rounding=ROUND_DOWN))
+
+        except (InvalidOperation, ValueError):
+            return ""
+
+    def _make_address_cache_key(self, info: dict[str, Any]) -> str:
+        lat_value, lng_value = self._get_address_coordinates(info)
+
+        lat = self._normalize_coord_for_cache(lat_value)
+        lng = self._normalize_coord_for_cache(lng_value)
+
+        if not lat or not lng or lat == "0.00000" or lng == "0.00000":
+            return ""
+
+        return f"{lat}|{lng}"
+
+    def _get_cached_address_result(self, info: dict[str, Any]) -> Optional[dict[str, Any]]:
+        cache_key = self._make_address_cache_key(info)
+        if not cache_key:
+            return None
+
+        cached = self.address_cache.get(cache_key)
+        if not cached:
+            return None
+
+        result = dict(cached)
+        result["id"] = self._get_address_article_no(info)
+        return result
+
+    def _set_address_cache_result(
+            self,
+            info: dict[str, Any],
+            api_res: dict[str, Any],
+    ) -> None:
+        if not isinstance(api_res, dict):
+            return
+
+        cache_key = self._make_address_cache_key(info)
+        if not cache_key:
+            return
+
+        self.address_cache[cache_key] = dict(api_res)
+
+    def _fetch_addresses_parallel(
+            self,
+            items: list[dict[str, Any]],
+            region_item,
+            chunk_size: int = 100,
+            max_workers: int = 1,
+    ) -> list[dict[str, Any]]:
+        if not items:
+            return []
+
+        cached_results: list[dict[str, Any]] = []
+        request_items: list[dict[str, Any]] = []
+
+        for info in items:
+            cached = self._get_cached_address_result(info)
+            if cached:
+                cached_results.append(cached)
+            else:
+                request_items.append(info)
+
+        if cached_results:
+            self.log_signal_func(
+                f"[주소API] 캐시 사용 | cache={len(cached_results)} | "
+                f"request={len(request_items)}"
+            )
+
+        if not request_items:
+            return cached_results
+
+        item_map = {
+            self._get_address_article_no(info): info
+            for info in request_items
+            if self._get_address_article_no(info)
+        }
+
+        chunks = [
+            request_items[i:i + chunk_size]
+            for i in range(0, len(request_items), chunk_size)
+        ]
+
+        api_results_all: list[dict[str, Any]] = []
+
+        self.log_signal_func(
+            f"[주소API] batch 시작 | 대상={len(request_items)} | "
+            f"chunk_size={chunk_size} | chunks={len(chunks)} | workers={max_workers}"
+        )
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_map = {
+                executor.submit(self._fetch_addresses_from_server, chunk, region_item): idx
+                for idx, chunk in enumerate(chunks, start=1)
+            }
+
+            for future in as_completed(future_map):
+                idx = future_map[future]
+
+                if not self.running:
+                    self.log_signal_func("[주소API] 중단 요청 감지")
+                    break
+
+                try:
+                    api_results = future.result() or []
+
+                    for api_res in api_results:
+                        if not isinstance(api_res, dict):
+                            continue
+
+                        api_results_all.append(api_res)
+
+                        article_no = str(api_res.get("id") or "").strip()
+                        origin_info = item_map.get(article_no)
+                        if origin_info:
+                            self._set_address_cache_result(origin_info, api_res)
+
+                    self.log_signal_func(
+                        f"[주소API] batch 완료 {idx}/{len(chunks)} | "
+                        f"result={len(api_results)}"
+                    )
+
+                except Exception as e:
+                    self.log_signal_func(
+                        f"❌ [주소API] batch 실패 {idx}/{len(chunks)} / {e}"
+                    )
+
+        return cached_results + api_results_all
+
+    def _enrich_address_rows_from_server(
+            self,
+            rows: list[dict[str, Any]],
+            region_item,
+    ) -> list[dict[str, Any]]:
         if not rows:
             return []
 
         if not self.api_client:
             self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
-        chunk_size = 20
-        enriched_rows = []
+        address_target_rows: list[dict[str, Any]] = []
 
-        for i in range(0, len(rows), chunk_size):
-            chunk = rows[i:i + chunk_size]
+        for rs in rows:
+            road_val = str((rs or {}).get("도로명주소") or "").strip()
+            jibun_val = str((rs or {}).get("번지") or "").strip()
 
-            # 도로명주소와 번지가 모두 있는 row는 서버 호출 대상에서 제외한다.
-            address_target_rows = []
-            for rs in chunk:
-                road_val = str((rs or {}).get("도로명주소") or "").strip()
-                jibun_val = str((rs or {}).get("번지") or "").strip()
-                if not road_val or not jibun_val:
-                    address_target_rows.append(rs)
+            # 둘 중 하나라도 비어 있으면 주소 보정 대상이다.
+            if not road_val or not jibun_val:
+                address_target_rows.append(rs)
 
-            api_res_map = {}
-            if address_target_rows:
-                api_results = self._fetch_addresses_from_server(address_target_rows, region_item)
-                api_res_map = {
-                    str(res.get("id")): res
-                    for res in api_results
-                    if isinstance(res, dict) and res.get("id")
-                }
+        api_res_map: dict[str, dict[str, Any]] = {}
 
-            for rs in chunk:
-                row = dict(rs or {})
-                article_no = str(row.get("매물번호") or "").strip()
+        if address_target_rows:
+            api_results = self._fetch_addresses_parallel(
+                items=address_target_rows,
+                region_item=region_item,
+                chunk_size=100,
+                # 서버가 내부적으로 DB batch 조회 후 외부 API를 순차 처리하므로
+                # 클라이언트는 우선 1로 유지한다.
+                max_workers=1,
+            )
 
-                road_val = str(row.get("도로명주소") or "").strip()
-                jibun_val = str(row.get("번지") or "").strip()
-                full_addr_val = str(row.get("전체주소") or "").strip()
+            api_res_map = {
+                str(res.get("id") or "").strip(): res
+                for res in api_results
+                if isinstance(res, dict) and res.get("id")
+            }
 
-                api_res = api_res_map.get(article_no)
-                if api_res:
-                    road_info = api_res.get("road_address") or {}
-                    jibun_info = api_res.get("address") or {}
+        enriched_rows: list[dict[str, Any]] = []
 
-                    road_name = str(road_info.get("address_name") or "").strip()
-                    jibun_name = str(jibun_info.get("address_name") or "").strip()
-                    address_updated = False
+        for rs in rows:
+            row = dict(rs or {})
+            article_no = self._get_address_article_no(row)
 
-                    # 기존 값은 유지하고, 비어 있는 주소만 보정한다.
-                    if not road_val and road_name:
-                        row["도로명주소"] = road_name
-                        road_val = road_name
-                        address_updated = True
+            road_val = str(row.get("도로명주소") or "").strip()
+            jibun_val = str(row.get("번지") or "").strip()
+            full_addr_val = str(row.get("전체주소") or "").strip()
 
-                    if not jibun_val and jibun_name:
-                        row["번지"] = jibun_name
-                        jibun_val = jibun_name
-                        address_updated = True
+            api_res = api_res_map.get(article_no)
+            if api_res:
+                road_info = api_res.get("road_address") or {}
+                jibun_info = api_res.get("address") or {}
 
-                    if address_updated:
-                        if road_name:
-                            row["전체주소"] = road_name
-                        elif jibun_name:
-                            row["전체주소"] = jibun_name
-                    elif not full_addr_val:
-                        if road_val:
-                            row["전체주소"] = road_val
-                        elif jibun_val:
-                            row["전체주소"] = jibun_val
+                road_name = str(road_info.get("address_name") or "").strip()
+                jibun_name = str(jibun_info.get("address_name") or "").strip()
+                address_updated = False
 
-                enriched_rows.append(row)
+                if not road_val and road_name:
+                    row["도로명주소"] = road_name
+                    road_val = road_name
+                    address_updated = True
+
+                if not jibun_val and jibun_name:
+                    row["번지"] = jibun_name
+                    jibun_val = jibun_name
+                    address_updated = True
+
+                if address_updated:
+                    row["전체주소"] = road_name or jibun_name
+                elif not full_addr_val:
+                    row["전체주소"] = road_val or jibun_val
+
+            enriched_rows.append(row)
 
         return enriched_rows
 
+    def _fetch_addresses_from_server(
+            self,
+            items_chunk: list[dict[str, Any]],
+            region_item,
+    ) -> list[dict[str, Any]]:
+        payload: list[dict[str, Any]] = []
 
-    # === 신규 === ad와 동일한 좌표 기반 주소 변환 API 호출
-    def _fetch_addresses_from_server(self, items_chunk: list[dict[str, Any]], region_item) -> list[dict[str, Any]]:
-        """
-        20개 단위의 배열을 서버로 보내서 지번/도로명 주소를 받아오는 함수
-        """
-        # SERVER_URL = "http://localhost:5001/geocode/reverse-batch"
-        SERVER_URL = "http://220.94.196.191:5001/geocode/reverse-batch"
-        MASTER_API_KEY = "my_secret_master_key_1234!"
-
-        payload = []
         for info in items_chunk:
-            article_no = str(info.get("articleNumber", "") or info.get("매물번호", "")).strip()
-
-            list_address = info.get("address", {}) or {}
-            list_coords = list_address.get("coordinates", {}) or {}
+            article_no = self._get_address_article_no(info)
+            lat_value, lng_value = self._get_address_coordinates(info)
 
             try:
-                lat = float(list_coords.get("yCoordinate") or info.get("위도") or 0.0)
-                lng = float(list_coords.get("xCoordinate") or info.get("경도") or 0.0)
-            except ValueError:
+                lat = float(lat_value or 0.0)
+                lng = float(lng_value or 0.0)
+            except (TypeError, ValueError):
                 lat, lng = 0.0, 0.0
 
             payload.append({
@@ -2056,27 +2298,33 @@ class ApiNaverLandRealEstateAutoSetWorker(BaseApiWorker):
                 "lng": lng,
                 "sido": region_item.get("시도", ""),
                 "sigungu": region_item.get("시군구", ""),
-                "eupmyeondong": region_item.get("읍면동", "")
+                "eupmyeondong": region_item.get("읍면동", ""),
             })
 
         headers = {
-            "X-API-KEY": MASTER_API_KEY,
-            "Content-Type": "application/json"
+            "X-API-KEY": self.geocode_master_api_key,
+            "Content-Type": "application/json",
         }
 
         try:
-            response = self.api_client.post(url=SERVER_URL, headers=headers, json=payload, timeout=60)
+            response = self.api_client.post(
+                self.geocode_server_url,
+                headers=headers,
+                json=payload,
+                timeout=60,
+            )
 
             if isinstance(response, list):
                 return response
 
-            self.log_signal_func(f"⚠️ [API 서버 응답 오류] 리스트 형식이 아님: {type(response)}")
+            self.log_signal_func(
+                f"⚠️ [API 서버 응답 오류] 리스트 형식이 아님: {type(response)}"
+            )
             return []
 
         except Exception as e:
             self.log_signal_func(f"❌ [API 서버 통신 실패] {e}")
             return []
-
 
 
     def _join_tag_list(self, tag_list):
