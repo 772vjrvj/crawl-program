@@ -14,9 +14,9 @@ const youtubeVideoData = [
 let sentimentChart = null;
 
 const chartData = {
-    pos: 150,
-    neg: 100,
-    neu: 20
+    pos: 152,
+    neg: 2320,
+    neu: 605
 };
 
 const koreanLogs = [
@@ -361,92 +361,8 @@ function updateSentimentChart(pos, neg, neu) {
     sentimentChart.setOption(option);
 }
 
-const rankData = {
-    pos: [
-        {
-            "comment_text": "1위 내용",
-            "author_name": "@u1",
-            "sentiment_score": 0.9,
-            "positive_score": 0.9,
-            "negative_score": 0.1,
-            "reason_text": "사유 1"
-        },
-        {
-            "comment_text": "2위 내용",
-            "author_name": "@u2",
-            "sentiment_score": 0.8,
-            "positive_score": 0.8,
-            "negative_score": 0.1,
-            "reason_text": "사유 2"
-        },
-        {
-            "comment_text": "3위 내용",
-            "author_name": "@u3",
-            "sentiment_score": 0.7,
-            "positive_score": 0.7,
-            "negative_score": 0.1,
-            "reason_text": "사유 3"
-        },
-        {
-            "comment_text": "4위 내용",
-            "author_name": "@u4",
-            "sentiment_score": 0.6,
-            "positive_score": 0.6,
-            "negative_score": 0.1,
-            "reason_text": "사유 4"
-        },
-        {
-            "comment_text": "5위 내용",
-            "author_name": "@u5",
-            "sentiment_score": 0.5,
-            "positive_score": 0.5,
-            "negative_score": 0.1,
-            "reason_text": "사유 5"
-        }
-    ],
-    neg: [
-        {
-            "comment_text": "1위 내용",
-            "author_name": "@h1",
-            "sentiment_score": -0.9,
-            "positive_score": 0.1,
-            "negative_score": 0.9,
-            "reason_text": "사유 1"
-        },
-        {
-            "comment_text": "2위 내용",
-            "author_name": "@h2",
-            "sentiment_score": -0.8,
-            "positive_score": 0.1,
-            "negative_score": 0.8,
-            "reason_text": "사유 2"
-        },
-        {
-            "comment_text": "3위 내용",
-            "author_name": "@h3",
-            "sentiment_score": -0.7,
-            "positive_score": 0.1,
-            "negative_score": 0.7,
-            "reason_text": "사유 3"
-        },
-        {
-            "comment_text": "4위 내용",
-            "author_name": "@h4",
-            "sentiment_score": -0.6,
-            "positive_score": 0.1,
-            "negative_score": 0.6,
-            "reason_text": "사유 4"
-        },
-        {
-            "comment_text": "5위 내용",
-            "author_name": "@h5",
-            "sentiment_score": -0.5,
-            "positive_score": 0.1,
-            "negative_score": 0.5,
-            "reason_text": "사유 5"
-        }
-    ]
-};
+const rankData = {"neg": [{"author_name": "@주언구", "reason_text": "댓글에서 사용된 '실력', '체격' 등의 단어와 부정적인 어조를 통해 강한 부정적 감정을 나타내고 있음.", "comment_text": "뭘바래. 실렵이 없은데. 체켝도 없고", "negative_score": 0.9000, "positive_score": 0.0100, "sentiment_score": -0.8000}, {"author_name": "@lafayetteo9235", "reason_text": "댓글에서 나타난 강한 부정적인 감정 표현으로 인해 해당 댓글은 'NEGATIVE'로 분류됩니다.", "comment_text": "더는 국대경기 꼴보기도 싫어서 그냥 안올라갔으면", "negative_score": 0.9000, "positive_score": 0.0100, "sentiment_score": -0.8000}, {"author_name": "@coupang2", "reason_text": "댓글에서 반복적으로 강한 어조로 특정 인물을 비난하고 있으며 이는 명백한 비판적인 내용을 담고 있습니다.", "comment_text": "홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 .", "negative_score": 0.9000, "positive_score": 0.0100, "sentiment_score": -0.8000}, {"author_name": "@view8590", "reason_text": "댓글에는 강한 분노와 비난, 폭력적인 내용이 포함되어 있어 부정적인 감성이 매우 강하게 나타납니다.", "comment_text": "역대 최고의 꿀조에 최고의 일정과 경기장 운까지 역대 최고의 멤버로 이 따위 결과를 내는 인간이 국대감독이라니... 축구팬 개돼지들 취급. 스파이크로 얼굴을 찍어버리고 싶네요. 일본과 모든 면에서 너무 비교가 됨.", "negative_score": 0.9000, "positive_score": 0.0100, "sentiment_score": -0.8000}, {"author_name": "@원샷원키리", "reason_text": "댓글에는 강한 부정적인 표현인 '존나'라는 단어가 포함되어 있으며 이는 명백하게 상대방을 모욕하는 의도를 가지고 있습니다.", "comment_text": "존나 건방지다 ㅎㅎㅎ", "negative_score": 0.9000, "positive_score": 0.0100, "sentiment_score": -0.8000}], "pos": [{"author_name": "@korea43027", "reason_text": "댓글에는 강한 웃음소리가 포함되어 있으며 이는 긍정적인 감정을 나타냅니다.", "comment_text": "56:45 앜ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ", "negative_score": 0.0500, "positive_score": 0.9000, "sentiment_score": 0.8000}, {"author_name": "@bose3498", "reason_text": "댓글 자체가 긍정적인 반응을 보여주고 있으며, 경쟁적인 상황에서 1등을 차지한 것에 대한 기쁨과 성취감을 나타내고 있다.", "comment_text": "1등!", "negative_score": 0.0500, "positive_score": 0.9000, "sentiment_score": 0.8000}, {"author_name": "@장동엽-m3h", "reason_text": "댓글에서 '최고의 비유'라는 표현을 사용하여 긍정적인 평가를 나타내고 있다.", "comment_text": "최고의 비유입니다.", "negative_score": 0.0500, "positive_score": 0.9000, "sentiment_score": 0.8000}, {"author_name": "@MeltAmon", "reason_text": "댓글에서 웃음을 유발하는 내용에 대해 긍정적인 반응을 보임.", "comment_text": "추맨 왜이리 ㅇ웃기냐 ㅋㅋㅋㅋㅋㅋㅋㅋ", "negative_score": 0.0500, "positive_score": 0.9000, "sentiment_score": 0.8000}, {"author_name": "@김용석-y5j", "reason_text": "댓글에서 긍정적인 반응인 '말을 너무 잘해'라는 표현을 사용하여 칭찬하고 있으며, 엄지척 이모티콘을 통해 긍정의 의미를 더욱 강조하고 있다.", "comment_text": "말을 너무 잘해.. 👍", "negative_score": 0.0500, "positive_score": 0.9000, "sentiment_score": 0.8000}]};
+
 
 let revealIdx = {pos: 4, neg: 4};
 
@@ -604,8 +520,8 @@ function initNetworkGraph() {
     // =====================================================
     // 1. 연결선 표시 기준
     // =====================================================
-    const MIN_WEIGHT = 3;
-    const MAX_EDGE_COUNT = 150;
+    const MIN_WEIGHT = 1;
+    const MAX_EDGE_COUNT = 200;
 
     // =====================================================
     // 2. 스타일 프리셋
@@ -927,9 +843,10 @@ function initNetworkGraph() {
     function renderGraphStyle() {
         const hasSelectedNode = selectedNodeIds.size > 0;
         const hasHoverNode = hoveredNodeId !== null;
+        const hasHoverEdge = hoveredEdgeId !== null; // 연결선 hover 여부 추가
         const hasPinnedEdge = pinnedEdgeIds.size > 0;
 
-        if (!hasSelectedNode && !hasHoverNode && !hasPinnedEdge) {
+        if (!hasSelectedNode && !hasHoverNode && !hasHoverEdge && !hasPinnedEdge) {
             applyNormalStyle();
             return;
         }
@@ -974,6 +891,20 @@ function initNetworkGraph() {
             pinnedNodeIds.add(edge.from);
             pinnedNodeIds.add(edge.to);
         });
+
+        // 연결선 hover 시 해당 선 진하게 + 양쪽 노드 활성화
+        if (hoveredEdgeId !== null) {
+            const hoverEdgeKey = toEdgeKey(hoveredEdgeId);
+            const edge = getEdgeByKey(hoverEdgeKey);
+
+            if (edge) {
+                activeEdgeIds.add(toEdgeKey(edge.id));
+
+                // 선 양쪽 노드도 같이 활성화
+                activeNodeIds.add(edge.from);
+                activeNodeIds.add(edge.to);
+            }
+        }
 
         const nodeUpdates = nodes.map(node => {
             const isActive = activeNodeIds.has(node.id);
@@ -1075,10 +1006,16 @@ function initNetworkGraph() {
     // 마우스가 올라간 라인을 미리 저장했다가 클릭 시 사용
     network.on("hoverEdge", function (params) {
         hoveredEdgeId = params.edge;
+
+        // 연결선에 마우스 올리면 즉시 진하게 표시
+        renderGraphStyle();
     });
 
     network.on("blurEdge", function () {
         hoveredEdgeId = null;
+
+        // 연결선에서 마우스 빠지면 원래 상태로 복구
+        renderGraphStyle();
     });
 
     // =====================================================
@@ -1149,14 +1086,24 @@ function initNetworkGraph() {
             count: nodeMap[word].count
         }))
         .sort((a, b) => b.count - a.count)
-        .slice(0, 3);
+        .slice(0, 15); // Top 15까지 표시
 
     const table = document.getElementById("network-table");
+
+    // 우측 제목도 JS에서 Top 10으로 변경
+    const summaryTitle = document.querySelector(".network-summary h3");
+    if (summaryTitle) {
+        summaryTitle.textContent = "핵심 키워드 (Top 15) 중심성(Centrality)";
+    }
 
     table.innerHTML =
         `<tr><th>순위</th><th>키워드</th><th>연결성</th></tr>` +
         sortedNodes.map((item, index) =>
-            `<tr><td>${index + 1}</td><td>${item.word}</td><td>${item.count}</td></tr>`
+            `<tr>
+            <td>${index + 1}</td>
+            <td>${item.word}</td>
+            <td>${item.count}</td>
+        </tr>`
         ).join("");
 }
 

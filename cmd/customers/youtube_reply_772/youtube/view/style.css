@@ -112,10 +112,85 @@ body { background-color: #ffffff; color: #222222; overflow: hidden; }
 .rank-val-col { text-align: right; color: #666; font-weight: 600; }
 
 /* [Scene 8] 네트워크 */
-#scene-8 { background: radial-gradient(circle at center, #1f2d50 0%, #111827 40%, #05070d 100%); padding: 20px; }
-#network { width: 100%; height: 100%; }
-.network-summary th { border-bottom: 2px solid #00b0ff; padding: 10px 0; color: #00b0ff; }
-.network-summary td { padding: 10px 0; }
+/* [Scene 8] 네트워크 */
+#scene-8 {
+    background: radial-gradient(circle at center, #1f2d50 0%, #111827 40%, #05070d 100%);
+
+    /* 제목을 위로 붙이기 */
+    justify-content: flex-start;
+
+    /* 위쪽 여백 줄이기 */
+    padding: 10px 20px 20px;
+
+    /* 내부 요소가 가로 전체를 쓰게 */
+    align-items: stretch;
+}
+
+/* 제목 영역을 작게 */
+.network-title {
+    color: #ffffff;
+    font-size: 2rem;
+
+    /* 기존 scene-title의 margin-bottom보다 줄임 */
+    margin-bottom: 8px;
+
+    /* 제목 자체 높이 줄이기 */
+    line-height: 1.2;
+}
+
+/* 그래프 + 우측 표 영역 */
+.network-layout {
+    width: 100%;
+    flex: 1;
+
+    display: flex;
+    gap: 20px;
+
+    /* 기존 padding 20px 때문에 그래프가 줄어드는 것 방지 */
+    padding: 0;
+
+    /* 남은 높이 전체 사용 */
+    min-height: 0;
+}
+
+/* 그래프 영역 */
+#network {
+    flex: 3;
+
+    /* 핵심: 70vh 고정 제거하고 남은 높이 전체 사용 */
+    height: 100%;
+
+    min-height: 0;
+}
+
+/* 우측 요약 영역 */
+.network-summary {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    padding: 20px;
+    border-radius: 15px;
+    color: white;
+
+    /* 그래프와 높이 맞춤 */
+    height: 100%;
+    overflow: auto;
+}
+
+#network-table {
+    width: 100%;
+    text-align: left;
+    margin-top: 15px;
+}
+
+.network-summary th {
+    border-bottom: 2px solid #00b0ff;
+    padding: 10px 0;
+    color: #00b0ff;
+}
+
+.network-summary td {
+    padding: 10px 0;
+}
 
 /* 모달 */
 .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }

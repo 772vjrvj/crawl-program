@@ -94,24 +94,39 @@
     </section>
 
     <section id="scene-7" class="scene">
-        <h1 class="scene-title">☁️ 주요 키워드 분석</h1>
-        <div class="word-cloud-wrapper">
-            <div id="word-cloud-chart"></div>
-            <div class="keyword-rank-table"><h3>Top 10 키워드</h3><table id="rank-table-body"></table></div>
-        </div>
+        <h1 class="scene-title">👍 좋아요 댓글 TOP 5</h1>
+        <div class="rank-container" id="like-container"></div>
     </section>
 
     <section id="scene-8" class="scene">
-        <h1 class="scene-title" style="color: #ffffff;">🔗 키워드 네트워크 분석</h1>
-        <div style="width: 100%; display: flex; gap: 20px; padding: 20px;">
-            <div id="network" style="flex: 3; height: 70vh;"></div>
-            <div class="network-summary" style="flex: 1; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; color: white;">
+        <h1 class="scene-title">☁️ 주요 키워드 분석</h1>
+        <div class="word-cloud-wrapper">
+            <div id="word-cloud-chart"></div>
+            <div class="keyword-rank-table"><h3>Top 15 키워드</h3><table id="rank-table-body"></table></div>
+        </div>
+    </section>
+
+    <section id="scene-9" class="scene">
+        <h1 class="scene-title network-title">🔗 키워드 네트워크 분석</h1>
+
+        <div class="network-layout">
+            <div id="network"></div>
+
+            <div class="network-summary">
                 <h3>핵심 키워드 (Top 3) 중심성(Centrality) 추가필요</h3>
-                <table id="network-table" style="width: 100%; text-align: left; margin-top: 15px;"><tr><th>순위</th><th>키워드</th><th>연결성</th></tr></table>
+
+                <table id="network-table">
+                    <tr>
+                        <th>순위</th>
+                        <th>키워드</th>
+                        <th>연결성</th>
+                    </tr>
+                </table>
             </div>
         </div>
     </section>
-    <section id="scene-9" class="scene">
+
+    <section id="scene-10" class="scene">
         <h1 class="scene-title">🔍 논의의 세 가지 핵심 축</h1>
         <div class="analysis-wrapper">
             <div class="analysis-card"><h3>실질적 활용</h3><p id="group-1">분석 중...</p></div>
