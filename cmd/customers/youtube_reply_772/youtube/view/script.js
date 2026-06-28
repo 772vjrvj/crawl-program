@@ -1,6 +1,15 @@
 const ANIMATION_DURATION_SEC = 4;
 
-const youtubeVideoData = [{"video_id":"8kFnA0oxFeI","title":"[자막뉴스] 요즘 초등학교에서 점점 좁아지고 있다는 장소 / KBS 2026.02.05.","channel_title":"KBS News","view_count":4319,"like_count":30,"comment_count":18,"thumbnail_url":"https://i.ytimg.com/vi/8kFnA0oxFeI/maxresdefault.jpg"}];
+const youtubeVideoData = [
+    {
+        "video_id": "D_axHX2HaW8",
+        "title": "기분이 너무 더럽습니다ㅣ히든풋볼W",
+        "channel_title": "이스타TV",
+        "view_count": 698987,
+        "like_count": 8645,
+        "comment_count": 3077,
+        "thumbnail_url": "https://i.ytimg.com/vi/D_axHX2HaW8/maxresdefault.jpg"
+    }];
 
 let sentimentChart = null;
 
@@ -11,18 +20,18 @@ const chartData = {
 };
 
 const koreanLogs = [
-    { type: 'sys', text: '>> [인프라 부팅] 데이터 연동 파이프라인 시동.' },
-    { type: 'run', text: '>> [커넥션] 타겟 비디오 검증 완료: [8kFnA0oxFeI]' },
-    { type: 'ok',  text: '>> [성공] API 엔드포인트 보안 게이트웨이 인증 패스.' },
-    { type: 'run', text: '>> [수집] 원본 댓글 세그먼트 데이터 스트림 실시간 다운로드...' },
-    { type: 'ok',  text: '>> [성공] 오디오 모델 가동 - 캡차 문자 해독 완료.' },
-    { type: 'run', text: '>> [정제] 마스킹 암호화 트랜잭션 전개.' },
-    { type: 'run', text: '>> [인덱싱] 매핑 최적화 부모 트리 구조 빌드 중...' },
-    { type: 'sys', text: '>> [자연어 코어] 한국어 토큰 정규화 커널 바인딩.' },
-    { type: 'run', text: '>> [텍스트마이닝] 의미어 추출 및 유효 불용어 소거 가동.' },
-    { type: 'run', text: '>> [TF-IDF] 단어 가중치 기반 실시간 수치 연산.' },
-    { type: 'sys', text: '>> [LLM 엔진] 가상 프롬프트 컨텍스트 스캐닝.' },
-    { type: 'ok',  text: '>> [성공] 분석 스크립트 빌드 및 동기화 준비 완수.' }
+    {type: 'sys', text: '>> [인프라 부팅] 데이터 연동 파이프라인 시동.'},
+    {type: 'run', text: '>> [커넥션] 타겟 비디오 검증 완료: [8kFnA0oxFeI]'},
+    {type: 'ok', text: '>> [성공] API 엔드포인트 보안 게이트웨이 인증 패스.'},
+    {type: 'run', text: '>> [수집] 원본 댓글 세그먼트 데이터 스트림 실시간 다운로드...'},
+    {type: 'ok', text: '>> [성공] 오디오 모델 가동 - 캡차 문자 해독 완료.'},
+    {type: 'run', text: '>> [정제] 마스킹 암호화 트랜잭션 전개.'},
+    {type: 'run', text: '>> [인덱싱] 매핑 최적화 부모 트리 구조 빌드 중...'},
+    {type: 'sys', text: '>> [자연어 코어] 한국어 토큰 정규화 커널 바인딩.'},
+    {type: 'run', text: '>> [텍스트마이닝] 의미어 추출 및 유효 불용어 소거 가동.'},
+    {type: 'run', text: '>> [TF-IDF] 단어 가중치 기반 실시간 수치 연산.'},
+    {type: 'sys', text: '>> [LLM 엔진] 가상 프롬프트 컨텍스트 스캐닝.'},
+    {type: 'ok', text: '>> [성공] 분석 스크립트 빌드 및 동기화 준비 완수.'}
 ];
 
 let crawlerInterval = null;
@@ -113,7 +122,8 @@ function switchScene(sceneNumber) {
         // 씬 7: 주요 키워드 분석 (기존 6번 씬)
         if (sceneNumber === '7') {
             // 임시 데이터 전달 (데이터 소스에 맞춰 교체하세요)
-            const rawData = [{"token_id":128,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"아이","token_norm":"아이","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":129,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"학교","token_norm":"학교","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":130,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"폐교","token_norm":"폐교","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":3,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":131,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"앞뒤","token_norm":"앞뒤","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":4,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":132,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg.ASq2tqotg_iASqJEvi50ep","parent_comment_id":"UgySblOmguHZz_AVeCh4AaABAg","comment_kind":"REPLY","token_text":"도시","token_norm":"도시","pos":"NNG","token_type":"MORPHEME","token_count":4,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":133,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg.ASq2tqotg_iASqJEvi50ep","parent_comment_id":"UgySblOmguHZz_AVeCh4AaABAg","comment_kind":"REPLY","token_text":"도심","token_norm":"도심","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":134,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg.ASq2tqotg_iASqJEvi50ep","parent_comment_id":"UgySblOmguHZz_AVeCh4AaABAg","comment_kind":"REPLY","token_text":"부부","token_norm":"부부","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":3,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":135,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg.ASq2tqotg_iASqJEvi50ep","parent_comment_id":"UgySblOmguHZz_AVeCh4AaABAg","comment_kind":"REPLY","token_text":"초등학교","token_norm":"초등학교","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":5,"token_len":4,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":136,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg.ASq2tqotg_iASqJEvi50ep","parent_comment_id":"UgySblOmguHZz_AVeCh4AaABAg","comment_kind":"REPLY","token_text":"증설","token_norm":"증설","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":6,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":137,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg.ASq2tqotg_iASqJEvi50ep","parent_comment_id":"UgySblOmguHZz_AVeCh4AaABAg","comment_kind":"REPLY","token_text":"수도","token_norm":"수도","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":7,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":138,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg.ASq2tqotg_iASqJEvi50ep","parent_comment_id":"UgySblOmguHZz_AVeCh4AaABAg","comment_kind":"REPLY","token_text":"외곽","token_norm":"외곽","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":8,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":139,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg.ASq2tqotg_iASqJEvi50ep","parent_comment_id":"UgySblOmguHZz_AVeCh4AaABAg","comment_kind":"REPLY","token_text":"연령","token_norm":"연령","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":9,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":140,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg.ASq2tqotg_iASqJEvi50ep","parent_comment_id":"UgySblOmguHZz_AVeCh4AaABAg","comment_kind":"REPLY","token_text":"지방","token_norm":"지방","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":11,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":141,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgySblOmguHZz_AVeCh4AaABAg.ASq2tqotg_iASqJEvi50ep","parent_comment_id":"UgySblOmguHZz_AVeCh4AaABAg","comment_kind":"REPLY","token_text":"애기","token_norm":"애기","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":13,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":142,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugz_KLeMk6Erbs83BQZ4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"평택","token_norm":"평택","pos":"NNP","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":143,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugz_KLeMk6Erbs83BQZ4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"서재초등학교","token_norm":"서재초등학교","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":6,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":144,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugz_KLeMk6Erbs83BQZ4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"운동장","token_norm":"운동장","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":3,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":145,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugz_KLeMk6Erbs83BQZ4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"사용","token_norm":"사용","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":4,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":146,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugz_KLeMk6Erbs83BQZ4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"시청각실","token_norm":"시청각실","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":5,"token_len":4,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":147,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugz_KLeMk6Erbs83BQZ4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"체육","token_norm":"체육","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":6,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":148,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugz_KLeMk6Erbs83BQZ4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"수업","token_norm":"수업","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":7,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":149,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugz_KLeMk6Erbs83BQZ4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"아이","token_norm":"아이","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":8,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":150,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugz_KLeMk6Erbs83BQZ4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"증축","token_norm":"증축","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":9,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":151,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw40z9nI2HLnG9yNTt4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"한국","token_norm":"한국","pos":"NNP","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":152,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw40z9nI2HLnG9yNTt4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"교육","token_norm":"교육","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":153,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgyfKg3w_Kmv3UjKrZ94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"초딩","token_norm":"초딩","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":154,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgyfKg3w_Kmv3UjKrZ94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"나중","token_norm":"나중","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":155,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgyfKg3w_Kmv3UjKrZ94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"사회","token_norm":"사회","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":3,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":156,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgyfKg3w_Kmv3UjKrZ94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"생각","token_norm":"생각","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":4,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":157,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgyfKg3w_Kmv3UjKrZ94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"작정","token_norm":"작정","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":5,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":158,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgyPztjxAPp9GE0umcx4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"부모","token_norm":"부모","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":159,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"체육","token_norm":"체육","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":160,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"활동","token_norm":"활동","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":161,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"자체","token_norm":"자체","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":3,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":162,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"기피","token_norm":"기피","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":4,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":163,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"학교","token_norm":"학교","pos":"NNG","token_type":"MORPHEME","token_count":3,"first_token_order":5,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":164,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"연락","token_norm":"연락","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":6,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":165,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"항의","token_norm":"항의","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":7,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":166,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"방과","token_norm":"방과","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":9,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":167,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"운동장","token_norm":"운동장","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":10,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":168,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"사교육비","token_norm":"사교육비","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":11,"token_len":4,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":169,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"형국","token_norm":"형국","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":12,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":170,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"기존","token_norm":"기존","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":13,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":171,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"태권도","token_norm":"태권도","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":14,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":172,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"유도","token_norm":"유도","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":15,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":173,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"가라데","token_norm":"가라데","pos":"NNP","token_type":"MORPHEME","token_count":1,"first_token_order":16,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":174,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"복싱","token_norm":"복싱","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":17,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":175,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"테니스","token_norm":"테니스","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":18,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":176,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"야구","token_norm":"야구","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":19,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":177,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"농구","token_norm":"농구","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":20,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":178,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"축구","token_norm":"축구","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":21,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":179,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"수영","token_norm":"수영","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":22,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":180,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"비용","token_norm":"비용","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":23,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":181,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"인근","token_norm":"인근","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":25,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":182,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"아파트","token_norm":"아파트","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":26,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":183,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"대부분","token_norm":"대부분","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":27,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":184,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"아이","token_norm":"아이","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":28,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":185,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"근처","token_norm":"근처","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":29,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":186,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"단지","token_norm":"단지","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":31,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":187,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"민원","token_norm":"민원","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":33,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":188,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"대회","token_norm":"대회","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":35,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":189,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"소풍","token_norm":"소풍","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":36,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":190,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"취소","token_norm":"취소","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":37,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":191,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"교단","token_norm":"교단","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":39,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":192,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugyza8pd9rE5e44pdJN4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"학생","token_norm":"학생","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":40,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":193,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwtNdqLr0TahYgC3Il4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"아이","token_norm":"아이","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":194,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwtNdqLr0TahYgC3Il4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"초등학교","token_norm":"초등학교","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":4,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":195,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwtNdqLr0TahYgC3Il4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"어른","token_norm":"어른","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":3,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":196,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwtNdqLr0TahYgC3Il4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"주차장","token_norm":"주차장","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":4,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":197,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwtNdqLr0TahYgC3Il4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"아이러니","token_norm":"아이러니","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":5,"token_len":4,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":198,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugxx4Y2mLIw9lK-TwBB4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"체육","token_norm":"체육","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":199,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugxx4Y2mLIw9lK-TwBB4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"활동","token_norm":"활동","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":200,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugxx4Y2mLIw9lK-TwBB4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"공간","token_norm":"공간","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":3,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":201,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugxx4Y2mLIw9lK-TwBB4AaABAg.ASqK5k5t8iVASqRY6Sf27g","parent_comment_id":"Ugxx4Y2mLIw9lK-TwBB4AaABAg","comment_kind":"REPLY","token_text":"세종시","token_norm":"세종시","pos":"NNP","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":202,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugxx4Y2mLIw9lK-TwBB4AaABAg.ASqK5k5t8iVASqRY6Sf27g","parent_comment_id":"Ugxx4Y2mLIw9lK-TwBB4AaABAg","comment_kind":"REPLY","token_text":"사건","token_norm":"사건","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":203,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw-8KAxLs55msPFKPd4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"미필","token_norm":"미필","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":204,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw-8KAxLs55msPFKPd4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"학교","token_norm":"학교","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":205,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw-8KAxLs55msPFKPd4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"전시","token_norm":"전시","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":3,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":206,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw-8KAxLs55msPFKPd4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"군인","token_norm":"군인","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":4,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":207,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw-8KAxLs55msPFKPd4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"막사","token_norm":"막사","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":5,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":208,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw-8KAxLs55msPFKPd4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"운동장","token_norm":"운동장","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":6,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":209,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwCgZ0ZIty_ashGxel4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"체육","token_norm":"체육","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":210,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwCgZ0ZIty_ashGxel4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"학교","token_norm":"학교","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":211,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwCgZ0ZIty_ashGxel4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"운동장","token_norm":"운동장","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":3,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":212,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwCgZ0ZIty_ashGxel4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"부모","token_norm":"부모","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":4,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":213,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwCgZ0ZIty_ashGxel4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"난리","token_norm":"난리","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":5,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":214,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwCgZ0ZIty_ashGxel4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"방법","token_norm":"방법","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":7,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":215,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwCgZ0ZIty_ashGxel4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"등교","token_norm":"등교","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":8,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":216,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwCgZ0ZIty_ashGxel4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"시간","token_norm":"시간","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":9,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":217,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwCgZ0ZIty_ashGxel4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"학부모","token_norm":"학부모","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":11,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":218,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgwCgZ0ZIty_ashGxel4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"교문","token_norm":"교문","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":12,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":219,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgxDsMsnkBes7b_n7kF4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"운동장","token_norm":"운동장","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":220,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgxDsMsnkBes7b_n7kF4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"필요","token_norm":"필요","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":221,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgxDsMsnkBes7b_n7kF4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"체육관","token_norm":"체육관","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":4,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":222,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgxDsMsnkBes7b_n7kF4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"확충","token_norm":"확충","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":5,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":223,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgybcKQTocA_tpWtfw94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"운동장","token_norm":"운동장","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":1,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":224,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgybcKQTocA_tpWtfw94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"체육관","token_norm":"체육관","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":2,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":225,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgybcKQTocA_tpWtfw94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"체육","token_norm":"체육","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":3,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":226,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgybcKQTocA_tpWtfw94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"수업","token_norm":"수업","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":4,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":227,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgybcKQTocA_tpWtfw94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"사고","token_norm":"사고","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":5,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":228,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgybcKQTocA_tpWtfw94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"교사","token_norm":"교사","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":6,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":229,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgybcKQTocA_tpWtfw94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"책임","token_norm":"책임","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":7,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":230,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgybcKQTocA_tpWtfw94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"교실","token_norm":"교실","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":10,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":231,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugx2YuwzBvjeZNhM4l54AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"주차장","token_norm":"주차장","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":232,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugx2YuwzBvjeZNhM4l54AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"크네","token_norm":"크네","pos":"NNP","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":233,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgxGeWWTqtCkGrxkYrx4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"체력","token_norm":"체력","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":234,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"UgxGeWWTqtCkGrxkYrx4AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"국력","token_norm":"국력","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":235,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"학교","token_norm":"학교","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":236,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"운동장","token_norm":"운동장","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":237,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"폐지","token_norm":"폐지","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":3,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":238,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"주장","token_norm":"주장","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":4,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":239,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"지하","token_norm":"지하","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":5,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":240,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"거대","token_norm":"거대","pos":"NNG","token_type":"MORPHEME","token_count":2,"first_token_order":6,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":241,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"어린이","token_norm":"어린이","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":7,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":242,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"시설","token_norm":"시설","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":8,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":243,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"체육","token_norm":"체육","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":9,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":244,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"활동","token_norm":"활동","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":10,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":245,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"중요","token_norm":"중요","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":11,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":246,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"맨땅","token_norm":"맨땅","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":12,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":247,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"덤블링","token_norm":"덤블링","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":15,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":248,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"콜로세움","token_norm":"콜로세움","pos":"NNP","token_type":"MORPHEME","token_count":1,"first_token_order":16,"token_len":4,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":249,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"수영장","token_norm":"수영장","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":17,"token_len":3,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":250,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg","parent_comment_id":null,"comment_kind":"TOP","token_text":"준비","token_norm":"준비","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":18,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":251,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg.AT4XjJAI6whATBtGdDJ3Px","parent_comment_id":"Ugw48047GRob0vYOQW94AaABAg","comment_kind":"REPLY","token_text":"초등학생","token_norm":"초등학생","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":1,"token_len":4,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}, {"token_id":252,"run_id":"381ff056-b3d2-4316-8584-2c9ed90cabd8","method_id":"MORPH_KIWI_V1","video_id":"8kFnA0oxFeI","comment_id":"Ugw48047GRob0vYOQW94AaABAg.AT4XjJAI6whATBtGdDJ3Px","parent_comment_id":"Ugw48047GRob0vYOQW94AaABAg","comment_kind":"REPLY","token_text":"대처","token_norm":"대처","pos":"NNG","token_type":"MORPHEME","token_count":1,"first_token_order":2,"token_len":2,"create_dt":"2026-05-09 23:11:42","update_dt":"2026-05-09 23:11:42"}]
+            const rawData = youtube_comment_token;
+
 // 데이터 빈도 집계 (중복된 token_text 합치기)
             const aggregatedData = {};
             rawData.forEach(item => {
@@ -342,9 +352,9 @@ function updateSentimentChart(pos, neg, neu) {
                 borderWidth: 4
             },
             data: [
-                { value: pos, name: '긍정', itemStyle: { color: '#2064b2' } },
-                { value: neg, name: '부정', itemStyle: { color: '#ff6b6b' } },
-                { value: neu, name: '중립', itemStyle: { color: '#a0a0a0' } }
+                {value: pos, name: '긍정', itemStyle: {color: '#2064b2'}},
+                {value: neg, name: '부정', itemStyle: {color: '#ff6b6b'}},
+                {value: neu, name: '중립', itemStyle: {color: '#a0a0a0'}}
             ]
         }]
     };
@@ -353,25 +363,95 @@ function updateSentimentChart(pos, neg, neu) {
 
 const rankData = {
     pos: [
-        { "comment_text": "1위 내용", "author_name": "@u1", "sentiment_score": 0.9, "positive_score": 0.9, "negative_score": 0.1, "reason_text": "사유 1" },
-        { "comment_text": "2위 내용", "author_name": "@u2", "sentiment_score": 0.8, "positive_score": 0.8, "negative_score": 0.1, "reason_text": "사유 2" },
-        { "comment_text": "3위 내용", "author_name": "@u3", "sentiment_score": 0.7, "positive_score": 0.7, "negative_score": 0.1, "reason_text": "사유 3" },
-        { "comment_text": "4위 내용", "author_name": "@u4", "sentiment_score": 0.6, "positive_score": 0.6, "negative_score": 0.1, "reason_text": "사유 4" },
-        { "comment_text": "5위 내용", "author_name": "@u5", "sentiment_score": 0.5, "positive_score": 0.5, "negative_score": 0.1, "reason_text": "사유 5" }
+        {
+            "comment_text": "1위 내용",
+            "author_name": "@u1",
+            "sentiment_score": 0.9,
+            "positive_score": 0.9,
+            "negative_score": 0.1,
+            "reason_text": "사유 1"
+        },
+        {
+            "comment_text": "2위 내용",
+            "author_name": "@u2",
+            "sentiment_score": 0.8,
+            "positive_score": 0.8,
+            "negative_score": 0.1,
+            "reason_text": "사유 2"
+        },
+        {
+            "comment_text": "3위 내용",
+            "author_name": "@u3",
+            "sentiment_score": 0.7,
+            "positive_score": 0.7,
+            "negative_score": 0.1,
+            "reason_text": "사유 3"
+        },
+        {
+            "comment_text": "4위 내용",
+            "author_name": "@u4",
+            "sentiment_score": 0.6,
+            "positive_score": 0.6,
+            "negative_score": 0.1,
+            "reason_text": "사유 4"
+        },
+        {
+            "comment_text": "5위 내용",
+            "author_name": "@u5",
+            "sentiment_score": 0.5,
+            "positive_score": 0.5,
+            "negative_score": 0.1,
+            "reason_text": "사유 5"
+        }
     ],
     neg: [
-        { "comment_text": "1위 내용", "author_name": "@h1", "sentiment_score": -0.9, "positive_score": 0.1, "negative_score": 0.9, "reason_text": "사유 1" },
-        { "comment_text": "2위 내용", "author_name": "@h2", "sentiment_score": -0.8, "positive_score": 0.1, "negative_score": 0.8, "reason_text": "사유 2" },
-        { "comment_text": "3위 내용", "author_name": "@h3", "sentiment_score": -0.7, "positive_score": 0.1, "negative_score": 0.7, "reason_text": "사유 3" },
-        { "comment_text": "4위 내용", "author_name": "@h4", "sentiment_score": -0.6, "positive_score": 0.1, "negative_score": 0.6, "reason_text": "사유 4" },
-        { "comment_text": "5위 내용", "author_name": "@h5", "sentiment_score": -0.5, "positive_score": 0.1, "negative_score": 0.5, "reason_text": "사유 5" }
+        {
+            "comment_text": "1위 내용",
+            "author_name": "@h1",
+            "sentiment_score": -0.9,
+            "positive_score": 0.1,
+            "negative_score": 0.9,
+            "reason_text": "사유 1"
+        },
+        {
+            "comment_text": "2위 내용",
+            "author_name": "@h2",
+            "sentiment_score": -0.8,
+            "positive_score": 0.1,
+            "negative_score": 0.8,
+            "reason_text": "사유 2"
+        },
+        {
+            "comment_text": "3위 내용",
+            "author_name": "@h3",
+            "sentiment_score": -0.7,
+            "positive_score": 0.1,
+            "negative_score": 0.7,
+            "reason_text": "사유 3"
+        },
+        {
+            "comment_text": "4위 내용",
+            "author_name": "@h4",
+            "sentiment_score": -0.6,
+            "positive_score": 0.1,
+            "negative_score": 0.6,
+            "reason_text": "사유 4"
+        },
+        {
+            "comment_text": "5위 내용",
+            "author_name": "@h5",
+            "sentiment_score": -0.5,
+            "positive_score": 0.1,
+            "negative_score": 0.5,
+            "reason_text": "사유 5"
+        }
     ]
 };
 
-let revealIdx = { pos: 4, neg: 4 };
+let revealIdx = {pos: 4, neg: 4};
 
 function showDetail(data) {
-    document.getElementById('modal-author').textContent = `작성자: ${data.author_name.substring(0,3)}***`;
+    document.getElementById('modal-author').textContent = `작성자: ${data.author_name.substring(0, 3)}***`;
     document.getElementById('modal-text').textContent = data.comment_text;
     document.getElementById('modal-score').textContent = data.sentiment_score.toFixed(4);
     document.getElementById('modal-reason').textContent = data.reason_text;
@@ -380,15 +460,18 @@ function showDetail(data) {
     modal.style.display = 'flex';
 
     // X 버튼 생성 로직
-    if(!document.querySelector('.close-x')) {
+    if (!document.querySelector('.close-x')) {
         const x = document.createElement('span');
-        x.className = 'close-x'; x.innerHTML = '&times;';
+        x.className = 'close-x';
+        x.innerHTML = '&times;';
         x.onclick = closeModal;
         document.querySelector('.modal-content').prepend(x);
     }
 }
 
-function closeModal() { document.getElementById('detail-modal').style.display = 'none'; }
+function closeModal() {
+    document.getElementById('detail-modal').style.display = 'none';
+}
 
 // 1. 카드 미리 깔기 (DOMContentLoaded 내부 혹은 switchScene 시 실행)
 function initRankCards(type) {
@@ -501,7 +584,7 @@ function initWordCloud(data) {
             },
             emphasis: {
                 focus: 'self',
-                textStyle: { shadowBlur: 10, shadowColor: 'rgba(0, 0, 0, 0.3)' }
+                textStyle: {shadowBlur: 10, shadowColor: 'rgba(0, 0, 0, 0.3)'}
             },
             data: sortedData
         }]
@@ -513,80 +596,568 @@ let nodeMap = {}; // 전역으로 선언하여 어디서든 접근 가능하게 
 
 function initNetworkGraph() {
     const container = document.getElementById("network");
+
     // 이미 생성되어 있다면 초기화 방지
+    // 설정 바꿨으면 새로고침 후 8번 씬 다시 실행
     if (container.innerHTML !== "") return;
 
-    // 제공해주신 vis.js 로직
-    const MIN_WEIGHT = 1;
-    // data.js에 선언된 edgeData를 사용합니다
-    const filteredEdges = edgeData.filter(edge => edge.weight >= MIN_WEIGHT);
-    const colors = ["#00E5FF", "#00FFA3", "#FF5EA8", "#FFD54F", "#A970FF", "#FF7043", "#26C6DA", "#42A5F5"];
+    // =====================================================
+    // 1. 연결선 표시 기준
+    // =====================================================
+    const MIN_WEIGHT = 3;
+    const MAX_EDGE_COUNT = 150;
 
+    // =====================================================
+    // 2. 스타일 프리셋
+    // =====================================================
+    const STYLE_PRESET = "SOFT";
+    // const STYLE_PRESET = "CLEAR";
+    // const STYLE_PRESET = "STRONG";
+
+    const STYLE_MAP = {
+        SOFT: {
+            normalNodeOpacity: 0.12,
+            normalNodeBorderOpacity: 0.12,
+            normalNodeFontOpacity: 0.18,
+            normalEdgeOpacity: 0.12,
+
+            dimNodeOpacity: 0.03,
+            dimNodeBorderOpacity: 0.03,
+            dimNodeFontOpacity: 0.04,
+            dimEdgeOpacity: 0.03,
+
+            activeNodeOpacity: 0.95,
+            activeNodeBorderOpacity: 1,
+            activeNodeFontOpacity: 1,
+            activeEdgeOpacity: 0.95
+        },
+
+        CLEAR: {
+            normalNodeOpacity: 0.35,
+            normalNodeBorderOpacity: 0.35,
+            normalNodeFontOpacity: 0.45,
+            normalEdgeOpacity: 0.25,
+
+            dimNodeOpacity: 0.08,
+            dimNodeBorderOpacity: 0.08,
+            dimNodeFontOpacity: 0.08,
+            dimEdgeOpacity: 0.05,
+
+            activeNodeOpacity: 0.95,
+            activeNodeBorderOpacity: 1,
+            activeNodeFontOpacity: 1,
+            activeEdgeOpacity: 0.95
+        },
+
+        STRONG: {
+            normalNodeOpacity: 0.75,
+            normalNodeBorderOpacity: 0.75,
+            normalNodeFontOpacity: 0.85,
+            normalEdgeOpacity: 0.45,
+
+            dimNodeOpacity: 0.15,
+            dimNodeBorderOpacity: 0.15,
+            dimNodeFontOpacity: 0.15,
+            dimEdgeOpacity: 0.08,
+
+            activeNodeOpacity: 1,
+            activeNodeBorderOpacity: 1,
+            activeNodeFontOpacity: 1,
+            activeEdgeOpacity: 1
+        }
+    };
+
+    const style = STYLE_MAP[STYLE_PRESET];
+
+    // =====================================================
+    // 3. 색상 설정
+    // =====================================================
+    const nodeColors = [
+        "#00E5FF",
+        "#42A5F5",
+        "#A970FF"
+    ];
+
+    const DEFAULT_EDGE_COLOR = "#9CA3AF";
+
+    // 노드 클릭 / 노드 hover 시 연결선 색상: 밝은 연두색
+    const ACTIVE_EDGE_COLOR = "#B6FF4D";
+
+    // 노드 클릭 / 노드 hover 시 노드 테두리 색상: 밝은 연두색
+    const ACTIVE_NODE_BORDER_COLOR = "#B6FF4D";
+
+    // 라인 직접 클릭 시 고정 색상: 밝은 붉은색
+    const PINNED_EDGE_COLOR = "#FF4D4D";
+
+    // 라인 직접 클릭 시 양쪽 노드 테두리 색상
+    const PINNED_NODE_BORDER_COLOR = "#FF4D4D";
+
+    function hexToRgba(hex, alpha) {
+        const value = hex.replace("#", "");
+        const r = parseInt(value.substring(0, 2), 16);
+        const g = parseInt(value.substring(2, 4), 16);
+        const b = parseInt(value.substring(4, 6), 16);
+
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    // edge id가 숫자/문자열로 섞여도 비교되도록 통일
+    function toEdgeKey(edgeId) {
+        return String(edgeId);
+    }
+
+    function getEdgeByKey(edgeKey) {
+        return edgeDataSet.get(edgeKey) || edgeDataSet.get(Number(edgeKey));
+    }
+
+    // =====================================================
+    // 4. 데이터 필터링
+    // =====================================================
+    if (typeof youtube_token_edge === "undefined" || !Array.isArray(youtube_token_edge)) {
+        console.warn("youtube_token_edge 데이터가 없습니다.");
+        return;
+    }
+
+    const filteredEdges = youtube_token_edge
+        .filter(edge => edge.weight >= MIN_WEIGHT)
+        .sort((a, b) => b.weight - a.weight)
+        .slice(0, MAX_EDGE_COUNT);
+
+    // =====================================================
+    // 5. 노드 연결성 계산
+    // =====================================================
     nodeMap = {};
 
     filteredEdges.forEach(edge => {
-        if(!nodeMap[edge.source_token]) nodeMap[edge.source_token] = { count: 0 };
-        if(!nodeMap[edge.target_token]) nodeMap[edge.target_token] = { count: 0 };
+        if (!nodeMap[edge.source_token]) {
+            nodeMap[edge.source_token] = {count: 0};
+        }
+
+        if (!nodeMap[edge.target_token]) {
+            nodeMap[edge.target_token] = {count: 0};
+        }
+
         nodeMap[edge.source_token].count++;
         nodeMap[edge.target_token].count++;
     });
 
+    // =====================================================
+    // 6. 노드 생성
+    // =====================================================
     let id = 1;
     const nodeIds = {};
     const nodes = [];
 
     Object.keys(nodeMap).forEach(word => {
         nodeIds[word] = id++;
+
+        const baseColor = nodeColors[Math.floor(Math.random() * nodeColors.length)];
+
         nodes.push({
             id: nodeIds[word],
             label: word,
+            baseColor: baseColor,
+
+            // 연결이 많을수록 동그라미 크게
             value: 15 + nodeMap[word].count * 10,
+
             shape: "dot",
-            color: { background: colors[Math.floor(Math.random() * colors.length)], border: "#ffffff" },
-            font: { color: "#ffffff", size: 20, face: "Pretendard" }
+
+            color: {
+                background: hexToRgba(baseColor, style.normalNodeOpacity),
+                border: `rgba(255, 255, 255, ${style.normalNodeBorderOpacity})`
+            },
+
+            font: {
+                color: `rgba(255, 255, 255, ${style.normalNodeFontOpacity})`,
+                size: 20,
+                face: "Pretendard"
+            }
         });
     });
 
-    const edges = filteredEdges.map(edge => ({
-        from: nodeIds[edge.source_token],
-        to: nodeIds[edge.target_token],
-        width: Math.log(edge.weight + 1) * 2,
-        color: {
-            color: colors[Math.floor(Math.random() * colors.length)],
-            opacity: 0.7
-        },
-        smooth: false
-    }));
+    // =====================================================
+    // 7. 연결선 생성
+    // =====================================================
+    const edges = filteredEdges.map((edge, index) => {
+        const baseWidth = Math.log(edge.weight + 1) * 1.5;
+
+        return {
+            id: index + 1,
+            from: nodeIds[edge.source_token],
+            to: nodeIds[edge.target_token],
+
+            sourceToken: edge.source_token,
+            targetToken: edge.target_token,
+            weight: edge.weight,
+
+            baseWidth: baseWidth,
+            width: baseWidth,
+
+            color: {
+                color: DEFAULT_EDGE_COLOR,
+                opacity: style.normalEdgeOpacity
+            },
+
+            smooth: false
+        };
+    });
+
+    const nodeDataSet = new vis.DataSet(nodes);
+    const edgeDataSet = new vis.DataSet(edges);
 
     const data = {
-        nodes: new vis.DataSet(nodes),
-        edges: new vis.DataSet(edges)
+        nodes: nodeDataSet,
+        edges: edgeDataSet
     };
 
+    // =====================================================
+    // 8. 네트워크 옵션
+    // =====================================================
     const options = {
         physics: {
             enabled: true,
             stabilization: false,
-            barnesHut: { gravitationalConstant: -3000, springLength: 180, springConstant: 0.02 }
+            barnesHut: {
+                // 노드끼리 서로 밀어내는 힘
+                // 숫자가 더 작을수록 더 멀리 퍼짐
+                // 예: -3000 기본 / -6000 적당히 퍼짐 / -9000 많이 퍼짐
+                gravitationalConstant: -6000,
+
+                // 연결된 노드 사이의 기본 거리
+                // 숫자가 클수록 연결된 노드끼리 더 멀어짐
+                // 예: 180 기본 / 260 적당히 퍼짐 / 320 많이 퍼짐
+                springLength: 260,
+
+                // 선이 노드를 잡아당기는 힘
+                // 너무 높이면 다시 뭉치고, 너무 낮으면 많이 흐트러짐
+                // 일단 기존값 유지 추천
+                springConstant: 0.02,
+
+                // 노드 겹침 방지
+                // 0은 겹침 허용, 1에 가까울수록 겹침 방지 강함
+                avoidOverlap: 0.5
+            }
         },
-        nodes: { borderWidth: 2, shadow: { enabled: true, size: 20 } },
-        edges: { shadow: { enabled: true, size: 10 } },
-        interaction: { hover: true, zoomView: true, dragView: true }
+        nodes: {
+            borderWidth: 2,
+            shadow: {
+                enabled: true,
+                size: 20
+            }
+        },
+        edges: {
+            shadow: {
+                enabled: true,
+                size: 10
+            },
+
+            // 라인에 마우스 올렸을 때 클릭 범위 확보
+            hoverWidth: 5,
+            selectionWidth: 0
+        },
+        interaction: {
+            hover: true,
+            zoomView: true,
+            dragView: true,
+
+            // 노드 클릭 시 vis 기본 연결선 선택 효과 방지
+            selectConnectedEdges: false
+        }
     };
 
-    new vis.Network(container, data, options);
+    const network = new vis.Network(container, data, options);
 
-    // 핵심 키워드 3개 요약 표 생성 로직
+    // =====================================================
+    // 9. 상태값
+    // =====================================================
+    const selectedNodeIds = new Set(); // 클릭 활성화된 노드들
+    const pinnedEdgeIds = new Set();   // 빨간색 고정 라인들
+
+    let hoveredNodeId = null;
+    let hoveredEdgeId = null;
+
+    // =====================================================
+    // 10. 기본 스타일 적용 함수
+    // =====================================================
+    function applyNormalStyle() {
+        const nodeUpdates = nodes.map(node => ({
+            id: node.id,
+            color: {
+                background: hexToRgba(node.baseColor, style.normalNodeOpacity),
+                border: `rgba(255, 255, 255, ${style.normalNodeBorderOpacity})`
+            },
+            font: {
+                color: `rgba(255, 255, 255, ${style.normalNodeFontOpacity})`,
+                size: 20,
+                face: "Pretendard"
+            }
+        }));
+
+        const edgeUpdates = edges.map(edge => ({
+            id: edge.id,
+            width: edge.baseWidth,
+            color: {
+                color: DEFAULT_EDGE_COLOR,
+                opacity: style.normalEdgeOpacity
+            }
+        }));
+
+        nodeDataSet.update(nodeUpdates);
+        edgeDataSet.update(edgeUpdates);
+    }
+
+    // =====================================================
+    // 11. 전체 초기화
+    // =====================================================
+    function resetGraphStyle() {
+        selectedNodeIds.clear();
+        pinnedEdgeIds.clear();
+
+        hoveredNodeId = null;
+        hoveredEdgeId = null;
+
+        network.unselectAll();
+        applyNormalStyle();
+    }
+
+    // =====================================================
+    // 12. 선택 노드 + hover 노드 + 빨간 라인 합쳐서 렌더링
+    // =====================================================
+    function renderGraphStyle() {
+        const hasSelectedNode = selectedNodeIds.size > 0;
+        const hasHoverNode = hoveredNodeId !== null;
+        const hasPinnedEdge = pinnedEdgeIds.size > 0;
+
+        if (!hasSelectedNode && !hasHoverNode && !hasPinnedEdge) {
+            applyNormalStyle();
+            return;
+        }
+
+        const activeNodeIds = new Set();
+        const activeEdgeIds = new Set();
+        const pinnedNodeIds = new Set();
+
+        // 클릭된 노드들의 주변 활성화
+        selectedNodeIds.forEach(selectedNodeId => {
+            activeNodeIds.add(selectedNodeId);
+
+            const connectedNodeIds = network.getConnectedNodes(selectedNodeId);
+            const connectedEdgeIds = network.getConnectedEdges(selectedNodeId);
+
+            connectedNodeIds.forEach(nodeId => activeNodeIds.add(nodeId));
+            connectedEdgeIds.forEach(edgeId => activeEdgeIds.add(toEdgeKey(edgeId)));
+        });
+
+        // hover 중인 노드의 주변 활성화
+        if (hoveredNodeId !== null) {
+            activeNodeIds.add(hoveredNodeId);
+
+            const connectedNodeIds = network.getConnectedNodes(hoveredNodeId);
+            const connectedEdgeIds = network.getConnectedEdges(hoveredNodeId);
+
+            connectedNodeIds.forEach(nodeId => activeNodeIds.add(nodeId));
+            connectedEdgeIds.forEach(edgeId => activeEdgeIds.add(toEdgeKey(edgeId)));
+        }
+
+        // 직접 클릭한 라인은 빨간색 고정 + 양쪽 노드 활성화
+        pinnedEdgeIds.forEach(edgeKey => {
+            const edge = getEdgeByKey(edgeKey);
+
+            if (!edge) return;
+
+            activeEdgeIds.add(toEdgeKey(edge.id));
+
+            activeNodeIds.add(edge.from);
+            activeNodeIds.add(edge.to);
+
+            pinnedNodeIds.add(edge.from);
+            pinnedNodeIds.add(edge.to);
+        });
+
+        const nodeUpdates = nodes.map(node => {
+            const isActive = activeNodeIds.has(node.id);
+            const isPinnedNode = pinnedNodeIds.has(node.id);
+
+            if (isActive) {
+                return {
+                    id: node.id,
+                    color: {
+                        background: hexToRgba(node.baseColor, style.activeNodeOpacity),
+
+                        // 빨간 라인의 양쪽 노드만 빨간 테두리
+                        // 일반 노드 클릭/hover는 연두색 테두리
+                        border: isPinnedNode
+                            ? PINNED_NODE_BORDER_COLOR
+                            : ACTIVE_NODE_BORDER_COLOR
+                    },
+                    font: {
+                        color: `rgba(255, 255, 255, ${style.activeNodeFontOpacity})`,
+                        size: isPinnedNode ? 26 : 24,
+                        face: "Pretendard"
+                    }
+                };
+            }
+
+            return {
+                id: node.id,
+                color: {
+                    background: hexToRgba(node.baseColor, style.dimNodeOpacity),
+                    border: `rgba(255, 255, 255, ${style.dimNodeBorderOpacity})`
+                },
+                font: {
+                    color: `rgba(255, 255, 255, ${style.dimNodeFontOpacity})`,
+                    size: 20,
+                    face: "Pretendard"
+                }
+            };
+        });
+
+        const edgeUpdates = edges.map(edge => {
+            const edgeKey = toEdgeKey(edge.id);
+
+            const isPinnedEdge = pinnedEdgeIds.has(edgeKey);
+            const isActiveEdge = activeEdgeIds.has(edgeKey);
+
+            // 라인 직접 클릭한 경우: 항상 빨간색 최우선
+            if (isPinnedEdge) {
+                return {
+                    id: edge.id,
+                    width: edge.baseWidth + 6,
+                    color: {
+                        color: PINNED_EDGE_COLOR,
+                        opacity: 1
+                    }
+                };
+            }
+
+            // 노드 클릭 / 노드 hover 연결선: 연두색
+            if (isActiveEdge) {
+                return {
+                    id: edge.id,
+                    width: edge.baseWidth + 2,
+                    color: {
+                        color: ACTIVE_EDGE_COLOR,
+                        opacity: style.activeEdgeOpacity
+                    }
+                };
+            }
+
+            return {
+                id: edge.id,
+                width: edge.baseWidth,
+                color: {
+                    color: DEFAULT_EDGE_COLOR,
+                    opacity: style.dimEdgeOpacity
+                }
+            };
+        });
+
+        nodeDataSet.update(nodeUpdates);
+        edgeDataSet.update(edgeUpdates);
+    }
+
+    // =====================================================
+    // 13. hover 이벤트
+    // =====================================================
+    network.on("hoverNode", function (params) {
+        hoveredNodeId = params.node;
+        renderGraphStyle();
+    });
+
+    network.on("blurNode", function () {
+        hoveredNodeId = null;
+        renderGraphStyle();
+    });
+
+    // 라인 클릭 밀림 방지용
+    // click 이벤트에서 params.edges를 읽지 않고,
+    // 마우스가 올라간 라인을 미리 저장했다가 클릭 시 사용
+    network.on("hoverEdge", function (params) {
+        hoveredEdgeId = params.edge;
+    });
+
+    network.on("blurEdge", function () {
+        hoveredEdgeId = null;
+    });
+
+    // =====================================================
+    // 14. 클릭 이벤트
+    // =====================================================
+    network.on("click", function (params) {
+        // 1. 노드 클릭 먼저 처리
+        // 노드 클릭 시 밑에 깔린 라인이 빨간색으로 잘못 잡히지 않게 함
+        const clickedNodeId = params.nodes && params.nodes.length > 0
+            ? params.nodes[0]
+            : network.getNodeAt(params.pointer.DOM);
+
+        if (clickedNodeId !== undefined && clickedNodeId !== null) {
+            if (selectedNodeIds.has(clickedNodeId)) {
+                selectedNodeIds.delete(clickedNodeId);
+
+                // 같은 노드를 다시 클릭해서 해제했을 때
+                // hover 효과가 남아서 바로 다시 활성화되는 것 방지
+                if (hoveredNodeId === clickedNodeId) {
+                    hoveredNodeId = null;
+                }
+            } else {
+                selectedNodeIds.add(clickedNodeId);
+            }
+
+            network.unselectAll();
+            renderGraphStyle();
+            return;
+        }
+
+        // 2. 라인 클릭 처리
+        // 중요:
+        // params.edges[0] 사용 금지.
+        // 한 박자 밀림 원인이므로 hoveredEdgeId를 우선 사용.
+        let clickedEdgeId = hoveredEdgeId;
+
+        // 혹시 hoverEdge가 안 잡힌 상태에서 클릭했을 때만 보조 감지
+        if (clickedEdgeId === undefined || clickedEdgeId === null) {
+            clickedEdgeId = network.getEdgeAt(params.pointer.DOM);
+        }
+
+        if (clickedEdgeId !== undefined && clickedEdgeId !== null) {
+            const edgeKey = toEdgeKey(clickedEdgeId);
+
+            // 라인 1번 클릭: 빨간색 고정
+            // 같은 라인 2번 클릭: 빨간색 해제
+            if (pinnedEdgeIds.has(edgeKey)) {
+                pinnedEdgeIds.delete(edgeKey);
+            } else {
+                pinnedEdgeIds.add(edgeKey);
+            }
+
+            network.unselectAll();
+            renderGraphStyle();
+            return;
+        }
+
+        // 3. 빈 공간 클릭하면 전체 초기화
+        resetGraphStyle();
+    });
+
+    // =====================================================
+    // 15. 핵심 키워드 3개 요약 표 생성
+    // =====================================================
     const sortedNodes = Object.keys(nodeMap)
-        .map(word => ({ word, count: nodeMap[word].count }))
+        .map(word => ({
+            word: word,
+            count: nodeMap[word].count
+        }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 3);
 
-    const table = document.getElementById('network-table');
-    table.innerHTML = `<tr><th>순위</th><th>키워드</th><th>연결성</th></tr>` +
+    const table = document.getElementById("network-table");
+
+    table.innerHTML =
+        `<tr><th>순위</th><th>키워드</th><th>연결성</th></tr>` +
         sortedNodes.map((item, index) =>
-            `<tr><td>${index+1}</td><td>${item.word}</td><td>${item.count}</td></tr>`
-        ).join('');
+            `<tr><td>${index + 1}</td><td>${item.word}</td><td>${item.count}</td></tr>`
+        ).join("");
 }
 
 
