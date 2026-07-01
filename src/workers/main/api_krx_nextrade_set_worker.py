@@ -1,7 +1,8 @@
-# ./src/workers/api_krx_nextrade_set_load_worker.py
+# ./src/workers/api_krx_nextrade_set_worker.py
 from __future__ import annotations
 
 import datetime
+import os
 import json
 import random
 import time
@@ -17,17 +18,19 @@ from src.utils.api_utils import APIClient
 from src.utils.config import server_url
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
+from src.utils.sqlite_utils import SqliteUtils
 from src.utils.number_utils import to_float, to_int
 from src.workers.api_base_worker import BaseApiWorker
 
 
-class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
+class ApiKrxNextradeSetWorker(BaseApiWorker):
 
     def __init__(self) -> None:
         super().__init__()
 
         self.file_driver: Optional[FileUtils] = None
         self.excel_driver: Optional[ExcelUtils] = None
+        self.sqlite_driver: Optional[SqliteUtils] = None
         self.api_client: Optional[APIClient] = None
 
         self.output_xlsx_auto: str = "krx_nextrade.xlsx"
@@ -116,21 +119,76 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
         self.no_stock_keywords: List[str] = []
 
+        # =========================
+        # DB 저장용 상태
+        # =========================
+        self.site_name: str = "KRX_NEXTRADE"
+        self.worker_name: str = "KRX_NEXTRADE"
+        self.detail_table_name: str = "KRX_NEXTRADE"
+
+        self.hist_id: Optional[int] = None
+        self.job_id: Optional[str] = None
+        self.hist_status: str = "RUNNING"
+        self.hist_error_message: Optional[str] = None
+
+        self.detail_success_count: int = 0
+        self.detail_fail_count: int = 0
+
+        # schema_detail.sql 컬럼 기준
+        self.db_columns: List[str] = [
+            "sheet_name",
+            "date",
+            "rank",
+            "name",
+            "sum",
+            "rate",
+            "krx_trade_sum",
+            "nxt_trade_sum",
+            "source_type",
+        ]
+
+        # 설정 columns가 code/date 형태든 value/날짜 형태든 모두 대응
+        self.output_key_map: Dict[str, str] = {
+            # code -> 한글 원본키
+            "date": "날짜",
+            "rank": "순위",
+            "name": "종목명",
+            "sum": "거래대금합계",
+            "rate": "등락률",
+
+            # 한글 컬럼명 -> 실제 데이터키
+            "시트명": "sheet_name",
+            "KRX 거래대금": "krx_trade_sum",
+            "NEXTRADE 거래대금": "nxt_trade_sum",
+            "데이터구분": "source_type",
+        }
+
+        self._cleaned_up: bool = False
+
 
     # =========================
     # init / main
     # =========================
     def init(self) -> bool:
-        self.log_signal_func("드라이버 세팅 ==========================")
+        try:
+            self.log_signal_func("드라이버 세팅 ==========================")
 
-        self.excel_driver = ExcelUtils(self.log_signal_func)
-        self.file_driver = FileUtils(self.log_signal_func)
-        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+            self.excel_driver = ExcelUtils(self.log_signal_func)
+            self.file_driver = FileUtils(self.log_signal_func)
+            self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
-        # 시작 시 최근 1일치 데이터 캐시
-        self.load_last_krx_snapshot()
+            # SQLite 데이터베이스 세팅
+            if not self.db_set():
+                return False
 
-        return True
+            # 시작 시 최근 1일치 데이터 캐시
+            self.load_last_krx_snapshot()
+
+            return True
+
+        except Exception as e:
+            self.log_signal_func(f"❌ init 실패: {e}")
+            return False
 
     def destroy(self) -> None:
         self.progress_signal.emit(self.before_pro_value, 1000000)
@@ -141,10 +199,25 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
     def stop(self) -> None:
         self.log_signal_func("✅ stop 시작")
         self.running = False
+        if self.hist_status == "RUNNING":
+            self.finish_job("STOP", "사용자 중단")
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
 
     def cleanup(self) -> None:
+        if self._cleaned_up:
+            return
+
+        self.finalize_db_and_excel()
+
+        try:
+            if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
+                self.sqlite_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] sqlite_driver.close 실패: {e}")
+        finally:
+            self.sqlite_driver = None
+
         try:
             if self.api_client:
                 self.api_client.close()
@@ -163,16 +236,21 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
         except Exception as e:
             self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
 
+        self.file_driver = None
+        self.excel_driver = None
+        self.api_client = None
+        self._cleaned_up = True
+
 
     def main(self) -> bool:
         try:
-            fr_date: str = self.get_setting_value(self.setting, "fr_date")
-            to_date: str = self.get_setting_value(self.setting, "to_date")
+            fr_date: str = str(self.get_setting_value(self.setting, "fr_date"))
+            to_date: str = str(self.get_setting_value(self.setting, "to_date"))
 
-            min_sum_uk1: int = int(self.get_setting_value(self.setting, "price_sum1"))
-            min_rate1: float = float(self.get_setting_value(self.setting, "rate1"))
-            min_sum_uk2: int = int(self.get_setting_value(self.setting, "price_sum2"))
-            min_rate2: float = float(self.get_setting_value(self.setting, "rate2"))
+            min_sum_uk1: int = self.to_int_setting("price_sum1", 0)
+            min_rate1: float = self.to_float_setting("rate1", 0.0)
+            min_sum_uk2: int = self.to_int_setting("price_sum2", 0)
+            min_rate2: float = self.to_float_setting("rate2", 0.0)
 
             min_sum_won1: int = min_sum_uk1 * 100000000
             min_sum_won2: int = min_sum_uk2 * 100000000
@@ -195,18 +273,24 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
             if auto_yn:
                 self.output_xlsx = self.output_xlsx_auto
                 self.auto_loop(auto_time, min_rate1, min_sum_won1, min_rate2, min_sum_won2, folder_path)
+                return True
 
-            else:
-                self.output_xlsx = f"krx_nextrade_{fr_date}_{to_date}.xlsx"
+            self.output_xlsx = f"krx_nextrade_{fr_date}_{to_date}_{time.strftime('%Y%m%d_%H%M%S')}.xlsx"
+            dates: List[str] = self.make_dates(fr_date, to_date)
 
-                dates: List[str] = self.make_dates(fr_date, to_date)
+            all_rows_c1: List[Dict[str, Any]] = []
+            all_rows_c2: List[Dict[str, Any]] = []
 
-                all_rows_c1: List[Dict[str, Any]] = []
-                all_rows_c2: List[Dict[str, Any]] = []
+            # 수동 날짜 범위 실행 1번 = History 1건
+            self.reset_db_job_state()
+            if not self.insert_hist_start():
+                self.log_signal_func("❌ [DB] 히스토리 생성 실패")
 
+            try:
                 for idx, ymd in enumerate(dates, start=1):
                     if not self.running:
-                        return True
+                        self.finish_job("STOP", "사용자 중단")
+                        break
 
                     self.log_signal_func(f"[{idx}/{len(dates)}] 날짜 처리 시작: {ymd}")
 
@@ -232,10 +316,14 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
                     time.sleep(random.uniform(1, 2))
 
+                db_rows = self.make_db_rows_with_sheet_name(all_rows_c1, self.sheet_cond1)
+                db_rows.extend(self.make_db_rows_with_sheet_name(all_rows_c2, self.sheet_cond2))
+                self.insert_detail_rows(db_rows)
+
                 if all_rows_c1:
                     self.excel_driver.append_rows_text_excel(
                         filename=self.output_xlsx,
-                        rows=all_rows_c1,
+                        rows=self.to_excel_rows(all_rows_c1, self.sheet_cond1),
                         columns=self.columns,
                         sheet_name=self.sheet_cond1,
                         folder_path=folder_path,
@@ -245,13 +333,25 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                 if all_rows_c2:
                     self.excel_driver.append_rows_text_excel(
                         filename=self.output_xlsx,
-                        rows=all_rows_c2,
+                        rows=self.to_excel_rows(all_rows_c2, self.sheet_cond2),
                         columns=self.columns,
                         sheet_name=self.sheet_cond2,
                         folder_path=folder_path,
                         sub_dir=self.out_dir
                     )
-            return True
+
+                if self.hist_status == "RUNNING":
+                    self.finish_job("SUCCESS")
+
+                return True
+
+            except Exception as e:
+                self.finish_job("FAIL", str(e))
+                raise
+
+            finally:
+                self.update_hist_end()
+                self.hist_id = None
 
         except Exception as e:
             self.log_signal_func(f"❌ 오류: {e}")
@@ -281,13 +381,21 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                     continue
 
                 if now.hour == hour and now.minute == minute:
+                    self.reset_db_job_state()
+                    if not self.insert_hist_start():
+                        self.log_signal_func("❌ [DB][AUTO] 히스토리 생성 실패")
+
                     try:
                         rows_c1, rows_c2 = self.process_one_day(today, min_rate1, min_sum_won1, min_rate2, min_sum_won2)
+
+                        db_rows = self.make_db_rows_with_sheet_name(rows_c1, self.sheet_cond1)
+                        db_rows.extend(self.make_db_rows_with_sheet_name(rows_c2, self.sheet_cond2))
+                        self.insert_detail_rows(db_rows)
 
                         if rows_c1:
                             self.excel_driver.append_rows_text_excel(
                                 filename=self.output_xlsx,
-                                rows=rows_c1,
+                                rows=self.to_excel_rows(rows_c1, self.sheet_cond1),
                                 columns=self.columns,
                                 sheet_name=self.sheet_cond1,
                                 folder_path=folder_path,
@@ -297,16 +405,25 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                         if rows_c2:
                             self.excel_driver.append_rows_text_excel(
                                 filename=self.output_xlsx,
-                                rows=rows_c2,
+                                rows=self.to_excel_rows(rows_c2, self.sheet_cond2),
                                 columns=self.columns,
                                 sheet_name=self.sheet_cond2,
                                 folder_path=folder_path,
                                 sub_dir=self.out_dir
                             )
 
+                        if self.hist_status == "RUNNING":
+                            self.finish_job("SUCCESS")
+
+                        self.update_hist_end()
+                        self.hist_id = None
+
                         self.last_auto_date = today
 
                     except Exception as e:
+                        self.finish_job("FAIL", str(e))
+                        self.update_hist_end()
+                        self.hist_id = None
                         self.log_signal_func(f"[AUTO] 실행 오류: {e}")
 
                     time.sleep(65)
@@ -330,6 +447,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
 
         krx: List[Dict[str, Any]] = self.fetch_krx(ymd)
+        self.log_signal_func(f"[PROCESS] KRX 수집 완료 - 날짜={ymd}, 건수={len(krx)}")
 
         # === 신규 === 오늘 날짜인데 KRX가 비어 있으면 휴장/미개장으로 보고 NX도 스킵
         if str(ymd) == datetime.datetime.now().strftime("%Y%m%d") and not krx:
@@ -337,11 +455,16 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
             return [], []
 
         nx: List[Dict[str, Any]] = self.fetch_nextrade(ymd)
+        self.log_signal_func(f"[PROCESS] NXT 수집 완료 - 날짜={ymd}, 건수={len(nx)}")
 
         krx_map: Dict[str, Dict[str, Any]] = {self.only_digits(r.get("ISU_SRT_CD")): r for r in krx}
         nx_map: Dict[str, Dict[str, Any]] = {self.only_digits(str(r.get("isuSrdCd", "")).replace("A", "")): r for r in nx}
 
         all_codes = set(krx_map.keys()) | set(nx_map.keys())
+        self.log_signal_func(
+            f"[PROCESS] 병합 대상 종목 수 - 날짜={ymd}, "
+            f"KRX={len(krx_map)}, NXT={len(nx_map)}, MERGED={len(all_codes)}"
+        )
         merged: List[Dict[str, Any]] = []
 
         for code in all_codes:
@@ -351,11 +474,14 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
             k = krx_map.get(code)
             n = nx_map.get(code)
 
-            trade_sum_won: int = (to_int(k.get("ACC_TRDVAL")) if k else 0) + (to_int(n.get("accTrval")) if n else 0)
+            krx_trade_sum_won: int = self.normalize_krx_trade_value_won(k) if k else 0
+            nxt_trade_sum_won: int = to_int(n.get("accTrval")) if n else 0
+            trade_sum_won: int = krx_trade_sum_won + nxt_trade_sum_won
+            source_type: str = self.get_source_type(k, n)
 
-            rate: Optional[float] = to_float(k.get("FLUC_RT")) if k else None
+            rate: Optional[float] = self.to_float_value(k.get("FLUC_RT")) if k else None
             if rate is None and n:
-                rate = to_float(n.get("upDownRate"))
+                rate = self.to_float_value(n.get("upDownRate"))
 
             name: str = ""
             if n:
@@ -369,7 +495,11 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
                 "날짜": ymd,
                 "종목명": name,
                 "거래대금합계_원": trade_sum_won,
-                "등락률": rate
+                "등락률": rate,
+                # DB 저장 전용 필드입니다. 엑셀 저장 시에는 to_excel_rows()에서 제외됩니다.
+                "krx_trade_sum": str(int(krx_trade_sum_won) // 100000000),
+                "nxt_trade_sum": str(int(nxt_trade_sum_won) // 100000000),
+                "source_type": source_type,
             })
 
         merged.sort(key=lambda x: x.get("거래대금합계_원", 0), reverse=True)
@@ -385,8 +515,10 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
             m["순위"] = rank
             rank += 1
 
-            if m.get("등락률") is None:
+            rate_val_opt = self.to_float_value(m.get("등락률"))
+            if rate_val_opt is None:
                 continue
+            m["등락률"] = rate_val_opt
 
             stock_name: str = str(m.get("종목명", "")).strip()
             if stock_name and self.is_excluded_stock(stock_name):
@@ -394,7 +526,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
 
 
             trade_won: int = m.get("거래대금합계_원", 0)
-            rate_val: float = m.get("등락률", 0)
+            rate_val: float = rate_val_opt
 
             ok1: bool = trade_won >= min_sum_won1 and rate_val >= min_rate1
             ok2: bool = trade_won >= min_sum_won2 and rate_val >= min_rate2
@@ -405,13 +537,67 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
             m["거래대금합계"] = str(int(trade_won) // 100000000)
 
             mapped = self.map_columns(m)
+            mapped["krx_trade_sum"] = m.get("krx_trade_sum", "0")
+            mapped["nxt_trade_sum"] = m.get("nxt_trade_sum", "0")
+            mapped["source_type"] = m.get("source_type", "")
 
             if ok1:
                 rows_c1.append(mapped)
             if ok2:
                 rows_c2.append(mapped)
 
+        source_count = {
+            "KRX_ONLY": 0,
+            "NXT_ONLY": 0,
+            "BOTH": 0,
+        }
+
+        for row in rows_c1 + rows_c2:
+            source_type = str(row.get("source_type", "")).strip()
+            if source_type in source_count:
+                source_count[source_type] += 1
+
+        self.log_signal_func(
+            f"[PROCESS] 조건 통과 결과 - 날짜={ymd}, "
+            f"Sheet1={len(rows_c1)}, Sheet2={len(rows_c2)}, "
+            f"KRX_ONLY={source_count['KRX_ONLY']}, "
+            f"NXT_ONLY={source_count['NXT_ONLY']}, "
+            f"BOTH={source_count['BOTH']}"
+        )
+
         return rows_c1, rows_c2
+
+
+    def normalize_krx_trade_value_won(self, row: Optional[Dict[str, Any]]) -> int:
+        if not row:
+            return 0
+
+        raw_value = to_int(row.get("ACC_TRDVAL"))
+
+        if raw_value <= 0:
+            return 0
+
+        crawl_type = str(row.get("CRAWL_TYPE", "")).strip().upper()
+
+        # NAVER 데이터인데 값이 작으면 백만원 단위로 보고 원 단위로 변환
+        # 이미 원 단위면 그대로 사용
+        if crawl_type == "NAVER" and raw_value < 100000000:
+            return raw_value * 1000000
+
+        return raw_value
+
+
+    def get_source_type(self, krx_row: Optional[Dict[str, Any]], nxt_row: Optional[Dict[str, Any]]) -> str:
+        has_krx = krx_row is not None
+        has_nxt = nxt_row is not None
+
+        if has_krx and has_nxt:
+            return "BOTH"
+        if has_krx:
+            return "KRX_ONLY"
+        if has_nxt:
+            return "NXT_ONLY"
+        return "NONE"
 
     def is_excluded_stock(self, stock_name: str) -> bool:
         name = str(stock_name or "").strip()
@@ -431,24 +617,28 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
     def fetch_krx(self, ymd: str) -> List[Dict[str, Any]]:
         today_ymd = datetime.datetime.now().strftime("%Y%m%d")
 
-        # === 신규 === 오늘 날짜면 NAVER 실시간 크롤링 사용
+        self.log_signal_func(f"📌 KRX 조회 시작 - 날짜: {ymd}")
+
+        # === 오늘 날짜면 NAVER 실시간 크롤링 사용
         if str(ymd) == today_ymd:
             self.log_signal_func(f"[KRX] 오늘 날짜({ymd})는 NAVER 실시간 데이터로 수집")
+
             today_rows = self.fetch_krx_today_from_naver(ymd)
 
-            # === 신규 === 최근 1일치와 비교해 휴장 여부 판단
+            self.log_signal_func(f"[KRX] NAVER 수집 결과 - 날짜={ymd}, 건수={len(today_rows)}")
+
             if not today_rows:
                 self.log_signal_func("[KRX] NAVER 오늘 데이터가 비어 있습니다.")
                 return []
 
             if self.should_process_today_data(today_rows):
-                self.log_signal_func("[KRX] 오늘 데이터 처리 진행")
+                self.log_signal_func(f"✅ KRX 조회 완료 - 날짜={ymd}, 최종건수={len(today_rows)}, source=NAVER")
                 return today_rows
 
             self.log_signal_func("[KRX] 오늘은 휴장 또는 미개장 상태로 판단되어 스킵")
             return []
 
-        # === 신규 === 과거 날짜는 서버 API 사용
+        # === 과거 날짜는 서버 API 사용
         payload: Dict[str, Any] = {
             "mktId": "ALL",
             "strtDd": str(ymd),
@@ -459,23 +649,53 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
             "Accept": "application/json"
         }
 
-        resp = self.session.get(
-            self.krx_server_api_url,
-            params=payload,
-            headers=headers,
-            timeout=15,
-        )
+        try:
+            self.log_signal_func(
+                f"📄 KRX 서버 요청 시작 - 날짜={ymd}, "
+                f"url={self.krx_server_api_url}, params={payload}"
+            )
 
-        time.sleep(random.uniform(0.3, 0.8))
+            resp = self.session.get(
+                self.krx_server_api_url,
+                params=payload,
+                headers=headers,
+                timeout=15,
+            )
 
-        data = self._loads_if_needed(resp.text)
-        out_block = data.get("OutBlock_1", [])
+            time.sleep(random.uniform(0.3, 0.8))
 
-        if isinstance(out_block, list):
-            return out_block
+            status_code = getattr(resp, "status_code", "")
+            resp_text = getattr(resp, "text", "")
 
-        self.log_signal_func(f"[KRX] 서버 응답 형식 이상: OutBlock_1={type(out_block).__name__}")
-        return []
+            self.log_signal_func(
+                f"✅ KRX 서버 응답 수신 - 날짜={ymd}, "
+                f"status={status_code}, resp_len={len(resp_text)}"
+            )
+
+            data = self._loads_if_needed(resp_text)
+            out_block = data.get("OutBlock_1", [])
+
+            if isinstance(out_block, list):
+                self.log_signal_func(f"📦 KRX 데이터 확인 - 날짜={ymd}, items={len(out_block)}")
+
+                if not out_block:
+                    self.log_signal_func(f"📭 KRX 데이터 없음 - 날짜={ymd}")
+
+                self.log_signal_func(f"🏁 KRX 조회 종료 - 날짜={ymd}, 최종건수={len(out_block)}")
+                return out_block
+
+            self.log_signal_func(
+                f"[KRX] 서버 응답 형식 이상 - 날짜={ymd}, "
+                f"OutBlock_1={type(out_block).__name__}"
+            )
+            return []
+
+        except Exception as e:
+            self.log_signal_func(
+                f"❌ KRX 조회 오류 - 날짜={ymd}, "
+                f"error={(e and e.args[0]) if (e and e.args) else str(e)}"
+            )
+            return []
 
     def fetch_nextrade(self, ymd: str) -> List[Dict[str, Any]]:
         result: List[Dict[str, Any]] = []
@@ -693,7 +913,7 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
         return True
 
     # =========================
-    # === 신규 === NAVER today fetch
+    # NAVER today fetch
     # =========================
     def fetch_krx_today_from_naver(self, ymd: str) -> List[Dict[str, Any]]:
         all_result: List[Dict[str, Any]] = []
@@ -940,11 +1160,312 @@ class ApiKrxNextradeSetLoadWorker(BaseApiWorker):
         self.log_signal_func(f"[NAVER][{market_info['MKT_NM']}] rows={len(rows)}")
         return rows
 
+    # =========================================================
+    # 설정값 안전 변환
+    # =========================================================
+    def to_int_setting(self, code: str, default: int = 0) -> int:
+        value = self.get_setting_value(self.setting, code)
+        parsed = self.to_int_nullable(value)
+        if parsed is None:
+            self.log_signal_func(f"[SETTING] {code} 값이 비어 있거나 숫자가 아니라서 기본값 {default} 사용")
+            return default
+        return parsed
+
+    def to_float_setting(self, code: str, default: float = 0.0) -> float:
+        value = self.get_setting_value(self.setting, code)
+        parsed = self.to_float_value(value)
+        if parsed is None:
+            self.log_signal_func(f"[SETTING] {code} 값이 비어 있거나 숫자가 아니라서 기본값 {default} 사용")
+            return default
+        return parsed
+
+    def to_int_nullable(self, value: Any) -> Optional[int]:
+        if value is None:
+            return None
+
+        if isinstance(value, bool):
+            return int(value)
+
+        if isinstance(value, int):
+            return value
+
+        if isinstance(value, float):
+            return int(value)
+
+        text = self.clean_text(str(value))
+        text = text.replace(",", "").replace("%", "").strip()
+        if not text:
+            return None
+
+        try:
+            return int(float(text))
+        except Exception:
+            return None
+
+    def to_float_value(self, value: Any) -> Optional[float]:
+        if value is None:
+            return None
+
+        if isinstance(value, bool):
+            return float(int(value))
+
+        if isinstance(value, (int, float)):
+            return float(value)
+
+        text = self.clean_text(str(value))
+        text = text.replace(",", "").replace("%", "").strip()
+        text = text.replace("▲", "").replace("▼", "")
+        if not text or text in ("-", "+"):
+            return None
+
+        try:
+            return float(text)
+        except Exception:
+            return None
+
+    # =========================================================
+    # SQLite DB 관리 공용 모듈 파트
+    # =========================================================
+    def db_set(self) -> bool:
+        self.sqlite_driver = SqliteUtils(self.log_signal_func)
+        db_path = self.get_runtime_db_path()
+
+        if not self.sqlite_driver.connect(db_path):
+            self.log_signal_func("❌ [DB] 연결 실패")
+            return False
+
+        schema_files = [
+            os.path.join("resources", "customers", "common", "db", "schema_hist.sql"),
+            os.path.join("resources", "customers", self.worker_name, "db", "schema_detail.sql"),
+        ]
+
+        if not self.sqlite_driver.execute_script_files(schema_files):
+            self.log_signal_func("❌ [DB] 스키마 초기화 실패")
+            return False
+
+        return True
+
+    def reset_db_job_state(self) -> None:
+        self.hist_id = None
+        self.job_id = None
+        self.hist_status = "RUNNING"
+        self.hist_error_message = None
+        self.detail_success_count = 0
+        self.detail_fail_count = 0
+
+    def insert_hist_start(self) -> bool:
+        if not self.sqlite_driver:
+            self.log_signal_func("❌ [DB] sqlite_driver 없음")
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.job_id = time.strftime("%Y%m%d%H%M%S")
+
+        query = """
+                INSERT INTO worker_job_hist (
+                    job_id, table_name, site_name, worker_name, user_id,
+                    start_at, status, total_count, success_count, fail_count,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
+        params = (
+            self.job_id, self.detail_table_name, self.site_name, self.worker_name,
+            self.get_user_id_value(),
+            now, "RUNNING", 0, 0, 0, now, now,
+        )
+
+        if not self.sqlite_driver.execute(query, params):
+            return False
+
+        row = self.sqlite_driver.fetchone("SELECT last_insert_rowid() AS hist_id")
+        self.hist_id = row["hist_id"] if row else None
+        return self.hist_id is not None
+
+    def finish_job(self, status: str, error_message: Optional[str] = None) -> None:
+        self.hist_status = status
+        self.hist_error_message = error_message
+
+    def update_hist_end(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
+        sqlite_driver = sqlite_driver or self.sqlite_driver
+        if not sqlite_driver or not self.hist_id:
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        query = """
+                UPDATE worker_job_hist
+                SET end_at = ?, status = ?, total_count = ?, success_count = ?, fail_count = ?,
+                    error_message = ?, updated_at = ?
+                WHERE hist_id = ?
+                """
+        params = (
+            now, self.hist_status, self.detail_success_count + self.detail_fail_count,
+            self.detail_success_count, self.detail_fail_count, self.hist_error_message, now, self.hist_id,
+        )
+        return sqlite_driver.execute(query, params)
+
+    def insert_detail_rows(self, rows: List[Dict[str, Any]]) -> None:
+        if not rows:
+            self.log_signal_func("[DB] 저장할 상세 데이터 없음")
+            return
+
+        for row in rows:
+            if not self.running:
+                self.finish_job("STOP", "사용자 중단")
+                break
+            self.insert_detail_row(row)
+
+        self.log_signal_func(
+            f"[DB] 상세 저장 완료: success={self.detail_success_count}, fail={self.detail_fail_count}"
+        )
+
+    def insert_detail_row(self, rs: Dict[str, Any]) -> bool:
+        if not self.sqlite_driver or not self.db_columns or not self.hist_id:
+            self.detail_fail_count += 1
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        db_row = self.to_detail_db_row(rs)
+
+        base_columns = ["hist_id", "site_name", "worker_name", "table_name", "job_id", "user_id", "row_status"]
+        all_columns = base_columns + self.db_columns + ["created_at", "updated_at"]
+        placeholders = ", ".join(["?"] * len(all_columns))
+        column_text = ",\n                    ".join(self.quote_identifier(col) for col in all_columns)
+
+        query = f"INSERT INTO {self.quote_identifier(self.detail_table_name)} ({column_text}) VALUES ({placeholders})"
+        params = (
+            self.hist_id, self.site_name, self.worker_name, self.detail_table_name, self.job_id,
+            self.get_user_id_value(), "SUCCESS",
+            *[db_row.get(col, "") for col in self.db_columns], now, now,
+        )
+
+        ok = self.sqlite_driver.execute(query, params)
+        if ok:
+            self.detail_success_count += 1
+        else:
+            self.detail_fail_count += 1
+        return ok
+
+    def to_detail_db_row(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "sheet_name": self.pick_row_value(row, "sheet_name", "시트명"),
+            "date": self.pick_row_value(row, "date", "날짜"),
+            "rank": self.to_int_text(self.pick_row_value(row, "rank", "순위")),
+            "name": self.pick_row_value(row, "name", "종목명"),
+            "sum": self.to_int_text(self.pick_row_value(row, "sum", "거래대금합계")),
+            "rate": self.to_float_db_value(self.pick_row_value(row, "rate", "등락률")),
+            "krx_trade_sum": self.to_int_text(self.pick_row_value(row, "krx_trade_sum", "KRX거래대금")),
+            "nxt_trade_sum": self.to_int_text(self.pick_row_value(row, "nxt_trade_sum", "NXT거래대금")),
+            "source_type": self.pick_row_value(row, "source_type", "구분"),
+        }
+
+    def make_db_rows_with_sheet_name(self, rows: List[Dict[str, Any]], sheet_name: str) -> List[Dict[str, Any]]:
+        db_rows: List[Dict[str, Any]] = []
+
+        for row in rows:
+            db_row = dict(row)
+            db_row["sheet_name"] = sheet_name
+            db_rows.append(db_row)
+
+        return db_rows
+
+    def to_excel_rows(self, rows: List[Dict[str, Any]], sheet_name: str = "") -> List[Dict[str, Any]]:
+        excel_rows: List[Dict[str, Any]] = []
+
+        for row in rows:
+            excel_row = dict(row)
+
+            # 엑셀에서 시트명을 체크한 경우에도 값이 나오도록 여기서 주입
+            if sheet_name:
+                excel_row["sheet_name"] = sheet_name
+                excel_row["시트명"] = sheet_name
+
+            # 한글 컬럼명으로 체크했을 때도 값이 나오도록 보조키 추가
+            excel_row["KRX 거래대금"] = excel_row.get("krx_trade_sum", "")
+            excel_row["NEXTRADE 거래대금"] = excel_row.get("nxt_trade_sum", "")
+            excel_row["데이터구분"] = excel_row.get("source_type", "")
+
+            excel_rows.append(self.map_columns(excel_row))
+
+        return excel_rows
+
+
+
+
+    def merge_unique_rows(self, rows_c1: List[Dict[str, Any]], rows_c2: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        merged: List[Dict[str, Any]] = []
+        seen = set()
+
+        for row in rows_c1 + rows_c2:
+            date_val = str(self.pick_row_value(row, "date", "날짜") or "")
+            rank_val = str(self.pick_row_value(row, "rank", "순위") or "")
+            name_val = str(self.pick_row_value(row, "name", "종목명") or "")
+            sum_val = str(self.pick_row_value(row, "sum", "거래대금합계") or "")
+            rate_val = str(self.pick_row_value(row, "rate", "등락률") or "")
+            key = (date_val, rank_val, name_val, sum_val, rate_val)
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+            merged.append(row)
+
+        return merged
+
+    def pick_row_value(self, row: Dict[str, Any], *keys: str) -> Any:
+        for key in keys:
+            if key in row:
+                return row.get(key)
+        return ""
+
+    def to_float_db_value(self, value: Any) -> Optional[float]:
+        if value is None:
+            return None
+
+        if isinstance(value, (int, float)):
+            return float(value)
+
+        text = self.clean_text(str(value)).replace(",", "").replace("%", "")
+        if not text:
+            return None
+
+        try:
+            return float(text)
+        except Exception:
+            return None
+
+    def quote_identifier(self, name: str) -> str:
+        return '"' + str(name).replace('"', '""') + '"'
+
+    def get_user_id_value(self) -> Any:
+        if not self.user:
+            return None
+        return getattr(self.user, "user_id", self.user)
+
+    def finalize_db_and_excel(self) -> None:
+        temp_sqlite_driver = None
+        try:
+            temp_sqlite_driver = SqliteUtils(self.log_signal_func)
+            if temp_sqlite_driver.connect(self.get_runtime_db_path()):
+                if self.hist_id:
+                    self.update_hist_end(temp_sqlite_driver)
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] finalize_db_and_excel 실패: {e}")
+        finally:
+            if temp_sqlite_driver:
+                temp_sqlite_driver.close()
+
     # =========================
     # utils
     # =========================
     def map_columns(self, m: Dict[str, Any]) -> Dict[str, Any]:
-        return {c: m.get(c, "") for c in self.columns}
+        mapped: Dict[str, Any] = {}
+
+        for col in self.columns:
+            key = str(col)
+            source_key = self.output_key_map.get(key, key)
+            mapped[key] = m.get(key, m.get(source_key, ""))
+
+        return mapped
 
     def make_dates(self, fr: str, to: str) -> List[str]:
         s = datetime.datetime.strptime(str(fr), "%Y%m%d")

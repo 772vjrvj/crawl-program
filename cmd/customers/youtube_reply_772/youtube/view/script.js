@@ -44,13 +44,24 @@ let waveState = {
     bubbles: []
 };
 
+
+function getSceneNumberFromKey(key) {
+    if (key === '0') return '10';
+    if (['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(key)) return key;
+    return null;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     renderScene1(youtubeVideoData[0]);
     initCanvas();
 
     document.addEventListener("keydown", (e) => {
         const key = e.key.toLowerCase();
-        if (['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(key)) switchScene(key);
+        const sceneNumber = getSceneNumberFromKey(key);
+
+        // 1~9는 해당 씬으로 이동, 0은 scene-10으로 이동
+        if (sceneNumber) switchScene(sceneNumber);
+
         if (key === 'q') crackEgg('cta-q');
         if (key === 'w') crackEgg('cta-w');
         if (key === 'e') crackEgg('cta-e');
@@ -107,24 +118,30 @@ function switchScene(sceneNumber) {
             updateSentimentChart(chartData.pos, chartData.neg, chartData.neu);
         }
 
-        // 씬 5: 긍정 Top 5 (기존 4번 씬)
+        // 씬 5: 긍정 댓글 TOP 5
         if (sceneNumber === '5') {
-            revealIdx.pos = 4;
+            revealIdx.pos = Math.min(4, (rankData.pos || []).length - 1);
             initRankCards('pos');
         }
 
-        // 씬 6: 부정 Top 5 (기존 5번 씬)
+        // 씬 6: 부정 댓글 TOP 5
         if (sceneNumber === '6') {
-            revealIdx.neg = 4;
+            revealIdx.neg = Math.min(4, (rankData.neg || []).length - 1);
             initRankCards('neg');
         }
 
-        // 씬 7: 주요 키워드 분석 (기존 6번 씬)
+        // 씬 7: 좋아요 댓글 TOP 5
         if (sceneNumber === '7') {
+            revealIdx.like = Math.min(4, (rankData.like || []).length - 1);
+            initRankCards('like');
+        }
+
+        // 씬 8: 주요 키워드 분석
+        if (sceneNumber === '8') {
             // 임시 데이터 전달 (데이터 소스에 맞춰 교체하세요)
             const rawData = youtube_comment_token;
 
-// 데이터 빈도 집계 (중복된 token_text 합치기)
+            // 데이터 빈도 집계 (중복된 token_text 합치기)
             const aggregatedData = {};
             rawData.forEach(item => {
                 aggregatedData[item.token_text] = (aggregatedData[item.token_text] || 0) + item.token_count;
@@ -138,19 +155,9 @@ function switchScene(sceneNumber) {
             initWordCloud(finalData);
         }
 
-        // 씬 8: 네트워크 분석 (새로 추가)
-        if (sceneNumber === '8') {
-            initNetworkGraph();
-        }
-
-// [switchScene 함수 내부에 추가]
+        // 씬 9: 네트워크 분석
         if (sceneNumber === '9') {
-            // 네트워크가 아직 안 만들어졌을 수도 있으니 방어 코드 추가
-            if (Object.keys(nodeMap).length === 0) {
-                document.getElementById('cluster-info').textContent = "먼저 8번 씬에서 네트워크 분석을 실행해주세요.";
-            } else {
-                analyzeStructure();
-            }
+            initNetworkGraph();
         }
     }
 }
@@ -361,16 +368,174 @@ function updateSentimentChart(pos, neg, neu) {
     sentimentChart.setOption(option);
 }
 
-const rankData = {"neg": [{"author_name": "@주언구", "reason_text": "댓글에서 사용된 '실력', '체격' 등의 단어와 부정적인 어조를 통해 강한 부정적 감정을 나타내고 있음.", "comment_text": "뭘바래. 실렵이 없은데. 체켝도 없고", "negative_score": 0.9000, "positive_score": 0.0100, "sentiment_score": -0.8000}, {"author_name": "@lafayetteo9235", "reason_text": "댓글에서 나타난 강한 부정적인 감정 표현으로 인해 해당 댓글은 'NEGATIVE'로 분류됩니다.", "comment_text": "더는 국대경기 꼴보기도 싫어서 그냥 안올라갔으면", "negative_score": 0.9000, "positive_score": 0.0100, "sentiment_score": -0.8000}, {"author_name": "@coupang2", "reason_text": "댓글에서 반복적으로 강한 어조로 특정 인물을 비난하고 있으며 이는 명백한 비판적인 내용을 담고 있습니다.", "comment_text": "홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 .", "negative_score": 0.9000, "positive_score": 0.0100, "sentiment_score": -0.8000}, {"author_name": "@view8590", "reason_text": "댓글에는 강한 분노와 비난, 폭력적인 내용이 포함되어 있어 부정적인 감성이 매우 강하게 나타납니다.", "comment_text": "역대 최고의 꿀조에 최고의 일정과 경기장 운까지 역대 최고의 멤버로 이 따위 결과를 내는 인간이 국대감독이라니... 축구팬 개돼지들 취급. 스파이크로 얼굴을 찍어버리고 싶네요. 일본과 모든 면에서 너무 비교가 됨.", "negative_score": 0.9000, "positive_score": 0.0100, "sentiment_score": -0.8000}, {"author_name": "@원샷원키리", "reason_text": "댓글에는 강한 부정적인 표현인 '존나'라는 단어가 포함되어 있으며 이는 명백하게 상대방을 모욕하는 의도를 가지고 있습니다.", "comment_text": "존나 건방지다 ㅎㅎㅎ", "negative_score": 0.9000, "positive_score": 0.0100, "sentiment_score": -0.8000}], "pos": [{"author_name": "@korea43027", "reason_text": "댓글에는 강한 웃음소리가 포함되어 있으며 이는 긍정적인 감정을 나타냅니다.", "comment_text": "56:45 앜ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ", "negative_score": 0.0500, "positive_score": 0.9000, "sentiment_score": 0.8000}, {"author_name": "@bose3498", "reason_text": "댓글 자체가 긍정적인 반응을 보여주고 있으며, 경쟁적인 상황에서 1등을 차지한 것에 대한 기쁨과 성취감을 나타내고 있다.", "comment_text": "1등!", "negative_score": 0.0500, "positive_score": 0.9000, "sentiment_score": 0.8000}, {"author_name": "@장동엽-m3h", "reason_text": "댓글에서 '최고의 비유'라는 표현을 사용하여 긍정적인 평가를 나타내고 있다.", "comment_text": "최고의 비유입니다.", "negative_score": 0.0500, "positive_score": 0.9000, "sentiment_score": 0.8000}, {"author_name": "@MeltAmon", "reason_text": "댓글에서 웃음을 유발하는 내용에 대해 긍정적인 반응을 보임.", "comment_text": "추맨 왜이리 ㅇ웃기냐 ㅋㅋㅋㅋㅋㅋㅋㅋ", "negative_score": 0.0500, "positive_score": 0.9000, "sentiment_score": 0.8000}, {"author_name": "@김용석-y5j", "reason_text": "댓글에서 긍정적인 반응인 '말을 너무 잘해'라는 표현을 사용하여 칭찬하고 있으며, 엄지척 이모티콘을 통해 긍정의 의미를 더욱 강조하고 있다.", "comment_text": "말을 너무 잘해.. 👍", "negative_score": 0.0500, "positive_score": 0.9000, "sentiment_score": 0.8000}]};
+const rankData = {
+    "pos": [
+        {
+            "author_name": "@korea43027",
+            "reason_text": "댓글에는 강한 웃음소리가 포함되어 있으며 이는 긍정적인 감정을 나타냅니다.",
+            "comment_text": "56:45 앜ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ",
+            "negative_score": 0.05,
+            "positive_score": 0.9,
+            "sentiment_score": 0.8
+        },
+        {
+            "author_name": "@bose3498",
+            "reason_text": "댓글 자체가 긍정적인 반응을 보여주고 있으며, 경쟁적인 상황에서 1등을 차지한 것에 대한 기쁨과 성취감을 나타내고 있다.",
+            "comment_text": "1등!",
+            "negative_score": 0.05,
+            "positive_score": 0.9,
+            "sentiment_score": 0.8
+        },
+        {
+            "author_name": "@장동엽-m3h",
+            "reason_text": "댓글에서 '최고의 비유'라는 표현을 사용하여 긍정적인 평가를 나타내고 있다.",
+            "comment_text": "최고의 비유입니다.",
+            "negative_score": 0.05,
+            "positive_score": 0.9,
+            "sentiment_score": 0.8
+        },
+        {
+            "author_name": "@MeltAmon",
+            "reason_text": "댓글에서 웃음을 유발하는 내용에 대해 긍정적인 반응을 보임.",
+            "comment_text": "추맨 왜이리 ㅇ웃기냐 ㅋㅋㅋㅋㅋㅋㅋㅋ",
+            "negative_score": 0.05,
+            "positive_score": 0.9,
+            "sentiment_score": 0.8
+        },
+        {
+            "author_name": "@김용석-y5j",
+            "reason_text": "댓글에서 긍정적인 반응인 '말을 너무 잘해'라는 표현을 사용하여 칭찬하고 있으며, 엄지척 이모티콘을 통해 긍정의 의미를 더욱 강조하고 있다.",
+            "comment_text": "말을 너무 잘해.. 👍",
+            "negative_score": 0.05,
+            "positive_score": 0.9,
+            "sentiment_score": 0.8
+        }
+    ],
+    "neg": [
+        {
+            "author_name": "@주언구",
+            "reason_text": "댓글에서 사용된 '실력', '체격' 등의 단어와 부정적인 어조를 통해 강한 부정적 감정을 나타내고 있음.",
+            "comment_text": "뭘바래. 실렵이 없은데. 체켝도 없고",
+            "negative_score": 0.9,
+            "positive_score": 0.01,
+            "sentiment_score": -0.8
+        },
+        {
+            "author_name": "@lafayetteo9235",
+            "reason_text": "댓글에서 나타난 강한 부정적인 감정 표현으로 인해 해당 댓글은 'NEGATIVE'로 분류됩니다.",
+            "comment_text": "더는 국대경기 꼴보기도 싫어서 그냥 안올라갔으면",
+            "negative_score": 0.9,
+            "positive_score": 0.01,
+            "sentiment_score": -0.8
+        },
+        {
+            "author_name": "@coupang2",
+            "reason_text": "댓글에서 반복적으로 강한 어조로 특정 인물을 비난하고 있으며 이는 명백한 비판적인 내용을 담고 있습니다.",
+            "comment_text": "홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 . 홍명보 60억 토해내라 .",
+            "negative_score": 0.9,
+            "positive_score": 0.01,
+            "sentiment_score": -0.8
+        },
+        {
+            "author_name": "@view8590",
+            "reason_text": "댓글에는 강한 분노와 비난, 폭력적인 내용이 포함되어 있어 부정적인 감성이 매우 강하게 나타납니다.",
+            "comment_text": "역대 최고의 꿀조에 최고의 일정과 경기장 운까지 역대 최고의 멤버로 이 따위 결과를 내는 인간이 국대감독이라니... 축구팬 개돼지들 취급. 스파이크로 얼굴을 찍어버리고 싶네요. 일본과 모든 면에서 너무 비교가 됨.",
+            "negative_score": 0.9,
+            "positive_score": 0.01,
+            "sentiment_score": -0.8
+        },
+        {
+            "author_name": "@원샷원키리",
+            "reason_text": "댓글에는 강한 부정적인 표현인 '존나'라는 단어가 포함되어 있으며 이는 명백하게 상대방을 모욕하는 의도를 가지고 있습니다.",
+            "comment_text": "존나 건방지다 ㅎㅎㅎ",
+            "negative_score": 0.9,
+            "positive_score": 0.01,
+            "sentiment_score": -0.8
+        }
+    ],
+    "like": [
+        {
+            "sort_no": "389",
+            "rank_type": "like",
+            "comment_id": "UgxS5w-AUVm-Uy8Wibd4AaABAg",
+            "like_count": 2909,
+            "author_name": "@만버스",
+            "reply_count": 117,
+            "comment_text": "원균이 무패 조선수군을 가지고도\n칠천량 해전에서 왜 졌는지\n알겠더라.",
+            "published_at": "2026-06-25 23:13:13"
+        },
+        {
+            "sort_no": "148",
+            "rank_type": "like",
+            "comment_id": "UgyhRXRwmvZ3HW1y_8x4AaABAg",
+            "like_count": 2167,
+            "author_name": "@9현",
+            "reply_count": 37,
+            "comment_text": "진짜 화나는 걸 넘어서 불쾌하고 역겨운 경기임",
+            "published_at": "2026-06-25 22:47:30"
+        },
+        {
+            "sort_no": "8",
+            "rank_type": "like",
+            "comment_id": "UgwdwB_E1Dv21pP7pjR4AaABAg",
+            "like_count": 1284,
+            "author_name": "@고상욱-l5w",
+            "reply_count": 20,
+            "comment_text": "진짜 개열받아서 아직까지도 분이 안풀리네",
+            "published_at": "2026-06-25 22:35:55"
+        },
+        {
+            "sort_no": "470",
+            "rank_type": "like",
+            "comment_id": "UgwJcJPmEUcY3cTbBmF4AaABAg",
+            "like_count": 1126,
+            "author_name": "@wooswooswoos",
+            "reply_count": 29,
+            "comment_text": "그냥 손흥민의 유한한 시간이 지나가는게 슬픈느낌임...",
+            "published_at": "2026-06-25 23:20:51"
+        },
+        {
+            "sort_no": "506",
+            "rank_type": "like",
+            "comment_id": "Ugy7Rjyxt-ypAjbhDJN4AaABAg",
+            "like_count": 1045,
+            "author_name": "@스뻥",
+            "reply_count": 17,
+            "comment_text": "하루종일 화나서 영상 찾아보는 사람들이면 개추",
+            "published_at": "2026-06-25 23:26:15"
+        }
+    ]
+};
 
 
-let revealIdx = {pos: 4, neg: 4};
+let revealIdx = {pos: 4, neg: 4, like: 4};
 
 function showDetail(data) {
-    document.getElementById('modal-author').textContent = `작성자: ${data.author_name.substring(0, 3)}***`;
-    document.getElementById('modal-text').textContent = data.comment_text;
-    document.getElementById('modal-score').textContent = data.sentiment_score.toFixed(4);
-    document.getElementById('modal-reason').textContent = data.reason_text;
+    const authorName = data.author_name || "작성자";
+    const safeAuthor = authorName.length > 3 ? `${authorName.substring(0, 3)}***` : authorName;
+
+    document.getElementById('modal-author').textContent = `작성자: ${safeAuthor}`;
+    document.getElementById('modal-text').textContent = data.comment_text || '';
+
+    const modalStats = document.querySelector('.modal-stats');
+    const reasonTitle = document.querySelector('.modal-reason-box h4');
+    const reasonText = document.getElementById('modal-reason');
+
+    // 좋아요 TOP5는 감정 점수 대신 좋아요/대댓글 정보를 보여준다.
+    if (data.rank_type === 'like' || data.like_count !== undefined) {
+        modalStats.innerHTML = `
+            <div>좋아요: <b>${Number(data.like_count || 0).toLocaleString()}개</b></div>
+            <div>대댓글: <b>${Number(data.reply_count || 0).toLocaleString()}개</b></div>
+        `;
+        reasonTitle.textContent = '💬 댓글 정보';
+        reasonText.textContent = data.published_at
+            ? `작성일: ${data.published_at}`
+            : '좋아요가 많은 댓글입니다.';
+    } else {
+        modalStats.innerHTML = `<div>감정 점수: <b>${Number(data.sentiment_score || 0).toFixed(4)}</b></div>`;
+        reasonTitle.textContent = '💡 분석 사유';
+        reasonText.textContent = data.reason_text || '';
+    }
 
     const modal = document.getElementById('detail-modal');
     modal.style.display = 'flex';
@@ -392,6 +557,8 @@ function closeModal() {
 // 1. 카드 미리 깔기 (DOMContentLoaded 내부 혹은 switchScene 시 실행)
 function initRankCards(type) {
     const container = document.getElementById(`${type}-container`);
+    if (!container) return;
+
     container.innerHTML = '';
 
     // 카드는 5위(ID 4)부터 생성됨
@@ -400,8 +567,6 @@ function initRankCards(type) {
         card.className = `rank-card ${type}`;
         card.id = `${type}-card-${i}`;
 
-        // [수정] ID가 4(5위)면 화면에도 '5위'라고 나오게 수정
-        // (5 - i)가 아니라, 카드 ID i가 곧 순위 텍스트가 되도록 매칭
         // 카드 ID 4 -> 5위, 카드 ID 0 -> 1위
         const rankText = (i + 1) + "위";
 
@@ -424,31 +589,34 @@ function addRankCard(type) {
     }
 
     // 3. 데이터가 존재하는지 확인
-    const data = rankData[type][revealIdx[type]];
+    const list = rankData[type] || [];
+    const data = list[revealIdx[type]];
     if (!data) return;
 
     // 4. 안전하게 클래스 추가 및 데이터 설정
     card.classList.add('show');
-    card.querySelector('.rank-text').textContent = data.comment_text;
+
+    if (type === 'like') {
+        card.querySelector('.rank-text').textContent = `👍 ${Number(data.like_count || 0).toLocaleString()}개 · ${data.comment_text}`;
+        data.rank_type = 'like';
+    } else {
+        card.querySelector('.rank-text').textContent = data.comment_text;
+    }
+
     card.onclick = () => showDetail(data);
 
     revealIdx[type]--;
 }
 
-// 이 아래는 이미 있는 'keydown' 이벤트를 찾아 수정하거나 추가하세요
+// U 키를 누르면 현재 순위 씬의 카드를 하나씩 공개한다.
 document.addEventListener("keydown", (e) => {
     const key = e.key.toLowerCase();
-    if (['1', '2', '3', '4', '5', '6', '7', '8'].includes(key)) {
-        switchScene(key);
-    }
-    if (key === 'q') crackEgg('cta-q');
-    if (key === 'w') crackEgg('cta-w');
-    if (key === 'e') crackEgg('cta-e');
-    if (key === 'r') crackEgg('cta-r');
-    if (key.toLowerCase() === 'u') {
+
+    if (key === 'u') {
         const activeScene = document.querySelector('.scene.active').id;
         if (activeScene === 'scene-5') addRankCard('pos');
         if (activeScene === 'scene-6') addRankCard('neg');
+        if (activeScene === 'scene-7') addRankCard('like');
     }
 });
 
@@ -526,8 +694,8 @@ function initNetworkGraph() {
     // =====================================================
     // 2. 스타일 프리셋
     // =====================================================
-    const STYLE_PRESET = "SOFT";
-    // const STYLE_PRESET = "CLEAR";
+    // const STYLE_PRESET = "SOFT";
+    const STYLE_PRESET = "CLEAR";
     // const STYLE_PRESET = "STRONG";
 
     const STYLE_MAP = {
@@ -597,10 +765,10 @@ function initNetworkGraph() {
     const DEFAULT_EDGE_COLOR = "#9CA3AF";
 
     // 노드 클릭 / 노드 hover 시 연결선 색상: 밝은 연두색
-    const ACTIVE_EDGE_COLOR = "#B6FF4D";
+    const ACTIVE_EDGE_COLOR = "#73981a";
 
     // 노드 클릭 / 노드 hover 시 노드 테두리 색상: 밝은 연두색
-    const ACTIVE_NODE_BORDER_COLOR = "#B6FF4D";
+    const ACTIVE_NODE_BORDER_COLOR = "#6a9e21";
 
     // 라인 직접 클릭 시 고정 색상: 밝은 붉은색
     const PINNED_EDGE_COLOR = "#FF4D4D";
@@ -1107,26 +1275,3 @@ function initNetworkGraph() {
         ).join("");
 }
 
-
-function analyzeStructure() {
-    if (typeof nodeMap !== 'undefined') {
-        // 1. 연결성(count) 기준 내림차순 정렬
-        const sorted = Object.keys(nodeMap).sort((a, b) => nodeMap[b].count - nodeMap[a].count);
-
-        // 2. 데이터가 충분한지 체크
-        if (sorted.length < 9) {
-            document.querySelectorAll('.analysis-card p').forEach(p => p.textContent = "분석할 데이터가 충분하지 않습니다.");
-            return;
-        }
-
-        // 3. 3개의 클러스터 정의
-        const groupA = sorted.slice(0, 3); // 활용 그룹
-        const groupB = sorted.slice(3, 6); // 시설/행정 그룹
-        const groupC = sorted.slice(6, 9); // 이해관계자 그룹
-
-        // 4. 화면 출력 (3개 카드로 분산 배치)
-        document.getElementById('group-1').innerHTML = `<b>관련 키워드:</b> ${groupA.join(', ')}`;
-        document.getElementById('group-2').innerHTML = `<b>관련 키워드:</b> ${groupB.join(', ')}`;
-        document.getElementById('group-3').innerHTML = `<b>관련 키워드:</b> ${groupC.join(', ')}`;
-    }
-}

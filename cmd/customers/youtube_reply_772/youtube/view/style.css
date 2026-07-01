@@ -96,12 +96,13 @@ body { background-color: #ffffff; color: #222222; overflow: hidden; }
 .rank-card.show { opacity: 1; transform: translateY(0) scale(1); }
 .rank-card.pos { border-left: 12px solid #2064b2; }
 .rank-card.neg { border-left: 12px solid #ff6b6b; }
+.rank-card.like { border-left: 12px solid #f59e0b; }
 .rank-card:hover { transform: scale(1.02); background: #fafafa; }
 .rank-num { font-size: 2.5rem; font-weight: 900; min-width: 120px; color: #333; }
 .rank-text { font-size: 1.8rem; font-weight: 700; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* [Scene 7] 키워드 분석 */
-#scene-7 { display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #ffffff; }
+/* [Scene 8] 키워드 분석 */
+#scene-8 { display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #ffffff; }
 #word-cloud-chart { width: 900px; height: 600px; background: #ffffff; border-radius: 40px; box-shadow: 0 0 80px 20px rgba(135, 206, 250, 0.3); border: 1px solid rgba(0, 176, 255, 0.1); margin-top: 30px; display: flex; justify-content: center; align-items: center; }
 .word-cloud-wrapper { display: flex; gap: 40px; align-items: center; justify-content: center; width: 100%; max-width: 1200px; margin-top: 30px; }
 .keyword-rank-table { width: 300px; background: #fff; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #eee; }
@@ -111,9 +112,9 @@ body { background-color: #ffffff; color: #222222; overflow: hidden; }
 .rank-num-col { font-weight: 800; color: #007bff; width: 60px; }
 .rank-val-col { text-align: right; color: #666; font-weight: 600; }
 
-/* [Scene 8] 네트워크 */
-/* [Scene 8] 네트워크 */
-#scene-8 {
+/* [Scene 9] 네트워크 */
+/* [Scene 9] 네트워크 */
+#scene-9 {
     background: radial-gradient(circle at center, #1f2d50 0%, #111827 40%, #05070d 100%);
 
     /* 제목을 위로 붙이기 */

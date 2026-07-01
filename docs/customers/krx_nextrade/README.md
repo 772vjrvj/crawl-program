@@ -108,7 +108,7 @@ AND
 등락률 : 5% 이상
 
 
-"worker_class": "src.workers.main.api_krx_nextrade_brand_set_worker:ApiKrxNextradeSetLoadWorker",
+"worker_class": "src.workers.main.api_krx_nextrade_set_worker:ApiKrxNextradeSetWorker",
 
 
 ■ 빌드
@@ -118,13 +118,16 @@ pyinstaller .\main.py `
 --windowed `
 --name "KRX NEXTRADE" `
 --icon ".\resources\icons\crawling.ico" `
---version-file ".\docs\customers\krx_nextrade_brand\version_info.txt" `
+--version-file ".\docs\customers\krx_nextrade\version_info.txt" `
 --distpath ".\dist" `
---hidden-import "src.workers.main.api_krx_nextrade_brand_set_worker" `
+--hidden-import "src.workers.main.api_krx_nextrade_set_worker" `
 --hidden-import "pandas" `
 --hidden-import "openpyxl" `
 --exclude-module tkinter `
 --exclude-module _tkinter `
+--add-data ".\resources\customers\common\db\schema_hist.sql;resources\customers\common\db" `
+--add-data ".\resources\customers\krx_nextrade\db\schema_detail.sql;resources\customers\krx_nextrade\db" `
 --exclude-module tk `
 --exclude-module Tcl `
---exclude-module tcl
+--exclude-module tcl `
+--add-data ".\resources\icons\crawling.ico;resources\icons"
