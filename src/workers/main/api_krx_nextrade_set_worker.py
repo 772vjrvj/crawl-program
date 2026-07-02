@@ -88,12 +88,12 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
                 "MKT_ID": "KSQ",
                 "MKT_NM": "KOSDAQ",
             },
-            {
-                "market_type": "KONEX",
-                "base_url": "https://finance.naver.com/api/sise/konexItemList.nhn",
-                "MKT_ID": "KNX",
-                "MKT_NM": "KONEX",
-            },
+            # {
+            #     "market_type": "KONEX",
+            #     "base_url": "https://finance.naver.com/api/sise/konexItemList.nhn",
+            #     "MKT_ID": "KNX",
+            #     "MKT_NM": "KONEX",
+            # },
         ]
         self.naver_field_ids: List[str] = [
             "quant",
@@ -447,6 +447,13 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
 
         krx: List[Dict[str, Any]] = self.fetch_krx(ymd)
+
+        # KONEX 제외: MKT_ID가 KNX인 데이터는 KRX/NXT 병합 대상에서 제거
+        krx = [
+            row for row in krx
+            if str(row.get("MKT_ID", "")).strip().upper() != "KNX"
+        ]
+
         self.log_signal_func(f"[PROCESS] KRX 수집 완료 - 날짜={ymd}, 건수={len(krx)}")
 
         # === 신규 === 오늘 날짜인데 KRX가 비어 있으면 휴장/미개장으로 보고 NX도 스킵

@@ -17,19 +17,19 @@
     {
       "name": "[조건1] 일 등락률(%)(숫자) 이상(▲)",
       "code": "rate1",
-      "value": 0,
+      "value": "",
       "type": "input"
     },
     {
       "name": "[조건2] 일 거래대금[억](콤마없이) 이상(▲)",
       "code": "price_sum2",
-      "value": 0,
+      "value": "",
       "type": "input"
     },
     {
       "name": "[조건2] 일 등락률(%)(숫자) 이상(▲)",
       "code": "rate2",
-      "value": 0,
+      "value": "",
       "type": "input"
     },
     {
