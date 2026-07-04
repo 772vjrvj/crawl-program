@@ -21,7 +21,7 @@ from src.utils.file_utils import FileUtils
 from src.utils.sqlite_utils import SqliteUtils
 from src.utils.number_utils import to_float, to_int
 from src.workers.api_base_worker import BaseApiWorker
-
+from decimal import Decimal, ROUND_DOWN
 
 class ApiKrxNextradeSetWorker(BaseApiWorker):
 
@@ -247,13 +247,12 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
             fr_date: str = str(self.get_setting_value(self.setting, "fr_date"))
             to_date: str = str(self.get_setting_value(self.setting, "to_date"))
 
-            min_sum_uk1: int = self.to_int_setting("price_sum1", 0)
-            min_rate1: float = self.to_float_setting("rate1", 0.0)
-            min_sum_uk2: int = self.to_int_setting("price_sum2", 0)
-            min_rate2: float = self.to_float_setting("rate2", 0.0)
-
-            min_sum_won1: int = min_sum_uk1 * 100000000
-            min_sum_won2: int = min_sum_uk2 * 100000000
+            # 조건값은 빈값/null이면 기본값 0으로 대체하지 않고 해당 조건을 스킵합니다.
+            # 단, 한 시트의 거래대금/등락률 조건이 모두 비어 있으면 해당 시트 조건 자체를 비활성화합니다.
+            min_sum_won1: Optional[int] = self.to_sum_won_condition("price_sum1")
+            min_rate1: Optional[float] = self.to_rate_condition("rate1")
+            min_sum_won2: Optional[int] = self.to_sum_won_condition("price_sum2")
+            min_rate2: Optional[float] = self.to_rate_condition("rate2")
 
             auto_yn: bool = str(self.get_setting_value(self.setting, "auto_yn")).lower() in ("1", "true", "y")
             auto_time: str = str(self.get_setting_value(self.setting, "auto_time"))
@@ -269,6 +268,7 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
             self.log_signal_func(
                 f"[FILTER] 종목 제거 키워드: {', '.join(self.no_stock_keywords) if self.no_stock_keywords else '(없음)'}"
             )
+            self.log_filter_conditions(min_sum_won1, min_rate1, min_sum_won2, min_rate2)
 
             if auto_yn:
                 self.output_xlsx = self.output_xlsx_auto
@@ -316,24 +316,30 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
 
                     time.sleep(random.uniform(1, 2))
 
-                db_rows = self.make_db_rows_with_sheet_name(all_rows_c1, self.sheet_cond1)
-                db_rows.extend(self.make_db_rows_with_sheet_name(all_rows_c2, self.sheet_cond2))
+                # DB와 엑셀 저장에 같은 최종 row를 사용합니다.
+                # 여기서 sheet_name 및 한글 보조키를 한 번만 주입해서 DB/엑셀 값 차이를 막습니다.
+                final_rows_c1 = self.make_db_rows_with_sheet_name(all_rows_c1, self.sheet_cond1)
+                final_rows_c2 = self.make_db_rows_with_sheet_name(all_rows_c2, self.sheet_cond2)
+
+                db_rows = []
+                db_rows.extend(final_rows_c1)
+                db_rows.extend(final_rows_c2)
                 self.insert_detail_rows(db_rows)
 
-                if all_rows_c1:
+                if final_rows_c1:
                     self.excel_driver.append_rows_text_excel(
                         filename=self.output_xlsx,
-                        rows=self.to_excel_rows(all_rows_c1, self.sheet_cond1),
+                        rows=self.to_excel_rows(final_rows_c1),
                         columns=self.columns,
                         sheet_name=self.sheet_cond1,
                         folder_path=folder_path,
                         sub_dir=self.out_dir
                     )
 
-                if all_rows_c2:
+                if final_rows_c2:
                     self.excel_driver.append_rows_text_excel(
                         filename=self.output_xlsx,
-                        rows=self.to_excel_rows(all_rows_c2, self.sheet_cond2),
+                        rows=self.to_excel_rows(final_rows_c2),
                         columns=self.columns,
                         sheet_name=self.sheet_cond2,
                         folder_path=folder_path,
@@ -363,10 +369,10 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
     def auto_loop(
             self,
             auto_time: str,
-            min_rate1: float,
-            min_sum_won1: int,
-            min_rate2: float,
-            min_sum_won2: int,
+            min_rate1: Optional[float],
+            min_sum_won1: Optional[int],
+            min_rate2: Optional[float],
+            min_sum_won2: Optional[int],
             folder_path: str
     ) -> None:
         hour, minute = self.parse_auto_hour(auto_time)
@@ -388,24 +394,29 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
                     try:
                         rows_c1, rows_c2 = self.process_one_day(today, min_rate1, min_sum_won1, min_rate2, min_sum_won2)
 
-                        db_rows = self.make_db_rows_with_sheet_name(rows_c1, self.sheet_cond1)
-                        db_rows.extend(self.make_db_rows_with_sheet_name(rows_c2, self.sheet_cond2))
+                        # DB와 엑셀 저장에 같은 최종 row를 사용합니다.
+                        final_rows_c1 = self.make_db_rows_with_sheet_name(rows_c1, self.sheet_cond1)
+                        final_rows_c2 = self.make_db_rows_with_sheet_name(rows_c2, self.sheet_cond2)
+
+                        db_rows = []
+                        db_rows.extend(final_rows_c1)
+                        db_rows.extend(final_rows_c2)
                         self.insert_detail_rows(db_rows)
 
-                        if rows_c1:
+                        if final_rows_c1:
                             self.excel_driver.append_rows_text_excel(
                                 filename=self.output_xlsx,
-                                rows=self.to_excel_rows(rows_c1, self.sheet_cond1),
+                                rows=self.to_excel_rows(final_rows_c1),
                                 columns=self.columns,
                                 sheet_name=self.sheet_cond1,
                                 folder_path=folder_path,
                                 sub_dir=self.out_dir
                             )
 
-                        if rows_c2:
+                        if final_rows_c2:
                             self.excel_driver.append_rows_text_excel(
                                 filename=self.output_xlsx,
-                                rows=self.to_excel_rows(rows_c2, self.sheet_cond2),
+                                rows=self.to_excel_rows(final_rows_c2),
                                 columns=self.columns,
                                 sheet_name=self.sheet_cond2,
                                 folder_path=folder_path,
@@ -440,10 +451,10 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
     def process_one_day(
             self,
             ymd: str,
-            min_rate1: float,
-            min_sum_won1: int,
-            min_rate2: float,
-            min_sum_won2: int
+            min_rate1: Optional[float],
+            min_sum_won1: Optional[int],
+            min_rate2: Optional[float],
+            min_sum_won2: Optional[int]
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
 
         krx: List[Dict[str, Any]] = self.fetch_krx(ymd)
@@ -481,14 +492,20 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
             k = krx_map.get(code)
             n = nx_map.get(code)
 
-            krx_trade_sum_won: int = self.normalize_krx_trade_value_won(k) if k else 0
-            nxt_trade_sum_won: int = to_int(n.get("accTrval")) if n else 0
+            # 거래대금 단위 보정
+            # - KRX/NAVER 쪽 ACC_TRDVAL은 백만원 단위로 들어오는 경우가 있습니다.
+            # - NXT accTrval은 원 단위로 들어오는 경우가 많습니다.
+            # 가격 * 거래량과 비교해서 백만원 단위/원 단위를 자동 판정한 뒤 모두 원 단위로 맞춥니다.
+            krx_trade_sum_won: int = self.to_krx_trade_sum_won(k) if k else 0
+            nxt_trade_sum_won: int = self.to_nxt_trade_sum_won(n) if n else 0
             trade_sum_won: int = krx_trade_sum_won + nxt_trade_sum_won
             source_type: str = self.get_source_type(k, n)
 
-            rate: Optional[float] = self.to_float_value(k.get("FLUC_RT")) if k else None
+            # 등락률은 방향코드/문구가 따로 오는 경우가 있어 상승은 +, 하락은 -로 보정합니다.
+            # 조건명이 "이상(▲)" 이므로 하락 15%가 상승 15%처럼 통과하면 안 됩니다.
+            rate: Optional[float] = self.get_signed_rate_from_krx(k) if k else None
             if rate is None and n:
-                rate = self.to_float_value(n.get("upDownRate"))
+                rate = self.get_signed_rate_from_nxt(n)
 
             name: str = ""
             if n:
@@ -504,8 +521,8 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
                 "거래대금합계_원": trade_sum_won,
                 "등락률": rate,
                 # DB 저장 전용 필드입니다. 엑셀 저장 시에는 to_excel_rows()에서 제외됩니다.
-                "krx_trade_sum": str(int(krx_trade_sum_won) // 100000000),
-                "nxt_trade_sum": str(int(nxt_trade_sum_won) // 100000000),
+                "krx_trade_sum": krx_trade_sum_won,
+                "nxt_trade_sum": nxt_trade_sum_won,
                 "source_type": source_type,
             })
 
@@ -535,23 +552,21 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
             trade_won: int = m.get("거래대금합계_원", 0)
             rate_val: float = rate_val_opt
 
-            ok1: bool = trade_won >= min_sum_won1 and rate_val >= min_rate1
-            ok2: bool = trade_won >= min_sum_won2 and rate_val >= min_rate2
+            ok1: bool = self.is_condition_matched(trade_won, rate_val, min_sum_won1, min_rate1)
+            ok2: bool = self.is_condition_matched(trade_won, rate_val, min_sum_won2, min_rate2)
 
             if not (ok1 or ok2):
                 continue
 
-            m["거래대금합계"] = str(int(trade_won) // 100000000)
+            m["거래대금합계"] = self.won_to_eok_text(trade_won)
 
-            mapped = self.map_columns(m)
-            mapped["krx_trade_sum"] = m.get("krx_trade_sum", "0")
-            mapped["nxt_trade_sum"] = m.get("nxt_trade_sum", "0")
-            mapped["source_type"] = m.get("source_type", "")
+            # 조건 통과 row는 DB/엑셀 공통으로 사용할 표준 row로 만듭니다.
+            result_row = self.make_result_row(m)
 
             if ok1:
-                rows_c1.append(mapped)
+                rows_c1.append(result_row)
             if ok2:
-                rows_c2.append(mapped)
+                rows_c2.append(result_row)
 
         source_count = {
             "KRX_ONLY": 0,
@@ -573,25 +588,6 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
         )
 
         return rows_c1, rows_c2
-
-
-    def normalize_krx_trade_value_won(self, row: Optional[Dict[str, Any]]) -> int:
-        if not row:
-            return 0
-
-        raw_value = to_int(row.get("ACC_TRDVAL"))
-
-        if raw_value <= 0:
-            return 0
-
-        crawl_type = str(row.get("CRAWL_TYPE", "")).strip().upper()
-
-        # NAVER 데이터인데 값이 작으면 백만원 단위로 보고 원 단위로 변환
-        # 이미 원 단위면 그대로 사용
-        if crawl_type == "NAVER" and raw_value < 100000000:
-            return raw_value * 1000000
-
-        return raw_value
 
 
     def get_source_type(self, krx_row: Optional[Dict[str, Any]], nxt_row: Optional[Dict[str, Any]]) -> str:
@@ -616,6 +612,46 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
                 return True
 
         return False
+
+    def make_result_row(self, row: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        조건을 통과한 데이터를 DB/엑셀 공통 표준 row로 만듭니다.
+        여기서 code 키와 한글 키를 모두 채워야 DB 저장값과 엑셀 저장값이 달라지지 않습니다.
+        """
+        date_value = self.pick_row_value(row, "date", "날짜")
+        rank_value = self.pick_row_value(row, "rank", "순위")
+        name_value = self.pick_row_value(row, "name", "종목명")
+        sum_value = self.pick_row_value(row, "sum", "거래대금합계")
+        rate_value = self.pick_row_value(row, "rate", "등락률")
+        krx_trade_sum = self.pick_row_value(row, "krx_trade_sum", "KRX 거래대금", "KRX거래대금")
+        nxt_trade_sum = self.pick_row_value(row, "nxt_trade_sum", "NEXTRADE 거래대금", "NXT거래대금")
+        source_type = self.pick_row_value(row, "source_type", "데이터구분", "구분")
+        sheet_name = self.pick_row_value(row, "sheet_name", "시트명")
+
+        result = {
+            "date": date_value,
+            "날짜": date_value,
+            "rank": rank_value,
+            "순위": rank_value,
+            "name": name_value,
+            "종목명": name_value,
+            "sum": sum_value,
+            "거래대금합계": sum_value,
+            "rate": rate_value,
+            "등락률": rate_value,
+            "krx_trade_sum": krx_trade_sum,
+            "KRX 거래대금": krx_trade_sum,
+            "nxt_trade_sum": nxt_trade_sum,
+            "NEXTRADE 거래대금": nxt_trade_sum,
+            "source_type": source_type,
+            "데이터구분": source_type,
+        }
+
+        if sheet_name:
+            result["sheet_name"] = sheet_name
+            result["시트명"] = sheet_name
+
+        return result
 
 
     # =========================
@@ -1186,6 +1222,140 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
             return default
         return parsed
 
+    def to_sum_won_condition(self, code: str) -> Optional[int]:
+        """
+        거래대금 조건값은 설정에서 억 단위로 받습니다.
+        예: 2000 입력 => 2000억 => 200,000,000,000원
+
+        빈값/null/숫자 아님이면 None을 반환해서 해당 거래대금 조건을 스킵합니다.
+        """
+        value = self.get_setting_value(self.setting, code)
+        parsed = self.to_decimal_value(value)
+
+        if parsed is None:
+            self.log_signal_func(f"[SETTING] {code} 값이 비어 있어 거래대금 조건을 스킵합니다")
+            return None
+
+        return int((parsed * Decimal("100000000")).to_integral_value(rounding=ROUND_DOWN))
+
+    def to_rate_condition(self, code: str) -> Optional[float]:
+        """
+        등락률 조건값은 설정에서 % 숫자로 받습니다.
+        예: 15 입력 => 15% 이상
+
+        빈값/null/숫자 아님이면 None을 반환해서 해당 등락률 조건을 스킵합니다.
+        """
+        value = self.get_setting_value(self.setting, code)
+        parsed = self.to_decimal_value(value)
+
+        if parsed is None:
+            self.log_signal_func(f"[SETTING] {code} 값이 비어 있어 등락률 조건을 스킵합니다")
+            return None
+
+        return float(parsed)
+
+    def log_filter_conditions(
+            self,
+            min_sum_won1: Optional[int],
+            min_rate1: Optional[float],
+            min_sum_won2: Optional[int],
+            min_rate2: Optional[float]
+    ) -> None:
+        self.log_signal_func(
+            "[FILTER] 조건1 "
+            f"거래대금={self.won_to_eok_text(min_sum_won1) + '억 이상' if min_sum_won1 is not None else '스킵'}, "
+            f"등락률={str(min_rate1) + '% 이상' if min_rate1 is not None else '스킵'}"
+        )
+        self.log_signal_func(
+            "[FILTER] 조건2 "
+            f"거래대금={self.won_to_eok_text(min_sum_won2) + '억 이상' if min_sum_won2 is not None else '스킵'}, "
+            f"등락률={str(min_rate2) + '% 이상' if min_rate2 is not None else '스킵'}"
+        )
+
+    def is_condition_matched(
+            self,
+            trade_won: int,
+            rate_val: float,
+            min_sum_won: Optional[int],
+            min_rate: Optional[float]
+    ) -> bool:
+        """
+        조건 그룹 판정.
+        - 거래대금 조건이 None이면 거래대금 비교는 스킵
+        - 등락률 조건이 None이면 등락률 비교는 스킵
+        - 둘 다 None이면 해당 Sheet 조건 자체를 비활성화
+        """
+        if min_sum_won is None and min_rate is None:
+            return False
+
+        if min_sum_won is not None and trade_won < min_sum_won:
+            return False
+
+        if min_rate is not None and rate_val < min_rate:
+            return False
+
+        return True
+
+    def won_to_eok_text(self, value: Any) -> str:
+        """
+        원 단위 금액을 억 단위 정수 문자열로 변환합니다.
+        예: 500,099,999,999원 -> 5000
+
+        요청사항: 엑셀/DB 표기에서 5000.99처럼 소수점이 나오지 않도록 버림 처리합니다.
+        """
+        amount = self.to_decimal_value(value)
+        if amount is None:
+            amount = Decimal("0")
+
+        eok = amount / Decimal("100000000")
+        eok_int = eok.to_integral_value(rounding=ROUND_DOWN)
+        return str(eok_int)
+
+    def to_decimal_value(self, value: Any) -> Optional[Decimal]:
+        if value is None:
+            return None
+
+        if isinstance(value, bool):
+            return Decimal(int(value))
+
+        if isinstance(value, (int, float, Decimal)):
+            return Decimal(str(value))
+
+        text = self.clean_text(str(value))
+        if not text:
+            return None
+
+        # 유니코드 마이너스/기호/단위를 정리합니다.
+        # 예: "▲ 15.3%", "상승 15.3", "▼ 2.1%", "−2.1"
+        negative_hint = any(token in text for token in ("▼", "하락", "하한"))
+        positive_hint = any(token in text for token in ("▲", "상승", "상한"))
+
+        text = text.replace("−", "-").replace("＋", "+")
+        text = text.replace(",", "").replace("%", "").replace("배", "")
+        text = text.replace("원", "").replace("억원", "").replace("억", "")
+        text = text.replace("▲", "").replace("▼", "")
+        text = text.replace("상승", "").replace("상한", "")
+        text = text.replace("하락", "").replace("하한", "")
+        text = text.strip()
+
+        if text.startswith("+"):
+            text = text[1:].strip()
+
+        if not text or text in ("-", "+"):
+            return None
+
+        try:
+            parsed = Decimal(text)
+        except Exception:
+            return None
+
+        if negative_hint and parsed > 0:
+            parsed = -parsed
+        elif positive_hint and parsed < 0:
+            parsed = abs(parsed)
+
+        return parsed
+
     def to_int_nullable(self, value: Any) -> Optional[int]:
         if value is None:
             return None
@@ -1210,25 +1380,188 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
             return None
 
     def to_float_value(self, value: Any) -> Optional[float]:
-        if value is None:
+        parsed = self.to_decimal_value(value)
+        if parsed is None:
+            return None
+        return float(parsed)
+
+    def to_money_won(self, value: Any) -> int:
+        """
+        숫자/문자열 거래대금 값을 int로 변환합니다.
+        이 함수는 단위 변환을 하지 않습니다.
+        단위 보정은 normalize_trade_value_won()에서 처리합니다.
+        """
+        parsed = self.to_decimal_value(value)
+        if parsed is None:
+            return 0
+        return int(parsed.to_integral_value(rounding=ROUND_DOWN))
+
+    def to_krx_trade_sum_won(self, row: Optional[Dict[str, Any]]) -> int:
+        """
+        KRX 거래대금 원 단위 변환.
+
+        주의:
+        - NAVER 오늘자 또는 서버 캐시 데이터에서 ACC_TRDVAL이 백만원 단위로 들어오는 경우가 있습니다.
+          예) ACC_TRDVAL=1030, 현재가=782, 거래량=1,237,794
+              1030은 1,030원이 아니라 1,030백만원(약 10.3억)으로 보는 것이 맞습니다.
+        - 이미 원 단위로 들어온 값은 다시 곱하지 않습니다.
+        """
+        if not row:
+            return 0
+
+        raw_value = row.get("ACC_TRDVAL")
+        price = self.pick_row_value(row, "TDD_CLSPRC", "curPrc", "현재가")
+        volume = self.pick_row_value(row, "ACC_TRDVOL", "accTdQty", "거래량")
+
+        return self.normalize_trade_value_won(raw_value, price, volume)
+
+    def to_nxt_trade_sum_won(self, row: Optional[Dict[str, Any]]) -> int:
+        """
+        NXT 거래대금 원 단위 변환.
+
+        NXT accTrval은 보통 원 단위입니다.
+        그래도 가격 * 거래량과 비교해서 혹시 단위가 다른 경우를 방어합니다.
+        """
+        if not row:
+            return 0
+
+        raw_value = row.get("accTrval")
+        price = self.pick_row_value(row, "curPrc", "TDD_CLSPRC", "현재가")
+        volume = self.pick_row_value(row, "accTdQty", "ACC_TRDVOL", "거래량")
+
+        return self.normalize_trade_value_won(raw_value, price, volume)
+
+    def normalize_trade_value_won(self, raw_value: Any, price_value: Any = None, volume_value: Any = None) -> int:
+        """
+        거래대금 값을 원 단위로 정규화합니다.
+
+        원리:
+        - 거래대금 후보1: raw 그대로 원 단위라고 가정
+        - 거래대금 후보2: raw가 백만원 단위라고 보고 raw * 1,000,000
+        - 현재가 * 거래량으로 계산한 추정 거래대금과 더 가까운 후보를 선택
+
+        이렇게 하면 아래 두 경우를 모두 안전하게 처리합니다.
+        - KRX/NAVER: ACC_TRDVAL=1030 -> 1,030,000,000원
+        - NXT: accTrval=12503331018000 -> 12,503,331,018,000원
+        """
+        raw_won = self.to_money_won(raw_value)
+        if raw_won <= 0:
+            return 0
+
+        price = self.to_money_won(price_value)
+        volume = self.to_money_won(volume_value)
+        estimated_won = price * volume
+
+        if estimated_won <= 0:
+            return raw_won
+
+        million_unit_won = raw_won * 1000000
+
+        diff_as_won = abs(estimated_won - raw_won)
+        diff_as_million = abs(estimated_won - million_unit_won)
+
+        if diff_as_million < diff_as_won:
+            return million_unit_won
+
+        return raw_won
+
+    def get_signed_rate_from_krx(self, row: Optional[Dict[str, Any]]) -> Optional[float]:
+        if not row:
             return None
 
-        if isinstance(value, bool):
-            return float(int(value))
+        rate = row.get("FLUC_RT")
+        direction = self.pick_row_value(
+            row,
+            "FLUC_TP_NM",
+            "FLUC_TP_CD",
+            "CMPPREVDD_PRC",
+            "flucTpNm",
+            "flucTpCd"
+        )
 
-        if isinstance(value, (int, float)):
-            return float(value)
+        # NAVER 오늘자 데이터는 이 워커에서 FLUC_TP_CD를 1=상승, 2=하락, 0=보합으로 만들었습니다.
+        # KRX 서버 데이터는 보통 1=상한, 2=상승, 3=보합, 4=하한, 5=하락 체계입니다.
+        crawl_type = str(row.get("CRAWL_TYPE", "")).strip().upper()
+        return self.to_signed_rate_value(rate, direction, naver_style=(crawl_type == "NAVER"))
 
-        text = self.clean_text(str(value))
-        text = text.replace(",", "").replace("%", "").strip()
-        text = text.replace("▲", "").replace("▼", "")
-        if not text or text in ("-", "+"):
+    def get_signed_rate_from_nxt(self, row: Optional[Dict[str, Any]]) -> Optional[float]:
+        if not row:
             return None
 
-        try:
-            return float(text)
-        except Exception:
+        rate = self.pick_row_value(row, "upDownRate", "FLUC_RT", "flucRt", "changeRate")
+        direction = self.pick_row_value(
+            row,
+            "upDownType",
+            "upDownTp",
+            "upDownTpCd",
+            "flucTpCd",
+            "flucTpNm",
+            "risefall",
+            "upDownPrice",
+            "cmpprevddPrc"
+        )
+        return self.to_signed_rate_value(rate, direction, naver_style=False)
+
+    def to_signed_rate_value(
+            self,
+            rate_value: Any,
+            direction_value: Any = None,
+            naver_style: bool = False
+    ) -> Optional[float]:
+        parsed = self.to_decimal_value(rate_value)
+        if parsed is None:
             return None
+
+        sign = self.get_direction_sign(direction_value, rate_value, naver_style=naver_style)
+
+        if sign < 0:
+            parsed = -abs(parsed)
+        elif sign > 0:
+            parsed = abs(parsed)
+
+        return float(parsed)
+
+    def get_direction_sign(self, direction_value: Any, rate_value: Any = None, naver_style: bool = False) -> int:
+        """
+        반환값: 상승=1, 하락=-1, 보합/불명=0
+        """
+        direction_text = self.clean_text(str(direction_value or ""))
+        rate_text = self.clean_text(str(rate_value or ""))
+        text = f"{direction_text} {rate_text}".strip()
+
+        if any(token in text for token in ("▼", "하락", "하한", "DOWN", "Down", "down")):
+            return -1
+        if any(token in text for token in ("▲", "상승", "상한", "UP", "Up", "up")):
+            return 1
+
+        # 값 자체 또는 전일대비 필드에 음수 기호가 있으면 하락으로 봅니다.
+        if "-" in rate_text or "−" in rate_text or "-" in direction_text or "−" in direction_text:
+            return -1
+
+        code = self.only_digits(direction_text)
+        if code:
+            try:
+                n = int(code)
+            except Exception:
+                n = 0
+
+            if naver_style:
+                # 이 워커가 NAVER 데이터 생성 시 만든 코드: 1=상승, 2=하락, 0=보합
+                if n == 1:
+                    return 1
+                if n == 2:
+                    return -1
+                return 0
+
+            # KRX/NXT 계열 일반 코드: 1=상한, 2=상승, 3=보합, 4=하한, 5=하락
+            if n in (1, 2):
+                return 1
+            if n in (4, 5):
+                return -1
+            if n == 3:
+                return 0
+
+        return 0
 
     # =========================================================
     # SQLite DB 관리 공용 모듈 파트
@@ -1358,35 +1691,48 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
             "date": self.pick_row_value(row, "date", "날짜"),
             "rank": self.to_int_text(self.pick_row_value(row, "rank", "순위")),
             "name": self.pick_row_value(row, "name", "종목명"),
+
+            # 거래대금합계는 억 단위 정수로 저장합니다. 예: 5000, 6000
             "sum": self.to_int_text(self.pick_row_value(row, "sum", "거래대금합계")),
+
             "rate": self.to_float_db_value(self.pick_row_value(row, "rate", "등락률")),
-            "krx_trade_sum": self.to_int_text(self.pick_row_value(row, "krx_trade_sum", "KRX거래대금")),
-            "nxt_trade_sum": self.to_int_text(self.pick_row_value(row, "nxt_trade_sum", "NXT거래대금")),
-            "source_type": self.pick_row_value(row, "source_type", "구분"),
+            "krx_trade_sum": self.to_int_text(
+                self.pick_row_value(row, "krx_trade_sum", "KRX 거래대금", "KRX거래대금")
+            ),
+            "nxt_trade_sum": self.to_int_text(
+                self.pick_row_value(row, "nxt_trade_sum", "NEXTRADE 거래대금", "NXT거래대금")
+            ),
+            "source_type": self.pick_row_value(row, "source_type", "데이터구분", "구분"),
         }
 
     def make_db_rows_with_sheet_name(self, rows: List[Dict[str, Any]], sheet_name: str) -> List[Dict[str, Any]]:
-        db_rows: List[Dict[str, Any]] = []
+        final_rows: List[Dict[str, Any]] = []
 
         for row in rows:
-            db_row = dict(row)
-            db_row["sheet_name"] = sheet_name
-            db_rows.append(db_row)
+            final_row = self.make_result_row(row)
+            final_row["sheet_name"] = sheet_name
+            final_row["시트명"] = sheet_name
 
-        return db_rows
+            # 한글 컬럼명으로 체크했을 때도 같은 값이 나오도록 보조키를 확정합니다.
+            final_row["KRX 거래대금"] = final_row.get("krx_trade_sum", "")
+            final_row["NEXTRADE 거래대금"] = final_row.get("nxt_trade_sum", "")
+            final_row["데이터구분"] = final_row.get("source_type", "")
+
+            final_rows.append(final_row)
+
+        return final_rows
 
     def to_excel_rows(self, rows: List[Dict[str, Any]], sheet_name: str = "") -> List[Dict[str, Any]]:
         excel_rows: List[Dict[str, Any]] = []
 
         for row in rows:
-            excel_row = dict(row)
+            excel_row = self.make_result_row(row)
 
-            # 엑셀에서 시트명을 체크한 경우에도 값이 나오도록 여기서 주입
             if sheet_name:
                 excel_row["sheet_name"] = sheet_name
                 excel_row["시트명"] = sheet_name
 
-            # 한글 컬럼명으로 체크했을 때도 값이 나오도록 보조키 추가
+            # 한글 컬럼명으로 체크했을 때도 같은 값이 나오도록 보조키를 확정합니다.
             excel_row["KRX 거래대금"] = excel_row.get("krx_trade_sum", "")
             excel_row["NEXTRADE 거래대금"] = excel_row.get("nxt_trade_sum", "")
             excel_row["데이터구분"] = excel_row.get("source_type", "")
@@ -1468,11 +1814,23 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
         mapped: Dict[str, Any] = {}
 
         for col in self.columns:
-            key = str(col)
+            key = self.get_column_code(col)
+            if not key:
+                continue
+
             source_key = self.output_key_map.get(key, key)
             mapped[key] = m.get(key, m.get(source_key, ""))
 
         return mapped
+
+    def get_column_code(self, col: Any) -> str:
+        """
+        columns 설정이 문자열 리스트로 오든,
+        {code, value, checked} 딕셔너리 리스트로 오든 동일하게 code를 뽑습니다.
+        """
+        if isinstance(col, dict):
+            return str(col.get("code") or col.get("value") or "").strip()
+        return str(col or "").strip()
 
     def make_dates(self, fr: str, to: str) -> List[str]:
         s = datetime.datetime.strptime(str(fr), "%Y%m%d")
@@ -1532,20 +1890,10 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
         return " ".join(str(text).strip().split())
 
     def to_int_text(self, value: Any) -> int:
-        if value is None:
+        parsed = self.to_decimal_value(value)
+        if parsed is None:
             return 0
-
-        if isinstance(value, (int, float)):
-            return int(value)
-
-        value = self.clean_text(str(value)).replace(",", "").replace("%", "").replace("배", "")
-        if value == "":
-            return 0
-
-        try:
-            return int(float(value))
-        except Exception:
-            return 0
+        return int(parsed.to_integral_value(rounding=ROUND_DOWN))
 
     def to_float_str_text(self, value: Any) -> str:
         if value is None:
