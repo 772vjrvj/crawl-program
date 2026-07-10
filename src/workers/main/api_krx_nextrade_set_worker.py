@@ -19,7 +19,6 @@ from src.utils.config import server_url
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
 from src.utils.sqlite_utils import SqliteUtils
-from src.utils.number_utils import to_float, to_int
 from src.workers.api_base_worker import BaseApiWorker
 from decimal import Decimal, ROUND_DOWN
 
@@ -59,7 +58,7 @@ class ApiKrxNextradeSetWorker(BaseApiWorker):
             "x-requested-with": "XMLHttpRequest",
         }
 
-        # === 신규 === NAVER 오늘자 전용 설정
+        # NAVER 오늘자 전용 설정
         self.naver_max_workers: int = 8
         self.naver_market_headers: Dict[str, str] = {
             "User-Agent": (

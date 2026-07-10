@@ -48,7 +48,7 @@ class _SettingItem(TypedDict, total=False):
     button_text: str           # for file/folder
     dialog_title: str          # for file/folder
     filter: str                # for file
-
+    path_type: str              # doc|main
 
 @dataclass(frozen=True)
 class _FilePickSpec:
@@ -416,7 +416,7 @@ class ParamSetPop(QDialog):
 
             if item_type == "input":
                 w = QLineEdit(self)
-                w.setText(str(item.get("value", "") or ""))
+                w.setText(self._value_to_text(item.get("value")))
                 w.setFixedHeight(40)
                 w.setStyleSheet(self._line_edit_style())
                 self.input_fields[code] = w
@@ -430,12 +430,12 @@ class ParamSetPop(QDialog):
                 opts = item.get("options") or []
                 w.addItem("▼ 선택 ▼", "")
 
-                selected_value = str(item.get("value", "") or "")
+                selected_value = self._value_to_text(item.get("value"))
                 selected_index = 0
 
                 for i, opt in enumerate(opts, start=1):
-                    k = str(opt.get("key", "") or "")
-                    v = str(opt.get("value", "") or "")
+                    k = self._value_to_text(opt.get("key"))
+                    v = self._value_to_text(opt.get("value"))
                     w.addItem(k, v)
                     if v == selected_value:
                         selected_index = i
@@ -446,7 +446,7 @@ class ParamSetPop(QDialog):
 
             elif item_type == "button":
                 le = QLineEdit(self)
-                le.setText(str(item.get("value", "") or ""))
+                le.setText(self._value_to_text(item.get("value")))
                 le.setFixedHeight(40)
                 le.setStyleSheet(self._line_edit_style())
                 self.input_fields[code] = le
@@ -469,7 +469,7 @@ class ParamSetPop(QDialog):
 
             elif item_type == "file":
                 le = QLineEdit(self)
-                le.setText(str(item.get("value", "") or ""))
+                le.setText(self._value_to_text(item.get("value")))
                 le.setPlaceholderText(str(item.get("placeholder", "파일을 선택하세요") or "파일을 선택하세요"))
                 le.setFixedHeight(40)
                 le.setStyleSheet(self._line_edit_style())
@@ -487,7 +487,7 @@ class ParamSetPop(QDialog):
             elif item_type == "folder":
                 le = QLineEdit(self)
 
-                folder_value = str(item.get("value", "") or "").strip()
+                folder_value = self._value_to_text(item.get("value")).strip()
                 if not folder_value:
                     folder_value = self._get_default_start_dir(item)
 
@@ -523,6 +523,18 @@ class ParamSetPop(QDialog):
         button_layout.addWidget(self.confirm_button)
         popup_layout.addLayout(button_layout)
 
+    def _value_to_text(self, value: Any) -> str:
+        """
+        설정값을 화면 입력값 문자열로 변환한다.
+
+        주의:
+        - 0은 정상 값이므로 빈 문자열로 바꾸면 안 된다.
+        - None만 빈 문자열로 처리한다.
+        """
+        if value is None:
+            return ""
+        return str(value)
+
     # =========================
     # actions
     # =========================
@@ -556,8 +568,8 @@ class ParamSetPop(QDialog):
                     for it in result_list:
                         if not isinstance(it, dict):
                             continue
-                        name = str(it.get("key", "") or "")
-                        val = str(it.get("value", "") or "")
+                        name = self._value_to_text(it.get("key"))
+                        val = self._value_to_text(it.get("value"))
                         select_widget.addItem(name, val)
 
                 select_widget.setCurrentIndex(0)
