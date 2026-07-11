@@ -1,0 +1,25 @@
+site_name: Crawl Program 문서
+site_description: 크롤링 프로그램 내부 개발 문서
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: ko
+
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+
+nav:
+  - 문서 홈: index.md
+
+  - 프로그램 시작:
+      - main.py: main.md
+
+  - src:
+      - repositories:
+          - WorkerDbRepository: src/repositories/worker_db_repository.md
