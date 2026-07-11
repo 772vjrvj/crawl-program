@@ -3,9 +3,9 @@ import os
 import random
 import re
 import time
-from typing import Any, Dict, List, Optional, Set
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
@@ -13,7 +13,7 @@ from src.utils.api_utils import APIClient
 from src.utils.str_utils import split_comma_keywords
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
-from src.utils.sqlite_utils import SqliteUtils
+from src.repositories.worker_db_repository import WorkerDbRepository
 from src.workers.api_base_worker import BaseApiWorker
 
 
@@ -33,33 +33,26 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         self.total_pages: int = 0
         self.current_cnt: int = 0
         self.before_pro_value: float = 0.0
-        self.file_driver: Optional[FileUtils] = None
-        self.excel_driver: Optional[ExcelUtils] = None
-        self.api_client: Optional[APIClient] = None
+
         self.saved_ids: Set[str] = set()
         self.remove_duplicate_yn = None
         self._destroyed: bool = False
         self._cleaned_up: bool = False
         self.naver_loc: str = "읍면동"
 
-        # DB 저장용 공통 상태
-        self.hist_id = None
-        self.job_id = None
-        self.hist_status = "RUNNING"
-        self.hist_error_message = None
+        # driver
+        self.file_driver: Optional[FileUtils] = None
+        self.excel_driver: Optional[ExcelUtils] = None
+        self.api_client: Optional[APIClient] = None
+
+        # DB Repository
         self.worker_name: str = "naver_place_loc_all"
         self.detail_table_name: str = "naver_place_loc_all"
-        self.detail_success_count: int = 0
-        self.detail_fail_count: int = 0
         self.auto_save_yn: bool = False
-        self.sqlite_driver: Optional[SqliteUtils] = None
+        self.db_repository: Optional[WorkerDbRepository] = None
 
-        # runtime config.json columns 기준 사용
-        self.config_data: Dict[str, Any] = {}
-        self.column_defs: List[Dict[str, Any]] = []
-        self.db_columns: List[str] = []
-        self.excel_columns: List[str] = []
-        self.code_value_map: Dict[str, str] = {}
+        # 상세 조회 실패 원인을 FAIL 행의 row_error_message로 저장하기 위한 임시 값
+        self._last_detail_error_message: Optional[str] = None
 
     # 초기화
     def init(self) -> bool:
@@ -69,16 +62,13 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
         self.naver_loc = str(self.get_setting_value(self.setting, "naver_loc") or "읍면동").strip()
 
-        # runtime/customers/naver_place_loc_all/config.json의 columns[].code/value 사용
-        if not self.load_runtime_config_columns():
-            return False
-
         # DB 저장 후 종료 시 엑셀 자동 저장 여부
         self.auto_save_yn = bool(self.get_setting_value(self.setting, "auto_save_yn"))
-        self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
-        # 6. 중복제거 여부
+        self.log_signal_func(f"✅ 엑셀 자동 저장 여부 : {self.auto_save_yn}")
+
+        # 중복제거 여부
         self.remove_duplicate_yn: bool = self.get_setting_value(self.setting, "remove_duplicate_yn")
-        self.log_signal_func(f"중복제거 여부 : {self.remove_duplicate_yn}")
+        self.log_signal_func(f"✅ 중복제거 여부 : {self.remove_duplicate_yn}")
 
         self.driver_set()
 
@@ -97,7 +87,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         else:
             self._only_keywords_keyword_list()
 
-        if self.hist_status == "RUNNING":
+        if self.db_repository and self.db_repository.status == "RUNNING":
             if self.running:
                 self.finish_job("SUCCESS")
             else:
@@ -107,16 +97,26 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
     # 드라이버 세팅
     def driver_set(self) -> None:
-        self.log_signal_func("드라이버 세팅 ========================================")
-
+        self.log_signal_func("✅ 드라이버 세팅")
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
         self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func, verify=True)
 
-
+    # 정리
     def cleanup(self) -> None:
         if self._cleaned_up:
             return
+
+        # DB 작업 종료 및 자동 엑셀 저장은 연결을 닫기 전에 처리한다.
+        self.finalize_db_and_excel()
+
+        try:
+            if self.db_repository:
+                self.db_repository.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] db_repository.close 실패: {e}")
+        finally:
+            self.db_repository = None
 
         try:
             if self.api_client:
@@ -129,17 +129,6 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 self.file_driver.close()
         except Exception as e:
             self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
-
-        try:
-            if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
-                self.sqlite_driver.close()
-                self.log_signal_func("✅ [DB] 기존 연결 해제")
-        except Exception as e:
-            self.log_signal_func(f"[cleanup] sqlite_driver.close 실패: {e}")
-        finally:
-            self.sqlite_driver = None
-
-        self.finalize_db_and_excel()
 
         try:
             if self.excel_driver:
@@ -155,35 +144,50 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
     # 마무리
     def destroy(self) -> None:
+        # BaseApiWorker의 정상 종료 경로에서도 DB 마감/엑셀 저장이 실행되도록 한다.
+        self.cleanup()
         self.progress_signal.emit(self.before_pro_value, 1000000)
         self.log_signal_func("✅ destroy")
         time.sleep(2.5)
         self.progress_end_signal.emit()
 
-
+    # 중지
     def stop(self) -> None:
         self.log_signal_func("✅ stop 시작")
         self.running = False
 
-        if self.hist_status == "RUNNING":
-            self.finish_job("STOP", "사용자 중단")
+        self.finish_job("STOP", "사용자 중단")
 
         time.sleep(2.5)
         self.cleanup()
         self.log_signal_func("✅ stop 완료")
 
-
     # =========================================================
-    # DB 저장 / 마감 처리
+    # DB Repository
     # =========================================================
     def db_set(self) -> bool:
-        self.sqlite_driver = SqliteUtils(self.log_signal_func)
+        config_data = self.read_runtime_customer_config(
+            customer_name=self.worker_name
+        )
+        column_defs = config_data.get("columns") or []
 
-        db_path = self.get_runtime_db_path()
-        self.log_signal_func(f"[DB] 실제 경로 = {os.path.abspath(db_path)}")
+        if not isinstance(column_defs, list) or not column_defs:
+            self.log_signal_func("❌ [config] columns가 없거나 형식이 올바르지 않습니다.")
+            return False
 
-        if not self.sqlite_driver.connect(db_path):
-            self.log_signal_func("❌ [DB] 연결 실패")
+        try:
+            self.db_repository = WorkerDbRepository(
+                db_path=self.get_runtime_db_path(),
+                site_name=self.site_name,
+                worker_name=self.worker_name,
+                detail_table_name=self.detail_table_name,
+                column_defs=column_defs,
+                user_id=self._get_db_user_id(),
+                log_func=self.log_signal_func,
+                detail_log_fields=("id", "name"),
+            )
+        except Exception as e:
+            self.log_signal_func(f"❌ [DB] Repository 생성 실패: {e}")
             return False
 
         schema_files = [
@@ -191,337 +195,192 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             os.path.join("resources", "customers", self.worker_name, "db", "schema_detail.sql"),
         ]
 
-        if not self.sqlite_driver.execute_script_files(schema_files):
-            self.log_signal_func("❌ [DB] 스키마 초기화 실패")
+        if not self.db_repository.initialize(schema_files, start_job=True):
             return False
 
-        self.log_signal_func("✅ [DB] 스키마 초기화 완료")
-
-        if not self.insert_hist_start():
-            return False
-
-        return True
-
-    def finish_job(self, status: str, error_message: Optional[str] = None) -> None:
-        self.hist_status = status
-        self.hist_error_message = error_message
-
-    def insert_hist_start(self) -> bool:
-        now = time.strftime("%Y-%m-%d %H:%M:%S")
-        self.job_id = time.strftime("%Y%m%d%H%M%S")
-
-        query = """
-                INSERT INTO worker_job_hist (
-                    job_id,
-                    table_name,
-                    site_name,
-                    worker_name,
-                    user_id,
-                    start_at,
-                    status,
-                    total_count,
-                    success_count,
-                    fail_count,
-                    created_at,
-                    updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """
-
-        params = (
-            self.job_id,
-            self.detail_table_name,
-            self.site_name,
-            self.worker_name,
-            getattr(self.user, "user_id", None) if self.user else None,
-            now,
-            "RUNNING",
-            0,
-            0,
-            0,
-            now,
-            now,
-        )
-
-        if not self.sqlite_driver.execute(query, params):
-            self.log_signal_func("❌ [DB] hist 시작 row 저장 실패")
-            return False
-
-        row = self.sqlite_driver.fetchone("SELECT last_insert_rowid() AS hist_id")
-        self.hist_id = row["hist_id"] if row else None
-
-        self.log_signal_func(f"✅ [DB] hist 시작 row 저장 완료 | hist_id={self.hist_id}")
-        return True
-
-    def update_hist_end(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
-        sqlite_driver = sqlite_driver or self.sqlite_driver
-
-        if not sqlite_driver:
-            return False
-
-        if not self.hist_id:
-            self.log_signal_func("⚠️ [DB] hist_id 없음 - 종료 update 스킵")
-            return False
-
-        now = time.strftime("%Y-%m-%d %H:%M:%S")
-
-        query = """
-                UPDATE worker_job_hist
-                SET
-                    end_at = ?,
-                    status = ?,
-                    total_count = ?,
-                    success_count = ?,
-                    fail_count = ?,
-                    error_message = ?,
-                    updated_at = ?
-                WHERE hist_id = ?
-                """
-
-        params = (
-            now,
-            self.hist_status,
-            self.detail_success_count + self.detail_fail_count,
-            self.detail_success_count,
-            self.detail_fail_count,
-            self.hist_error_message,
-            now,
-            self.hist_id,
-        )
-
-        if not sqlite_driver.execute(query, params):
-            self.log_signal_func(f"❌ [DB] hist 종료 row 수정 실패 | hist_id={self.hist_id}")
-            return False
+        # 화면/엑셀은 checked=true인 value(한글명)를 사용한다.
+        self.columns = list(self.db_repository.excel_columns)
 
         self.log_signal_func(
-            f"✅ [DB] hist 종료 row 수정 완료 | hist_id={self.hist_id} | status={self.hist_status}"
+            f"✅ [config] DB 컬럼 수={len(self.db_repository.db_columns)} / "
+            f"엑셀 컬럼 수={len(self.db_repository.excel_columns)}"
         )
         return True
 
-    def insert_detail_row(self, rs: Dict[str, Any]) -> bool:
-        if not self.sqlite_driver:
-            self.detail_fail_count += 1
-            self.log_signal_func("❌ [DB] sqlite_driver 없음 - detail 저장 실패")
+    def _get_db_user_id(self) -> Optional[Any]:
+        if self.user is None:
+            return None
+        if isinstance(self.user, dict):
+            return self.user.get("user_id") or self.user.get("id")
+        if isinstance(self.user, (str, int)):
+            return self.user
+        return getattr(self.user, "user_id", None)
+
+    def finish_job(self, status: str, error_message: Optional[str] = None) -> None:
+        if self.db_repository:
+            self.db_repository.set_job_result(status, error_message)
+
+    def insert_detail_row(
+            self,
+            row: Dict[str, Any],
+            *,
+            row_status: str = "SUCCESS",
+            row_error_message: Optional[str] = None,
+            row_start_at: Optional[str] = None,
+            row_end_at: Optional[str] = None,
+    ) -> bool:
+        """상세 조회 결과와 행 단위 처리 상태를 Repository에 저장한다."""
+        if not self.db_repository:
+            self.log_signal_func("❌ [DB] Repository 없음 - detail 저장 실패")
             return False
 
-        now = time.strftime("%Y-%m-%d %H:%M:%S")
-
-        db_columns = self.db_columns
-        if not db_columns:
-            self.detail_fail_count += 1
-            self.log_signal_func("❌ [DB] config columns 없음 - detail 저장 실패")
-            return False
-
-        db_rs = self.map_out_to_db(rs)
-
-        base_columns = [
-            "hist_id",
-            "site_name",
-            "worker_name",
-            "table_name",
-            "job_id",
-            "user_id",
-            "row_status",
-        ]
-
-        all_columns = base_columns + db_columns + ["created_at", "updated_at"]
-        placeholders = ", ".join(["?"] * len(all_columns))
-        column_text = ",\n                    ".join(all_columns)
-
-        query = f"""
-                INSERT INTO {self.detail_table_name} (
-                    {column_text}
-                ) VALUES ({placeholders})
-                """
-
-        params = (
-            self.hist_id,
-            self.site_name,
-            self.worker_name,
-            self.detail_table_name,
-            self.job_id,
-            getattr(self.user, "user_id", None) if self.user else None,
-            "SUCCESS",
-            *[db_rs.get(col, "") for col in db_columns],
-            now,
-            now,
+        return self.db_repository.insert_detail(
+            row,
+            row_status=row_status,
+            row_error_message=row_error_message,
+            row_start_at=row_start_at,
+            row_end_at=row_end_at,
         )
 
-        ok = self.sqlite_driver.execute(query, params)
+    @staticmethod
+    def _now_db() -> str:
+        """행 시작·종료시간을 Repository와 동일한 형식으로 반환한다."""
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-        if ok:
-            self.detail_success_count += 1
-            self.log_signal_func(
-                f"✅ [DB] detail 저장 완료 | hist_id={self.hist_id} | 아이디={rs.get('아이디')} | 이름={rs.get('이름')}"
-            )
-        else:
-            self.detail_fail_count += 1
-            self.log_signal_func(
-                f"❌ [DB] detail 저장 실패 | hist_id={self.hist_id} | 아이디={rs.get('아이디')} | 이름={rs.get('이름')}"
-            )
+    def _set_detail_error(self, message: str) -> None:
+        """현재 상세 조회의 대표 오류 메시지를 저장하고 로그로 출력한다."""
+        self._last_detail_error_message = str(message or "상세 조회 실패")
+        self.log_signal_func(self._last_detail_error_message)
 
-        return ok
+    def _build_failed_detail_row(
+            self,
+            place_id: str,
+            loc: Dict[str, str],
+            query_keyword: str,
+            query: str,
+    ) -> Dict[str, Any]:
+        """상세 조회에 실패해도 검색 기준과 ID를 Detail 테이블에 남긴다."""
+        return {
+            "id": place_id,
+            "name": "",
+            "url": f"https://m.place.naver.com/place/{place_id}/home",
+            "map": f"https://map.naver.com/p/entry/place/{place_id}",
+            "city": loc.get("시도", ""),
+            "division": loc.get("시군구", ""),
+            "sector": loc.get("읍면동", ""),
+            "keyword": query_keyword,
+            "all_keyword": query,
+        }
 
-    def get_runtime_config_path(self) -> str:
-        # 개발/빌드 환경을 모두 고려해서 config.json 위치를 찾는다.
-        # 사용자가 말한 기준: runtime/customers/naver_place_loc_all/config.json
-        candidates = [
-            os.path.join(
-                self.get_resource_root(),
-                "runtime",
-                "customers",
-                self.worker_name,
-                "config.json",
-            ),
-            os.path.join(
-                self.get_project_root(),
-                "runtime",
-                "customers",
-                self.worker_name,
-                "config.json",
-            ),
-        ]
-
-        for path in candidates:
-            if os.path.exists(path):
-                return path
-
-        return candidates[0]
-
-    def load_runtime_config_columns(self) -> bool:
-        # BaseApiWorker.set_columns()는 checked된 value만 남기므로,
-        # DB 저장에 필요한 code는 runtime config.json에서 다시 읽는다.
-        config_path = self.get_runtime_config_path()
-
-        if not os.path.exists(config_path):
-            self.log_signal_func(f"❌ [config] 파일 없음: {config_path}")
-            return False
+    def _fetch_and_save_place_detail(
+            self,
+            place_id: str,
+            loc: Dict[str, str],
+            query_keyword: str,
+            query: str,
+    ) -> Tuple[Optional[Dict[str, Any]], bool]:
+        """상세 조회 시간을 측정하고 성공·실패 결과를 모두 Detail에 저장한다."""
+        row_start_at = self._now_db()
+        self._last_detail_error_message = None
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                self.config_data = json.load(f)
+            place_info = self._fetch_place_info(
+                place_id,
+                loc,
+                query_keyword,
+                query,
+            )
+            row_end_at = self._now_db()
+
+            if place_info:
+                save_ok = self.insert_detail_row(
+                    place_info,
+                    row_status="SUCCESS",
+                    row_start_at=row_start_at,
+                    row_end_at=row_end_at,
+                )
+                return place_info, save_ok
+
+            error_message = (
+                    self._last_detail_error_message
+                    or f"Place ID {place_id} 상세 정보 조회 실패"
+            )
+            failed_row = self._build_failed_detail_row(
+                place_id,
+                loc,
+                query_keyword,
+                query,
+            )
+            save_ok = self.insert_detail_row(
+                failed_row,
+                row_status="FAIL",
+                row_error_message=error_message,
+                row_start_at=row_start_at,
+                row_end_at=row_end_at,
+            )
+            return None, save_ok
+
         except Exception as e:
-            self.log_signal_func(f"❌ [config] 로드 실패: {e}")
-            return False
+            row_end_at = self._now_db()
+            error_message = f"Place ID {place_id} 상세 조회 처리 예외: {e}"
+            self._set_detail_error(error_message)
 
-        columns = self.config_data.get("columns") or []
-        if not isinstance(columns, list):
-            self.log_signal_func("❌ [config] columns 형식 오류")
-            return False
+            failed_row = self._build_failed_detail_row(
+                place_id,
+                loc,
+                query_keyword,
+                query,
+            )
+            save_ok = self.insert_detail_row(
+                failed_row,
+                row_status="FAIL",
+                row_error_message=error_message,
+                row_start_at=row_start_at,
+                row_end_at=row_end_at,
+            )
+            return None, save_ok
 
-        self.column_defs = [
-            col for col in columns
-            if isinstance(col, dict) and str(col.get("code") or "").strip() and str(col.get("value") or "").strip()
-        ]
-
-        self.db_columns = [str(col.get("code")).strip() for col in self.column_defs]
-        self.excel_columns = [
-            str(col.get("value")).strip()
-            for col in self.column_defs
-            if bool(col.get("checked", False))
-        ]
-        self.code_value_map = {
-            str(col.get("code")).strip(): str(col.get("value")).strip()
-            for col in self.column_defs
-        }
-
-        # 화면에서 전달된 self.columns보다 runtime config의 checked 상태를 우선 사용한다.
-        self.columns = self.excel_columns
-
-        self.log_signal_func(f"✅ [config] columns 로드 완료: {config_path}")
-        self.log_signal_func(f"✅ [config] DB 컬럼 수={len(self.db_columns)} / 엑셀 컬럼 수={len(self.excel_columns)}")
-        return True
-
-    def map_out_to_db(self, out: Dict[str, Any]) -> Dict[str, Any]:
-        # 기존 수집 결과 dict의 한글 key(value)를 DB 컬럼명(code)으로 변환한다.
-        return {
-            code: str(out.get(value) or "")
-            for code, value in self.code_value_map.items()
-        }
-
-    def db_rows_to_kor_rows(self, row_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        # DB 컬럼명(code)을 엑셀 한글 컬럼명(value)으로 변환한다.
-        result: List[Dict[str, Any]] = []
-
-        for row in row_list or []:
-            out: Dict[str, Any] = {}
-            for col in self.column_defs:
-                if not bool(col.get("checked", False)):
-                    continue
-
-                code = str(col.get("code") or "").strip()
-                value = str(col.get("value") or "").strip()
-                out[value] = row.get(code, "")
-
-            result.append(out)
-
-        return result
-
-    def export_detail_to_excel(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
-        sqlite_driver = sqlite_driver or self.sqlite_driver
-
+    def export_detail_to_excel(self) -> bool:
         if not self.excel_driver:
             self.log_signal_func("❌ [엑셀] excel_driver 없음")
             return False
 
-        if not sqlite_driver:
-            self.log_signal_func("❌ [엑셀] sqlite_driver 없음")
+        if not self.db_repository:
+            self.log_signal_func("❌ [엑셀] DB Repository 없음")
             return False
 
-        if not self.hist_id:
-            self.log_signal_func("❌ [엑셀] hist_id 없음")
-            return False
-
-        db_columns = self.db_columns
-        if not db_columns:
-            self.log_signal_func("❌ [엑셀] config columns 없음")
-            return False
-
-        select_text = ",\n                    ".join(db_columns)
-
-        query = f"""
-                SELECT
-                    {select_text}
-                FROM {self.detail_table_name}
-                WHERE hist_id = ?
-                ORDER BY detail_id
-                """
-
-        row_list = sqlite_driver.fetchall(query, (self.hist_id,))
-        if not row_list:
+        excel_columns, excel_rows = self.db_repository.get_excel_data()
+        if not excel_rows:
             self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
             return False
 
-        row_list = [dict(row) for row in row_list]
-        excel_row_list = self.db_rows_to_kor_rows(row_list)
-        excel_columns = self.columns or self.excel_columns
-        excel_filename = f"{self.site_name}_{self.job_id}.xlsx"
+        excel_filename = f"{self.site_name}_{self.db_repository.job_id}.xlsx"
 
         return self.excel_driver.save_db_rows_to_excel(
             excel_filename=excel_filename,
-            row_list=excel_row_list,
+            row_list=excel_rows,
             columns=excel_columns,
             folder_path=self.folder_path,
             sub_dir=self.out_dir,
         )
 
     def finalize_db_and_excel(self) -> None:
-        temp_sqlite_driver = None
+        if not self.db_repository:
+            return
 
         try:
-            temp_sqlite_driver = SqliteUtils(self.log_signal_func)
-            db_path = self.get_runtime_db_path()
+            # 정상 main 종료라면 SUCCESS/STOP이 이미 설정되어 있다.
+            # RUNNING으로 남았다면 예외 또는 초기화 중 비정상 종료로 처리한다.
+            if self.db_repository.status == "RUNNING":
+                self.db_repository.set_job_result("FAIL", "비정상 종료")
 
-            if not temp_sqlite_driver.connect(db_path):
-                self.log_signal_func("❌ [DB] 최종 마감용 연결 실패")
-                return
-
-            if self.update_hist_end(temp_sqlite_driver):
+            if self.db_repository.finish_job():
                 self.log_signal_func("✅ [DB] hist 최종 업데이트 완료")
             else:
                 self.log_signal_func("❌ [DB] hist 최종 업데이트 실패")
 
             if self.auto_save_yn:
-                if self.export_detail_to_excel(temp_sqlite_driver):
+                if self.export_detail_to_excel():
                     self.log_signal_func("✅ [엑셀] detail 자동 저장 완료")
                 else:
                     self.log_signal_func("❌ [엑셀] detail 자동 저장 실패")
@@ -530,13 +389,6 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
         except Exception as e:
             self.log_signal_func(f"[cleanup] finalize_db_and_excel 실패: {e}")
-
-        finally:
-            try:
-                if temp_sqlite_driver:
-                    temp_sqlite_driver.close()
-            except Exception:
-                pass
 
 
     # 실행용 지역 목록 가공
@@ -587,7 +439,6 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             result.append(row)
 
         return result
-
 
     # 전국 키워드 조회
     def _loc_all_keyword_list(self) -> None:
@@ -681,19 +532,25 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
                 time.sleep(random.uniform(2, 4))
 
-                place_info = self._fetch_place_info(place_id, loc, query_keyword, query)
+                place_info, save_ok = self._fetch_and_save_place_detail(
+                    place_id,
+                    loc,
+                    query_keyword,
+                    query,
+                )
                 if not place_info:
-                    self.log_signal_func(f"⚠️ ID {place_id}의 상세 정보를 가져오지 못했습니다.")
+                    self.log_signal_func(
+                        f"⚠️ ID {place_id} 상세 조회 실패 행 저장 | "
+                        f"error={self._last_detail_error_message or '상세 조회 실패'}"
+                    )
                     continue
 
                 self.log_signal_func(
                     f"전국: {locs_index} / {total_locs}, 키워드: {current_query_index} / {total_queries}, "
-                    f"검색어: {query}, 수집: {idx} / {len(result_ids)}, 아이디: {place_id}, 이름: {place_info['이름']}"
+                    f"검색어: {query}, 수집: {idx} / {len(result_ids)}, 아이디: {place_id}, 이름: {place_info['name']}"
                 )
 
-                save_ok = self.insert_detail_row(place_info)
-
-                # DB 저장 성공한 경우에만 중복 목록에 추가
+                # 상세 조회와 DB 저장이 모두 성공한 경우에만 중복 목록에 추가
                 if save_ok and self.remove_duplicate_yn:
                     self.saved_ids.add(place_id)
 
@@ -727,9 +584,12 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 "읍면동": "",
             }
 
-            obj = self._fetch_place_info(place_id, loc, "", "")
-            if obj:
-                self.insert_detail_row(obj)
+            obj, _ = self._fetch_and_save_place_detail(
+                place_id,
+                loc,
+                "",
+                "",
+            )
 
             self.current_cnt = self.current_cnt + 1
             pro_value = (self.current_cnt / self.total_cnt) * 1000000 if self.total_cnt > 0 else 0
@@ -936,13 +796,13 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 return {}
 
             return {
-                "대행사 상호": ag0.get("name", "") or "",
-                "대행사 대표자명": ag0.get("reprName", "") or "",
-                "대행사 소재지": ag0.get("address", "") or "",
-                "대행사 사업자번호": ag0.get("bizNumber", "") or "",
-                "대행사 통신판매업번호": ag0.get("cbizNumber", "") or "",
-                "대행사 연락처": ag0.get("phone", "") or "",
-                "대행사 홈페이지": ag0.get("websiteUrl", "") or "",
+                "agency_name": ag0.get("name", "") or "",
+                "agency_ceo": ag0.get("reprName", "") or "",
+                "agency_address": ag0.get("address", "") or "",
+                "agency_bizno": ag0.get("bizNumber", "") or "",
+                "agency_mailno": ag0.get("cbizNumber", "") or "",
+                "agency_phone": ag0.get("phone", "") or "",
+                "agency_site": ag0.get("websiteUrl", "") or "",
             }
 
         except Exception as e:
@@ -953,7 +813,9 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
     def _fetch_place_info(self, place_id: str, loc: Dict[str, str], query_keyword: str, query: str) -> Optional[Dict[str, Any]]:
         try:
             if self.api_client is None:
-                self.log_signal_func("[에러] api_client 가 초기화되지 않았습니다.")
+                self._set_detail_error(
+                    f"❌ Place ID {place_id}: api_client가 초기화되지 않았습니다."
+                )
                 return None
 
             url = f"https://m.place.naver.com/place/{place_id}"
@@ -979,13 +841,15 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             response = self.api_client.get(url=url, headers=headers)
 
             if not response:
-                self.log_signal_func(f"⚠️ Place ID {place_id} 응답 없음.")
+                self._set_detail_error(f"⚠️ Place ID {place_id} 응답 없음.")
                 return None
 
             soup = BeautifulSoup(response, "html.parser")
             script_tag = soup.find("script", string=re.compile(r"window\.__APOLLO_STATE__"))
             if not script_tag or not script_tag.string:
-                self.log_signal_func(f"⚠️ Place ID {place_id}의 스크립트 태그 없음 또는 비어 있음.")
+                self._set_detail_error(
+                    f"⚠️ Place ID {place_id}의 스크립트 태그 없음 또는 비어 있음."
+                )
                 return None
 
             script_text = script_tag.string
@@ -993,27 +857,37 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             marker = "window.__APOLLO_STATE__"
             marker_index = script_text.find(marker)
             if marker_index < 0:
-                self.log_signal_func(f"⚠️ Place ID {place_id} APOLLO_STATE marker 없음.")
+                self._set_detail_error(
+                    f"⚠️ Place ID {place_id} APOLLO_STATE marker 없음."
+                )
                 return None
 
             equal_index = script_text.find("=", marker_index)
             if equal_index < 0:
-                self.log_signal_func(f"⚠️ Place ID {place_id} APOLLO_STATE = 없음.")
+                self._set_detail_error(
+                    f"⚠️ Place ID {place_id} APOLLO_STATE = 없음."
+                )
                 return None
 
             json_start = script_text.find("{", equal_index)
             if json_start < 0:
-                self.log_signal_func(f"⚠️ Place ID {place_id} APOLLO_STATE JSON 시작 없음.")
+                self._set_detail_error(
+                    f"⚠️ Place ID {place_id} APOLLO_STATE JSON 시작 없음."
+                )
                 return None
 
             try:
                 data, _ = json.JSONDecoder().raw_decode(script_text[json_start:])
             except Exception as e:
-                self.log_signal_func(f"⚠️ Place ID {place_id} JSON decode 실패: {e}")
+                self._set_detail_error(
+                    f"⚠️ Place ID {place_id} JSON decode 실패: {e}"
+                )
                 return None
 
             if not isinstance(data, dict):
-                self.log_signal_func(f"⚠️ Place ID {place_id} data가 dict가 아님: {type(data)}")
+                self._set_detail_error(
+                    f"⚠️ Place ID {place_id} data가 dict가 아님: {type(data)}"
+                )
                 return None
 
             base = data.get(f"PlaceDetailBase:{place_id}", {})
@@ -1034,7 +908,9 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             root_query = data.get("ROOT_QUERY", {})
             place_detail_key = self._find_place_detail_key(root_query, place_id)
             if not place_detail_key:
-                self.log_signal_func(f"⚠️ Place ID {place_id} placeDetail key를 찾지 못했습니다.")
+                self._set_detail_error(
+                    f"⚠️ Place ID {place_id} placeDetail key를 찾지 못했습니다."
+                )
                 return None
 
             place_detail_obj = root_query.get(place_detail_key, {}) or {}
@@ -1074,7 +950,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             sub_category = category_list[1] if len(category_list) > 1 else ""
 
             zipCode = ""
-            if self.columns and "우편번호" in self.columns:
+            if self.db_repository and self.db_repository.is_column_checked("zip_code"):
                 zipCode = self._fetch_zipcode_by_addr(address, roadAddress)
 
             # 대표 이미지
@@ -1271,58 +1147,62 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
             # ========== 리뷰 평점[끝] ==========
 
+            # DB 저장 기준은 config.json columns[].code와 동일한 영문 key를 사용한다.
             result: Dict[str, Any] = {
-                "아이디": place_id,
-                "이름": main_name,
-                "주소(지번)": address,
-                "주소(도로명)": roadAddress,
-                "우편번호": zipCode,
-                "대분류": main_category,
-                "소분류": sub_category,
-                "방문자 리뷰 평점": visitorReviewsScore,
-                "방문자 리뷰 수": visitorReviewsTotal,
-                "키워드·별점 리뷰": ratingReviewsTotal,
-                "블로그 리뷰 수": blogReviewTotal,
-                "영수증 리뷰 수": votedKeywordReviewCount,
-                "이용시간1": self._format_new_business_hours(new_business_hours_json),
-                "이용시간2": self._format_business_hours(business_hours),
-                "카테고리": category,
-                "URL": f"https://m.place.naver.com/place/{place_id}/home",
-                "지도": f"https://map.naver.com/p/entry/place/{place_id}",
-                "대표이미지URL": img_origin,
-                "AI요약": ", ".join(microReviews) if microReviews else "",
-                "편의시설 및 서비스": conveniences,
-                "좌석·공간": seatText,
-                "메뉴": menuText,
-                "주차가능": parkingAvailable,
-                "발렛가능": valetAvailable,
-                "주차": parkingDesc,
-                "결제수단": ", ".join(paymentInfo) if paymentInfo else "",
-                "연관 키워드": ", ".join(keywordList) if keywordList else "",
-                "테마": ", ".join(themes) if themes else "",
-                "소개": main_description,
-                "가상번호": virtualPhone,
-                "전화번호": phone,
-                "사이트": ", ".join(urls) if urls else "",
-                "주소지정보": road,
-                "시도(검색)": loc.get("시도", ""),
-                "시군구(검색)": loc.get("시군구", ""),
-                "읍면동(검색)": loc.get("읍면동", ""),
-                "키워드(검색)": query_keyword,
-                "전체 검색어": query
+                "id": place_id,
+                "name": main_name,
+                "addr_jibun": address,
+                "addr_road": roadAddress,
+                "category_main": main_category,
+                "category_sub": sub_category,
+                "visitorReviewsScore": visitorReviewsScore,
+                "visitorReviewsTotal": visitorReviewsTotal,
+                "ratingReviewsTotal": ratingReviewsTotal,
+                "blogReviewTotal": blogReviewTotal,
+                "votedKeywordReviewCount": votedKeywordReviewCount,
+                "open_time1": self._format_new_business_hours(new_business_hours_json),
+                "open_time2": self._format_business_hours(business_hours),
+                "category": category,
+                "url": f"https://m.place.naver.com/place/{place_id}/home",
+                "img_origin": img_origin,
+                "map": f"https://map.naver.com/p/entry/place/{place_id}",
+                "amenities": conveniences,
+                "themes": ", ".join(themes) if themes else "",
+                "menuText": menuText,
+                "seatText": seatText,
+                "parkingAvailable": parkingAvailable,
+                "valetAvailable": valetAvailable,
+                "parkingDesc": parkingDesc,
+                "keywordList": ", ".join(keywordList) if keywordList else "",
+                "microReviews": ", ".join(microReviews) if microReviews else "",
+                "description": main_description,
+                "paymentInfo": ", ".join(paymentInfo) if paymentInfo else "",
+                "virtual_phone": virtualPhone,
+                "phone": phone,
+                "site": ", ".join(urls) if urls else "",
+                "region_info": road,
+                "city": loc.get("시도", ""),
+                "division": loc.get("시군구", ""),
+                "sector": loc.get("읍면동", ""),
+                "keyword": query_keyword,
+                "all_keyword": query,
+                "zip_code": zipCode,
             }
 
-            AGENCY_COLS = [
-                "대행사 상호",
-                "대행사 대표자명",
-                "대행사 소재지",
-                "대행사 사업자번호",
-                "대행사 통신판매업번호",
-                "대행사 연락처",
-                "대행사 홈페이지",
+            agency_codes = [
+                "agency_name",
+                "agency_ceo",
+                "agency_address",
+                "agency_bizno",
+                "agency_mailno",
+                "agency_phone",
+                "agency_site",
             ]
 
-            want_agency = any(col in (self.columns or []) for col in AGENCY_COLS)
+            want_agency = bool(
+                self.db_repository
+                and self.db_repository.are_any_columns_checked(agency_codes)
+            )
 
             if want_agency:
                 booking_business_id = self._extract_booking_business_id(place_detail_obj)
@@ -1331,16 +1211,20 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                     agency_info = self._fetch_booking_agency_info(booking_business_id)
 
                     if isinstance(agency_info, dict):
-                        for col in AGENCY_COLS:
-                            if self.columns and col in self.columns:
-                                result[col] = agency_info.get(col, "")
+                        for code in agency_codes:
+                            if self.db_repository and self.db_repository.is_column_checked(code):
+                                result[code] = agency_info.get(code, "")
 
             return result
 
         except requests.exceptions.RequestException as e:
-            self.log_signal_func(f"❌ 네트워크 에러: Place ID {place_id}: {e}")
+            self._set_detail_error(
+                f"❌ 네트워크 에러: Place ID {place_id}: {e}"
+            )
         except Exception as e:
-            self.log_signal_func(f"❌ 처리 중 에러: Place ID {place_id}: {e}")
+            self._set_detail_error(
+                f"❌ 처리 중 에러: Place ID {place_id}: {e}"
+            )
 
         return None
 
@@ -1508,5 +1392,5 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             return "\n".join(formatted_hours).strip()
 
         except Exception as e:
-            self._log(f"❌ 영업시간 포맷 실패: {e}")
+            self.log_signal_func(f"❌ 영업시간 포맷 실패: {e}")
             return ""

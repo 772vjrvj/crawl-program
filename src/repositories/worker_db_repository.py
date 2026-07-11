@@ -370,12 +370,18 @@ class WorkerDbRepository:
 
         success = self.sqlite.execute(query, params)
 
-        if success:
+        # DB INSERT 성공 여부와 수집 행의 처리 상태를 함께 집계한다.
+        # FAIL 행이 DB에 정상 저장된 경우에도 작업 이력의 fail_count로 집계한다.
+        if success and self._is_success_row_status(row_status):
             self.success_count += 1
         else:
             self.fail_count += 1
 
-        self._log_detail_result(success, row)
+        self._log_detail_result(
+            success=success,
+            row=row,
+            row_status=row_status,
+        )
 
         return success
 
@@ -418,11 +424,15 @@ class WorkerDbRepository:
             self.sqlite.conn.executemany(query, params_list)
             self.sqlite.conn.commit()
 
-            self.success_count += len(row_list)
+            if self._is_success_row_status(row_status):
+                self.success_count += len(row_list)
+            else:
+                self.fail_count += len(row_list)
 
             self._log(
                 f"✅ [DB] detail bulk 저장 완료 | "
                 f"hist_id={self.hist_id} | "
+                f"row_status={row_status} | "
                 f"count={len(row_list)}"
             )
 
@@ -599,6 +609,11 @@ class WorkerDbRepository:
     # 공통 내부 함수
     # =========================================================
     @staticmethod
+    def _is_success_row_status(row_status: str) -> bool:
+        """행 상태가 성공인지 확인한다."""
+        return str(row_status or "").strip().upper() == "SUCCESS"
+
+    @staticmethod
     def _quote(name: str) -> str:
         """테이블명과 컬럼명을 SQLite 식별자로 감싼다."""
         return f'"{name}"'
@@ -622,12 +637,23 @@ class WorkerDbRepository:
 
     def _log_detail_result(
             self,
+            *,
             success: bool,
             row: Dict[str, Any],
+            row_status: str,
     ) -> None:
-        """detail 단건 저장 결과와 대표 필드 값을 한 줄로 출력한다."""
-        icon = "✅" if success else "❌"
-        result = "완료" if success else "실패"
+        """detail 단건 저장 결과와 행 처리 상태를 한 줄로 출력한다."""
+        normalized_status = str(row_status or "").strip().upper()
+
+        if not success:
+            icon = "❌"
+            result = "DB 저장 실패"
+        elif self._is_success_row_status(normalized_status):
+            icon = "✅"
+            result = "성공행 저장 완료"
+        else:
+            icon = "⚠️"
+            result = "실패행 저장 완료"
 
         fields = [
             f"{field}={row.get(field, '')}"
@@ -641,8 +667,9 @@ class WorkerDbRepository:
         )
 
         self._log(
-            f"{icon} [DB] detail 저장 {result} | "
-            f"hist_id={self.hist_id}"
+            f"{icon} [DB] detail {result} | "
+            f"hist_id={self.hist_id} | "
+            f"row_status={normalized_status or row_status}"
             f"{field_text}"
         )
 
