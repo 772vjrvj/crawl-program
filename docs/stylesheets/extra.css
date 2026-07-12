@@ -1,0 +1,109 @@
+/* =========================================================
+   좌측 프로젝트 트리 너비
+   ========================================================= */
+
+:root {
+    --project-tree-width: 360px;
+    --project-tree-resizer-width: 6px;
+}
+
+@media screen and (min-width: 76.25em) {
+
+    /* 전체 화면 너비 사용 */
+    .md-main__inner.md-grid {
+        max-width: 100%;
+        display: grid;
+        grid-template-columns:
+            var(--project-tree-width)
+            var(--project-tree-resizer-width)
+            minmax(0, 1fr)
+            auto;
+        column-gap: 0;
+    }
+
+    /* 왼쪽 트리 */
+    .md-sidebar--primary {
+        grid-column: 1;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .md-sidebar--primary .md-sidebar__scrollwrap {
+        width: 100%;
+        margin-right: 0;
+        overflow-x: auto;
+    }
+
+    .md-sidebar--primary .md-sidebar__inner {
+        padding-right: 1rem;
+    }
+
+    /* 마우스로 잡는 영역 */
+    .md-sidebar-resizer {
+        grid-column: 2;
+        position: sticky;
+        top: 4.8rem;
+        height: calc(100vh - 4.8rem);
+        cursor: col-resize;
+        user-select: none;
+        z-index: 10;
+        border-left: 1px solid var(--md-default-fg-color--lightest);
+        border-right: 1px solid transparent;
+        transition:
+                background-color 0.15s ease,
+                border-color 0.15s ease;
+    }
+
+    .md-sidebar-resizer:hover,
+    .md-sidebar-resizer.is-dragging {
+        background-color: var(--md-primary-fg-color--lightest);
+        border-left-color: var(--md-primary-fg-color);
+    }
+
+    /* 본문 */
+    .md-content {
+        grid-column: 3;
+        min-width: 0;
+        padding-left: 1rem;
+    }
+
+    /* 오른쪽 목차 */
+    .md-sidebar--secondary {
+        grid-column: 4;
+    }
+
+    /* 드래그 중 텍스트 선택 방지 */
+    body.is-sidebar-resizing {
+        cursor: col-resize;
+        user-select: none;
+    }
+}
+
+/* 긴 파일명 한 줄 표시 */
+.md-sidebar--primary .md-nav__link {
+    align-items: center;
+    line-height: 1.45;
+}
+
+.md-sidebar--primary .md-nav__link .md-ellipsis {
+    display: block;
+    overflow: visible;
+    white-space: nowrap;
+    text-overflow: clip;
+    word-break: normal;
+}
+
+/* 폴더명 */
+.md-sidebar--primary
+.md-nav__item--nested
+> .md-nav__link {
+    font-weight: 700;
+}
+
+/* 파일명 */
+.md-sidebar--primary
+.md-nav__item:not(.md-nav__item--nested)
+> .md-nav__link {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.7rem;
+}
