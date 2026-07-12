@@ -5,7 +5,7 @@
   "server_name": "CrawlProgram",
   "allow_multi_instance": true,
   "instance_key": "my_pyside_app",
-  "site_list_use": ["KRX_NEXTRADE"],
+  "site_list_use": ["ZIGZAG"],
   "site_list": [
     {
       "key": "NAVER_BAND_MEMBER",
@@ -102,6 +102,14 @@
     {
       "key": "BAROTEM",
       "config_path": "customers/barotem/config.json"
+    },
+    {
+      "key": "YEOGI_ADMIN",
+      "config_path": "customers/yeogi_admin/config.json"
+    },
+    {
+      "key": "ZIGZAG",
+      "config_path": "customers/zigzag/config.json"
     }
   ]
 }

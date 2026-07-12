@@ -1,0 +1,111 @@
+{
+  "label": "여기어때 관리자",
+  "key": "YEOGI_ADMIN",
+  "db_name": "YEOGI_ADMIN",
+  "db_common_name": "WORKER_JOB_HIST",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": false,
+  "region": false,
+  "worker_class": "src.workers.main.api_yeogi_admin_set_worker:ApiYeogiAdminSetWorker",
+  "setting": [
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "E:\\git\\crawl-program",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    },
+    {
+      "name": "자동 엑셀 저장",
+      "code": "auto_save_yn",
+      "value": true,
+      "type": "check"
+    },
+    {
+      "name": "중복제거",
+      "code": "remove_duplicate_yn",
+      "value": true,
+      "type": "check"
+    }
+  ],
+  "columns": [
+    {
+      "code": "business_name",
+      "value": "상호",
+      "checked": true
+    },
+    {
+      "code": "representative_name",
+      "value": "대표자명",
+      "checked": true
+    },
+    {
+      "code": "address",
+      "value": "주소",
+      "checked": true
+    },
+    {
+      "code": "phone",
+      "value": "전화번호",
+      "checked": true
+    },
+    {
+      "code": "email",
+      "value": "이메일",
+      "checked": true
+    },
+    {
+      "code": "business_number",
+      "value": "사업자 번호",
+      "checked": true
+    },
+    {
+      "code": "search_keyword",
+      "value": "검색어",
+      "checked": true
+    },
+    {
+      "code": "url",
+      "value": "URL",
+      "checked": true
+    }
+  ],
+  "search_col_list": [
+    {
+      "code": "business_name",
+      "value": "상호"
+    },
+    {
+      "code": "representative_name",
+      "value": "대표자명"
+    },
+    {
+      "code": "address",
+      "value": "주소"
+    },
+    {
+      "code": "phone",
+      "value": "전화번호"
+    },
+    {
+      "code": "email",
+      "value": "이메일"
+    },
+    {
+      "code": "business_number",
+      "value": "사업자 번호"
+    },
+    {
+      "code": "search_keyword",
+      "value": "검색어"
+    },
+    {
+      "code": "url",
+      "value": "URL"
+    }
+  ]
+}
