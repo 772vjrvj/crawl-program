@@ -182,7 +182,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 worker_name=self.worker_name,
                 detail_table_name=self.detail_table_name,
                 column_defs=column_defs,
-                user_id=self._get_db_user_id(),
+                user_id=self.user,
                 log_func=self.log_signal_func,
                 detail_log_fields=("id", "name"),
             )
@@ -207,18 +207,11 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         )
         return True
 
-    def _get_db_user_id(self) -> Optional[Any]:
-        if self.user is None:
-            return None
-        if isinstance(self.user, dict):
-            return self.user.get("user_id") or self.user.get("id")
-        if isinstance(self.user, (str, int)):
-            return self.user
-        return getattr(self.user, "user_id", None)
 
     def finish_job(self, status: str, error_message: Optional[str] = None) -> None:
         if self.db_repository:
             self.db_repository.set_job_result(status, error_message)
+
 
     def insert_detail_row(
             self,
@@ -242,15 +235,18 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             row_end_at=row_end_at,
         )
 
+
     @staticmethod
     def _now_db() -> str:
         """행 시작·종료시간을 Repository와 동일한 형식으로 반환한다."""
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
+
     def _set_detail_error(self, message: str) -> None:
         """현재 상세 조회의 대표 오류 메시지를 저장하고 로그로 출력한다."""
         self._last_detail_error_message = str(message or "상세 조회 실패")
         self.log_signal_func(self._last_detail_error_message)
+
 
     def _build_failed_detail_row(
             self,
@@ -271,6 +267,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             "keyword": query_keyword,
             "all_keyword": query,
         }
+
 
     def _fetch_and_save_place_detail(
             self,
@@ -340,6 +337,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             )
             return None, save_ok
 
+
     def export_detail_to_excel(self) -> bool:
         if not self.excel_driver:
             self.log_signal_func("❌ [엑셀] excel_driver 없음")
@@ -363,6 +361,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             folder_path=self.folder_path,
             sub_dir=self.out_dir,
         )
+
 
     def finalize_db_and_excel(self) -> None:
         if not self.db_repository:

@@ -1,92 +1,107 @@
-# src/workers/main/api_naver_place_url_all_set_worker.py
-import json
+# src/workers/main/api_base_set_worker.py
+from __future__ import annotations
+
 import os
-import re
-import time
 import threading
+import time
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from bs4 import BeautifulSoup
-from src.utils.selenium_utils import SeleniumUtils
-
+from src.repositories.worker_db_repository import WorkerDbRepository
 from src.utils.api_utils import APIClient
 from src.utils.excel_utils import ExcelUtils
 from src.utils.file_utils import FileUtils
-from src.utils.sqlite_utils import SqliteUtils
 from src.workers.api_base_worker import BaseApiWorker
 
 
-
 class ApiBaseSetWorker(BaseApiWorker):
+    """
+    신규 Worker 작성용 기본 샘플.
+
+    복사 후 아래 항목만 Worker에 맞게 변경한다.
+    - 클래스명
+    - site_name
+    - worker_name
+    - detail_table_name
+    - init()의 설정값
+    - main()의 비즈니스 로직
+
+    수집 결과 dict의 key는 config.json의 columns[].code를 사용한다.
+    DB 연결, 작업 이력, 건수 집계, detail 저장 및 엑셀 변환은
+    WorkerDbRepository가 담당한다.
+    """
 
     def __init__(self, setting: Any = None) -> None:
         super().__init__()
 
+        if setting is not None:
+            self.setting = setting
+
         self._stop_event = threading.Event()
-        self.setting: Any = setting
 
-        self.site_name: str = "카카오톡 톡딜 랭킹"
-        self.worker_name: str = "kakao_talkdeal_rank"
+        # 복사 후 필수 변경
+        self.site_name: str = "샘플 사이트"
+        self.worker_name: str = "sample_worker"
+        self.detail_table_name: str = "sample_worker"
 
+        # detail 저장 로그에 표시할 대표 컬럼
+        # 예: ("id", "name")
+        self.detail_log_fields: Tuple[str, ...] = ()
+
+        # 실행 상태
         self.running: bool = True
         self.before_pro_value: float = 0.0
-
-        # UI 셋팅값
-        self.detail_yn: bool = False
-        self.auto_save_yn: bool = False
-
-        # 상태값 / 드라이버
-        self.file_driver: Optional[FileUtils] = None
-        self.excel_driver: Optional[ExcelUtils] = None
-        self.sqlite_driver: Optional[SqliteUtils] = None
-        self.api_client: Optional[APIClient] = None
-
         self.init_flag: bool = False
         self._cleaned_up: bool = False
 
+        # UI 설정값
+        self.detail_yn: bool = False
+        self.auto_save_yn: bool = False
         self.folder_path: str = ""
         self.out_dir: str = "output"
 
-        # DB 저장용 공통 상태
-        self.hist_id = None
-        self.job_id = None
-        self.hist_status = "RUNNING"
-        self.hist_error_message = None
-        self.detail_table_name: str = "naver_cafe_article"
-        self.detail_success_count: int = 0
-        self.detail_fail_count: int = 0
+        # 드라이버
+        self.file_driver: Optional[FileUtils] = None
+        self.excel_driver: Optional[ExcelUtils] = None
+        self.api_client: Optional[APIClient] = None
 
-        # config columns
-        self.config_data: Dict[str, Any] = {}
-        self.column_defs: List[Dict[str, Any]] = []
-        self.db_columns: List[str] = []
-        self.excel_columns: List[str] = []
-        self.code_value_map: Dict[str, str] = {}
+        # DB Repository
+        self.db_repository: Optional[WorkerDbRepository] = None
 
+        # checked=true인 엑셀 한글 컬럼명
+        self.columns: List[str] = []
+
+    # =========================================================
+    # 초기화
+    # =========================================================
     def init(self) -> bool:
         try:
             if self.init_flag:
-                self.log_signal_func("이미 초기화 실행 완료")
+                self.log_signal_func("이미 초기화가 완료되었습니다.")
                 return True
 
-            # 셋팅값 추출
-            self.folder_path = str(self.get_setting_value(self.setting, "folder_path") or "").strip()
-            self.auto_save_yn = bool(self.get_setting_value(self.setting, "auto_save_yn"))
+            self.folder_path = str(
+                self.get_setting_value(self.setting, "folder_path") or ""
+            ).strip()
+            self.auto_save_yn = bool(
+                self.get_setting_value(self.setting, "auto_save_yn")
+            )
+
             self.log_signal_func(f"저장경로 : {self.folder_path}")
             self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
 
-            # 컬럼세팅
-            if not self.load_runtime_config_columns():
-                return False
+            # Worker별 설정값은 이 위치에서 추가한다.
+            # self.keyword = str(
+            #     self.get_setting_value(self.setting, "keyword") or ""
+            # ).strip()
 
             self.driver_set()
 
             if not self.db_set():
                 return False
 
-            self.log_signal_func("✅ init 완료")
             self.init_flag = True
+            self.log_signal_func("✅ init 완료")
             return True
 
         except Exception as e:
@@ -96,19 +111,44 @@ class ApiBaseSetWorker(BaseApiWorker):
     def driver_set(self) -> None:
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
-        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+        self.api_client = APIClient(
+            use_cache=False,
+            log_func=self.log_signal_func,
+        )
 
-
+    # =========================================================
+    # 비즈니스 로직
+    # =========================================================
     def main(self) -> bool:
         try:
-            self.log_signal_func("크롤링 시작")
+            self.log_signal_func("작업 시작")
 
+            # =================================================
+            # Worker별 비즈니스 로직 작성 영역
+            # =================================================
+            # 성공 저장 예시
+            # row_start_at = self._now_db()
+            # result = {
+            #     "id": "123",          # config columns[].code
+            #     "name": "샘플 데이터",
+            # }
+            # self.insert_detail_row(
+            #     result,
+            #     row_status="SUCCESS",
+            #     row_start_at=row_start_at,
+            #     row_end_at=self._now_db(),
+            # )
+            #
+            # 실패 행 저장 예시
+            # self.insert_detail_row(
+            #     {"id": "123", "name": ""},
+            #     row_status="FAIL",
+            #     row_error_message="상세 조회 실패",
+            #     row_start_at=row_start_at,
+            #     row_end_at=self._now_db(),
+            # )
 
-
-
-
-
-            if self.hist_status == "RUNNING":
+            if self.db_repository and self.db_repository.status == "RUNNING":
                 if self.running:
                     self.finish_job("SUCCESS")
                 else:
@@ -118,184 +158,170 @@ class ApiBaseSetWorker(BaseApiWorker):
             return True
 
         except Exception as e:
-            self.log_signal_func(f"❌ 전체 실행 중 예외 발생: {e}")
-            self.finish_job("FAIL", str(e))
+            error_message = str(e)
+            self.log_signal_func(f"❌ 전체 실행 중 예외 발생: {error_message}")
+            self.finish_job("FAIL", error_message)
             return False
 
-
-
     # =========================================================
-    # DB / Excel 공통 모듈 파트
+    # DB Repository
     # =========================================================
     def db_set(self) -> bool:
-        self.sqlite_driver = SqliteUtils(self.log_signal_func)
-        db_path = self.get_runtime_db_path()
+        config_data = self.read_runtime_customer_config(
+            customer_name=self.worker_name
+        )
+        column_defs = config_data.get("columns") or []
 
-        if not self.sqlite_driver.connect(db_path):
-            self.log_signal_func("❌ [DB] 연결 실패")
+        if not isinstance(column_defs, list) or not column_defs:
+            self.log_signal_func(
+                "❌ [config] columns가 없거나 형식이 올바르지 않습니다."
+            )
+            return False
+
+        try:
+            user = getattr(self, "user", None)
+            user_id = getattr(user, "user_id", user)
+
+            self.db_repository = WorkerDbRepository(
+                db_path=self.get_runtime_db_path(),
+                site_name=self.site_name,
+                worker_name=self.worker_name,
+                detail_table_name=self.detail_table_name,
+                column_defs=column_defs,
+                user_id=user_id,
+                log_func=self.log_signal_func,
+                detail_log_fields=self.detail_log_fields,
+            )
+        except Exception as e:
+            self.log_signal_func(f"❌ [DB] Repository 생성 실패: {e}")
             return False
 
         schema_files = [
-            os.path.join("resources", "customers", "common", "db", "schema_hist.sql"),
-            os.path.join("resources", "customers", self.worker_name, "db", "schema_detail.sql"),
+            os.path.join(
+                "resources", "customers", "common", "db", "schema_hist.sql"
+            ),
+            os.path.join(
+                "resources",
+                "customers",
+                self.worker_name,
+                "db",
+                "schema_detail.sql",
+            ),
         ]
 
-        if not self.sqlite_driver.execute_script_files(schema_files):
-            self.log_signal_func("❌ [DB] 스키마 초기화 실패")
+        if not self.db_repository.initialize(schema_files, start_job=True):
             return False
 
-        if not self.insert_hist_start():
-            return False
+        self.columns = list(self.db_repository.excel_columns)
 
+        self.log_signal_func(
+            f"✅ [config] DB 컬럼 수={len(self.db_repository.db_columns)} / "
+            f"엑셀 컬럼 수={len(self.db_repository.excel_columns)}"
+        )
         return True
 
-    def insert_hist_start(self) -> bool:
-        now = time.strftime("%Y-%m-%d %H:%M:%S")
-        self.job_id = time.strftime("%Y%m%d%H%M%S")
+    def finish_job(
+            self,
+            status: str,
+            error_message: Optional[str] = None,
+    ) -> None:
+        if self.db_repository:
+            self.db_repository.set_job_result(status, error_message)
 
-        query = """
-                INSERT INTO worker_job_hist (
-                    job_id, table_name, site_name, worker_name, user_id,
-                    start_at, status, total_count, success_count, fail_count,
-                    created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """
-        params = (
-            self.job_id, self.detail_table_name, self.site_name, self.worker_name,
-            getattr(self.user, "user_id", None) if self.user else None,
-            now, "RUNNING", 0, 0, 0, now, now,
+    def insert_detail_row(
+            self,
+            row: Dict[str, Any],
+            *,
+            row_status: str = "SUCCESS",
+            row_error_message: Optional[str] = None,
+            row_start_at: Optional[str] = None,
+            row_end_at: Optional[str] = None,
+    ) -> bool:
+        if not self.db_repository:
+            self.log_signal_func("❌ [DB] Repository 없음 - detail 저장 실패")
+            return False
+
+        return self.db_repository.insert_detail(
+            row,
+            row_status=row_status,
+            row_error_message=row_error_message,
+            row_start_at=row_start_at,
+            row_end_at=row_end_at,
         )
 
-        if not self.sqlite_driver.execute(query, params):
+    def insert_detail_rows(
+            self,
+            rows: Sequence[Dict[str, Any]],
+            *,
+            row_status: str = "SUCCESS",
+    ) -> bool:
+        if not self.db_repository:
+            self.log_signal_func(
+                "❌ [DB] Repository 없음 - detail 일괄 저장 실패"
+            )
             return False
 
-        row = self.sqlite_driver.fetchone("SELECT last_insert_rowid() AS hist_id")
-        self.hist_id = row["hist_id"] if row else None
-        return True
+        return self.db_repository.insert_details(rows, row_status=row_status)
 
-    def finish_job(self, status: str, error_message: Optional[str] = None) -> None:
-        self.hist_status = status
-        self.hist_error_message = error_message
+    @staticmethod
+    def _now_db() -> str:
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-    def update_hist_end(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
-        sqlite_driver = sqlite_driver or self.sqlite_driver
-        if not sqlite_driver or not self.hist_id:
+    # =========================================================
+    # Excel / 작업 마감
+    # =========================================================
+    def export_detail_to_excel(self) -> bool:
+        if not self.excel_driver:
+            self.log_signal_func("❌ [엑셀] excel_driver 없음")
             return False
 
-        now = time.strftime("%Y-%m-%d %H:%M:%S")
-        query = """
-                UPDATE worker_job_hist
-                SET end_at = ?, status = ?, total_count = ?, success_count = ?, fail_count = ?,
-                    error_message = ?, updated_at = ?
-                WHERE hist_id = ?
-                """
-        params = (
-            now, self.hist_status, self.detail_success_count + self.detail_fail_count,
-            self.detail_success_count, self.detail_fail_count, self.hist_error_message, now, self.hist_id,
-        )
-        return sqlite_driver.execute(query, params)
-
-    def insert_detail_row(self, rs: Dict[str, Any]) -> bool:
-        if not self.sqlite_driver or not self.db_columns:
-            self.detail_fail_count += 1
+        if not self.db_repository:
+            self.log_signal_func("❌ [엑셀] DB Repository 없음")
             return False
 
-        now = time.strftime("%Y-%m-%d %H:%M:%S")
-        db_rs = self.map_out_to_db(rs)
-
-        base_columns = ["hist_id", "site_name", "worker_name", "table_name", "job_id", "user_id", "row_status"]
-        all_columns = base_columns + self.db_columns + ["created_at", "updated_at"]
-        placeholders = ", ".join(["?"] * len(all_columns))
-        column_text = ",\n                    ".join(all_columns)
-
-        query = f"INSERT INTO {self.detail_table_name} ({column_text}) VALUES ({placeholders})"
-        params = (
-            self.hist_id, self.site_name, self.worker_name, self.detail_table_name, self.job_id,
-            getattr(self.user, "user_id", None) if self.user else None, "SUCCESS",
-            *[db_rs.get(col, "") for col in self.db_columns], now, now,
-        )
-
-        ok = self.sqlite_driver.execute(query, params)
-        if ok:
-            self.detail_success_count += 1
-        else:
-            self.detail_fail_count += 1
-        return ok
-
-    def get_runtime_config_path(self) -> str:
-        candidates = [
-            os.path.join(self.get_resource_root(), "runtime", "customers", self.worker_name, "config.json"),
-            os.path.join(self.get_project_root(), "runtime", "customers", self.worker_name, "config.json"),
-        ]
-        for path in candidates:
-            if os.path.exists(path): return path
-        return candidates[0]
-
-    def load_runtime_config_columns(self) -> bool:
-        config_path = self.get_runtime_config_path()
-        if not os.path.exists(config_path): return False
-
-        with open(config_path, "r", encoding="utf-8") as f:
-            self.config_data = json.load(f)
-
-        columns = self.config_data.get("columns") or []
-        self.column_defs = [c for c in columns if str(c.get("code")).strip() and str(c.get("value")).strip()]
-        self.db_columns = [str(c.get("code")).strip() for c in self.column_defs]
-        self.excel_columns = [str(c.get("value")).strip() for c in self.column_defs if bool(c.get("checked", False))]
-        self.code_value_map = {str(c.get("code")).strip(): str(c.get("value")).strip() for c in self.column_defs}
-        self.columns = self.excel_columns
-        return True
-
-    def map_out_to_db(self, out: Dict[str, Any]) -> Dict[str, Any]:
-        return {code: str(out.get(value) or "") for code, value in self.code_value_map.items()}
-
-    def db_rows_to_kor_rows(self, row_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        result = []
-        for row in row_list or []:
-            out = {}
-            for col in self.column_defs:
-                if not bool(col.get("checked", False)): continue
-                code, value = str(col.get("code")).strip(), str(col.get("value")).strip()
-                out[value] = row.get(code, "")
-            result.append(out)
-        return result
-
-    def export_detail_to_excel(self, sqlite_driver: Optional[SqliteUtils] = None) -> bool:
-        sqlite_driver = sqlite_driver or self.sqlite_driver
-        if not self.excel_driver or not sqlite_driver or not self.hist_id or not self.db_columns:
-            return False
-
-        select_text = ",\n                    ".join(self.db_columns)
-        query = f"SELECT {select_text} FROM {self.detail_table_name} WHERE hist_id = ? ORDER BY detail_id"
-
-        row_list = sqlite_driver.fetchall(query, (self.hist_id,))
-        if not row_list:
+        excel_columns, excel_rows = self.db_repository.get_excel_data()
+        if not excel_rows:
             self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
             return False
 
-        excel_row_list = self.db_rows_to_kor_rows([dict(row) for row in row_list])
-        excel_filename = f"{self.site_name}_{self.job_id}.xlsx"
+        job_id = self.db_repository.job_id or datetime.now().strftime(
+            "%Y%m%d%H%M%S"
+        )
+        excel_filename = f"{self.site_name}_{job_id}.xlsx"
 
         return self.excel_driver.save_db_rows_to_excel(
             excel_filename=excel_filename,
-            row_list=excel_row_list,
-            columns=self.columns,
+            row_list=excel_rows,
+            columns=excel_columns,
             folder_path=self.folder_path,
             sub_dir=self.out_dir,
         )
 
     def finalize_db_and_excel(self) -> None:
-        temp_sqlite_driver = None
+        if not self.db_repository:
+            return
+
         try:
-            temp_sqlite_driver = SqliteUtils(self.log_signal_func)
-            if temp_sqlite_driver.connect(self.get_runtime_db_path()):
-                self.update_hist_end(temp_sqlite_driver)
-                if self.auto_save_yn:
-                    self.export_detail_to_excel(temp_sqlite_driver)
+            if self.db_repository.status == "RUNNING":
+                self.db_repository.set_job_result("FAIL", "비정상 종료")
+
+            if self.db_repository.finish_job():
+                self.log_signal_func("✅ [DB] hist 최종 업데이트 완료")
+            else:
+                self.log_signal_func("❌ [DB] hist 최종 업데이트 실패")
+
+            if self.auto_save_yn:
+                if self.export_detail_to_excel():
+                    self.log_signal_func("✅ [엑셀] detail 자동 저장 완료")
+                else:
+                    self.log_signal_func("❌ [엑셀] detail 자동 저장 실패")
+            else:
+                self.log_signal_func(
+                    "ℹ️ [엑셀] 자동 저장 미사용(auto_save_yn=False)"
+                )
+
         except Exception as e:
             self.log_signal_func(f"[cleanup] finalize_db_and_excel 실패: {e}")
-        finally:
-            if temp_sqlite_driver: temp_sqlite_driver.close()
 
     # =========================================================
     # 종료 / 정리
@@ -304,22 +330,38 @@ class ApiBaseSetWorker(BaseApiWorker):
         if self._cleaned_up:
             return
 
-        try:
-            if self.sqlite_driver and hasattr(self.sqlite_driver, "close"):
-                self.sqlite_driver.close()
-        except: pass
-        finally:
-            self.sqlite_driver = None
-
+        # Repository 연결 종료 전에 hist 마감 및 엑셀 저장
         self.finalize_db_and_excel()
 
         try:
-            if self.file_driver: self.file_driver.close()
-            if self.excel_driver: self.excel_driver.close()
-            if self.api_client: self.api_client.close()
-        except: pass
+            if self.db_repository:
+                self.db_repository.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] db_repository.close 실패: {e}")
+        finally:
+            self.db_repository = None
 
-        self.file_driver, self.excel_driver, self.api_client = None, None, None
+        try:
+            if self.api_client:
+                self.api_client.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] api_client.close 실패: {e}")
+
+        try:
+            if self.file_driver:
+                self.file_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] file_driver.close 실패: {e}")
+
+        try:
+            if self.excel_driver:
+                self.excel_driver.close()
+        except Exception as e:
+            self.log_signal_func(f"[cleanup] excel_driver.close 실패: {e}")
+
+        self.api_client = None
+        self.file_driver = None
+        self.excel_driver = None
         self._cleaned_up = True
 
     def stop(self) -> None:
@@ -327,7 +369,7 @@ class ApiBaseSetWorker(BaseApiWorker):
         self.running = False
         self._stop_event.set()
 
-        if self.hist_status == "RUNNING":
+        if self.db_repository and self.db_repository.status == "RUNNING":
             self.finish_job("STOP", "사용자 중단")
 
         time.sleep(1)
@@ -335,6 +377,7 @@ class ApiBaseSetWorker(BaseApiWorker):
         self.log_signal_func("✅ stop 완료")
 
     def destroy(self) -> None:
+        self.cleanup()
         self.progress_signal.emit(self.before_pro_value, 1000000)
         self.log_signal_func("✅ destroy")
         time.sleep(2.5)
