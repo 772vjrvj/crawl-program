@@ -30,17 +30,17 @@ nav:
 
           - workers:
               - api_naver_place_loc_all_set_worker:
-                  - api_naver_place_loc_all_set_worker.md: src/workers/main/api_naver_place_loc_all_set_worker/api_zigzag_set_worker.md
+                  - api_naver_place_loc_all_set_worker.md: src/workers/main/api_naver_place_loc_all_set_worker/api_naver_shop_total_detail_set_worker.md
                   - HISTORY.md: src/workers/main/api_naver_place_loc_all_set_worker/HISTORY.md
                   - README.md: src/workers/main/api_naver_place_loc_all_set_worker/README.md
 
               - api_yeogi_admin_set_worker:
-                  - api_yeogi_admin_set_worker.md: src/workers/main/api_yeogi_admin_set_worker/api_zigzag_set_worker.md
+                  - api_yeogi_admin_set_worker.md: src/workers/main/api_yeogi_admin_set_worker/api_naver_shop_total_detail_set_worker.md
                   - HISTORY.md: src/workers/main/api_yeogi_admin_set_worker/HISTORY.md
                   - README.md: src/workers/main/api_yeogi_admin_set_worker/README.md
 
               - api_zigzag_set_worker:
-                  - api_zigzag_set_worker.md: src/workers/main/api_zigzag_set_worker/api_zigzag_set_worker.md
+                  - api_zigzag_set_worker.md: src/workers/main/api_zigzag_set_worker/api_naver_shop_total_detail_set_worker.md
                   - HISTORY.md: src/workers/main/api_zigzag_set_worker/HISTORY.md
 
               - api_base_worker.py: src/workers/api_base_worker.md
