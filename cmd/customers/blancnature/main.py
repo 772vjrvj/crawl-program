@@ -23,9 +23,9 @@ REFERER = "https://review6.cre.ma/v2/blancnature.co.kr/product_reviews/list_v3?p
 # 필요한 상품만 남기고, 안 쓸 상품은 주석 처리하면 됨
 PRODUCTS = [
     # {"product_code": "13", "product_name": "아크네 클렌징폼", "expected_reviews": 12285},
-    {"product_code": "12", "product_name": "매직 티트리오일", "expected_reviews": 10138},
-    {"product_code": "11", "product_name": "스네일 모이스처라이징 크림", "expected_reviews": 5347},
-    {"product_code": "96", "product_name": "판테놀 시카세럼", "expected_reviews": 416},
+    # {"product_code": "12", "product_name": "매직 티트리오일", "expected_reviews": 10138},
+    # {"product_code": "11", "product_name": "스네일 모이스처라이징 크림", "expected_reviews": 5347},
+    # {"product_code": "96", "product_name": "판테놀 시카세럼", "expected_reviews": 416},
     {"product_code": "175", "product_name": "어성초 토너", "expected_reviews": 1620},
 
     # 예시: 잠깐 제외하고 싶으면 이렇게 주석 처리
