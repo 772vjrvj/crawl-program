@@ -16,6 +16,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QWidget,
+    QDialog,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -31,12 +32,15 @@ from launcher.core.app_config import load_support_config
 from launcher.core.notice_store import hide_for_day, is_hidden
 from launcher.core.paths import LauncherPaths
 from launcher.core.state import read_current_state
+
 from launcher.ui.notice_dialog import NoticeDialog
+from launcher.ui.update_confirm_dialog import UpdateConfirmDialog
 from launcher.ui.style.style import (
     BTN_GRAY,
     btn_style,
     msgbox_style,
 )
+
 from launcher.workers.notice_worker import (
     NoticeWorker,
     NoticeResult,
@@ -69,17 +73,17 @@ class LauncherWindow(QWidget):
         self.notice_worker: Optional[NoticeWorker] = None
 
         self.last_result: Optional[UpdateResult] = None
-
-        # 긴급 공지를 다시 보기 위해 보관한다.
         self.last_notice: Optional[NoticeInfo] = None
 
         self.setWindowTitle("GB7 Launcher")
         self.setWindowIcon(self._make_window_icon())
         self.setMinimumWidth(520)
+
         self.setWindowFlag(
             Qt.WindowType.WindowStaysOnTopHint,
             True,
         )
+
         self.setStyleSheet(
             "background-color: #ffffff;"
         )
@@ -96,10 +100,15 @@ class LauncherWindow(QWidget):
         )
         root.setSpacing(10)
 
+        # ============================================================
+        # 제목
+        # ============================================================
         self.lbl_title = QLabel("초기화 중…")
         self.lbl_title.setStyleSheet(
-            "font-size: 16px;"
-            "font-weight: 700;"
+            """
+            font-size: 16px;
+            font-weight: 700;
+            """
         )
         root.addWidget(self.lbl_title)
 
@@ -138,6 +147,9 @@ class LauncherWindow(QWidget):
 
         root.addLayout(notice_row)
 
+        # ============================================================
+        # 상태 문구
+        # ============================================================
         self.lbl_sub = QLabel(
             "잠시만 기다려주세요."
         )
@@ -146,6 +158,9 @@ class LauncherWindow(QWidget):
         )
         root.addWidget(self.lbl_sub)
 
+        # ============================================================
+        # 진행률
+        # ============================================================
         self.prog = QProgressBar()
         self.prog.setRange(0, 100)
         self.prog.setValue(0)
@@ -172,16 +187,18 @@ class LauncherWindow(QWidget):
         )
         self.lbl_support.setOpenExternalLinks(True)
         self.lbl_support.setStyleSheet(
-            "color:#666;"
-            "padding:6px 0;"
+            """
+            color: #666666;
+            padding: 6px 0;
+            """
         )
         root.addWidget(self.lbl_support)
 
         # ============================================================
-        # 하단 버튼 영역
+        # 하단 버튼
         # ============================================================
-        row = QHBoxLayout()
-        row.setSpacing(8)
+        button_row = QHBoxLayout()
+        button_row.setSpacing(8)
 
         self.btn_toggle_log = QPushButton(
             "로그 보기"
@@ -195,9 +212,11 @@ class LauncherWindow(QWidget):
         self.btn_toggle_log.clicked.connect(
             self.on_toggle_log
         )
-        row.addWidget(self.btn_toggle_log)
+        button_row.addWidget(
+            self.btn_toggle_log
+        )
 
-        row.addStretch(1)
+        button_row.addStretch(1)
 
         self.btn_retry = QPushButton("재시도")
         self.btn_retry.setCursor(
@@ -209,7 +228,9 @@ class LauncherWindow(QWidget):
         self.btn_retry.clicked.connect(
             self.on_retry
         )
-        row.addWidget(self.btn_retry)
+        button_row.addWidget(
+            self.btn_retry
+        )
 
         self.btn_run = QPushButton("실행")
         self.btn_run.setCursor(
@@ -221,7 +242,9 @@ class LauncherWindow(QWidget):
         self.btn_run.clicked.connect(
             self.on_run
         )
-        row.addWidget(self.btn_run)
+        button_row.addWidget(
+            self.btn_run
+        )
 
         self.btn_close = QPushButton("닫기")
         self.btn_close.setCursor(
@@ -233,9 +256,11 @@ class LauncherWindow(QWidget):
         self.btn_close.clicked.connect(
             self.close
         )
-        row.addWidget(self.btn_close)
+        button_row.addWidget(
+            self.btn_close
+        )
 
-        root.addLayout(row)
+        root.addLayout(button_row)
 
         # ============================================================
         # 초기 상태
@@ -250,6 +275,7 @@ class LauncherWindow(QWidget):
             )
         )
 
+        # 화면 생성 후 긴급 공지 및 업데이트 확인 시작
         QTimer.singleShot(
             0,
             self.start_notice_then_update,
@@ -282,7 +308,7 @@ class LauncherWindow(QWidget):
         return QIcon(pixmap)
 
     # ================================================================
-    # UI 공통 함수
+    # UI 공통
     # ================================================================
     def log(
             self,
@@ -360,34 +386,36 @@ class LauncherWindow(QWidget):
         )
         box.exec()
 
-    def _msg_question_yesno(
+    # ================================================================
+    # 업데이트 확인창
+    # ================================================================
+    def _show_update_confirm(
             self,
-            title: str,
-            text: str,
-    ) -> QMessageBox.StandardButton:
-        box = QMessageBox(self)
-        box.setIcon(
-            QMessageBox.Icon.Question
-        )
-        box.setWindowTitle(title)
-        box.setText(text)
-        box.setStandardButtons(
-            QMessageBox.StandardButton.Yes
-            | QMessageBox.StandardButton.No
-        )
-        box.setDefaultButton(
-            QMessageBox.StandardButton.Yes
-        )
-        box.setStyleSheet(
-            msgbox_style(
-                primary_color=BTN_GRAY
-            )
+            current_version: str,
+            latest_version: str,
+    ) -> bool:
+        """
+        업데이트 전용 확인창을 표시한다.
+
+        반환값:
+        True  : 지금 업데이트
+        False : 현재 버전 실행 또는 창 닫기
+        """
+        dialog = UpdateConfirmDialog(
+            parent=self,
+            current_version=current_version,
+            latest_version=latest_version,
         )
 
-        return box.exec()
+        result = dialog.exec()
+
+        return (
+                result
+                == QDialog.DialogCode.Accepted
+        )
 
     # ================================================================
-    # 지원 센터 링크
+    # 지원 센터
     # ================================================================
     def _set_support_links(
             self,
@@ -409,13 +437,25 @@ class LauncherWindow(QWidget):
             "osver": platform.version(),
         }
 
+        query_string = urlencode(params)
+
+        site_url = (
+            f"{config.site_url}"
+            f"?{query_string}"
+        )
+
+        qna_url = (
+            f"{config.qna_url}"
+            f"?{query_string}"
+        )
+
         self.lbl_support.setText(
             f'🛟 <b>지원 센터</b> &nbsp; '
-            f'🌐 <a href="{config.site_url}">'
+            f'🌐 <a href="{site_url}">'
             f'공식 사이트'
             f'</a>'
             f' &nbsp; | &nbsp; '
-            f'📨 <a href="{config.qna_url}">'
+            f'📨 <a href="{qna_url}">'
             f'문의/Q&amp;A'
             f'</a>'
         )
@@ -423,7 +463,7 @@ class LauncherWindow(QWidget):
         self.lbl_support.setVisible(True)
 
     # ================================================================
-    # 화면 이벤트
+    # 로그 표시/숨김
     # ================================================================
     def on_toggle_log(self) -> None:
         visible = not self.txt_log.isVisible()
@@ -450,6 +490,9 @@ class LauncherWindow(QWidget):
             self.minimumSizeHint().height(),
         )
 
+    # ================================================================
+    # 재시도
+    # ================================================================
     def on_retry(self) -> None:
         self.txt_log.clear()
 
@@ -460,6 +503,9 @@ class LauncherWindow(QWidget):
 
         self.start_notice_then_update()
 
+    # ================================================================
+    # 프로그램 실행
+    # ================================================================
     def on_run(self) -> None:
         if self.last_result is None:
             self._msg_info(
@@ -486,15 +532,20 @@ class LauncherWindow(QWidget):
             )
             return
 
+        # 프로그램 실행 후 런처 종료
         QTimer.singleShot(
             300,
             self.close,
         )
 
+    # ================================================================
+    # 창 닫기
+    # ================================================================
     def closeEvent(
             self,
             event: QCloseEvent,
     ) -> None:
+        # 업데이트 작업 중에는 종료하지 못하게 한다.
         if (
                 self.worker is not None
                 and self.worker.isRunning()
@@ -509,15 +560,12 @@ class LauncherWindow(QWidget):
         super().closeEvent(event)
 
     # ================================================================
-    # 긴급 공지
+    # 긴급 공지 다시 보기
     # ================================================================
     def on_open_notice(
             self,
             _checked: bool = False,
     ) -> None:
-        """
-        긴급 공지 다시 보기 버튼 클릭 처리.
-        """
         if self.last_notice is None:
             return
 
@@ -532,10 +580,10 @@ class LauncherWindow(QWidget):
             modal: bool,
     ) -> None:
         """
-        긴급 공지 팝업을 표시한다.
+        긴급 공지창을 표시한다.
 
-        오늘 하루 안보기를 체크하면
-        오늘 자정까지 자동 팝업을 숨긴다.
+        오늘 하루 안보기를 선택하면
+        사용자 PC 시간 기준 오늘 자정까지 자동 팝업을 숨긴다.
         """
         dialog = NoticeDialog(
             self,
@@ -563,7 +611,7 @@ class LauncherWindow(QWidget):
             )
 
     # ================================================================
-    # 긴급 공지 확인 후 업데이트 확인
+    # 긴급 공지 확인 시작
     # ================================================================
     def start_notice_then_update(self) -> None:
         try:
@@ -612,18 +660,19 @@ class LauncherWindow(QWidget):
 
         self.notice_worker.start()
 
+    # ================================================================
+    # 긴급 공지 조회 완료
+    # ================================================================
     def on_notice_done(
             self,
             result: NoticeResult,
     ) -> None:
         """
-        서버에서 받은 최신 공지를 처리한다.
+        런처에서는 긴급 공지만 표시한다.
 
-        처리 정책:
-        - force=true 또는 level=CRITICAL:
-          긴급 공지로 처리한다.
-        - 그 외 일반 공지:
-          런처에서는 표시하지 않는다.
+        긴급 공지 조건:
+        - level == CRITICAL
+        - force == True
         """
         if not result.ok:
             self.log(
@@ -639,28 +688,7 @@ class LauncherWindow(QWidget):
 
         notice = result.notice
 
-        # ============================================================
-        # 긴급 공지 테스트 시작
-        #
-        # 테스트가 끝나면 아래 블록 전체를 주석 처리하거나 삭제한다.
-        # ============================================================
-        # notice = NoticeInfo(
-        #     notice_id="TEST_CRITICAL_001",
-        #     level="CRITICAL",
-        #     force=True,
-        #     title="긴급 공지 테스트",
-        #     content=(
-        #         "현재 긴급 공지 기능을 테스트하고 있습니다.\n\n"
-        #         "로그인 서버 점검 또는 서비스 장애가 발생한 경우\n"
-        #         "이곳에 긴급 안내 내용이 표시됩니다.\n\n"
-        #         "오늘 하루 안보기를 체크하면 오늘 자정까지\n"
-        #         "런처를 다시 실행해도 자동 팝업이 표시되지 않습니다.\n\n"
-        #         "자동 팝업이 표시되지 않아도 런처 화면의\n"
-        #         "'긴급 공지 다시 보기' 버튼으로 확인할 수 있습니다."
-        #     ),
-        # )
-
-        # 공지가 없으면 바로 업데이트 확인을 시작한다.
+        # 공지가 없으면 업데이트 확인으로 이동
         if notice is None:
             self.last_notice = None
             self.btn_notice_open.setVisible(False)
@@ -691,16 +719,16 @@ class LauncherWindow(QWidget):
             )
             return
 
-        # 긴급 공지를 다시 볼 수 있도록 보관한다.
+        # 긴급 공지를 다시 볼 수 있도록 저장
         self.last_notice = notice
 
-        # 자동 팝업 여부와 관계없이 다시 보기 버튼은 표시한다.
+        # 자동 팝업을 숨긴 상태여도 버튼은 항상 표시
         self.btn_notice_open.setText(
             "🚨 긴급 공지 다시 보기"
         )
         self.btn_notice_open.setVisible(True)
 
-        # 오늘 하루 안보기 상태가 아니면 자동 팝업을 표시한다.
+        # 오늘 하루 안보기 상태가 아니라면 자동 표시
         if not is_hidden(
                 self.paths.notice_ack_json,
                 notice.notice_id,
@@ -716,12 +744,13 @@ class LauncherWindow(QWidget):
                 f"{notice.notice_id}"
             )
 
+        # 공지 처리 후 업데이트 확인
         self.start_worker(
             auto_update=False
         )
 
     # ================================================================
-    # 업데이트 Worker
+    # 업데이트 확인 시작
     # ================================================================
     def start_worker(
             self,
@@ -767,6 +796,9 @@ class LauncherWindow(QWidget):
 
         self.worker.start()
 
+    # ================================================================
+    # 업데이트 상태
+    # ================================================================
     def on_worker_status(
             self,
             text: str,
@@ -798,13 +830,18 @@ class LauncherWindow(QWidget):
             )
         )
 
+    # ================================================================
+    # 업데이트 완료
+    # ================================================================
     def on_worker_done(
             self,
             result: UpdateResult,
     ) -> None:
         self.last_result = result
 
+        # ============================================================
         # 새 버전이 있는 경우
+        # ============================================================
         if (
                 result.ok
                 and getattr(
@@ -817,21 +854,30 @@ class LauncherWindow(QWidget):
                     result.latest_version or "?"
             )
 
-            answer = self._msg_question_yesno(
-                "업데이트 안내",
-                (
-                    f"새 버전({latest_version})이 있습니다.\n"
-                    f"업데이트를 진행하시겠습니까?\n\n"
-                    f"- 예: 업데이트 후 실행 준비\n"
-                    f"- 아니오: 현재 버전 실행 준비"
-                ),
+            current_version = "?"
+
+            try:
+                state = read_current_state(
+                    self.paths.current_json
+                )
+                current_version = state.version
+            except Exception as error:
+                self.log(
+                    "[launcher] "
+                    "current version read failed: "
+                    f"{str(error)}"
+                )
+
+            update_accepted = self._show_update_confirm(
+                current_version=current_version,
+                latest_version=latest_version,
             )
 
-            if (
-                    answer
-                    == QMessageBox.StandardButton.Yes
-            ):
-                self.txt_log.append(
+            # --------------------------------------------------------
+            # 지금 업데이트
+            # --------------------------------------------------------
+            if update_accepted:
+                self.log(
                     "[launcher] "
                     "user accepted update"
                 )
@@ -841,7 +887,10 @@ class LauncherWindow(QWidget):
                 )
                 return
 
-            self.txt_log.append(
+            # --------------------------------------------------------
+            # 현재 버전 실행
+            # --------------------------------------------------------
+            self.log(
                 "[launcher] "
                 "user skipped update"
             )
@@ -883,7 +932,9 @@ class LauncherWindow(QWidget):
             )
             return
 
-        # 최신 버전이거나 설치가 완료된 경우
+        # ============================================================
+        # 최신 버전이거나 업데이트 설치 완료
+        # ============================================================
         if result.ok:
             self.lbl_title.setText(
                 "준비 완료"
@@ -905,7 +956,9 @@ class LauncherWindow(QWidget):
             )
             return
 
+        # ============================================================
         # 업데이트 실패
+        # ============================================================
         self.lbl_title.setText("실패")
 
         self.apply_state(
