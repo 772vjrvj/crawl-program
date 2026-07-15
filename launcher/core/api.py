@@ -75,7 +75,7 @@ def fetch_latest_notice(server_base_url: str, program_id: str, timeout_sec: int 
     공지 최신 1건만 조회(런처용)
     """
     base = server_base_url.rstrip("/")
-    url = f"{base}/launcher/api/v1/programs/{program_id}/notices/latest"
+    url = f"{base}/launcher/api/v1/programs/{program_id}/notices/latest/critical"
     headers = {"Accept": "application/json"}
 
     try:

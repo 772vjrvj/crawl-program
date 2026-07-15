@@ -120,16 +120,3 @@ def msgbox_style(primary_color: str = BTN_PRIMARY) -> str:
         }}
     """
 
-
-# =========================
-# === 신규 === Banner style
-# =========================
-def notice_banner_style(color: str = BTN_PRIMARY) -> str:
-    return (
-        f"padding: 1px 12px;"
-        f"border-radius: 5px;"
-        f"border: 1px solid {color};"
-        f"background: {BG_WHITE};"
-        f"color: {TEXT_MAIN};"
-        f"min-height: 30px;"
-    )

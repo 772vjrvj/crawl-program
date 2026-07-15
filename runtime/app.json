@@ -1,11 +1,11 @@
 {
-  "server_url": "https://goodbye772.com/",
-  "server_url_main": "https://goodbye772.com/",
+  "server_url": "https://goodbye772.com",
+  "server_url_main": "https://goodbye772.com",
   "server_url_local": "http://localhost",
   "server_name": "CrawlProgram",
   "allow_multi_instance": true,
   "instance_key": "my_pyside_app",
-  "site_list_use": ["ZIGZAG"],
+  "site_list_use": ["NAVER_SHOP_TOTAL_DETAIL"],
   "site_list": [
     {
       "key": "NAVER_BAND_MEMBER",

@@ -1,5 +1,5 @@
 # launcher/core/paths.py
-from __future__ import annotations  # === 신규 ===
+from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
@@ -12,11 +12,11 @@ class LauncherPaths:
     data_dir: Path
     versions_dir: Path
     current_json: Path
-    notice_ack_json: Path  # === 신규 ===
+    notice_ack_json: Path
 
 def get_base_dir() -> Path:
     """
-    행님 구조 기준:
+    구조 기준:
     - 개발: crawl-program/launcher 가 base_dir
     - 운영(Python/PyInstaller): launcher.exe가 있는 폴더가 base_dir
     """
@@ -32,16 +32,16 @@ def get_paths() -> LauncherPaths:
     data = base / "data"
     versions = base / "versions"
     current = data / "current.json"
-    notice_ack = data / "notice_ack.json"  # === 신규 ===
+    notice_ack = data / "notice_ack.json"
     return LauncherPaths(
         base_dir=base,
         data_dir=data,
         versions_dir=versions,
         current_json=current,
-        notice_ack_json=notice_ack,  # === 신규 ===
+        notice_ack_json=notice_ack,
     )
 
-
+# ensure_dirs()는 런처 시작 시 다음 폴더가 없으면 자동으로 생성한다. data versions
 def ensure_dirs(p: LauncherPaths) -> None:
     p.data_dir.mkdir(parents=True, exist_ok=True)
     p.versions_dir.mkdir(parents=True, exist_ok=True)
