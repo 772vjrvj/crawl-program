@@ -19,34 +19,80 @@ $LauncherVersionsDir = Join-Path $LauncherDistDir "versions"
 
 $SourceDataDir = Join-Path $ProjectDir "launcher\data"
 $CurrentJsonPath = Join-Path $SourceDataDir "current.json"
+$AppJsonPath = Join-Path $SourceDataDir "app.json"
 
 
 # ============================================================
 # current.json에서 현재 프로그램과 버전 읽기
 # ============================================================
 if (-not (Test-Path $CurrentJsonPath)) {
-    throw "current.json을 찾을 수 없습니다: $CurrentJsonPath"
+    throw "current.json not found: $CurrentJsonPath"
 }
 
-$currentConfig = Get-Content $CurrentJsonPath -Raw -Encoding UTF8 |
+$currentConfig = Get-Content `
+    $CurrentJsonPath `
+    -Raw `
+    -Encoding UTF8 |
     ConvertFrom-Json
 
 $ProgramId = $currentConfig.program_id
 $CurrentVersion = $currentConfig.version
+
+if ([string]::IsNullOrWhiteSpace($ProgramId)) {
+    throw "program_id is empty in current.json"
+}
+
+if ([string]::IsNullOrWhiteSpace($CurrentVersion)) {
+    throw "version is empty in current.json"
+}
+
 $CurrentVersionDirName = "v" + ($CurrentVersion -replace "\.", "_")
 
 Write-Host ""
-Write-Host "프로그램 ID : $ProgramId"
-Write-Host "현재 버전   : $CurrentVersion"
-Write-Host "버전 폴더   : $CurrentVersionDirName"
+Write-Host "============================================================"
+Write-Host "Launcher Build Information"
+Write-Host "============================================================"
+Write-Host "Program ID      : $ProgramId"
+Write-Host "Current Version : $CurrentVersion"
+Write-Host "Version Folder  : $CurrentVersionDirName"
+Write-Host "Project Folder  : $ProjectDir"
 Write-Host ""
+
+
+# ============================================================
+# 필수 파일 확인
+# ============================================================
+if (-not (Test-Path $LauncherSource)) {
+    throw "Launcher source not found: $LauncherSource"
+}
+
+if (-not (Test-Path $VersionFile)) {
+    throw "Version file not found: $VersionFile"
+}
+
+if (-not (Test-Path $IconFile)) {
+    throw "Icon file not found: $IconFile"
+}
+
+if (-not (Test-Path $AppJsonPath)) {
+    throw "app.json not found: $AppJsonPath"
+}
 
 
 # ============================================================
 # 이전 런처 빌드 결과 제거
 # ============================================================
 if (Test-Path $LauncherDistDir) {
-    Remove-Item $LauncherDistDir -Recurse -Force
+    Write-Host "Removing previous launcher build..."
+    Write-Host $LauncherDistDir
+
+    Remove-Item `
+        $LauncherDistDir `
+        -Recurse `
+        -Force
+
+    Write-Host "Previous launcher build removed."
+    Write-Host ""
 }
 
 
@@ -57,6 +103,11 @@ if (Test-Path $LauncherDistDir) {
 # 폴더 방식(onedir)으로 빌드
 # ============================================================
 Set-Location $ProjectDir
+
+Write-Host "============================================================"
+Write-Host "Starting PyInstaller build"
+Write-Host "============================================================"
+Write-Host ""
 
 python -m PyInstaller `
     $LauncherSource `
@@ -77,8 +128,12 @@ python -m PyInstaller `
     --add-data "$ProjectDir\launcher\img;img"
 
 if ($LASTEXITCODE -ne 0) {
-    throw "PyInstaller 런처 빌드에 실패했습니다."
+    throw "PyInstaller build failed. Exit code: $LASTEXITCODE"
 }
+
+Write-Host ""
+Write-Host "PyInstaller build completed."
+Write-Host ""
 
 
 # ============================================================
@@ -96,19 +151,32 @@ New-Item `
     -Path $LauncherVersionsDir |
     Out-Null
 
+Write-Host "Data folder created:"
+Write-Host $LauncherDataDir
+Write-Host ""
+
+Write-Host "Versions folder created:"
+Write-Host $LauncherVersionsDir
+Write-Host ""
+
 
 # ============================================================
 # 런처 설정 파일 자동 복사
 # ============================================================
 Copy-Item `
-    (Join-Path $SourceDataDir "app.json") `
+    $AppJsonPath `
     (Join-Path $LauncherDataDir "app.json") `
     -Force
 
 Copy-Item `
-    (Join-Path $SourceDataDir "current.json") `
+    $CurrentJsonPath `
     (Join-Path $LauncherDataDir "current.json") `
     -Force
+
+Write-Host "Configuration files copied:"
+Write-Host "app.json"
+Write-Host "current.json"
+Write-Host ""
 
 
 # ============================================================
@@ -124,6 +192,10 @@ $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
     $Utf8NoBom
 )
 
+Write-Host "Notice acknowledgment file created:"
+Write-Host $NoticeAckPath
+Write-Host ""
+
 
 # ============================================================
 # 현재 프로그램 빌드 결과 자동 복사
@@ -137,7 +209,6 @@ $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 $ProgramDistDir = Join-Path $DistDir $ProgramId
 
 if (Test-Path $ProgramDistDir) {
-
     $CurrentVersionTargetDir = Join-Path `
         $LauncherVersionsDir `
         $CurrentVersionDirName
@@ -154,28 +225,39 @@ if (Test-Path $ProgramDistDir) {
         -Recurse `
         -Force
 
-    Write-Host "현재 프로그램 복사 완료"
-    Write-Host "$ProgramDistDir"
-    Write-Host "-> $CurrentVersionTargetDir"
+    Write-Host "============================================================"
+    Write-Host "Current program copied"
+    Write-Host "============================================================"
+    Write-Host "Source:"
+    Write-Host $ProgramDistDir
+    Write-Host ""
+    Write-Host "Target:"
+    Write-Host $CurrentVersionTargetDir
+    Write-Host ""
 }
 else {
     Write-Host ""
-    Write-Warning "현재 프로그램 빌드 폴더를 찾지 못했습니다."
-    Write-Warning "$ProgramDistDir"
-    Write-Warning "versions 폴더만 생성하고 런처 빌드를 계속합니다."
+    Write-Warning "Program build folder not found:"
+    Write-Warning $ProgramDistDir
+    Write-Warning "The launcher build will continue without program files."
+    Write-Host ""
 }
 
 
 # ============================================================
 # 완료
 # ============================================================
+$LauncherExePath = Join-Path `
+    $LauncherDistDir `
+    "$LauncherName.exe"
+
 Write-Host ""
 Write-Host "============================================================"
-Write-Host "런처 빌드 완료"
+Write-Host "Launcher build completed"
 Write-Host "============================================================"
-Write-Host "결과 폴더:"
+Write-Host "Output folder:"
 Write-Host $LauncherDistDir
 Write-Host ""
-Write-Host "실행 파일:"
-Write-Host (Join-Path $LauncherDistDir "$LauncherName.exe")
+Write-Host "Executable:"
+Write-Host $LauncherExePath
 Write-Host ""

@@ -1,5 +1,6 @@
-# launcher/ui/update_confirm_dialog.py
 from __future__ import annotations
+
+from enum import Enum
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -19,9 +20,35 @@ from launcher.ui.style.style import (
 )
 
 
+class UpdateConfirmAction(str, Enum):
+    """
+    업데이트 확인창에서 사용자가 선택한 동작.
+
+    UPDATE:
+        새 버전을 다운로드하고 설치한다.
+
+    RUN_CURRENT:
+        업데이트하지 않고 현재 설치된 버전을 바로 실행한다.
+
+    CANCEL:
+        창의 X 버튼이나 Esc 키로 닫았다.
+        프로그램을 자동 실행하지 않고 런처 화면으로 돌아간다.
+    """
+
+    UPDATE = "update"
+    RUN_CURRENT = "run_current"
+    CANCEL = "cancel"
+
+
 class UpdateConfirmDialog(QDialog):
     """
     새 버전이 있을 때 표시하는 업데이트 확인창.
+
+    버튼과 창 닫기를 구분한다.
+
+    - 지금 업데이트      -> UpdateConfirmAction.UPDATE
+    - 현재 버전 실행     -> UpdateConfirmAction.RUN_CURRENT
+    - X 버튼 또는 Esc    -> UpdateConfirmAction.CANCEL
     """
 
     def __init__(
@@ -31,6 +58,9 @@ class UpdateConfirmDialog(QDialog):
             latest_version: str,
     ) -> None:
         super().__init__(parent)
+
+        # 사용자가 별도 버튼을 누르지 않고 X 또는 Esc로 닫으면 CANCEL이다.
+        self._selected_action = UpdateConfirmAction.CANCEL
 
         self.setWindowTitle("업데이트 안내")
         self.setModal(True)
@@ -221,7 +251,7 @@ class UpdateConfirmDialog(QDialog):
             btn_style(BTN_GRAY)
         )
         self.btn_skip.clicked.connect(
-            self.reject
+            self._select_run_current
         )
         button_row.addWidget(self.btn_skip)
 
@@ -235,7 +265,7 @@ class UpdateConfirmDialog(QDialog):
             btn_style(BTN_PRIMARY)
         )
         self.btn_update.clicked.connect(
-            self.accept
+            self._select_update
         )
 
         # 엔터키를 누르면 업데이트 진행
@@ -245,3 +275,17 @@ class UpdateConfirmDialog(QDialog):
         button_row.addWidget(self.btn_update)
 
         root.addLayout(button_row)
+
+    def _select_update(self) -> None:
+        """지금 업데이트를 선택한다."""
+        self._selected_action = UpdateConfirmAction.UPDATE
+        self.accept()
+
+    def _select_run_current(self) -> None:
+        """현재 버전 실행을 선택한다."""
+        self._selected_action = UpdateConfirmAction.RUN_CURRENT
+        self.accept()
+
+    def selected_action(self) -> UpdateConfirmAction:
+        """사용자가 선택한 최종 동작을 반환한다."""
+        return self._selected_action

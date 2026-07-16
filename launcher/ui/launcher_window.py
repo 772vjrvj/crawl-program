@@ -1,7 +1,7 @@
-# launcher/ui/launcher_window.py
 from __future__ import annotations
 
 import platform
+from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import urlencode
@@ -16,7 +16,6 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QWidget,
-    QDialog,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -34,7 +33,10 @@ from launcher.core.paths import LauncherPaths
 from launcher.core.state import read_current_state
 
 from launcher.ui.notice_dialog import NoticeDialog
-from launcher.ui.update_confirm_dialog import UpdateConfirmDialog
+from launcher.ui.update_confirm_dialog import (
+    UpdateConfirmAction,
+    UpdateConfirmDialog,
+)
 from launcher.ui.style.style import (
     BTN_GRAY,
     btn_style,
@@ -314,7 +316,27 @@ class LauncherWindow(QWidget):
             self,
             message: str,
     ) -> None:
-        self.txt_log.append(message)
+        """
+        모든 로그 앞에 사용자 PC의 현재 시간을 붙여 표시한다.
+
+        출력 예:
+        [2026-07-16 11:06:04] [launcher] program_id=NAVER_BAND_MEMBER
+
+        여러 줄 메시지가 들어오면 각 줄마다 시간을 붙인다.
+        """
+        log_time = datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+        lines = str(message).splitlines()
+
+        if not lines:
+            lines = [""]
+
+        for line in lines:
+            self.txt_log.append(
+                f"[{log_time}] {line}"
+            )
 
     def apply_state(
             self,
@@ -346,6 +368,26 @@ class LauncherWindow(QWidget):
         )
 
         self.btn_toggle_log.setEnabled(True)
+
+    def _show_ready_state(
+            self,
+            result: UpdateResult,
+            status: str,
+            can_retry: bool = False,
+    ) -> None:
+        """런처에서 직접 실행할 수 있는 준비 상태를 표시한다."""
+        self.last_result = result
+        self.lbl_title.setText("준비 완료")
+
+        self.apply_state(
+            UiState(
+                busy=False,
+                can_run=bool(result.exe_path),
+                can_retry=can_retry,
+                percent=self.prog.value(),
+                status=status,
+            )
+        )
 
     # ================================================================
     # 메시지 박스
@@ -393,13 +435,19 @@ class LauncherWindow(QWidget):
             self,
             current_version: str,
             latest_version: str,
-    ) -> bool:
+    ) -> UpdateConfirmAction:
         """
         업데이트 전용 확인창을 표시한다.
 
         반환값:
-        True  : 지금 업데이트
-        False : 현재 버전 실행 또는 창 닫기
+        UPDATE:
+            지금 업데이트를 선택했다.
+
+        RUN_CURRENT:
+            현재 버전 실행을 선택했다.
+
+        CANCEL:
+            X 버튼 또는 Esc로 팝업을 닫았다.
         """
         dialog = UpdateConfirmDialog(
             parent=self,
@@ -407,12 +455,8 @@ class LauncherWindow(QWidget):
             latest_version=latest_version,
         )
 
-        result = dialog.exec()
-
-        return (
-                result
-                == QDialog.DialogCode.Accepted
-        )
+        dialog.exec()
+        return dialog.selected_action()
 
     # ================================================================
     # 지원 센터
@@ -506,22 +550,41 @@ class LauncherWindow(QWidget):
     # ================================================================
     # 프로그램 실행
     # ================================================================
-    def on_run(self) -> None:
-        if self.last_result is None:
-            self._msg_info(
-                "안내",
-                "아직 준비되지 않았습니다.",
-            )
-            return
+    def _run_result_exe(
+            self,
+            result: UpdateResult,
+    ) -> bool:
+        """
+        UpdateResult에 들어 있는 실행 파일을 실행한다.
 
-        if not self.last_result.exe_path:
+        성공:
+            프로그램 실행 후 런처를 닫는다.
+
+        실패:
+            런처를 유지하고 재시도 및 실행 버튼을 제공한다.
+        """
+        self.last_result = result
+
+        if not result.exe_path:
             self._msg_warn(
                 "실행 실패",
                 "실행 파일 경로를 찾지 못했습니다.",
             )
-            return
 
-        ok, message = self.last_result.try_run(
+            self.lbl_title.setText("실패")
+
+            self.apply_state(
+                UiState(
+                    busy=False,
+                    can_run=False,
+                    can_retry=True,
+                    percent=self.prog.value(),
+                    status="실행 파일 없음",
+                )
+            )
+            return False
+
+        ok, message = result.try_run(
             wait=False
         )
 
@@ -530,12 +593,37 @@ class LauncherWindow(QWidget):
                 "실행 실패",
                 message,
             )
-            return
+
+            self.lbl_title.setText("실행 실패")
+
+            self.apply_state(
+                UiState(
+                    busy=False,
+                    can_run=True,
+                    can_retry=True,
+                    percent=self.prog.value(),
+                    status="프로그램 실행에 실패했습니다.",
+                )
+            )
+            return False
 
         # 프로그램 실행 후 런처 종료
         QTimer.singleShot(
             300,
             self.close,
+        )
+        return True
+
+    def on_run(self) -> None:
+        if self.last_result is None:
+            self._msg_info(
+                "안내",
+                "아직 준비되지 않았습니다.",
+            )
+            return
+
+        self._run_result_exe(
+            self.last_result
         )
 
     # ================================================================
@@ -763,7 +851,9 @@ class LauncherWindow(QWidget):
             return
 
         self.lbl_title.setText(
-            "업데이트 확인 중…"
+            "업데이트 중…"
+            if auto_update
+            else "업데이트 확인 중…"
         )
 
         self.apply_state(
@@ -772,7 +862,11 @@ class LauncherWindow(QWidget):
                 can_run=False,
                 can_retry=False,
                 percent=0,
-                status="서버에 접속 중…",
+                status=(
+                    "업데이트를 시작합니다…"
+                    if auto_update
+                    else "서버에 접속 중…"
+                ),
             )
         )
 
@@ -795,6 +889,36 @@ class LauncherWindow(QWidget):
         )
 
         self.worker.start()
+
+    def _start_worker_after_current_finishes(
+            self,
+            auto_update: bool,
+    ) -> None:
+        """
+        현재 UpdateWorker가 sig_done을 보낸 뒤 완전히 종료되면
+        다음 UpdateWorker를 시작한다.
+
+        업데이트 확인 Worker에서 바로 실제 업데이트 Worker로
+        넘어갈 때 QThread 중복 실행을 방지한다.
+        """
+        current_worker = self.worker
+
+        if (
+                current_worker is None
+                or not current_worker.isRunning()
+        ):
+            self.start_worker(auto_update)
+            return
+
+        def start_next_worker() -> None:
+            if self.worker is current_worker:
+                self.worker = None
+
+            self.start_worker(auto_update)
+
+        current_worker.finished.connect(
+            start_next_worker
+        )
 
     # ================================================================
     # 업데이트 상태
@@ -840,16 +964,9 @@ class LauncherWindow(QWidget):
         self.last_result = result
 
         # ============================================================
-        # 새 버전이 있는 경우
+        # 1. 새 버전이 있지만 아직 설치하지 않은 상태
         # ============================================================
-        if (
-                result.ok
-                and getattr(
-            result,
-            "update_available",
-            False,
-        )
-        ):
+        if result.ok and result.update_available:
             latest_version = (
                     result.latest_version or "?"
             )
@@ -868,117 +985,140 @@ class LauncherWindow(QWidget):
                     f"{str(error)}"
                 )
 
-            update_accepted = self._show_update_confirm(
+            action = self._show_update_confirm(
                 current_version=current_version,
                 latest_version=latest_version,
             )
 
             # --------------------------------------------------------
             # 지금 업데이트
+            # 업데이트 완료 후 자동 실행한다.
             # --------------------------------------------------------
-            if update_accepted:
+            if action == UpdateConfirmAction.UPDATE:
                 self.log(
                     "[launcher] "
                     "user accepted update"
                 )
 
-                self.start_worker(
+                self._start_worker_after_current_finishes(
                     auto_update=True
                 )
                 return
 
             # --------------------------------------------------------
             # 현재 버전 실행
+            # 버튼을 선택한 즉시 현재 버전을 실행한다.
+            # --------------------------------------------------------
+            if action == UpdateConfirmAction.RUN_CURRENT:
+                self.log(
+                    "[launcher] "
+                    "user selected current version"
+                )
+
+                self._run_result_exe(result)
+                return
+
+            # --------------------------------------------------------
+            # 팝업 X 또는 Esc
+            # 자동 실행하지 않고 런처 화면에서 직접 실행하도록 한다.
             # --------------------------------------------------------
             self.log(
                 "[launcher] "
-                "user skipped update"
+                "update dialog canceled"
             )
 
-            if not result.exe_path:
-                self._msg_warn(
-                    "실행 실패",
-                    "현재 버전 실행 파일을 찾지 못했습니다.",
-                )
-
-                self.lbl_title.setText("실패")
-
-                self.apply_state(
-                    UiState(
-                        busy=False,
-                        can_run=False,
-                        can_retry=True,
-                        percent=self.prog.value(),
-                        status="실행 파일 없음",
-                    )
-                )
-                return
-
-            self.lbl_title.setText(
-                "준비 완료"
-            )
-
-            self.apply_state(
-                UiState(
-                    busy=False,
-                    can_run=True,
-                    can_retry=False,
-                    percent=100,
-                    status=(
-                        "준비 완료. "
-                        "'실행'을 눌러 시작하세요."
-                    ),
-                )
+            self._show_ready_state(
+                result=result,
+                status=(
+                    "업데이트 선택을 취소했습니다. "
+                    "'실행'을 누르면 현재 버전이 실행됩니다."
+                ),
             )
             return
 
         # ============================================================
-        # 최신 버전이거나 업데이트 설치 완료
+        # 2. 새 버전 설치 완료
+        # ============================================================
+        if result.ok and result.update_installed:
+            self.lbl_title.setText("업데이트 완료")
+
+            self.apply_state(
+                UiState(
+                    busy=False,
+                    can_run=False,
+                    can_retry=False,
+                    percent=100,
+                    status=(
+                        "업데이트가 완료되었습니다. "
+                        "프로그램을 실행합니다."
+                    ),
+                )
+            )
+
+            # 완료 문구가 잠깐 보인 뒤 새 버전을 자동 실행한다.
+            QTimer.singleShot(
+                500,
+                lambda: self._run_result_exe(result),
+            )
+            return
+
+        # ============================================================
+        # 3. 이미 최신 버전이거나 로컬 버전이 더 최신인 경우
         # ============================================================
         if result.ok:
-            self.lbl_title.setText(
-                "준비 완료"
-            )
+            self.prog.setValue(100)
 
-            self.apply_state(
-                UiState(
-                    busy=False,
-                    can_run=bool(
-                        result.exe_path
-                    ),
-                    can_retry=False,
-                    percent=100,
-                    status=(
-                        "준비 완료. "
-                        "'실행'을 눌러 시작하세요."
-                    ),
-                )
+            self._show_ready_state(
+                result=result,
+                status=(
+                    "준비 완료. "
+                    "'실행'을 눌러 시작하세요."
+                ),
             )
             return
 
         # ============================================================
-        # 업데이트 실패
+        # 4. 업데이트 확인 또는 업데이트 실패
         # ============================================================
         self.lbl_title.setText("실패")
+
+        can_run_current = bool(result.exe_path)
+
+        if can_run_current:
+            status = (
+                f"{result.message or '업데이트 실패'} "
+                "현재 버전을 실행하거나 재시도할 수 있습니다."
+            )
+        else:
+            status = (
+                    result.message
+                    or "업데이트 실패"
+            )
 
         self.apply_state(
             UiState(
                 busy=False,
-                can_run=False,
+                can_run=can_run_current,
                 can_retry=True,
                 percent=self.prog.value(),
-                status=(
-                        result.message
-                        or "업데이트 실패"
-                ),
+                status=status,
             )
         )
 
+        warning_text = (
+                result.message
+                or "업데이트 실패"
+        )
+
+        if can_run_current:
+            warning_text += (
+                "\n\n기존 버전은 '실행' 버튼으로 "
+                "실행할 수 있습니다."
+            )
+
+        warning_text += "\n\n로그를 확인하세요."
+
         self._msg_warn(
             "업데이트 실패",
-            (
-                    result.message
-                    or "업데이트 실패"
-            )
-            + "\n\n로그를 확인하세요.",
-            )
+            warning_text,
+        )
