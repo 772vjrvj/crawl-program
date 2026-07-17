@@ -19,43 +19,94 @@ class LatestInfo:
 @dataclass(frozen=True)
 class NoticeInfo:
     notice_id: str
-    level: str          # CRITICAL | IMPORTANT | INFO
+    level: str  # CRITICAL | IMPORTANT | INFO
     force: bool
     title: str
     content: str
 
 
-def fetch_latest(server_base_url: str, program_id: str, timeout_sec: int = 10) -> Tuple[bool, str, Optional[LatestInfo]]:
+def fetch_latest(
+        server_base_url: str,
+        program_id: str,
+        launcher_key: str,
+        timeout_sec: int = 10,
+) -> Tuple[bool, str, Optional[LatestInfo]]:
     """
-    서버에서 최신 버전 정보 조회 (1단계 테스트용)
+    서버에서 최신 버전 정보를 조회한다.
     """
+
     base = server_base_url.rstrip("/")
-    url = f"{base}/launcher/api/v1/programs/{program_id}/latest"
-    headers = {"Accept": "application/json"}
+
+    url = (
+        f"{base}"
+        f"/launcher/api/v1/programs/"
+        f"{program_id}/latest"
+    )
+
+    headers = {
+        "Accept": "application/json",
+        "X-Launcher-Key": launcher_key,
+    }
 
     try:
-        res = requests.get(url, headers=headers, timeout=timeout_sec)
-    except Exception as e:
-        return False, f"request failed: {str(e)}", None
+        res = requests.get(
+            url,
+            headers=headers,
+            timeout=timeout_sec,
+        )
+    except Exception as error:
+        return (
+            False,
+            f"request failed: {str(error)}",
+            None,
+        )
 
     if res.status_code != 200:
-        # 너무 길면 콘솔 지저분해지니 앞부분만
-        return False, f"bad status: {res.status_code} / {res.text[:200]}", None
+        return (
+            False,
+            (
+                f"bad status: {res.status_code} / "
+                f"{res.text[:200]}"
+            ),
+            None,
+        )
 
     try:
         obj: Dict[str, Any] = res.json()
-    except Exception as e:
-        return False, f"json parse failed: {str(e)}", None
+    except Exception as error:
+        return (
+            False,
+            f"json parse failed: {str(error)}",
+            None,
+        )
 
-    pid = obj.get("program_id")
-    latest = obj.get("latest_version")
+    # 서버 설정에 따라 camelCase 또는 snake_case 모두 대응
+    pid = (
+            obj.get("programId")
+            or obj.get("program_id")
+    )
+
+    latest = (
+            obj.get("latestVersion")
+            or obj.get("latest_version")
+    )
 
     if not isinstance(pid, str) or not pid.strip():
-        return False, 'invalid response: "program_id"', None
+        return (
+            False,
+            'invalid response: "programId"',
+            None,
+        )
+
     if not isinstance(latest, str) or not latest.strip():
-        return False, 'invalid response: "latest_version"', None
+        return (
+            False,
+            'invalid response: "latestVersion"',
+            None,
+        )
 
     asset = obj.get("asset") or {}
+
     asset_url = asset.get("url")
     asset_sha256 = asset.get("sha256")
     asset_size = asset.get("size")
@@ -63,14 +114,30 @@ def fetch_latest(server_base_url: str, program_id: str, timeout_sec: int = 10) -
     info = LatestInfo(
         program_id=pid.strip(),
         latest_version=latest.strip(),
-        asset_url=asset_url.strip() if isinstance(asset_url, str) and asset_url.strip() else None,
-        asset_sha256=asset_sha256.strip() if isinstance(asset_sha256, str) and asset_sha256.strip() else None,
-        asset_size=int(asset_size) if isinstance(asset_size, int) else None,
+        asset_url=(
+            asset_url.strip()
+            if isinstance(asset_url, str)
+               and asset_url.strip()
+            else None
+        ),
+        asset_sha256=(
+            asset_sha256.strip()
+            if isinstance(asset_sha256, str)
+               and asset_sha256.strip()
+            else None
+        ),
+        asset_size=(
+            int(asset_size)
+            if isinstance(asset_size, int)
+            else None
+        ),
     )
+
     return True, "ok", info
 
 
-def fetch_latest_notice(server_base_url: str, program_id: str, timeout_sec: int = 5) -> Tuple[bool, str, Optional[NoticeInfo]]:
+def fetch_latest_notice(server_base_url: str, program_id: str, timeout_sec: int = 5) -> Tuple[
+    bool, str, Optional[NoticeInfo]]:
     """
     공지 최신 1건만 조회(런처용)
     """

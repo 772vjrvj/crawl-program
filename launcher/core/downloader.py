@@ -7,25 +7,6 @@ from typing import Dict, Optional, Tuple, Callable
 import requests
 
 
-def probe_url(url: str, timeout_sec: int = 15) -> Tuple[bool, str, Optional[Dict[str, str]]]:
-    headers = {"Accept": "*/*"}
-
-    try:
-        res = requests.head(url, headers=headers, timeout=timeout_sec, allow_redirects=True)
-        if res.status_code == 200:
-            return True, "ok(head)", dict(res.headers)
-    except Exception:
-        pass
-
-    try:
-        res2 = requests.get(url, headers=headers, timeout=timeout_sec, allow_redirects=True, stream=True)
-        if res2.status_code != 200:
-            return False, f"bad status(get): {res2.status_code}", None
-        res2.close()
-        return True, "ok(get)", dict(res2.headers)
-    except Exception as e:
-        return False, f"request failed: {str(e)}", None
-
 
 def download_file(
         url: str,

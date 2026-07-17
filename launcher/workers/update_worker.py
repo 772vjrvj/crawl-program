@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 from PySide6.QtCore import QThread, Signal
 
 from launcher.core.api import fetch_latest
-from launcher.core.downloader import probe_url, download_file
+from launcher.core.downloader import download_file
 from launcher.core.installer import (
     unzip_to_staging,
     promote_staging,
@@ -166,6 +166,7 @@ class UpdateWorker(QThread):
         ok, message, latest = fetch_latest(
             state.server_url,
             state.program_id,
+            state.launcher_key
         )
 
         self._log(
@@ -279,19 +280,6 @@ class UpdateWorker(QThread):
                 message="asset_url is empty",
                 exe_path=exe_local,
             )
-
-        self._status("다운로드 준비(HEAD/GET) 확인 중…")
-
-        ok_probe, probe_message, _headers = probe_url(
-            latest.asset_url
-        )
-
-        self._log(
-            f"[launcher] probe.ok={ok_probe}"
-        )
-        self._log(
-            f"[launcher] probe.msg={probe_message}"
-        )
 
         self._status("다운로드 중…")
 
@@ -464,6 +452,7 @@ class UpdateWorker(QThread):
             program_id=state.program_id,
             version=latest.latest_version,
             server_url=state.server_url,
+            launcher_key=state.launcher_key,
         )
 
         write_current_state(
