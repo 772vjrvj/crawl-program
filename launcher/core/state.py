@@ -30,7 +30,7 @@ def read_current_state(current_json_path: Path) -> CurrentState:
 
     program_id = obj.get("program_id")
     version = obj.get("version")
-    server_url = obj.get("server_url")  # === 신규 ===
+    server_url = obj.get("server_url")
 
     if not isinstance(program_id, str) or not program_id.strip():
         raise ValueError('current.json invalid: "program_id" is required (string)')

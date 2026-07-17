@@ -2,111 +2,121 @@
 
 ## 역할
 
-런처에서 사용하는 주요 폴더와 파일 경로를 한곳에서 관리한다.
+런처에서 사용하는 폴더와 파일 경로를 통합 관리한다.
 
-개발 환경과 PyInstaller로 빌드된 운영 환경을 자동으로 구분하여 기준 경로를 설정한다.
+개발 환경과 PyInstaller로 빌드된 운영 환경을 구분하여 `base_dir`을 결정하고, 이를 기준으로 `data`, `versions`, 설정 파일 경로를 생성한다.
 
 ---
 
-## 주요 경로
+## 기준 경로
 
-`LauncherPaths`는 다음 경로를 관리한다.
+### 개발 환경
 
-| 항목                | 설명                   |
-| ----------------- | -------------------- |
-| `base_dir`        | 런처 기준 폴더             |
-| `data_dir`        | 설정 및 상태 파일 저장 폴더     |
-| `versions_dir`    | 프로그램 버전별 실행 파일 저장 폴더 |
-| `current_json`    | 현재 설치 버전 정보 파일       |
-| `notice_ack_json` | 공지 숨김 상태 저장 파일       |
-
-기본 폴더 구조는 다음과 같다.
+개발 환경에서는 `paths.py`의 위치를 기준으로 `launcher` 폴더를 찾아 `base_dir`로 사용한다.
 
 ```text
-launcher
-├─ data
+crawl-program/
+└─ launcher/              ← base_dir
+   ├─ core/
+   │  └─ paths.py
+   ├─ data/
+   └─ versions/
+```
+
+### 운영 환경
+
+PyInstaller로 빌드된 EXE로 실행할 때는 런처 실행 파일이 위치한 폴더를 `base_dir`로 사용한다.
+
+```text
+GB7Launcher/
+├─ GB7Launcher.exe        ← 실행 파일
+├─ data/
+└─ versions/
+```
+
+---
+
+## 관리 경로
+
+`LauncherPaths` 객체는 다음 경로를 관리한다.
+
+| 항목                | 설명                 |
+|-------------------| ------------------ |
+| `base_dir`        | 런처 기준 폴더           |
+| `data_dir`        | 설정 및 상태 JSON 저장 폴더 |
+| `versions_dir`    | 프로그램 버전별 설치 폴더     |
+| `current.json`    | 현재 프로그램과 버전 정보     |
+| `notice_ack.json` | 긴급 공지 하루 숨김 정보     |
+
+기본 구조는 다음과 같다.
+
+```text
+launcher/
+├─ data/
 │  ├─ current.json
 │  └─ notice_ack.json
-└─ versions
+└─ versions/
+   ├─ v1_0_1/
+   └─ v1_0_2/
 ```
 
 ---
 
-## 개발 환경
+## 주요 함수
 
-개발 중에는 `paths.py`가 위치한 경로를 기준으로 `launcher` 폴더를 찾는다.
+### `get_base_dir()`
+
+현재 실행 환경을 확인하여 런처 기준 폴더를 반환한다.
+
+* PyInstaller EXE 실행: 실행 파일이 있는 폴더
+* Python 개발 실행: `launcher` 폴더
+
+---
+
+### `get_paths()`
+
+`base_dir`을 기준으로 런처에서 사용하는 전체 경로를 생성하고 `LauncherPaths` 객체로 반환한다.
+
+다른 파일에서는 경로를 직접 조합하지 않고 이 객체를 전달받아 사용한다.
+
+---
+
+### `ensure_dirs()`
+
+런처 실행에 필요한 다음 폴더가 없으면 자동으로 생성한다.
 
 ```text
-crawl-program
-└─ launcher
-   ├─ launcher_main.py
-   ├─ core
-   │  └─ paths.py
-   ├─ data
-   └─ versions
+data/
+versions/
 ```
 
-실행은 프로젝트 최상위 폴더에서 모듈 방식으로 한다.
+런처 시작 시 `launcher_main.py`에서 호출한다.
 
-```powershell
-cd E:\git\crawl-program
-python -m launcher.launcher_main
-```
+---
 
-개발 환경의 기준 경로는 다음과 같다.
+## 사용 흐름
 
 ```text
-base_dir = E:\git\crawl-program\launcher
+launcher_main.py 실행
+        ↓
+get_paths()
+        ↓
+개발 또는 운영 환경의 base_dir 결정
+        ↓
+data 및 versions 경로 생성
+        ↓
+ensure_dirs()
+        ↓
+필수 폴더 자동 생성
+        ↓
+LauncherWindow와 UpdateWorker에 경로 전달
 ```
 
 ---
 
-## 운영 환경
+## 핵심 원칙
 
-PyInstaller로 빌드된 실행 파일에서는 `sys.frozen` 여부를 확인한다.
-
-운영 환경에서는 실행 중인 EXE 파일이 있는 폴더를 기준 경로로 사용한다.
-
-```text
-C:\GB7Launcher
-├─ GB7Launcher.exe
-├─ data
-└─ versions
-```
-
-운영 시에는 사용자가 EXE 파일을 직접 실행하면 된다.
-
-```text
-GB7Launcher.exe
-```
-
----
-
-## 폴더 생성
-
-`ensure_dirs()`는 런처 시작 시 다음 폴더가 없으면 자동으로 생성한다.
-
-```text
-data
-versions
-```
-
-따라서 최초 실행 시 해당 폴더를 사용자가 직접 만들 필요는 없다.
-
----
-
-## 핵심 정리
-
-```text
-개발 실행:
-python -m launcher.launcher_main
-
-개발 기준 폴더:
-crawl-program/launcher
-
-운영 실행:
-GB7Launcher.exe 직접 실행
-
-운영 기준 폴더:
-GB7Launcher.exe가 위치한 폴더
-```
+* 개발 환경과 운영 환경에서 동일한 경로 구조를 사용한다.
+* 각 모듈이 경로를 직접 계산하지 않는다.
+* 모든 주요 경로는 `LauncherPaths`를 통해 전달한다.
+* 필요한 폴더는 런처 시작 시 자동으로 생성한다.

@@ -6,16 +6,18 @@ from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import urlencode
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import (
     QCloseEvent,
     QColor,
+    QDesktopServices,
     QIcon,
     QPainter,
     QPixmap,
 )
 from PySide6.QtWidgets import (
     QWidget,
+    QFrame,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -179,22 +181,149 @@ class LauncherWindow(QWidget):
 
         # ============================================================
         # 지원 센터
+        #
+        # 첫째 줄: 공식 사이트 / 문의 버튼
+        # 둘째 줄: 안내 문구
         # ============================================================
-        self.lbl_support = QLabel("")
-        self.lbl_support.setTextFormat(
-            Qt.TextFormat.RichText
-        )
-        self.lbl_support.setTextInteractionFlags(
-            Qt.TextInteractionFlag.TextBrowserInteraction
-        )
-        self.lbl_support.setOpenExternalLinks(True)
-        self.lbl_support.setStyleSheet(
+        self._support_site_url: Optional[str] = None
+        self._support_qna_url: Optional[str] = None
+
+        self.support_box = QFrame()
+        self.support_box.setObjectName("supportBox")
+        self.support_box.setVisible(False)
+        self.support_box.setStyleSheet(
             """
-            color: #666666;
-            padding: 6px 0;
+            QFrame#supportBox {
+                background-color: #ffffff;
+                border: 1px solid #e1e5ea;
+                border-radius: 8px;
+            }
+
+            QPushButton#supportSiteButton,
+            QPushButton#supportQnaButton {
+                background-color: transparent;
+                border: 0;
+                border-radius: 6px;
+                padding: 6px 9px;
+                font-size: 13px;
+                font-weight: 600;
+                text-align: left;
+            }
+
+            QPushButton#supportSiteButton {
+                color: #2F80ED;
+            }
+
+            QPushButton#supportQnaButton {
+                color: #E64980;
+            }
+
+            QPushButton#supportSiteButton:hover,
+            QPushButton#supportQnaButton:hover {
+                background-color: #f1f3f5;
+            }
+
+            QPushButton#supportSiteButton:pressed,
+            QPushButton#supportQnaButton:pressed {
+                background-color: #e5e7eb;
+            }
+
+            QLabel#supportDivider {
+                color: #c3c8ce;
+                background-color: transparent;
+                font-size: 13px;
+            }
+
+            QLabel#supportDescription {
+                color: #7b8794;
+                background-color: transparent;
+                font-size: 11px;
+            }
             """
         )
-        root.addWidget(self.lbl_support)
+
+        support_layout = QVBoxLayout(
+            self.support_box
+        )
+        support_layout.setContentsMargins(
+            10,
+            10,
+            10,
+            10,
+        )
+
+        # 첫째 줄과 둘째 줄 사이 간격
+        support_layout.setSpacing(9)
+
+        support_link_row = QHBoxLayout()
+        support_link_row.setContentsMargins(
+            0,
+            0,
+            0,
+            0,
+        )
+        support_link_row.setSpacing(5)
+
+        self.btn_support_site = QPushButton(
+            "●  공식 사이트"
+        )
+        self.btn_support_site.setObjectName(
+            "supportSiteButton"
+        )
+        self.btn_support_site.setCursor(
+            Qt.CursorShape.PointingHandCursor
+        )
+        self.btn_support_site.clicked.connect(
+            self._open_support_site
+        )
+        support_link_row.addWidget(
+            self.btn_support_site
+        )
+
+        support_divider = QLabel("|")
+        support_divider.setObjectName(
+            "supportDivider"
+        )
+        support_divider.setAlignment(
+            Qt.AlignmentFlag.AlignCenter
+        )
+        support_link_row.addWidget(
+            support_divider
+        )
+
+        self.btn_support_qna = QPushButton(
+            "●  문의/Q&&A"
+        )
+        self.btn_support_qna.setObjectName(
+            "supportQnaButton"
+        )
+        self.btn_support_qna.setCursor(
+            Qt.CursorShape.PointingHandCursor
+        )
+        self.btn_support_qna.clicked.connect(
+            self._open_support_qna
+        )
+        support_link_row.addWidget(
+            self.btn_support_qna
+        )
+
+        support_link_row.addStretch(1)
+        support_layout.addLayout(
+            support_link_row
+        )
+
+        self.lbl_support_description = QLabel(
+            "※ 도움이 필요하면 공식 사이트 또는 "
+            "문의/Q&A를 이용해 주세요."
+        )
+        self.lbl_support_description.setObjectName(
+            "supportDescription"
+        )
+        support_layout.addWidget(
+            self.lbl_support_description
+        )
+
+        root.addWidget(self.support_box)
 
         # ============================================================
         # 하단 버튼
@@ -471,7 +600,9 @@ class LauncherWindow(QWidget):
         )
 
         if config is None:
-            self.lbl_support.setVisible(False)
+            self._support_site_url = None
+            self._support_qna_url = None
+            self.support_box.setVisible(False)
             return
 
         params = {
@@ -483,28 +614,40 @@ class LauncherWindow(QWidget):
 
         query_string = urlencode(params)
 
-        site_url = (
+        self._support_site_url = (
             f"{config.site_url}"
             f"?{query_string}"
         )
 
-        qna_url = (
+        self._support_qna_url = (
             f"{config.qna_url}"
             f"?{query_string}"
         )
 
-        self.lbl_support.setText(
-            f'🛟 <b>지원 센터</b> &nbsp; '
-            f'🌐 <a href="{site_url}">'
-            f'공식 사이트'
-            f'</a>'
-            f' &nbsp; | &nbsp; '
-            f'📨 <a href="{qna_url}">'
-            f'문의/Q&amp;A'
-            f'</a>'
+        self.btn_support_site.setToolTip(
+            "공식 사이트를 브라우저에서 엽니다."
+        )
+        self.btn_support_qna.setToolTip(
+            "문의 페이지를 브라우저에서 엽니다."
         )
 
-        self.lbl_support.setVisible(True)
+        self.support_box.setVisible(True)
+
+    def _open_support_site(self) -> None:
+        if not self._support_site_url:
+            return
+
+        QDesktopServices.openUrl(
+            QUrl(self._support_site_url)
+        )
+
+    def _open_support_qna(self) -> None:
+        if not self._support_qna_url:
+            return
+
+        QDesktopServices.openUrl(
+            QUrl(self._support_qna_url)
+        )
 
     # ================================================================
     # 로그 표시/숨김

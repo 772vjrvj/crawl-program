@@ -21,9 +21,11 @@ def get_base_dir() -> Path:
     - 운영(Python/PyInstaller): launcher.exe가 있는 폴더가 base_dir
     """
     if getattr(sys, "frozen", False):
+        # 운영: launcher.exe가 있는 폴더
         return Path(sys.executable).resolve().parent
 
     # .../crawl-program/launcher/core/paths.py -> 부모의 부모 = launcher/
+    # 개발: paths.py 기준으로 launcher 폴더
     return Path(__file__).resolve().parents[1]
 
 
