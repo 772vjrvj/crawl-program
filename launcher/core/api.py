@@ -136,6 +136,91 @@ def fetch_latest(
     return True, "ok", info
 
 
+def send_download_history(
+        server_base_url: str,
+        program_id: str,
+        launcher_key: str,
+        download_id: str,
+        version: str,
+        status: str,
+        download_size_bytes: int,
+        sha256_verified: bool,
+        started_at: str,
+        completed_at: str,
+        error_code: Optional[str] = None,
+        error_message: Optional[str] = None,
+        launcher_version: Optional[str] = None,
+        client_os: Optional[str] = None,
+        timeout_sec: int = 10,
+) -> Tuple[bool, str]:
+    """
+    다운로드 성공 또는 실패 이력을 서버에 전송한다.
+
+    신규 저장:
+    201 Created
+
+    동일한 downloadId 재전송:
+    200 OK
+
+    이 API 전송 실패는 실제 업데이트 성공 또는 실패 결과에
+    영향을 주지 않고 런처 로그에만 기록한다.
+    """
+
+    base = server_base_url.rstrip("/")
+
+    url = (
+        f"{base}"
+        f"/launcher/api/v1/programs/"
+        f"{program_id}/download-histories"
+    )
+
+    headers = {
+        "Accept": "application/json",
+        "X-Launcher-Key": launcher_key,
+    }
+
+    payload = {
+        "downloadId": download_id,
+        "version": version,
+        "status": status,
+        "downloadSizeBytes": download_size_bytes,
+        "sha256Verified": sha256_verified,
+        "startedAt": started_at,
+        "completedAt": completed_at,
+        "errorCode": error_code,
+        "errorMessage": error_message,
+        "launcherVersion": launcher_version,
+        "clientOs": client_os,
+    }
+
+    try:
+        res = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=timeout_sec,
+        )
+    except Exception as error:
+        return (
+            False,
+            f"request failed: {str(error)}",
+        )
+
+    if res.status_code not in (200, 201):
+        return (
+            False,
+            (
+                f"bad status: {res.status_code} / "
+                f"{res.text[:200]}"
+            ),
+        )
+
+    if res.status_code == 201:
+        return True, "created"
+
+    return True, "already exists"
+
+
 def fetch_latest_notice(server_base_url: str, program_id: str, timeout_sec: int = 5) -> Tuple[
     bool, str, Optional[NoticeInfo]]:
     """

@@ -822,6 +822,7 @@ class LauncherWindow(QWidget):
             allow_hide_day=True,
         )
 
+        # 이 코드는 modal=True일 때 해당 다이얼로그를 닫기 전까지 프로그램의 다른 창을 조작하지 못하게 막는 설정입니다.
         if modal:
             dialog.setWindowModality(
                 Qt.WindowModality.ApplicationModal
@@ -984,12 +985,12 @@ class LauncherWindow(QWidget):
     # 업데이트 확인 시작
     # ================================================================
     def start_worker(
-            self,
-            auto_update: bool,
+        self,
+        auto_update: bool,
     ) -> None:
         if (
-                self.worker is not None
-                and self.worker.isRunning()
+            self.worker is not None
+            and self.worker.isRunning()
         ):
             return
 

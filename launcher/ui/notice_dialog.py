@@ -15,7 +15,7 @@ from launcher.ui.style.style import (
 )
 
 
-# === 신규 === 공지 모달 (LauncherWindow에서 분리)
+# 공지 모달 (LauncherWindow에서 분리)
 class NoticeDialog(QDialog):
     def __init__(self, parent: QWidget, notice: NoticeInfo, allow_hide_day: bool) -> None:
         super().__init__(parent)
@@ -23,7 +23,7 @@ class NoticeDialog(QDialog):
         self.setWindowTitle("공지사항")
         self.setMinimumWidth(520)
 
-        # === 신규 === 다이얼로그 공통 스타일
+        # 다이얼로그 공통 스타일
         self.setStyleSheet(msgbox_style(primary_color=BTN_GRAY))
 
         root = QVBoxLayout(self)

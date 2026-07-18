@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import platform
 import shutil
+import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple
 
 from PySide6.QtCore import QThread, Signal
 
-from launcher.core.api import fetch_latest
+from launcher.core.api import (
+    fetch_latest,
+    send_download_history,
+)
 from launcher.core.downloader import download_file
 from launcher.core.installer import (
     unzip_to_staging,
@@ -121,6 +127,63 @@ class UpdateWorker(QThread):
     def _progress(self, percent: int) -> None:
         self.sig_progress.emit(
             max(0, min(100, percent))
+        )
+
+    def _send_download_history(
+            self,
+            state: CurrentState,
+            download_id: str,
+            version: str,
+            status: str,
+            download_size_bytes: int,
+            sha256_verified: bool,
+            started_at: datetime,
+            completed_at: datetime,
+            error_code: Optional[str] = None,
+            error_message: Optional[str] = None,
+    ) -> None:
+        """
+        다운로드 성공 또는 실패 이력을 서버에 전송한다.
+
+        이력 API 전송에 실패하더라도 실제 다운로드 및
+        업데이트 결과는 변경하지 않고 로그만 남긴다.
+        """
+        ok, message = send_download_history(
+            server_base_url=state.server_url,
+            program_id=state.program_id,
+            launcher_key=state.launcher_key,
+            download_id=download_id,
+            version=version,
+            status=status,
+            download_size_bytes=download_size_bytes,
+            sha256_verified=sha256_verified,
+            started_at=started_at.isoformat(
+                timespec="microseconds"
+            ),
+            completed_at=completed_at.isoformat(
+                timespec="microseconds"
+            ),
+            error_code=error_code,
+            error_message=error_message,
+            launcher_version=None,
+            client_os=platform.platform(),
+        )
+
+        self._log(
+            "[launcher] download_history.ok="
+            f"{ok}"
+        )
+        self._log(
+            "[launcher] download_history.msg="
+            f"{message}"
+        )
+        self._log(
+            "[launcher] download_history.id="
+            f"{download_id}"
+        )
+        self._log(
+            "[launcher] download_history.status="
+            f"{status}"
         )
 
     def run(self) -> None:
@@ -308,12 +371,32 @@ class UpdateWorker(QThread):
             )
             self._progress(percent)
 
+        # ============================================================
+        # 다운로드 이력 ID와 시작 시각
+        #
+        # 새로운 다운로드 시도마다 UUID를 새로 생성한다.
+        # 같은 이력 API를 재전송할 때만 같은 UUID를 사용한다.
+        # ============================================================
+        download_id = str(uuid.uuid4())
+        download_started_at = datetime.now()
+
+        self._log(
+            "[launcher] download.id="
+            f"{download_id}"
+        )
+        self._log(
+            "[launcher] download.started_at="
+            f"{download_started_at.isoformat()}"
+        )
+
         # latest.asset_url은 서버 API 응답의 asset.url 값이다.
-        ok_download, download_message, byte_count = download_file(
+        ok_download, download_message, byte_count, actual_sha256 = download_file(
             latest.asset_url,
             zip_path,
             progress_cb=on_download_progress,
         )
+
+        download_completed_at = datetime.now()
 
         self._log(
             f"[launcher] download.ok={ok_download}"
@@ -327,8 +410,25 @@ class UpdateWorker(QThread):
         self._log(
             f"[launcher] download.bytes={byte_count}"
         )
+        self._log(
+            "[launcher] download.sha256="
+            f"{actual_sha256}"
+        )
 
         if not ok_download:
+            self._send_download_history(
+                state=state,
+                download_id=download_id,
+                version=latest.latest_version,
+                status="FAIL",
+                download_size_bytes=byte_count,
+                sha256_verified=False,
+                started_at=download_started_at,
+                completed_at=download_completed_at,
+                error_code="DOWNLOAD_FAILED",
+                error_message=download_message,
+            )
+
             return UpdateResult(
                 ok=False,
                 message=(
@@ -337,6 +437,136 @@ class UpdateWorker(QThread):
                 ),
                 exe_path=exe_local,
             )
+
+        # 서버에 등록된 파일 크기가 있으면
+        # 실제 다운로드 크기와 일치하는지 확인한다.
+        if (
+            latest.asset_size is not None
+            and byte_count != latest.asset_size
+        ):
+            size_message = (
+                "download size mismatch: "
+                f"expected={latest.asset_size}, "
+                f"actual={byte_count}"
+            )
+
+            self._log(
+                f"[launcher] {size_message}"
+            )
+
+            cleanup_paths(zip_path)
+
+            self._send_download_history(
+                state=state,
+                download_id=download_id,
+                version=latest.latest_version,
+                status="FAIL",
+                download_size_bytes=byte_count,
+                sha256_verified=False,
+                started_at=download_started_at,
+                completed_at=download_completed_at,
+                error_code="SIZE_MISMATCH",
+                error_message=size_message,
+            )
+
+            return UpdateResult(
+                ok=False,
+                message=size_message,
+                exe_path=exe_local,
+            )
+
+        # SUCCESS 이력은 SHA-256 검증이 완료된 경우에만 저장한다.
+        # 서버 응답에 SHA-256이 없으면 안전을 위해 설치하지 않는다.
+        if latest.asset_sha256 is None:
+            sha_message = (
+                "asset sha256 is empty"
+            )
+
+            self._log(
+                f"[launcher] {sha_message}"
+            )
+
+            cleanup_paths(zip_path)
+
+            self._send_download_history(
+                state=state,
+                download_id=download_id,
+                version=latest.latest_version,
+                status="FAIL",
+                download_size_bytes=byte_count,
+                sha256_verified=False,
+                started_at=download_started_at,
+                completed_at=download_completed_at,
+                error_code="SHA256_MISSING",
+                error_message=sha_message,
+            )
+
+            return UpdateResult(
+                ok=False,
+                message=sha_message,
+                exe_path=exe_local,
+            )
+
+        expected_sha256 = (
+            latest.asset_sha256
+            .strip()
+            .lower()
+        )
+
+        actual_sha256_normalized = (
+            actual_sha256.strip().lower()
+            if actual_sha256 is not None
+            else ""
+        )
+
+        if actual_sha256_normalized != expected_sha256:
+            sha_message = (
+                "sha256 mismatch: "
+                f"expected={expected_sha256}, "
+                f"actual={actual_sha256_normalized}"
+            )
+
+            self._log(
+                f"[launcher] {sha_message}"
+            )
+
+            cleanup_paths(zip_path)
+
+            self._send_download_history(
+                state=state,
+                download_id=download_id,
+                version=latest.latest_version,
+                status="FAIL",
+                download_size_bytes=byte_count,
+                sha256_verified=False,
+                started_at=download_started_at,
+                completed_at=download_completed_at,
+                error_code="SHA256_MISMATCH",
+                error_message=sha_message,
+            )
+
+            return UpdateResult(
+                ok=False,
+                message=sha_message,
+                exe_path=exe_local,
+            )
+
+        self._log(
+            "[launcher] sha256 verified=true"
+        )
+
+        # 다운로드와 파일 검증이 모두 성공한 시점에
+        # SUCCESS 이력을 서버에 전송한다.
+        self._send_download_history(
+            state=state,
+            download_id=download_id,
+            version=latest.latest_version,
+            status="SUCCESS",
+            download_size_bytes=byte_count,
+            sha256_verified=True,
+            started_at=download_started_at,
+            completed_at=download_completed_at,
+        )
 
         self._status("압축 해제 중…")
         self._progress(85)

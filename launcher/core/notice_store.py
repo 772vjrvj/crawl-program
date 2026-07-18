@@ -151,6 +151,9 @@ def hide_for_day(
     ack_map = load_ack_map(path)
 
     # 이미 만료된 기록은 저장할 때 정리한다.
+    # NOTICE_001 → 1000 → 이미 만료됨 → 삭제
+    # NOTICE_002 → 3000 → 아직 유효함 → 유지
+    # NOTICE_003 → 5000 → 아직 유효함 → 유지
     ack_map = {
         key: hide_until
         for key, hide_until in ack_map.items()

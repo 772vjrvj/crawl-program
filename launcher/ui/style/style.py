@@ -80,7 +80,7 @@ def btn_style(color: str) -> str:
 
 
 # =========================
-# === 신규 === Dialog / QMessageBox common stylesheet
+# Dialog / QMessageBox common stylesheet
 # =========================
 def msgbox_style(primary_color: str = BTN_PRIMARY) -> str:
     # QMessageBox / QDialog 공통 스타일
