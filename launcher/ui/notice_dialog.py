@@ -59,7 +59,7 @@ class NoticeDialog(QDialog):
 
         root.addLayout(row)
 
-        # === 신규 === 엔터키 기본 동작
+        # 엔터키 기본 동작
         btn_ok.setDefault(True)
         btn_ok.setAutoDefault(True)
 

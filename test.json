@@ -1,0 +1,9 @@
+{
+  "asset": {
+    "url": "https://f68db01425de9db33962c6711739eb80.r2.cloudflarestorage.com/gb7-launcher-files/NAVER_BAND_MEMBER/v1_0_2/v1_0_2.zip?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20260717T102735Z&X-Amz-SignedHeaders=host&X-Amz-Credential=aecd6b971cfa8aa5913cf9024e3df1eb%2F20260717%2Fauto%2Fs3%2Faws4_request&X-Amz-Expires=600&X-Amz-Signature=5260c3da2fa024962bc153b3670d7e2052cb9062a79126749760c017931afcbf",
+    "sha256": null,
+    "size": null
+  },
+  "program_id": "NAVER_BAND_MEMBER",
+  "latest_version": "1.0.2"
+}

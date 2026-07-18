@@ -24,13 +24,6 @@ from PySide6.QtWidgets import (
 
 
 class RoundedImageCard(QWidget):
-    """
-    원본 이미지를 자르지 않고 모두 표시하면서
-    바깥 테두리만 둥글게 그리는 이미지 영역.
-
-    원본 이미지의 배경과 스플래시 배경이 모두 흰색이므로,
-    둥근 모서리가 보이도록 연한 테두리를 함께 표시한다.
-    """
 
     def __init__(
             self,
@@ -49,7 +42,23 @@ class RoundedImageCard(QWidget):
         self.pixmap = QPixmap(str(self.image_path))
 
         self.setFixedSize(width, height)
-        self.setStyleSheet("background: transparent;")
+        self.setStyleSheet(
+            "background: transparent;"
+        )
+
+    def set_image(
+            self,
+            image_path: str | Path,
+    ) -> None:
+        """
+        이미지 카드에 표시되는 이미지를 변경한다.
+        """
+        self.image_path = Path(image_path)
+        self.pixmap = QPixmap(
+            str(self.image_path)
+        )
+
+        self.update()
 
     def paintEvent(self, event) -> None:
         """이미지 전체와 둥근 테두리를 직접 그린다."""
@@ -148,10 +157,17 @@ class SplashWindow(QWidget):
 
     finished = Signal()
 
-    def __init__(self, image_path: str | Path) -> None:
+    def __init__(
+            self,
+            image_path: str | Path,
+            wink_image_path: str | Path,
+    ) -> None:
         super().__init__()
 
         self.image_path = Path(image_path)
+        self.wink_image_path = Path(
+            wink_image_path
+        )
 
         # 애니메이션 중복 실행 방지
         self._animation_started = False
@@ -485,9 +501,20 @@ class SplashWindow(QWidget):
         self.copyright_fade_in.start()
 
     def _wait_before_finish(self) -> None:
-        """완성된 시작 화면을 잠시 보여준 뒤 종료한다."""
+        """
+        마지막에 윙크 이미지로 변경한 뒤
+        잠시 보여주고 스플래시를 종료한다.
+        """
 
-        QTimer.singleShot(550, self._fade_out_splash)
+        if self.wink_image_path.is_file():
+            self.image_card.set_image(
+                self.wink_image_path
+            )
+
+        QTimer.singleShot(
+            1200,
+            self._fade_out_splash,
+        )
 
     def _fade_out_splash(self) -> None:
         """스플래시 화면 전체를 페이드 아웃한다."""

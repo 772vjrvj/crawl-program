@@ -45,10 +45,23 @@ def main() -> int:
     #
     # 개발 환경 기준:
     # E:\git\crawl-program\launcher\img\gb7_main.png
-    splash_image_path = launcher_dir / "img" / "gb7_main.png"
+    # E:\git\crawl-program\launcher\img\gb7_main_wink.png
+    splash_image_path = (
+            launcher_dir
+            / "img"
+            / "gb7_main.png"
+    )
 
-    # 스플래시 애니메이션 화면을 생성한다.
-    splash = SplashWindow(image_path=splash_image_path)
+    wink_image_path = (
+            launcher_dir
+            / "img"
+            / "gb7_main_wink.png"
+    )
+
+    splash = SplashWindow(
+        image_path=splash_image_path,
+        wink_image_path=wink_image_path,
+    )
 
     # 메인 화면 객체가 지역 변수 소멸로 종료되지 않도록 보관한다.
     window: LauncherWindow | None = None

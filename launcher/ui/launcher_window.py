@@ -1,11 +1,12 @@
+from __future__ import annotations
+
 import platform
 import json
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional
-from urllib.parse import urlencode
-from __future__ import annotations
+
 from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import (
     QCloseEvent,
@@ -446,7 +447,9 @@ class LauncherWindow(QWidget):
             )
         )
 
-        # 화면 생성 후 긴급 공지 및 업데이트 확인 시작
+        # 화면과 레이아웃 구성이 모두 끝난 뒤,
+        # Qt 이벤트 루프가 시작되면 즉시
+        # 긴급 공지 및 업데이트 확인을 시작한다.
         QTimer.singleShot(
             0,
             self.start_notice_then_update,
@@ -511,10 +514,32 @@ class LauncherWindow(QWidget):
             self,
             state: UiState,
     ) -> None:
+        """
+        전달받은 UiState에 맞게
+        런처 화면의 상태 문구, 진행률, 버튼 활성 상태를 변경한다.
+
+        busy=True:
+            공지 조회, API 호출, 다운로드, 설치 등
+            런처가 현재 작업을 수행 중인 상태
+
+        busy=False:
+            작업이 끝나 사용자가 버튼을 누를 수 있는 상태
+        """
+
+        # 현재 진행 상태를 화면에 표시한다.
+        #
+        # 예:
+        # "서버에 접속 중…"
+        # "다운로드 중…"
+        # "준비 완료"
         self.lbl_sub.setText(
             state.status
         )
 
+        # 진행률은 반드시 0~100 범위 안으로 제한한다.
+        #
+        # percent가 -10이면 0
+        # percent가 120이면 100
         self.prog.setValue(
             max(
                 0,
@@ -522,21 +547,35 @@ class LauncherWindow(QWidget):
             )
         )
 
+        # 실행 버튼 활성화 조건:
+        #
+        # 1. 실행할 EXE 경로를 찾은 상태여야 한다.
+        # 2. 현재 공지 조회나 업데이트 작업 중이 아니어야 한다.
         self.btn_run.setEnabled(
             state.can_run
             and not state.busy
         )
 
+        # 재시도 버튼 활성화 조건:
+        #
+        # 1. 재시도 가능한 상태여야 한다.
+        # 2. 현재 런처 작업 중이 아니어야 한다.
         self.btn_retry.setEnabled(
             state.can_retry
             and not state.busy
         )
 
+        # 공지 조회, 업데이트 확인, 다운로드 또는 설치 중에는
+        # 런처를 닫지 못하도록 닫기 버튼을 비활성화한다.
         self.btn_close.setEnabled(
             not state.busy
         )
 
+        # 로그는 작업 중에도 확인할 수 있어야 하므로
+        # 항상 활성화한다.
         self.btn_toggle_log.setEnabled(True)
+
+
 
     def _show_ready_state(
             self,
@@ -630,11 +669,7 @@ class LauncherWindow(QWidget):
     # ================================================================
     # 지원 센터
     # ================================================================
-    def _set_support_links(
-            self,
-            program_id: str,
-            version: str,
-    ) -> None:
+    def _set_support_links(self) -> None:
         config = load_support_config(
             self.paths.data_dir
         )
@@ -645,24 +680,9 @@ class LauncherWindow(QWidget):
             self.support_box.setVisible(False)
             return
 
-        params = {
-            "program": program_id,
-            "ver": version,
-            "os": platform.system(),
-            "osver": platform.version(),
-        }
-
-        query_string = urlencode(params)
-
-        self._support_site_url = (
-            f"{config.site_url}"
-            f"?{query_string}"
-        )
-
-        self._support_qna_url = (
-            f"{config.qna_url}"
-            f"?{query_string}"
-        )
+        # app.json에 설정된 주소를 그대로 사용한다.
+        self._support_site_url = config.site_url
+        self._support_qna_url = config.qna_url
 
         self.btn_support_site.setToolTip(
             "공식 사이트를 브라우저에서 엽니다."
@@ -672,6 +692,7 @@ class LauncherWindow(QWidget):
         )
 
         self.support_box.setVisible(True)
+
 
     def _open_support_site(self) -> None:
         if not self._support_site_url:
@@ -902,10 +923,7 @@ class LauncherWindow(QWidget):
             )
             return
 
-        self._set_support_links(
-            program_id=state.program_id,
-            version=state.version,
-        )
+        self._set_support_links()
 
         self.lbl_title.setText(
             "긴급 공지 확인 중…"
