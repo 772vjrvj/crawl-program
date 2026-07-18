@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 import platform
+import json
+from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import urlencode
-
+from __future__ import annotations
 from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import (
     QCloseEvent,
@@ -27,13 +27,11 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QSizePolicy,
 )
-
 from launcher.core.api import NoticeInfo
 from launcher.core.app_config import load_support_config
 from launcher.core.notice_store import hide_for_day, is_hidden
 from launcher.core.paths import LauncherPaths
 from launcher.core.state import read_current_state
-
 from launcher.ui.notice_dialog import NoticeDialog
 from launcher.ui.update_confirm_dialog import (
     UpdateConfirmAction,
@@ -44,7 +42,6 @@ from launcher.ui.style.style import (
     btn_style,
     msgbox_style,
 )
-
 from launcher.workers.notice_worker import (
     NoticeWorker,
     NoticeResult,
@@ -64,6 +61,42 @@ class UiState:
     status: str
 
 
+
+def load_launcher_version(
+        app_json_path: Path,
+) -> Optional[str]:
+    """
+    data/app.json에서 런처 버전을 읽는다.
+    """
+    try:
+        obj = json.loads(
+            app_json_path.read_text(
+                encoding="utf-8"
+            )
+        )
+    except (
+            OSError,
+            json.JSONDecodeError,
+    ):
+        return None
+
+    launcher_version = obj.get(
+        "launcher_version"
+    )
+
+    if not isinstance(
+            launcher_version,
+            str,
+    ):
+        return None
+
+    launcher_version = (
+        launcher_version.strip()
+    )
+
+    return launcher_version or None
+
+
 class LauncherWindow(QWidget):
     def __init__(
             self,
@@ -73,7 +106,14 @@ class LauncherWindow(QWidget):
 
         self.paths = paths
 
+        self.paths = paths
+
+        self.launcher_version = load_launcher_version(
+            self.paths.app_json
+        )
+
         self.worker: Optional[UpdateWorker] = None
+
         self.notice_worker: Optional[NoticeWorker] = None
 
         self.last_result: Optional[UpdateResult] = None
@@ -1014,9 +1054,15 @@ class LauncherWindow(QWidget):
             )
         )
 
+        self.log(
+            "[launcher] launcher_version="
+            f"{self.launcher_version}"
+        )
+
         self.worker = UpdateWorker(
             paths=self.paths,
             auto_update=auto_update,
+            launcher_version=self.launcher_version,
         )
 
         self.worker.sig_status.connect(
@@ -1266,3 +1312,5 @@ class LauncherWindow(QWidget):
             "업데이트 실패",
             warning_text,
         )
+
+

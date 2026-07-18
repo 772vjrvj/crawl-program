@@ -11,23 +11,21 @@ import requests
 # ============================================================
 
 # 로컬 Spring Boot 서버
-BASE_URL = "http://localhost"
-
-# 서버가 8080 포트라면:
-# BASE_URL = "http://localhost:8080"
+BASE_URL = "https://goodbye772.com"
+# BASE_URL = "http://localhost"
 
 # application-local.yaml의 app.admin.update-key와 동일한 값
 ADMIN_KEY = "gb7-admin-update-key-1234"
 
 # 키를 발급할 프로그램 ID
-PROGRAM_ID = "NAVER_BAND_MEMBER"
+PROGRAM_ID = "TEST"
 
 # 관리자 확인용 이름
 KEY_NAME = "고객 A 1번 아이디"
 
 # 만료일
 # 형식: YYYY-MM-DDTHH:MM:SS
-EXPIRE_AT: str | None = "2027-07-17T23:59:59"
+EXPIRE_AT: str | None = "9999-12-31T23:59:59"
 
 # 만료일 없이 계속 사용하려면:
 # EXPIRE_AT = None

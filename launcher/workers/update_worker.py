@@ -112,11 +112,13 @@ class UpdateWorker(QThread):
             self,
             paths: LauncherPaths,
             auto_update: bool = True,
+            launcher_version: Optional[str] = None,
     ) -> None:
         super().__init__()
 
         self.paths = paths
         self.auto_update = auto_update
+        self.launcher_version = launcher_version
 
     def _status(self, message: str) -> None:
         self.sig_status.emit(message)
@@ -165,7 +167,7 @@ class UpdateWorker(QThread):
             ),
             error_code=error_code,
             error_message=error_message,
-            launcher_version=None,
+            launcher_version=self.launcher_version,
             client_os=platform.platform(),
         )
 

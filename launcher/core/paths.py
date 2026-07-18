@@ -11,6 +11,7 @@ class LauncherPaths:
     base_dir: Path
     data_dir: Path
     versions_dir: Path
+    app_json: Path
     current_json: Path
     notice_ack_json: Path
 
@@ -33,12 +34,15 @@ def get_paths() -> LauncherPaths:
     base = get_base_dir()
     data = base / "data"
     versions = base / "versions"
+    app_json = data / "app.json"
     current = data / "current.json"
     notice_ack = data / "notice_ack.json"
+
     return LauncherPaths(
         base_dir=base,
         data_dir=data,
         versions_dir=versions,
+        app_json=app_json,
         current_json=current,
         notice_ack_json=notice_ack,
     )
