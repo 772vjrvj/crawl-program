@@ -72,7 +72,7 @@
     {
       "name": "기준금액",
       "code": "baseAmount",
-      "value": "10K",
+      "value": "100M",
       "type": "select",
       "options": [
         {

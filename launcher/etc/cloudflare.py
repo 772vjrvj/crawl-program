@@ -63,16 +63,16 @@ API_TIMEOUT_SEC = 30
 # ============================================================
 
 # 배포 대상 프로그램 ID
-PROGRAM_ID = "NAVER_PLACE_LOC_ALL"
+PROGRAM_ID = "NAVER_LAND_REAL_ESTATE_AD"
 
 # 프로그램 버전
-VERSION = "2.0.2"
+VERSION = "1.0.7"
 
 # Cloudflare R2 버전 폴더명
-DIR_NAME = "v2_0_2"
+DIR_NAME = "v1_0_7"
 
 # Cloudflare R2 ZIP 파일명
-FILE_NAME = "v2_0_2.zip"
+FILE_NAME = "v1_0_7.zip"
 
 # 신규 릴리스 사용 여부
 ENABLED = True
