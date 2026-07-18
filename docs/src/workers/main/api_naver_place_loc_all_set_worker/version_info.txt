@@ -17,12 +17,12 @@ VSVersionInfo(
           '040904B0',
           [
             StringStruct('CompanyName', 'GB7'),
-            StringStruct('FileDescription', '네이버 플레이스'),
+            StringStruct('FileDescription', 'CrawlProgram'),
             StringStruct('FileVersion', '2.0.2'),
-            StringStruct('InternalName', '네이버 플레이스'),
+            StringStruct('InternalName', 'CrawlProgram'),
             StringStruct('LegalCopyright', '© 2026 GB7'),
-            StringStruct('OriginalFilename', '네이버 플레이스.exe'),
-            StringStruct('ProductName', '네이버 플레이스'),
+            StringStruct('OriginalFilename', 'CrawlProgram.exe'),
+            StringStruct('ProductName', 'CrawlProgram'),
             StringStruct('ProductVersion', '2.0.2')
           ]
         )

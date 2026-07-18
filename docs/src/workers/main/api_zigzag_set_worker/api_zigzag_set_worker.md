@@ -380,7 +380,7 @@ pyinstaller .\main.py `
 --noconfirm `
 --clean `
 --windowed `
---name "zigzag" `
+--name "CrawlProgram" `
 --icon ".\resources\icons\crawling.ico" `
 --version-file ".\docs\src\workers\main\api_zigzag_set_worker\version_info.txt" `
 --distpath ".\dist" `

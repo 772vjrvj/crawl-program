@@ -17,12 +17,12 @@ VSVersionInfo(
           '040904B0',
           [
             StringStruct('CompanyName', 'GB7'),
-            StringStruct('FileDescription', '지그재그'),
+            StringStruct('FileDescription', 'CrawlProgram'),
             StringStruct('FileVersion', '1.0.0'),
-            StringStruct('InternalName', '지그재그'),
+            StringStruct('InternalName', 'CrawlProgram'),
             StringStruct('LegalCopyright', '© 2026 GB7'),
-            StringStruct('OriginalFilename', '지그재그.exe'),
-            StringStruct('ProductName', '지그재그'),
+            StringStruct('OriginalFilename', 'CrawlProgram.exe'),
+            StringStruct('ProductName', 'CrawlProgram'),
             StringStruct('ProductVersion', '1.0.0')
           ]
         )

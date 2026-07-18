@@ -1,5 +1,125 @@
 # GB7 Launcher
 
+## 버전업 및 초기화 세팅 — 자주 보는 4단계
+
+### 1. 로컬 버전 ZIP 파일 준비
+
+다음 로컬 경로에 신규 버전 폴더를 생성하고 ZIP 파일을 넣는다.
+
+```text
+E:\나의 목록\cloudflare\version\NAVER_PLACE_LOC_ALL\v2_0_2
+```
+
+추가할 파일:
+
+```text
+v2_0_2.zip
+```
+
+최종 경로:
+
+```text
+E:\나의 목록\cloudflare\version\NAVER_PLACE_LOC_ALL\v2_0_2\v2_0_2.zip
+```
+
+---
+
+### 2. Cloudflare R2에 ZIP 파일 업로드
+
+Cloudflare R2 버킷에 다음 객체 경로를 생성하고 ZIP 파일을 업로드한다.
+
+```text
+NAVER_PLACE_LOC_ALL/v2_0_2/v2_0_2.zip
+```
+
+확인 항목:
+
+```text
+PROGRAM_ID : NAVER_PLACE_LOC_ALL
+DIR_NAME   : v2_0_2
+FILE_NAME  : v2_0_2.zip
+```
+
+---
+
+### 3. 고객용 런처 키 발급 및 정리
+
+다음 파일의 고객 및 프로그램 정보를 수정한 뒤 실행한다.
+
+```text
+launcher/etc/launcher_key_create.py
+```
+
+실행 후 다음 내용을 확인한다.
+
+1. 콘솔 로그에서 발급된 원본 `launcherKey`를 확인한다.
+2. DB의 `LAUNCHER_PROGRAM_KEY` 테이블에 키 정보가 등록되었는지 확인한다.
+3. 발급된 원본 키를 고객 관리 엑셀에 정리한다.
+4. 고객용 `data/current.json`의 `launcher_key`에 원본 키를 입력한다.
+
+주의:
+
+```text
+DB에는 원본 키가 아닌 검증용 해시값이 저장될 수 있다.
+실제 고객에게 전달할 원본 launcherKey는 발급 로그에서 확인하고 별도로 보관한다.
+```
+
+---
+
+### 4. Cloudflare 파일 검증 및 릴리스 등록 확인
+
+다음 파일의 배포 정보를 수정한 뒤 실행한다.
+
+```text
+launcher/etc/cloudflare.py
+```
+
+주로 수정하는 값:
+
+```python
+PROGRAM_ID = "NAVER_PLACE_LOC_ALL"
+VERSION = "2.0.2"
+DIR_NAME = "v2_0_2"
+FILE_NAME = "v2_0_2.zip"
+```
+
+실행 후 다운로드 테스트 파일을 확인한다.
+
+```text
+E:\나의 목록\cloudflare\version\NAVER_PLACE_LOC_ALL\v2_0_2\test\v2_0_2.zip
+```
+
+마지막으로 다음 항목을 확인한다.
+
+1. 원본 ZIP과 테스트 다운로드 ZIP의 파일 크기가 일치하는지 확인한다.
+2. 원본 ZIP과 테스트 다운로드 ZIP의 SHA-256이 일치하는지 확인한다.
+3. DB의 `LAUNCHER_RELEASE` 테이블에 신규 버전이 등록되었는지 확인한다.
+4. `PROGRAM_ID`, `VERSION`, `DIR_NAME`, `FILE_NAME`, `SIZE_BYTES`, `SHA256` 값이 올바른지 확인한다.
+
+전체 흐름:
+
+```text
+로컬 ZIP 준비
+    ↓
+Cloudflare R2 업로드
+    ↓
+launcher_key_create.py로 고객 키 발급
+    ↓
+LAUNCHER_PROGRAM_KEY 확인
+    ↓
+원본 키를 고객 관리 엑셀에 정리
+    ↓
+cloudflare.py 실행
+    ↓
+test 폴더 다운로드 파일 확인
+    ↓
+파일 크기 및 SHA-256 확인
+    ↓
+LAUNCHER_RELEASE 등록 확인
+```
+
+---
+
 ## 1. 문서 목적
 
 GB7 Launcher는 고객 PC에서 다음 작업을 담당하는 전용 실행 프로그램이다.

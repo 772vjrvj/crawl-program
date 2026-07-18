@@ -18,10 +18,10 @@ BASE_URL = "https://goodbye772.com"
 ADMIN_KEY = "gb7-admin-update-key-1234"
 
 # 키를 발급할 프로그램 ID
-PROGRAM_ID = "TEST"
+PROGRAM_ID = "NAVER_PLACE_LOC_ALL"
 
 # 관리자 확인용 이름
-KEY_NAME = "고객 A 1번 아이디"
+KEY_NAME = "네이버 플레이스 / 단정한사계759"
 
 # 만료일
 # 형식: YYYY-MM-DDTHH:MM:SS

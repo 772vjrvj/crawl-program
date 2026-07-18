@@ -43,8 +43,8 @@ R2_SECRET_KEY = "4cf50848f49de1f3c8d8395d16e96444bb088411b0b3341732e3784ff34b334
 # Spring Boot 웹서버 기본 주소
 #
 # 마지막에 /를 넣지 않는다.
-# WEB_SERVER_URL = "https://goodbye772.com"
-WEB_SERVER_URL = "http://localhost"
+WEB_SERVER_URL = "https://goodbye772.com"
+# WEB_SERVER_URL = "http://localhost"
 
 # 배포 등록 API 전용 키
 #
@@ -63,19 +63,29 @@ API_TIMEOUT_SEC = 30
 # ============================================================
 
 # 배포 대상 프로그램 ID
-PROGRAM_ID = "NAVER_BAND_MEMBER"
+PROGRAM_ID = "NAVER_PLACE_LOC_ALL"
 
 # 프로그램 버전
-VERSION = "1.0.2"
+VERSION = "2.0.2"
 
 # Cloudflare R2 버전 폴더명
-DIR_NAME = "v1_0_2"
+DIR_NAME = "v2_0_2"
 
 # Cloudflare R2 ZIP 파일명
-FILE_NAME = "v1_0_2.zip"
+FILE_NAME = "v2_0_2.zip"
 
 # 신규 릴리스 사용 여부
 ENABLED = True
+
+# ============================================================
+# 로컬 Cloudflare 버전 관리 폴더
+# ============================================================
+
+# 모든 프로그램의 배포 ZIP 파일이 저장되는 최상위 폴더
+VERSION_ROOT_DIR = Path(
+    r"E:\나의 목록\cloudflare\version"
+)
+
 
 
 # ============================================================
@@ -102,31 +112,36 @@ OBJECT_KEY = (
 # 로컬 원본 ZIP 파일
 # ============================================================
 
-# Cloudflare R2에 직접 업로드한 원본 ZIP 파일
-#
-# 이 파일과 R2에서 다시 다운로드한 파일의
-# 크기 및 SHA-256을 비교한다.
-SOURCE_PATH = Path(
-    r"E:\나의 목록\cloudflare\version"
-    r"\NAVER_BAND_MEMBER\v1_0_2\v1_0_2.zip"
+# 결과 예시:
+# E:\나의 목록\cloudflare\version
+# \NAVER_PLACE_LOC_ALL\v2_0_2\v2_0_2.zip
+SOURCE_PATH = (
+        VERSION_ROOT_DIR
+        / PROGRAM_ID
+        / DIR_NAME
+        / FILE_NAME
 )
-
 
 # ============================================================
 # 다운로드 테스트 경로
 # ============================================================
 
-# R2 파일을 다시 다운로드할 테스트 폴더
-DOWNLOAD_DIR = Path(
-    r"E:\나의 목록\cloudflare\version"
-    r"\NAVER_BAND_MEMBER\v1_0_2\test"
+# 결과 예시:
+# E:\나의 목록\cloudflare\version
+# \NAVER_PLACE_LOC_ALL\v2_0_2\test
+DOWNLOAD_DIR = (
+        VERSION_ROOT_DIR
+        / PROGRAM_ID
+        / DIR_NAME
+        / "test"
 )
 
-# 실제 다운로드될 파일 경로
+# 실제 다운로드될 테스트 파일 경로
 DOWNLOAD_PATH = (
         DOWNLOAD_DIR
         / FILE_NAME
 )
+
 
 
 def calculate_sha256(
