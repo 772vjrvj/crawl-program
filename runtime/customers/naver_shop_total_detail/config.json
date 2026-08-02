@@ -26,7 +26,7 @@
     {
       "name": "종료페이지",
       "code": "end_page",
-      "value": 30,
+      "value": 2,
       "type": "input"
     },
     {

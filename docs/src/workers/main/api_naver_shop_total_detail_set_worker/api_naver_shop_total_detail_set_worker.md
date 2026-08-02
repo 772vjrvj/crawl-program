@@ -502,7 +502,7 @@ pyinstaller .\main.py `
 --clean `
 --windowed `
 --name "네이버 스토어" `
---version-file ".\docs\src\workers\main\naver_shop_total_detail\version_info.txt" `
+--version-file ".\docs\src\workers\main\api_naver_shop_total_detail_set_worker\version_info.txt" `
 --distpath ".\dist" `
 --workpath ".\build" `
 --icon ".\resources\icons\crawling.ico" `
