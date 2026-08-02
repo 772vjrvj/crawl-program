@@ -28,6 +28,7 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
     CAPTCHA_NONE = 1
     CAPTCHA_SOLVED = 2
     ACCESS_LIMITED = 3
+    CAPTCHA_WRONG_PAGE = 4
 
     ACCESS_LIMIT_TEXTS: Tuple[str, ...] = (
         "쇼핑 서비스 접속이 일시적으로 제한되었습니다",
@@ -35,7 +36,8 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
         "비정상적인 접근이 감지",
     )
 
-    CAPTCHA_WRONG_CLICK_URLS: Tuple[str, ...] = (
+    # 캡차 Tab 이동이 어긋날 때 잘못 열리는 네이버 하단 링크들.
+    CAPTCHA_WRONG_PAGE_URLS: Tuple[str, ...] = (
         "https://help.naver.com/service/5640/category/bookmark",
         "https://policy.naver.com/rules/disclaimer.html",
         "https://policy.naver.com/rules/privacy.html",
@@ -92,16 +94,12 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
             self._stop_event.clear()
             self._browser_open = False
 
-            # 콘솔 출력 대상이 없으면, 출력 내용을 운영체제의 휴지통으로 보내서 print() 관련 오류가 발생하지 않도록 한다.
             if sys.stdout is None:
                 sys.stdout = open(os.devnull, "w")
 
-            # 저장 폴더 경로 설정
             self.folder_path = str(
                 self.get_setting_value(self.setting, "folder_path") or ""
             ).strip()
-
-            # 자동 엑셀 저장 설정
             self.auto_save_yn = self._to_bool(
                 self.get_setting_value(self.setting, "auto_save_yn")
             )
@@ -109,24 +107,17 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
             self.log_signal_func(f"저장경로 : {self.folder_path}")
             self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
 
-            # 음성 캡처 프로그램 경로 확보
             self._set_ffmpeg_path()
 
-            # 모든 자동 조작 명령 사이에 기본적으로 0.4초씩 대기하도록 설정합니다.
             pyautogui.PAUSE = 0.4
-            
-            # 마우스를 화면 왼쪽 위 모서리로 이동하면 pyautogui 자동화가 즉시 중단되도록 설정
             pyautogui.FAILSAFE = True
-            
-            # 엑셀 드라이버 설정
+
             self.excel_driver = ExcelUtils(self.log_signal_func)
-            
-            # AI ai_whisper 모델 세팅
+
             if self.model is None:
                 self.model = get_model()
                 self.log_signal_func("✅ Whisper AI (service) 연결 완료")
-            
-            # db 세팅
+
             if not self.db_set():
                 return False
 
@@ -437,9 +428,7 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
         ):
             return False
 
-        # 한영키에서 한글로 되어 있으면 chrome이 한글로 나오는 이슈가 있어서 클립보드에 붙여서 넣음
-        pyperclip.copy("chrome")
-        pyautogui.hotkey("ctrl", "v")
+        pyautogui.write("chrome")
         pyautogui.press("enter")
         if not self._sleep_or_stop(
                 3,
@@ -465,30 +454,48 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
         text = str(page_content or "")
         return any(limit_text in text for limit_text in self.ACCESS_LIMIT_TEXTS)
 
-    def _reopen_list_page(self, target_url: str, context: str) -> bool:
+    def _get_current_browser_url(self) -> str:
+        """현재 Chrome 탭의 주소를 클립보드로 읽는다."""
+        try:
+            pyperclip.copy("")
+            pyautogui.hotkey("ctrl", "l")
+            pyautogui.hotkey("ctrl", "c")
+            time.sleep(0.2)
+            current_url = str(pyperclip.paste() or "").strip()
+            pyautogui.press("esc")
+            return current_url
+        except Exception as e:
+            self.log_signal_func(f"⚠️ 현재 URL 확인 실패: {e}")
+            return ""
+
+    def is_captcha_wrong_page(self, current_url: str) -> bool:
+        """캡차 Tab 오작동으로 네이버 하단 링크가 열린 상태인지 확인한다."""
+        normalized_url = str(current_url or "").strip().lower()
+        return any(
+            normalized_url.startswith(url.lower())
+            for url in self.CAPTCHA_WRONG_PAGE_URLS
+        )
+
+    def _restart_browser_for_retry(self, context: str) -> bool:
+        """
+        접속 제한 또는 캡차 오작동 페이지를 발견하면
+        기존 브라우저를 닫고 새 브라우저에서 같은 대상을 다시 시도한다.
+        """
         self.log_signal_func(
-            f"🔄 브라우저 탭을 모두 닫고 목록을 다시 엽니다. | {context}"
+            f"🔄 브라우저 재시작 후 동일 위치 재시도 | {context}"
         )
         self._close_browser()
 
+        if not self.running or self._stop_event.is_set():
+            return False
+
         if not self._sleep_or_stop(
-                1,
-                "🛑 중단 또는 sleep 실패 | 브라우저 재실행 전 대기",
+                random.uniform(1.0, 2.0),
+                f"🛑 브라우저 재시작 전 대기 중단 | {context}",
         ):
             return False
 
-        if not self._open_chrome():
-            return False
-
-        pyautogui.hotkey("ctrl", "l")
-        pyperclip.copy(target_url)
-        pyautogui.hotkey("ctrl", "v")
-        pyautogui.press("enter")
-
-        return self._sleep_or_stop(
-            random.uniform(4.0, 5.5),
-            f"🛑 중단 또는 sleep 실패 | 목록 다시 열기 후 대기 | {context}",
-        )
+        return self._open_chrome()
 
     # =========================================================
     # 중복 제거
@@ -581,35 +588,26 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
             if keyword.strip()
         ]
 
-        # 시작 페이지 설정
         start_p = self._to_int(
             self.get_setting_value(self.setting, "start_page"),
             1,
         )
-
-        # 종료 페이지 설정
         end_p = self._to_int(
             self.get_setting_value(self.setting, "end_page"),
             start_p,
         )
-
-        # 기준 방문자 수(같거나 작은 경우 추출)
         site_total_cnt = self._to_int(
             self.get_setting_value(self.setting, "site_total_cnt"),
             0,
         )
 
-        # 엑셀 저장 경로
         self.folder_path = str(
             self.get_setting_value(self.setting, "folder_path") or ""
         ).strip()
 
-        # 중복제거
         self.dup_yn = self._to_bool(
             self.get_setting_value(self.setting, "dup_yn")
         )
-
-        # DB에서 이전 상점이름을 가져와서 중복에서 제거set에 넣는다.
         self.seen_store_names = (
             self.load_existing_store_names()
             if self.dup_yn
@@ -711,10 +709,6 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                     page_success = False
                     retry = 1
 
-                    # 접속 제한으로 브라우저를 다시 연 경우,
-                    # 다음 반복에서 동일 URL을 다시 입력하지 않도록 한다.
-                    skip_page_navigation = False
-
                     # 접속 제한은 일반 추출 재시도 횟수에 포함하지 않는다.
                     while retry <= 3:
                         if not self.running:
@@ -728,43 +722,39 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                             f"키워드={kw} | page={page} | retry={retry}/3"
                         )
 
-                        # _reopen_list_page()에서 이미 target_url을 열었다면
-                        # 동일 URL을 다시 요청하지 않는다.
-                        if skip_page_navigation:
-                            skip_page_navigation = False
+                        pyautogui.hotkey("ctrl", "l")
+                        if not self._sleep_or_stop(
+                                random.uniform(0.2, 0.5),
+                                "🛑 중단 또는 sleep 실패 | 주소창 이동 후 대기 "
+                                f"| 키워드={kw} | page={page} | retry={retry}",
+                        ):
+                            return True
 
-                        else:
-                            pyautogui.hotkey("ctrl", "l")
-                            if not self._sleep_or_stop(
-                                    random.uniform(0.2, 0.5),
-                                    "🛑 중단 또는 sleep 실패 | 주소창 이동 후 대기 "
-                                    f"| 키워드={kw} | page={page} | retry={retry}",
-                            ):
-                                return True
-
-                            pyperclip.copy(target_url)
-                            pyautogui.hotkey("ctrl", "v")
-                            pyautogui.press("enter")
-
-                            if not self._sleep_or_stop(
-                                    random.uniform(4.0, 5.5),
-                                    "🛑 중단 또는 sleep 실패 | 페이지 이동 후 대기 "
-                                    f"| 키워드={kw} | page={page} | retry={retry}",
-                            ):
-                                return True
+                        pyperclip.copy(target_url)
+                        pyautogui.hotkey("ctrl", "v")
+                        pyautogui.press("enter")
+                        if not self._sleep_or_stop(
+                                random.uniform(4.0, 5.5),
+                                "🛑 중단 또는 sleep 실패 | 페이지 이동 후 대기 "
+                                f"| 키워드={kw} | page={page} | retry={retry}",
+                        ):
+                            return True
 
                         captcha_result = self.handle_captcha_with_retry()
 
                         if captcha_result == self.ACCESS_LIMITED:
-                            if not self._reopen_list_page(
-                                    target_url,
-                                    f"목록 | 키워드={kw} | page={page}",
+                            if not self._restart_browser_for_retry(
+                                    f"목록 접속 제한 | 키워드={kw} | page={page}"
                             ):
                                 return not self.running
+                            # 새 브라우저에서 동일 키워드/동일 페이지를 다시 요청한다.
+                            continue
 
-                            # _reopen_list_page()가 이미 target_url까지 접속했으므로
-                            # 다음 반복에서는 주소 이동을 생략한다.
-                            skip_page_navigation = True
+                        if captcha_result == self.CAPTCHA_WRONG_PAGE:
+                            if not self._restart_browser_for_retry(
+                                    f"목록 캡차 오작동 페이지 | 키워드={kw} | page={page}"
+                            ):
+                                return not self.running
                             continue
 
                         if captcha_result == self.CAPTCHA_FAIL:
@@ -803,32 +793,25 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                         html_source = pyperclip.paste()
                         pyautogui.hotkey("ctrl", "w")
 
-                        # 소스에서 접속 제한을 발견한 경우도 동일하게 처리한다.
+                        # 화면 복사에서 놓친 경우를 대비해 소스에서도 한 번 더 확인한다.
                         if self.is_access_limited(html_source):
-                            if not self._reopen_list_page(
-                                    target_url,
-                                    f"목록 소스 | 키워드={kw} | page={page}",
+                            if not self._restart_browser_for_retry(
+                                    f"목록 소스 접속 제한 | 키워드={kw} | page={page}"
                             ):
                                 return not self.running
-
-                            skip_page_navigation = True
                             continue
 
                         extracted = self.extract_items_from_html(html_source)
-
                         if extracted:
                             for item in extracted:
                                 item["_page_num"] = page
-                                item["_list_url"] = target_url
 
                             chunk_items_queue.extend(extracted)
-
                             self.log_signal_func(
                                 f"📄 {page}페이지 수집 완료: "
                                 f"상품 {len(extracted)}개 확보 "
                                 f"| 키워드={kw} | retry={retry}"
                             )
-
                             page_success = True
                             break
 
@@ -838,7 +821,6 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                         )
 
                         retry += 1
-
                         if retry <= 3:
                             if not self._sleep_or_stop(
                                     random.uniform(2.0, 3.5),
@@ -847,9 +829,6 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                                     f"| retry={retry - 1}",
                             ):
                                 return True
-
-
-
 
                     if not page_success:
                         self.log_signal_func(
@@ -883,7 +862,6 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                         item = item_data.get("item", {})
                         pc_url = str(item.get("mallPcUrl") or "").strip()
                         p_num = item_data.get("_page_num")
-                        list_url = str(item_data.get("_list_url") or "").strip()
 
                         if not pc_url:
                             self.log_signal_func(
@@ -931,10 +909,17 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                             captcha_result = self.handle_captcha_with_retry()
 
                             if captcha_result == self.ACCESS_LIMITED:
-                                if not self._reopen_list_page(
-                                        list_url,
-                                        f"상세 | 키워드={kw} | page={p_num} "
-                                        f"| idx={idx + 1}",
+                                if not self._restart_browser_for_retry(
+                                        f"상세 접속 제한 | 키워드={kw} | page={p_num} "
+                                        f"| idx={idx + 1}"
+                                ):
+                                    return not self.running
+                                continue
+
+                            if captcha_result == self.CAPTCHA_WRONG_PAGE:
+                                if not self._restart_browser_for_retry(
+                                        f"상세 캡차 오작동 페이지 | 키워드={kw} "
+                                        f"| page={p_num} | idx={idx + 1}"
                                 ):
                                     return not self.running
                                 continue
@@ -991,10 +976,9 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                             detail_text = pyperclip.paste()
 
                             if self.is_access_limited(detail_text):
-                                if not self._reopen_list_page(
-                                        list_url,
-                                        f"상세 본문 | 키워드={kw} | page={p_num} "
-                                        f"| idx={idx + 1}",
+                                if not self._restart_browser_for_retry(
+                                        f"상세 본문 접속 제한 | 키워드={kw} | page={p_num} "
+                                        f"| idx={idx + 1}"
                                 ):
                                     return not self.running
                                 continue
@@ -1216,6 +1200,13 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                 f"🔍 [시도 {attempt}/{max_tries}] 화면 상태 체크 중..."
             )
 
+            current_url = self._get_current_browser_url()
+            if self.is_captcha_wrong_page(current_url):
+                self.log_signal_func(
+                    f"⚠️ 캡차 Tab 오작동 페이지 감지: {current_url}"
+                )
+                return self.CAPTCHA_WRONG_PAGE
+
             if attempt > 1:
                 pyautogui.press("tab")
                 if not self.sleep_s(0.5):
@@ -1271,26 +1262,18 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
             else:
                 pyautogui.press("enter")
 
-            if not self.sleep_s(0.4):
+            if not self.sleep_s(2):
                 self.log_signal_func(
-                    "🛑 캡차 처리 중단: 현재 URL 확인 전 sleep 실패"
+                    "🛑 캡차 처리 중단: 음성재생 대기 sleep 실패"
                 )
                 return self.CAPTCHA_FAIL
 
-            pyperclip.copy("")
-            pyautogui.hotkey("ctrl", "l")
-            pyautogui.hotkey("ctrl", "c")
-            current_url = pyperclip.paste().strip()
-            pyautogui.press("esc")
-
-            if any(
-                    current_url.startswith(url)
-                    for url in self.CAPTCHA_WRONG_CLICK_URLS
-            ):
+            current_url = self._get_current_browser_url()
+            if self.is_captcha_wrong_page(current_url):
                 self.log_signal_func(
-                    f"⚠️ 캡차 오클릭 URL 확인: {current_url}"
+                    f"⚠️ 캡차 버튼 대신 하단 링크가 열림: {current_url}"
                 )
-                return self.ACCESS_LIMITED
+                return self.CAPTCHA_WRONG_PAGE
 
             filename = "captcha_audio_final.wav"
             if self.record_audio(filename, duration=17):

@@ -32,13 +32,13 @@
     {
       "name": "기준 방문자 수(같거나 작은 경우 추출)",
       "code": "site_total_cnt",
-      "value": 500000,
+      "value": 500,
       "type": "input"
     },
     {
       "name": "캡챠 재시도 횟수",
       "code": "cpcha_cnt",
-      "value": 20,
+      "value": 30,
       "type": "input"
     },
     {

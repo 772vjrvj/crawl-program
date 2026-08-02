@@ -8,7 +8,7 @@ import sys
 import threading
 import time
 import wave
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 import pyaudiowpatch as pyaudio
@@ -29,17 +29,16 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
     CAPTCHA_SOLVED = 2
     ACCESS_LIMITED = 3
 
+    # 1차 12시간 + 2차 추가 12시간 = 최대 총 24시간 대기한다.
+    ACCESS_LIMIT_WAIT_STEPS: Tuple[int, ...] = (
+        12 * 60 * 60,
+        12 * 60 * 60,
+    )
+
     ACCESS_LIMIT_TEXTS: Tuple[str, ...] = (
         "쇼핑 서비스 접속이 일시적으로 제한되었습니다",
         "해당 네트워크의 접속을 일시적으로 제한",
         "비정상적인 접근이 감지",
-    )
-
-    CAPTCHA_WRONG_CLICK_URLS: Tuple[str, ...] = (
-        "https://help.naver.com/service/5640/category/bookmark",
-        "https://policy.naver.com/rules/disclaimer.html",
-        "https://policy.naver.com/rules/privacy.html",
-        "https://policy.naver.com/rules/service.html",
     )
 
     def __init__(self, setting: Any = None) -> None:
@@ -73,6 +72,10 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
         self.dup_yn: bool = False
         self.seen_store_names: Set[str] = set()
 
+        # 연속 접속 제한 복구 단계.
+        # 정상 페이지가 확인되면 0으로 초기화한다.
+        self.access_limit_wait_index: int = 0
+
         self.excel_driver: Optional[ExcelUtils] = None
         self.db_repository: Optional[WorkerDbRepository] = None
         self.columns: List[str] = []
@@ -91,17 +94,14 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
             self._cleaned_up = False
             self._stop_event.clear()
             self._browser_open = False
+            self.access_limit_wait_index = 0
 
-            # 콘솔 출력 대상이 없으면, 출력 내용을 운영체제의 휴지통으로 보내서 print() 관련 오류가 발생하지 않도록 한다.
             if sys.stdout is None:
                 sys.stdout = open(os.devnull, "w")
 
-            # 저장 폴더 경로 설정
             self.folder_path = str(
                 self.get_setting_value(self.setting, "folder_path") or ""
             ).strip()
-
-            # 자동 엑셀 저장 설정
             self.auto_save_yn = self._to_bool(
                 self.get_setting_value(self.setting, "auto_save_yn")
             )
@@ -109,24 +109,17 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
             self.log_signal_func(f"저장경로 : {self.folder_path}")
             self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
 
-            # 음성 캡처 프로그램 경로 확보
             self._set_ffmpeg_path()
 
-            # 모든 자동 조작 명령 사이에 기본적으로 0.4초씩 대기하도록 설정합니다.
             pyautogui.PAUSE = 0.4
-            
-            # 마우스를 화면 왼쪽 위 모서리로 이동하면 pyautogui 자동화가 즉시 중단되도록 설정
             pyautogui.FAILSAFE = True
-            
-            # 엑셀 드라이버 설정
+
             self.excel_driver = ExcelUtils(self.log_signal_func)
-            
-            # AI ai_whisper 모델 세팅
+
             if self.model is None:
                 self.model = get_model()
                 self.log_signal_func("✅ Whisper AI (service) 연결 완료")
-            
-            # db 세팅
+
             if not self.db_set():
                 return False
 
@@ -437,9 +430,7 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
         ):
             return False
 
-        # 한영키에서 한글로 되어 있으면 chrome이 한글로 나오는 이슈가 있어서 클립보드에 붙여서 넣음
-        pyperclip.copy("chrome")
-        pyautogui.hotkey("ctrl", "v")
+        pyautogui.write("chrome")
         pyautogui.press("enter")
         if not self._sleep_or_stop(
                 3,
@@ -465,30 +456,73 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
         text = str(page_content or "")
         return any(limit_text in text for limit_text in self.ACCESS_LIMIT_TEXTS)
 
-    def _reopen_list_page(self, target_url: str, context: str) -> bool:
-        self.log_signal_func(
-            f"🔄 브라우저 탭을 모두 닫고 목록을 다시 엽니다. | {context}"
-        )
+    def _reset_access_limit_state(self) -> None:
+        if self.access_limit_wait_index > 0:
+            self.log_signal_func(
+                "✅ 네이버 쇼핑 접속 제한 해제 확인 - 대기 단계를 초기화합니다."
+            )
+        self.access_limit_wait_index = 0
+
+    def _wait_after_access_limit(self, context: str) -> bool:
+        """
+        접속 제한 감지 시 브라우저를 닫고 12시간씩 최대 두 번 대기한다.
+
+        반환값
+        - True: 대기 완료 후 동일 URL을 다시 시도
+        - False: 사용자 중단 또는 총 24시간 후에도 제한이 지속됨
+        """
         self._close_browser()
 
-        if not self._sleep_or_stop(
-                1,
-                "🛑 중단 또는 sleep 실패 | 브라우저 재실행 전 대기",
-        ):
+        if not self.running or self._stop_event.is_set():
             return False
+
+        if self.access_limit_wait_index >= len(self.ACCESS_LIMIT_WAIT_STEPS):
+            error_message = (
+                "네이버 쇼핑 접속 제한 지속 | "
+                f"{context} | 12시간 + 추가 12시간(총 24시간) 대기 후에도 미해제"
+            )
+            self.log_signal_func(f"❌ {error_message}")
+            self.finish_job("FAIL", error_message)
+            return False
+
+        wait_seconds = self.ACCESS_LIMIT_WAIT_STEPS[
+            self.access_limit_wait_index
+        ]
+        self.access_limit_wait_index += 1
+
+        wait_hours = wait_seconds / 3600
+        next_check_at = datetime.now() + timedelta(seconds=wait_seconds)
+
+        self.log_signal_func(
+            f"🚫 네이버 쇼핑 접속 제한 감지 | {context}"
+        )
+        self.log_signal_func(
+            f"⏸️ 자동 대기 시작 "
+            f"| 단계={self.access_limit_wait_index}/{len(self.ACCESS_LIMIT_WAIT_STEPS)} "
+            f"| 대기={wait_hours:g}시간 "
+            f"| 재확인예정={next_check_at:%Y-%m-%d %H:%M:%S}"
+        )
+        self.log_signal_func(
+            "ℹ️ 대기 중에는 네이버 쇼핑 요청을 보내지 않습니다."
+        )
+
+        # Event.wait를 사용하므로 중지 버튼을 누르면 즉시 대기가 해제된다.
+        stopped = self._stop_event.wait(wait_seconds)
+        if stopped or not self.running:
+            self.log_signal_func("🛑 접속 제한 대기 중 사용자 중단")
+            return False
+
+        self.log_signal_func(
+            f"⏰ 접속 제한 대기 완료 "
+            f"| 누적단계={self.access_limit_wait_index}/"
+            f"{len(self.ACCESS_LIMIT_WAIT_STEPS)} "
+            "| 제한이 발생했던 동일 위치를 1회 재확인합니다."
+        )
 
         if not self._open_chrome():
             return False
 
-        pyautogui.hotkey("ctrl", "l")
-        pyperclip.copy(target_url)
-        pyautogui.hotkey("ctrl", "v")
-        pyautogui.press("enter")
-
-        return self._sleep_or_stop(
-            random.uniform(4.0, 5.5),
-            f"🛑 중단 또는 sleep 실패 | 목록 다시 열기 후 대기 | {context}",
-        )
+        return True
 
     # =========================================================
     # 중복 제거
@@ -581,35 +615,26 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
             if keyword.strip()
         ]
 
-        # 시작 페이지 설정
         start_p = self._to_int(
             self.get_setting_value(self.setting, "start_page"),
             1,
         )
-
-        # 종료 페이지 설정
         end_p = self._to_int(
             self.get_setting_value(self.setting, "end_page"),
             start_p,
         )
-
-        # 기준 방문자 수(같거나 작은 경우 추출)
         site_total_cnt = self._to_int(
             self.get_setting_value(self.setting, "site_total_cnt"),
             0,
         )
 
-        # 엑셀 저장 경로
         self.folder_path = str(
             self.get_setting_value(self.setting, "folder_path") or ""
         ).strip()
 
-        # 중복제거
         self.dup_yn = self._to_bool(
             self.get_setting_value(self.setting, "dup_yn")
         )
-
-        # DB에서 이전 상점이름을 가져와서 중복에서 제거set에 넣는다.
         self.seen_store_names = (
             self.load_existing_store_names()
             if self.dup_yn
@@ -711,10 +736,6 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                     page_success = False
                     retry = 1
 
-                    # 접속 제한으로 브라우저를 다시 연 경우,
-                    # 다음 반복에서 동일 URL을 다시 입력하지 않도록 한다.
-                    skip_page_navigation = False
-
                     # 접속 제한은 일반 추출 재시도 횟수에 포함하지 않는다.
                     while retry <= 3:
                         if not self.running:
@@ -728,43 +749,32 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                             f"키워드={kw} | page={page} | retry={retry}/3"
                         )
 
-                        # _reopen_list_page()에서 이미 target_url을 열었다면
-                        # 동일 URL을 다시 요청하지 않는다.
-                        if skip_page_navigation:
-                            skip_page_navigation = False
+                        pyautogui.hotkey("ctrl", "l")
+                        if not self._sleep_or_stop(
+                                random.uniform(0.2, 0.5),
+                                "🛑 중단 또는 sleep 실패 | 주소창 이동 후 대기 "
+                                f"| 키워드={kw} | page={page} | retry={retry}",
+                        ):
+                            return True
 
-                        else:
-                            pyautogui.hotkey("ctrl", "l")
-                            if not self._sleep_or_stop(
-                                    random.uniform(0.2, 0.5),
-                                    "🛑 중단 또는 sleep 실패 | 주소창 이동 후 대기 "
-                                    f"| 키워드={kw} | page={page} | retry={retry}",
-                            ):
-                                return True
-
-                            pyperclip.copy(target_url)
-                            pyautogui.hotkey("ctrl", "v")
-                            pyautogui.press("enter")
-
-                            if not self._sleep_or_stop(
-                                    random.uniform(4.0, 5.5),
-                                    "🛑 중단 또는 sleep 실패 | 페이지 이동 후 대기 "
-                                    f"| 키워드={kw} | page={page} | retry={retry}",
-                            ):
-                                return True
+                        pyperclip.copy(target_url)
+                        pyautogui.hotkey("ctrl", "v")
+                        pyautogui.press("enter")
+                        if not self._sleep_or_stop(
+                                random.uniform(4.0, 5.5),
+                                "🛑 중단 또는 sleep 실패 | 페이지 이동 후 대기 "
+                                f"| 키워드={kw} | page={page} | retry={retry}",
+                        ):
+                            return True
 
                         captcha_result = self.handle_captcha_with_retry()
 
                         if captcha_result == self.ACCESS_LIMITED:
-                            if not self._reopen_list_page(
-                                    target_url,
-                                    f"목록 | 키워드={kw} | page={page}",
+                            if not self._wait_after_access_limit(
+                                    f"목록 | 키워드={kw} | page={page}"
                             ):
                                 return not self.running
-
-                            # _reopen_list_page()가 이미 target_url까지 접속했으므로
-                            # 다음 반복에서는 주소 이동을 생략한다.
-                            skip_page_navigation = True
+                            # 동일 키워드/동일 페이지를 다시 요청한다.
                             continue
 
                         if captcha_result == self.CAPTCHA_FAIL:
@@ -803,32 +813,27 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                         html_source = pyperclip.paste()
                         pyautogui.hotkey("ctrl", "w")
 
-                        # 소스에서 접속 제한을 발견한 경우도 동일하게 처리한다.
+                        # 화면 복사에서 놓친 경우를 대비해 소스에서도 한 번 더 확인한다.
                         if self.is_access_limited(html_source):
-                            if not self._reopen_list_page(
-                                    target_url,
-                                    f"목록 소스 | 키워드={kw} | page={page}",
+                            if not self._wait_after_access_limit(
+                                    f"목록 소스 | 키워드={kw} | page={page}"
                             ):
                                 return not self.running
-
-                            skip_page_navigation = True
                             continue
 
                         extracted = self.extract_items_from_html(html_source)
-
                         if extracted:
+                            # 실제 상품 목록까지 확인된 경우에만 제한 복구 단계를 초기화한다.
+                            self._reset_access_limit_state()
                             for item in extracted:
                                 item["_page_num"] = page
-                                item["_list_url"] = target_url
 
                             chunk_items_queue.extend(extracted)
-
                             self.log_signal_func(
                                 f"📄 {page}페이지 수집 완료: "
                                 f"상품 {len(extracted)}개 확보 "
                                 f"| 키워드={kw} | retry={retry}"
                             )
-
                             page_success = True
                             break
 
@@ -838,7 +843,6 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                         )
 
                         retry += 1
-
                         if retry <= 3:
                             if not self._sleep_or_stop(
                                     random.uniform(2.0, 3.5),
@@ -847,9 +851,6 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                                     f"| retry={retry - 1}",
                             ):
                                 return True
-
-
-
 
                     if not page_success:
                         self.log_signal_func(
@@ -883,7 +884,6 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                         item = item_data.get("item", {})
                         pc_url = str(item.get("mallPcUrl") or "").strip()
                         p_num = item_data.get("_page_num")
-                        list_url = str(item_data.get("_list_url") or "").strip()
 
                         if not pc_url:
                             self.log_signal_func(
@@ -931,10 +931,9 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                             captcha_result = self.handle_captcha_with_retry()
 
                             if captcha_result == self.ACCESS_LIMITED:
-                                if not self._reopen_list_page(
-                                        list_url,
+                                if not self._wait_after_access_limit(
                                         f"상세 | 키워드={kw} | page={p_num} "
-                                        f"| idx={idx + 1}",
+                                        f"| idx={idx + 1}"
                                 ):
                                     return not self.running
                                 continue
@@ -991,14 +990,14 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                             detail_text = pyperclip.paste()
 
                             if self.is_access_limited(detail_text):
-                                if not self._reopen_list_page(
-                                        list_url,
+                                if not self._wait_after_access_limit(
                                         f"상세 본문 | 키워드={kw} | page={p_num} "
-                                        f"| idx={idx + 1}",
+                                        f"| idx={idx + 1}"
                                 ):
                                     return not self.running
                                 continue
 
+                            self._reset_access_limit_state()
                             break
 
                         total_visit = "0"
@@ -1271,26 +1270,11 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
             else:
                 pyautogui.press("enter")
 
-            if not self.sleep_s(0.4):
+            if not self.sleep_s(2):
                 self.log_signal_func(
-                    "🛑 캡차 처리 중단: 현재 URL 확인 전 sleep 실패"
+                    "🛑 캡차 처리 중단: 음성재생 대기 sleep 실패"
                 )
                 return self.CAPTCHA_FAIL
-
-            pyperclip.copy("")
-            pyautogui.hotkey("ctrl", "l")
-            pyautogui.hotkey("ctrl", "c")
-            current_url = pyperclip.paste().strip()
-            pyautogui.press("esc")
-
-            if any(
-                    current_url.startswith(url)
-                    for url in self.CAPTCHA_WRONG_CLICK_URLS
-            ):
-                self.log_signal_func(
-                    f"⚠️ 캡차 오클릭 URL 확인: {current_url}"
-                )
-                return self.ACCESS_LIMITED
 
             filename = "captcha_audio_final.wav"
             if self.record_audio(filename, duration=17):
