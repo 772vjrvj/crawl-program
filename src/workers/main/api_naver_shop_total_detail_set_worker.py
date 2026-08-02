@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import random
 import re
 import sys
@@ -35,12 +36,10 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
         "비정상적인 접근이 감지",
     )
 
-    CAPTCHA_WRONG_CLICK_URLS: Tuple[str, ...] = (
-        "https://help.naver.com/service/5640/category/bookmark",
-        "https://policy.naver.com/rules/disclaimer.html",
-        "https://policy.naver.com/rules/privacy.html",
-        "https://policy.naver.com/rules/service.html",
-    )
+    # 캡차 음성 처리 단계가 장시간 멈추지 않도록 제한 시간을 둔다.
+    # 녹음은 실제 녹음 시간 17초에 장치 준비 시간을 더해 25초로 제한한다.
+    AUDIO_RECORD_TIMEOUT_SEC = 25.0
+    WHISPER_TRANSCRIBE_TIMEOUT_SEC = 60.0
 
     def __init__(self, setting: Any = None) -> None:
         super().__init__()
@@ -114,18 +113,18 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
 
             # 모든 자동 조작 명령 사이에 기본적으로 0.4초씩 대기하도록 설정합니다.
             pyautogui.PAUSE = 0.4
-            
+
             # 마우스를 화면 왼쪽 위 모서리로 이동하면 pyautogui 자동화가 즉시 중단되도록 설정
             pyautogui.FAILSAFE = True
-            
+
             # 엑셀 드라이버 설정
             self.excel_driver = ExcelUtils(self.log_signal_func)
-            
+
             # AI ai_whisper 모델 세팅
             if self.model is None:
                 self.model = get_model()
                 self.log_signal_func("✅ Whisper AI (service) 연결 완료")
-            
+
             # db 세팅
             if not self.db_set():
                 return False
@@ -554,6 +553,91 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
             self.log_signal_func(message)
             return False
         return True
+
+    def _run_with_timeout(
+            self,
+            func: Any,
+            timeout_sec: float,
+            task_name: str,
+            *args: Any,
+            **kwargs: Any,
+    ) -> Tuple[bool, Any]:
+        """
+        블로킹 가능성이 있는 작업을 데몬 스레드에서 실행한다.
+
+        제한 시간 안에 작업이 끝나면 (True, 결과)를 반환하고,
+        제한 시간을 초과하거나 예외가 발생하면 (False, None)을 반환한다.
+
+        브라우저를 어떤 URL로 다시 열지는 호출한 목록/상세 처리부가 알고 있으므로,
+        여기서는 브라우저를 직접 조작하지 않고 실패 상태만 반환한다.
+        """
+        result_queue: queue.Queue[Tuple[str, Any]] = queue.Queue(maxsize=1)
+
+        def runner() -> None:
+            try:
+                result_queue.put(
+                    ("SUCCESS", func(*args, **kwargs)),
+                    block=False,
+                )
+            except Exception as e:
+                try:
+                    result_queue.put(
+                        ("ERROR", e),
+                        block=False,
+                    )
+                except queue.Full:
+                    pass
+
+        thread = threading.Thread(
+            target=runner,
+            name=f"{self.worker_name}-{task_name}",
+            daemon=True,
+        )
+
+        started_at = time.monotonic()
+        self.log_signal_func(
+            f"⏱️ {task_name} 시작 | 제한시간={timeout_sec:.1f}초"
+        )
+        thread.start()
+
+        while self.running:
+            elapsed = time.monotonic() - started_at
+            remaining = timeout_sec - elapsed
+
+            if remaining <= 0:
+                self.log_signal_func(
+                    f"⏰ {task_name} 제한시간 초과 "
+                    f"| 경과={elapsed:.1f}초 "
+                    f"| 제한={timeout_sec:.1f}초"
+                )
+                return False, None
+
+            try:
+                status, value = result_queue.get(
+                    timeout=min(0.2, remaining)
+                )
+            except queue.Empty:
+                continue
+
+            elapsed = time.monotonic() - started_at
+
+            if status == "ERROR":
+                self.log_signal_func(
+                    f"❌ {task_name} 예외 "
+                    f"| 경과={elapsed:.1f}초 "
+                    f"| 오류={value}"
+                )
+                return False, None
+
+            self.log_signal_func(
+                f"✅ {task_name} 완료 | 경과={elapsed:.1f}초"
+            )
+            return True, value
+
+        self.log_signal_func(
+            f"🛑 {task_name} 중단: running=False"
+        )
+        return False, None
 
     # =========================================================
     # main
@@ -1141,8 +1225,13 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
     # =========================================================
     def record_audio(self, filename: str, duration: int = 17) -> bool:
         audio = pyaudio.PyAudio()
+        stream: Any = None
 
         try:
+            self.log_signal_func(
+                "🎧 캡차 음성 장치 확인 시작"
+            )
+
             wasapi_info = audio.get_host_api_info_by_type(pyaudio.paWASAPI)
             default_speakers = audio.get_device_info_by_index(
                 wasapi_info["defaultOutputDevice"]
@@ -1159,6 +1248,14 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
             wave_format = pyaudio.paInt16
             channels = int(default_speakers.get("maxInputChannels") or 2)
             rate = int(default_speakers["defaultSampleRate"])
+            chunk_size = 1024
+
+            self.log_signal_func(
+                f"🎧 캡차 음성 스트림 열기 "
+                f"| 장치={default_speakers.get('name')} "
+                f"| 채널={channels} "
+                f"| rate={rate}"
+            )
 
             stream = audio.open(
                 format=wave_format,
@@ -1166,20 +1263,45 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                 rate=rate,
                 input=True,
                 input_device_index=default_speakers["index"],
+                frames_per_buffer=chunk_size,
+            )
+
+            self.log_signal_func(
+                f"🎙️ 캡차 음성 녹음 시작 | duration={duration}초"
             )
 
             frames: List[bytes] = []
-            for _ in range(0, int(rate / 1024 * duration)):
-                if not self.running:
-                    stream.stop_stream()
-                    stream.close()
-                    return False
-                frames.append(
-                    stream.read(1024, exception_on_overflow=False)
-                )
+            required_chunk_count = int(
+                rate / chunk_size * duration
+            )
 
-            stream.stop_stream()
-            stream.close()
+            # stream.read()가 오디오 장치 문제로 장시간 블로킹되는 상황을 줄이기 위해
+            # 읽을 수 있는 데이터가 확보된 경우에만 stream.read()를 호출한다.
+            internal_deadline = time.monotonic() + duration + 5.0
+
+            while len(frames) < required_chunk_count:
+                if not self.running:
+                    return False
+
+                if time.monotonic() >= internal_deadline:
+                    self.log_signal_func(
+                        "⏰ 캡차 음성 녹음 내부 제한시간 초과 "
+                        f"| 수집={len(frames)}/{required_chunk_count}"
+                    )
+                    return False
+
+                available_frames = stream.get_read_available()
+
+                if available_frames < chunk_size:
+                    time.sleep(0.02)
+                    continue
+
+                frames.append(
+                    stream.read(
+                        chunk_size,
+                        exception_on_overflow=False,
+                    )
+                )
 
             with wave.open(filename, "wb") as wave_file:
                 wave_file.setnchannels(channels)
@@ -1189,6 +1311,11 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
                 wave_file.setframerate(rate)
                 wave_file.writeframes(b"".join(frames))
 
+            self.log_signal_func(
+                f"✅ 캡차 음성 녹음 파일 저장 완료 "
+                f"| 파일={filename} "
+                f"| chunk={len(frames)}"
+            )
             return True
 
         except Exception as e:
@@ -1196,6 +1323,17 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
             return False
 
         finally:
+            if stream is not None:
+                try:
+                    stream.stop_stream()
+                except Exception:
+                    pass
+
+                try:
+                    stream.close()
+                except Exception:
+                    pass
+
             audio.terminate()
 
     def handle_captcha_with_retry(self) -> int:
@@ -1271,80 +1409,102 @@ class ApiNaverShopTotalDetailSetWorker(BaseApiWorker):
             else:
                 pyautogui.press("enter")
 
+            # 음성 재생이 시작되기 전 짧게 대기한다.
             if not self.sleep_s(0.4):
                 self.log_signal_func(
-                    "🛑 캡차 처리 중단: 현재 URL 확인 전 sleep 실패"
+                    "🛑 캡차 처리 중단: 음성 재생 전 sleep 실패"
                 )
                 return self.CAPTCHA_FAIL
 
-            pyperclip.copy("")
-            pyautogui.hotkey("ctrl", "l")
-            pyautogui.hotkey("ctrl", "c")
-            current_url = pyperclip.paste().strip()
-            pyautogui.press("esc")
+            filename = "captcha_audio_final.wav"
 
-            if any(
-                    current_url.startswith(url)
-                    for url in self.CAPTCHA_WRONG_CLICK_URLS
-            ):
+            # 오디오 장치 또는 stream.read()가 장시간 응답하지 않는 상황을 막는다.
+            record_finished, record_success = self._run_with_timeout(
+                self.record_audio,
+                self.AUDIO_RECORD_TIMEOUT_SEC,
+                "캡차 음성 녹음",
+                filename,
+                17,
+            )
+
+            if not record_finished or not record_success:
+                if not self.running:
+                    return self.CAPTCHA_FAIL
+
                 self.log_signal_func(
-                    f"⚠️ 캡차 오클릭 URL 확인: {current_url}"
+                    "🔄 캡차 음성 녹음이 제한시간 안에 완료되지 않았거나 "
+                    "실패했습니다. 브라우저 재시작 흐름으로 전환합니다."
                 )
+                # 목록/상세 호출부에서 현재 URL에 맞게
+                # 브라우저를 닫고 다시 실행한다.
                 return self.ACCESS_LIMITED
 
-            filename = "captcha_audio_final.wav"
-            if self.record_audio(filename, duration=17):
-                result = self.model.transcribe(
-                    filename,
-                    language="ko",
-                    fp16=False,
+            # Whisper 분석이 장시간 응답하지 않는 상황을 막는다.
+            transcribe_finished, result = self._run_with_timeout(
+                self.model.transcribe,
+                self.WHISPER_TRANSCRIBE_TIMEOUT_SEC,
+                "Whisper 음성 분석",
+                filename,
+                language="ko",
+                fp16=False,
+            )
+
+            if not transcribe_finished:
+                if not self.running:
+                    return self.CAPTCHA_FAIL
+
+                self.log_signal_func(
+                    "🔄 Whisper 음성 분석이 제한시간 안에 완료되지 않았습니다. "
+                    "브라우저 재시작 흐름으로 전환합니다."
                 )
-                code = "".join(
-                    filter(str.isdigit, result["text"])
-                )[:6]
+                # 목록/상세 호출부에서 현재 URL에 맞게
+                # 브라우저를 닫고 다시 실행한다.
+                return self.ACCESS_LIMITED
 
-                if not code:
-                    code = "123456"
-                    self.log_signal_func(
-                        "⚠️ AI 인식 실패 (숫자 없음). "
-                        "기본값 '123456' 입력"
-                    )
-                else:
-                    self.log_signal_func(f"📝 AI 인식 코드: {code}")
+            code = "".join(
+                filter(str.isdigit, result["text"])
+            )[:6]
 
-                if attempt == 1:
-                    pyautogui.press("tab")
-                    if not self.sleep_s(0.5):
-                        self.log_signal_func(
-                            "🛑 캡차 처리 중단: 입력칸 이동 후 sleep 실패"
-                        )
-                        return self.CAPTCHA_FAIL
-                else:
-                    pyautogui.hotkey("shift", "tab")
-                    if not self.sleep_s(0.5):
-                        self.log_signal_func(
-                            "🛑 캡차 처리 중단: shift+tab 후 sleep 실패"
-                        )
-                        return self.CAPTCHA_FAIL
-
-                pyautogui.write(
-                    code,
-                    interval=random.uniform(0.1, 0.2),
+            if not code:
+                code = "123456"
+                self.log_signal_func(
+                    "⚠️ AI 인식 실패 (숫자 없음). "
+                    "기본값 '123456' 입력"
                 )
+            else:
+                self.log_signal_func(f"📝 AI 인식 코드: {code}")
 
-                for _ in range(3):
-                    pyautogui.press("tab")
-
-                pyautogui.press("enter")
-
-                self.log_signal_func("⏳ 결과 검증 대기 중...")
-                if not self.sleep_s(random.uniform(5.0, 6.0)):
+            if attempt == 1:
+                pyautogui.press("tab")
+                if not self.sleep_s(0.5):
                     self.log_signal_func(
-                        "🛑 캡차 처리 중단: 결과 검증 대기 sleep 실패"
+                        "🛑 캡차 처리 중단: 입력칸 이동 후 sleep 실패"
                     )
                     return self.CAPTCHA_FAIL
             else:
-                self.log_signal_func("❌ 캡차 음성 녹음 실패")
+                pyautogui.hotkey("shift", "tab")
+                if not self.sleep_s(0.5):
+                    self.log_signal_func(
+                        "🛑 캡차 처리 중단: shift+tab 후 sleep 실패"
+                    )
+                    return self.CAPTCHA_FAIL
+
+            pyautogui.write(
+                code,
+                interval=random.uniform(0.1, 0.2),
+            )
+
+            for _ in range(3):
+                pyautogui.press("tab")
+
+            pyautogui.press("enter")
+
+            self.log_signal_func("⏳ 결과 검증 대기 중...")
+            if not self.sleep_s(random.uniform(5.0, 6.0)):
+                self.log_signal_func(
+                    "🛑 캡차 처리 중단: 결과 검증 대기 sleep 실패"
+                )
+                return self.CAPTCHA_FAIL
 
         self.log_signal_func(
             f"❌ 캡차 최대 재시도 초과: {max_tries}회"
