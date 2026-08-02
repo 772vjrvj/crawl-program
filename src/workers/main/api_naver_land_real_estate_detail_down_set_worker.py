@@ -419,22 +419,59 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
             time.sleep(random.uniform(3, 5))
 
             gallery_count = task["expected_count"]
+            media_items: List[Dict[str, Any]] = []
+
+            # 1차: DOM 또는 브라우저 내부 fetch()로 이미지 개수를 확인한다.
             if gallery_count is None:
                 gallery_count = self._get_gallery_image_count(atcl_no)
 
-            # None -> 0 정규화
-            try:
-                gallery_count = int(gallery_count or 0)
-            except Exception:
-                gallery_count = 0
+            count_confirmed = gallery_count is not None
 
+            if count_confirmed:
+                try:
+                    gallery_count = int(gallery_count)
+                except Exception:
+                    gallery_count = None
+                    count_confirmed = False
+
+            # DOM/API 호출이 실패했다고 0개로 확정하면 안 된다.
+            # 실제 이미지 팝업을 열고 수집된 미디어 개수로 다시 판단한다.
+            if not count_confirmed:
+                self.log_signal_func(
+                    "[이미지 개수 fallback] DOM/API 확인 실패 - 이미지 팝업을 직접 열어 확인"
+                )
+
+                media_items = self._collect_media_items_with_retry(
+                    atcl_no=atcl_no,
+                    detail_url=detail_url,
+                    gallery_count=None,
+                    max_retry=self.collect_retry_count,
+                )
+
+                if media_items:
+                    gallery_count = len(media_items)
+                    count_confirmed = True
+                    self.log_signal_func(
+                        f"[이미지 개수 fallback] 팝업 실제 수집 개수 사용: {gallery_count}"
+                    )
+                else:
+                    # 중간 라운드에서는 실패 row를 만들지 않는다.
+                    # 여기서 1개짜리 실패 row를 만들면 다음 라운드에서 이미지가 발견되어도
+                    # 전체 이미지 개수만큼 row를 구성하지 못하므로 마지막 라운드까지 재시도한다.
+                    msg = "DOM/API 확인 실패 후 이미지 팝업에서도 미디어를 찾지 못함"
+                    task["last_message"] = msg
+                    self.log_signal_func(f"[이미지 개수 fallback 실패] {msg}")
+                    return
+
+            gallery_count = int(gallery_count or 0)
             task["expected_count"] = gallery_count
 
             self.log_signal_func(f"[이미지 개수] gallery_count={gallery_count} / 기준={min_cnt}")
 
-            # None이었든 0이었든 최종 0이면 바로 스킵
+            # DOM/API에서 정상적으로 0개가 확인되었거나,
+            # 팝업 수집 결과도 실제로 0개인 경우에만 스킵한다.
             if gallery_count <= 0:
-                msg = "이미지 개수 확인 실패 또는 0개라 스킵"
+                msg = "이미지 0개라 스킵"
                 task["skip"] = True
                 task["rows"] = [self._make_result_row(
                     data=data,
@@ -467,12 +504,14 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                 task["last_message"] = msg
                 return
 
-            media_items = self._collect_media_items_with_retry(
-                atcl_no=atcl_no,
-                detail_url=detail_url,
-                gallery_count=gallery_count,
-                max_retry=self.collect_retry_count,
-            )
+            # fallback에서 이미 미디어를 수집했다면 같은 팝업을 다시 열지 않는다.
+            if not media_items:
+                media_items = self._collect_media_items_with_retry(
+                    atcl_no=atcl_no,
+                    detail_url=detail_url,
+                    gallery_count=gallery_count,
+                    max_retry=self.collect_retry_count,
+                )
 
             if not task["rows"]:
                 task["rows"] = self._build_pending_rows(
@@ -584,76 +623,132 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
         return int(m.group(1)) if m else None
 
     def _get_gallery_count_from_api(self, atcl_no: str) -> Optional[int]:
-        try:
-            res = requests.get(
-                self.gallery_image_api_url,
-                params={"articleNumber": str(atcl_no or "").strip()},
-                headers=self._build_gallery_request_headers(atcl_no),
-                timeout=20,
-                allow_redirects=True,
-            )
+        """
+        Selenium으로 열어 둔 실제 네이버 부동산 페이지 안에서 fetch()를 실행한다.
 
-            self.log_signal_func(f"[API count] status={res.status_code}")
-
-            if res.status_code >= 400:
-                return None
-
-            if "json" not in str(res.headers.get("content-type") or "").lower():
-                return None
-
-            body = res.json()
-            result = body.get("result")
-            if not isinstance(result, list):
-                return None
-
-            return len(result)
-
-        except Exception as e:
-            self.log_signal_func(f"[API count 실패] {e}")
+        requests.get()처럼 별도 HTTP 클라이언트를 사용하지 않으므로 브라우저의
+        쿠키, User-Agent, Referer, Origin, Sec-Fetch 계열 헤더가 그대로 적용된다.
+        """
+        article_no = str(atcl_no or "").strip()
+        if not article_no:
             return None
 
-    def _build_gallery_request_headers(self, atcl_no: str) -> Dict[str, str]:
-        referer = ""
         try:
-            referer = str(self.driver.current_url or "").strip()
-        except Exception:
-            pass
+            # iframe 안에 들어가 있을 가능성을 제거하고 실제 상세 페이지 기준으로 호출한다.
+            self.driver.switch_to.default_content()
 
-        if not referer:
-            referer = f"{self.fin_land_article_url}/{atcl_no}"
+            result = self.driver.execute_async_script(
+                """
+                const apiUrl = arguments[0];
+                const articleNumber = arguments[1];
+                const done = arguments[arguments.length - 1];
 
-        headers = {
-            "accept": "application/json, text/plain, */*",
-            "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-            "cache-control": "no-cache",
-            "pragma": "no-cache",
-            "referer": referer,
-            "origin": "https://fin.land.naver.com",
-            "user-agent": self._get_browser_user_agent(),
-            "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
-            "sec-ch-ua-mobile": "?0",
-            "sec-ch-ua-platform": '"Windows"',
-            "sec-fetch-dest": "empty",
-            "sec-fetch-mode": "cors",
-            "sec-fetch-site": "same-origin",
-        }
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-        cookie_header = self._build_cookie_header_from_driver()
-        if cookie_header:
-            headers["cookie"] = cookie_header
+                (async () => {
+                    try {
+                        const url = new URL(apiUrl, window.location.href);
+                        url.searchParams.set("articleNumber", articleNumber);
 
-        return headers
+                        const response = await fetch(url.toString(), {
+                            method: "GET",
+                            credentials: "include",
+                            headers: {
+                                "Accept": "application/json, text/plain, */*"
+                            },
+                            signal: controller.signal
+                        });
 
-    def _build_cookie_header_from_driver(self) -> str:
-        try:
-            cookies = self.driver.get_cookies() or []
-            return "; ".join(
-                f"{str(c.get('name') or '').strip()}={str(c.get('value') or '').strip()}"
-                for c in cookies
-                if str(c.get("name") or "").strip()
+                        const contentType = response.headers.get("content-type") || "";
+                        const responseText = await response.text();
+
+                        let count = null;
+                        let parseError = "";
+
+                        try {
+                            const body = JSON.parse(responseText);
+                            if (body && Array.isArray(body.result)) {
+                                count = body.result.length;
+                            }
+                        } catch (error) {
+                            parseError = String(error && error.message ? error.message : error);
+                        }
+
+                        done({
+                            ok: response.ok,
+                            status: response.status,
+                            contentType: contentType,
+                            count: count,
+                            parseError: parseError,
+                            responsePreview: responseText.slice(0, 300)
+                        });
+                    } catch (error) {
+                        done({
+                            ok: false,
+                            status: 0,
+                            contentType: "",
+                            count: null,
+                            parseError: "",
+                            responsePreview: "",
+                            error: String(error && error.message ? error.message : error)
+                        });
+                    } finally {
+                        clearTimeout(timeoutId);
+                    }
+                })();
+                """,
+                self.gallery_image_api_url,
+                article_no,
             )
-        except Exception:
-            return ""
+
+            self.log_signal_func(f"self.gallery_image_api_url={self.gallery_image_api_url}")
+
+            if not isinstance(result, dict):
+                self.log_signal_func(
+                    f"[browser fetch count 실패] 잘못된 응답 형식: {type(result).__name__}"
+                )
+                return None
+
+            status = int(result.get("status") or 0)
+            count = result.get("count")
+            content_type = str(result.get("contentType") or "")
+            error = str(result.get("error") or "")
+            parse_error = str(result.get("parseError") or "")
+
+            self.log_signal_func(
+                f"[browser fetch count] status={status} / content-type={content_type} / count={count}"
+            )
+
+            if error:
+                self.log_signal_func(f"[browser fetch count 오류] {error}")
+                return None
+
+            if status >= 400 or status <= 0:
+                preview = str(result.get("responsePreview") or "").strip()
+                if preview:
+                    self.log_signal_func(
+                        f"[browser fetch count 응답] {preview[:200]}"
+                    )
+                return None
+
+            if parse_error:
+                self.log_signal_func(f"[browser fetch JSON 파싱 실패] {parse_error}")
+                return None
+
+            if count is None:
+                self.log_signal_func("[browser fetch count 실패] result 배열 없음")
+                return None
+
+            return int(count)
+
+        except Exception as e:
+            self.log_signal_func(f"[browser fetch count 실패] {e}")
+            try:
+                self.driver.switch_to.default_content()
+            except Exception:
+                pass
+            return None
 
     def _make_result_row(self, data: Dict[str, Any], atcl_no: str, seq: Any, media_type_text: str, media_url: str, saved_path: str, status: str, message: str,) -> Dict[str, Any]:
         return {
