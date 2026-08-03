@@ -22,13 +22,13 @@
     {
       "name": "등록일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": 20260605,
+      "value": 20260701,
       "type": "input"
     },
     {
       "name": "등록일(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": 20260607,
+      "value": 20260803,
       "type": "input"
     },
     {
@@ -72,7 +72,7 @@
     {
       "name": "기준금액",
       "code": "baseAmount",
-      "value": "100M",
+      "value": "",
       "type": "select",
       "options": [
         {
