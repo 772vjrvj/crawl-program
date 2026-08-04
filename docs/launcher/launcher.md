@@ -89,12 +89,19 @@ FILE_NAME = "v2_0_2.zip"
 E:\나의 목록\cloudflare\version\NAVER_PLACE_LOC_ALL\v2_0_2\test\v2_0_2.zip
 ```
 
+### 5. 런처 빌드
+
+```powershell
+(venv) PS E:\git\crawl-program> .\build_launcher.ps1
+```
+
 마지막으로 다음 항목을 확인한다.
 
 1. 원본 ZIP과 테스트 다운로드 ZIP의 파일 크기가 일치하는지 확인한다.
 2. 원본 ZIP과 테스트 다운로드 ZIP의 SHA-256이 일치하는지 확인한다.
 3. DB의 `LAUNCHER_RELEASE` 테이블에 신규 버전이 등록되었는지 확인한다.
 4. `PROGRAM_ID`, `VERSION`, `DIR_NAME`, `FILE_NAME`, `SIZE_BYTES`, `SHA256` 값이 올바른지 확인한다.
+5. 실제로 실행하게되는 프로그램의 exe명은 CrawlProgram.exe 해야 에러가 안난다,
 
 전체 흐름:
 
