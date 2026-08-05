@@ -40,6 +40,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.detail_column_yn = None
         self.eng = None
         self.article_sort_type = None
+        self.all_date_yn: bool = False
         self.to_date = None
         self.fr_date = None
         self.columns: Optional[List[str]] = None
@@ -418,7 +419,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         # === 신규 ===
         # 기존 columns.json의 위치/한글명/checked/title/content는 유지하고,
         # code만 worker 영어 컬럼과 매핑한 결과다.
-        return ['atclNo',
+        return ['totalCount',
+                'trueFalse',
+                'atclNo',
                 'articleName',
                 'complexName',
                 'dongName',
@@ -481,7 +484,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def _get_kor_header_map(self) -> Dict[str, str]:
         # === 신규 ===
         # 한글명(value)은 기존 columns.json 기준 그대로 유지한다.
-        return {'atclNo': '매물번호',
+        return {'totalCount': '갯수',
+                'trueFalse': 'T/F',
+                'atclNo': '매물번호',
                 'articleName': '매물명',
                 'complexName': '단지명',
                 'dongName': '동이름',
@@ -677,10 +682,19 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         )
 
         # 2. 등록일
-        self.fr_date: str = str(self.get_setting_value(self.setting, "fr_date") or "").strip()
-        self.to_date: str = str(self.get_setting_value(self.setting, "to_date") or "").strip()
-        self.log_signal_func(f"등록 시작일 : {self.fr_date}")
-        self.log_signal_func(f"등록 종료일 : {self.to_date}")
+        self.all_date_yn: bool = bool(self.get_setting_value(self.setting, "all_date_yn"))
+        self.log_signal_func(f"매물 전체 등록일 사용 여부 : {self.all_date_yn}")
+
+        if self.all_date_yn:
+            # 전체 등록일을 사용하는 경우 아래 기간 설정은 적용하지 않는다.
+            self.fr_date = ""
+            self.to_date = ""
+            self.log_signal_func("전체 등록일 사용 설정으로 날짜 범위 필터를 적용하지 않습니다.")
+        else:
+            self.fr_date = str(self.get_setting_value(self.setting, "fr_date") or "").strip()
+            self.to_date = str(self.get_setting_value(self.setting, "to_date") or "").strip()
+            self.log_signal_func(f"등록 시작일 : {self.fr_date}")
+            self.log_signal_func(f"등록 종료일 : {self.to_date}")
 
         # 3. 정렬방식
         self.article_sort_type: str = str(self.get_setting_value(self.setting, "articleSortType") or "").strip()
@@ -892,6 +906,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def _get_eng_columns(self) -> List[str]:
         return [
+            "totalCount",
+            "trueFalse",
             "date",
             "atclNo",
             "atclNm",
@@ -962,6 +978,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def _map_out_to_eng(self, out: Dict[str, Any]) -> Dict[str, Any]:
         eng_out: Dict[str, Any] = {
+            "totalCount": str(out.get("갯수") or ""),
+            "trueFalse": str(out.get("T/F") or ""),
             "date": str(out.get("매물노출시작일") or ""),
             "atclNo": str(out.get("매물번호") or ""),
             "atclNm": str(out.get("상위매물명") or ""),
@@ -1342,6 +1360,21 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     first_result=first_result,
                 )
 
+                # 크롤링 시작 전 전체 갯수와 실제 수집한 갯수를 비교한다.
+                total_count: int = int(first_result.get("totalCount") or 0)
+                actual_count: int = len(items)
+                true_false: str = "T" if total_count == actual_count else "F"
+
+                for item in items:
+                    item["_totalCount"] = total_count
+                    item["_trueFalse"] = true_false
+
+                self.log_signal_func(
+                    f"[목록 검증] 전체 갯수={total_count} "
+                    f"/ 실제 크롤링 갯수={actual_count} "
+                    f"/ 일치 여부={true_false}"
+                )
+
                 if not items:
                     self.log_signal_func("[목록] 수집된 매물 없음 -> 저장 스킵")
                     emit_region_progress()
@@ -1598,7 +1631,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         items: list[dict[str, Any]] = []
         seen: set[str] = set()
 
-        use_date_filter: bool = bool(self.fr_date and self.to_date)
+        use_date_filter: bool = (
+                not self.all_date_yn
+                and bool(self.fr_date and self.to_date)
+        )
 
         def normalize_date_yyyymmdd(value: Any) -> str:
             return str(value or "").replace("-", "").replace(".", "").replace("/", "").strip()
@@ -2268,6 +2304,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         article_no = list_item.get("articleNumber", "")
 
         rs = {
+            "갯수": list_item.get("_totalCount", ""),
+            "T/F": list_item.get("_trueFalse", ""),
             "매물번호": article_no,
             "매물명": articleName,
             "단지명": list_item.get("complexName", ""),

@@ -20,15 +20,21 @@
       "path_type": "main"
     },
     {
-      "name": "등록일(YYYYMMDD) 시작",
+      "name": "매물 전체 등록일 사용(아래 기간은 적용이 안 됩니다.)",
+      "code": "all_date_yn",
+      "value": true,
+      "type": "check"
+    },
+    {
+      "name": "매물 등록일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": 20260701,
+      "value": 20000101,
       "type": "input"
     },
     {
-      "name": "등록일(YYYYMMDD) 종료",
+      "name": "매물 등록일(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": 20260803,
+      "value": 20260805,
       "type": "input"
     },
     {
@@ -72,7 +78,7 @@
     {
       "name": "기준금액",
       "code": "baseAmount",
-      "value": "",
+      "value": "10K",
       "type": "select",
       "options": [
         {
@@ -104,13 +110,13 @@
     {
       "name": "부동산 중개사 기준 매물 가져오기",
       "code": "brokerage_yn",
-      "value": true,
+      "value": false,
       "type": "check"
     },
     {
       "name": "중복제거",
       "code": "remove_duplicate_yn",
-      "value": true,
+      "value": false,
       "type": "check"
     },
     {
@@ -137,13 +143,13 @@
           "name": "전세",
           "code": "B1",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "월세",
           "code": "B2",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "단기임대",
@@ -164,7 +170,7 @@
           "name": "아파트",
           "code": "A01",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "재건축",
@@ -176,13 +182,13 @@
           "name": "오피스텔",
           "code": "A02",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "빌라",
           "code": "A05-A06-A07-C02",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "아파트 분양권",
@@ -200,7 +206,7 @@
           "name": "원룸",
           "code": "C01",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "단독/다가구",
@@ -212,7 +218,7 @@
           "name": "전원주택",
           "code": "C04",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "상가주택",
@@ -235,19 +241,19 @@
               "name": "상가",
               "code": "D02",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "토지",
               "code": "E03",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "사무실",
               "code": "D01",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "건물",
@@ -286,13 +292,13 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": ""
+              "value": "10000"
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": ""
+              "value": "50000"
             }
           ]
         },
@@ -305,13 +311,13 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": ""
+              "value": "5000"
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": ""
+              "value": "10000"
             }
           ]
         },
@@ -324,13 +330,13 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": ""
+              "value": "100"
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": ""
+              "value": "1000"
             }
           ]
         }
@@ -868,6 +874,16 @@
   "columns": [
     {
       "title": "기본목록"
+    },
+    {
+      "code": "totalCount",
+      "value": "갯수",
+      "checked": true
+    },
+    {
+      "code": "trueFalse",
+      "value": "T/F",
+      "checked": true
     },
     {
       "code": "atclNo",
