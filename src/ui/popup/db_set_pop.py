@@ -155,11 +155,17 @@ class DbTableWidget(QTableWidget):
     NO_WIDTH = 56
     DATA_WIDTH = 130
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(
+            self,
+            parent: Optional[QWidget] = None,
+            fill_available_width: bool = False,
+    ) -> None:
         super().__init__(parent)
 
         self.row_meta: list[dict[str, Any]] = []
         self.display_columns: list[str] = []
+        self.fill_available_width = bool(fill_available_width)
+        self._data_columns_stretched = False
 
         # 정렬 및 렌더링용 변수 추가
         self.check_states: dict[int, bool] = {}
@@ -339,12 +345,50 @@ class DbTableWidget(QTableWidget):
             for col in range(2, self.columnCount()):
                 self.setColumnWidth(col, self.DATA_WIDTH)
 
+            self._data_columns_stretched = False
+            self._update_column_resize_modes()
+
             self.set_header_checked(False)
             self.append_rows(rows, start_no=1)
 
         finally:
             self.setUpdatesEnabled(True)
             self.blockSignals(False)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._update_column_resize_modes()
+
+    def _update_column_resize_modes(self) -> None:
+        """컬럼이 적을 때만 데이터 컬럼을 테이블 너비에 맞춰 균등 확장한다."""
+        if not self.fill_available_width or self.columnCount() <= 2:
+            return
+
+        header = self.horizontalHeader()
+        data_column_count = self.columnCount() - 2
+        minimum_required_width = (
+                self.CHECK_WIDTH
+                + self.NO_WIDTH
+                + (data_column_count * self.DATA_WIDTH)
+        )
+        should_stretch = self.viewport().width() >= minimum_required_width
+
+        if should_stretch == self._data_columns_stretched:
+            return
+
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.setColumnWidth(0, self.CHECK_WIDTH)
+        self.setColumnWidth(1, self.NO_WIDTH)
+
+        for col in range(2, self.columnCount()):
+            if should_stretch:
+                header.setSectionResizeMode(col, QHeaderView.ResizeMode.Stretch)
+            else:
+                header.setSectionResizeMode(col, QHeaderView.ResizeMode.Interactive)
+                self.setColumnWidth(col, self.DATA_WIDTH)
+
+        self._data_columns_stretched = should_stretch
 
     def append_rows(self, rows: list[dict[str, Any]], start_no: Optional[int] = None) -> None:
         if not rows:
@@ -848,7 +892,7 @@ class DbSetPop(QDialog):
 
         layout.addLayout(top)
 
-        self.right_table = DbTableWidget(self)
+        self.right_table = DbTableWidget(self, fill_available_width=True)
         self.right_table.verticalScrollBar().valueChanged.connect(self.on_right_scroll_changed)
         layout.addWidget(self.right_table, 1)
 

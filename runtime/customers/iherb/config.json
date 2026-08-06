@@ -1,0 +1,100 @@
+{
+  "label": "아이허브",
+  "key": "IHERB",
+  "db_name": "IHERB",
+  "db_common_name": "WORKER_JOB_HIST",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": false,
+  "region": false,
+  "worker_class": "src.workers.main.api_iherb_set_worker:ApiIherbSetLoadWorker",
+  "setting": [
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "E:\\git\\crawl-program",
+      "type": "folder",
+      "placeholder": "엑셀을 저장할 폴더를 선택하세요(기본 문서).",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    },
+    {
+      "name": "품번 파일",
+      "code": "numbers_file_path",
+      "value": "E:/git/crawl-program/file/numbers.txt",
+      "type": "file",
+      "placeholder": "품번이 한 줄에 하나씩 입력된 numbers.txt 파일을 선택하세요.",
+      "button_text": "파일 선택",
+      "dialog_title": "품번 파일 선택",
+      "path_type": "main"
+    },
+    {
+      "name": "시작 페이지",
+      "code": "st_page",
+      "value": 50,
+      "type": "input"
+    },
+    {
+      "name": "종료 페이지",
+      "code": "ed_page",
+      "value": 100,
+      "type": "input"
+    },
+    {
+      "name": "자동 엑셀 저장",
+      "code": "auto_save_yn",
+      "value": true,
+      "type": "check"
+    }
+  ],
+  "columns": [
+    {
+      "code": "product_no",
+      "value": "품번",
+      "checked": true
+    },
+    {
+      "code": "discount_period",
+      "value": "할인기간",
+      "checked": true
+    },
+    {
+      "code": "discount_percent",
+      "value": "할인 %",
+      "checked": true
+    },
+    {
+      "code": "price",
+      "value": "가격",
+      "checked": true
+    },
+    {
+      "code": "stock",
+      "value": "재고",
+      "checked": true
+    }
+  ],
+  "search_col_list": [
+    {
+      "code": "product_no",
+      "value": "품번"
+    },
+    {
+      "code": "discount_period",
+      "value": "할인기간"
+    },
+    {
+      "code": "discount_percent",
+      "value": "할인 %"
+    },
+    {
+      "code": "price",
+      "value": "가격"
+    },
+    {
+      "code": "stock",
+      "value": "재고"
+    }
+  ]
+}

@@ -66,13 +66,13 @@ API_TIMEOUT_SEC = 30
 PROGRAM_ID = "NAVER_LAND_REAL_ESTATE_DETAIL"
 
 # 프로그램 버전
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 # Cloudflare R2 버전 폴더명
-DIR_NAME = "v1_0_0"
+DIR_NAME = "v1_1_0"
 
 # Cloudflare R2 ZIP 파일명
-FILE_NAME = "v1_0_0.zip"
+FILE_NAME = "v1_1_0.zip"
 
 # 신규 릴리스 사용 여부
 ENABLED = True
