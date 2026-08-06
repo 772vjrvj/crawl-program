@@ -26,10 +26,7 @@ class ApiIherbSetLoadWorker(BaseApiWorker):
         super().__init__()
 
         self.base_main_url: str = "https://kr.iherb.com"
-        self.sub_url: str = (
-            "https://kr.iherb.com/pr/"
-            "doctor-s-best-alpha-lipoic-acid-150-150-mg-120-veggie-caps"
-        )
+        self.product_url: str = ""
         self.site_name: str = "iHerb"
         self.out_dir: str = "output"
 
@@ -59,6 +56,7 @@ class ApiIherbSetLoadWorker(BaseApiWorker):
         self.log_signal_func("크롤링 시작 ========================================")
 
         try:
+
             self.st_page = self._positive_int(
                 self.get_setting_value(self.setting, "st_page"), 1
             )
@@ -71,6 +69,16 @@ class ApiIherbSetLoadWorker(BaseApiWorker):
                     f"❌ 종료 번호({self.ed_page})는 시작 번호({self.st_page})보다 작을 수 없습니다."
                 )
                 return False
+
+            self.product_url = str(
+                self.get_setting_value(self.setting, "product_url") or ""
+            ).strip().rstrip("/")
+
+            if not self.product_url:
+                self.log_signal_func("❌ 상품 URL을 입력해주세요.")
+                return False
+
+            self.log_signal_func(f"✅ 상품 URL : {self.product_url}")
 
             configured_path = str(
                 self.get_setting_value(self.setting, "numbers_file_path") or ""
@@ -217,8 +225,8 @@ class ApiIherbSetLoadWorker(BaseApiWorker):
 
     # 상세 수집
     def data_set(self, num: str) -> Dict[str, Any]:
-        sub_url = f"{self.sub_url}/{num}"
-        self.driver.get(sub_url)
+        product_detail_url = f"{self.product_url}/{num}"
+        self.driver.get(product_detail_url)
 
         obj: Dict[str, Any] = {
             "product_no": num,
