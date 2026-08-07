@@ -25,7 +25,7 @@ class ApiIherbSetLoadWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
-        self.base_main_url: str = "https://kr.iherb.com"
+        self.base_main_url: str = "https://kr.iherb.com/pr/doctor-s-best-alpha-lipoic-acid-150-150-mg-120-veggie-caps/1"
         self.product_url: str = ""
         self.site_name: str = "iHerb"
         self.out_dir: str = "output"

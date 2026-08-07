@@ -18,10 +18,10 @@ BASE_URL = "https://goodbye772.com"
 ADMIN_KEY = "gb7-admin-update-key-1234"
 
 # 키를 발급할 프로그램 ID
-PROGRAM_ID = "NAVER_LAND_REAL_ESTATE_DETAIL"
+PROGRAM_ID = "IHERB"
 
 # 관리자 확인용 이름
-KEY_NAME = "네이버 부동산 상세보기 / 믿음직한유리병8958"
+KEY_NAME = "아이허브 / 바로바스토어"
 
 # 만료일
 # 형식: YYYY-MM-DDTHH:MM:SS
