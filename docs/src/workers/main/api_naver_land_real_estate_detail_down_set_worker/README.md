@@ -23,7 +23,7 @@ pyinstaller .\main.py `
 --noconfirm `
 --clean `
 --windowed `
---name "naver_land_real_estate_detail_down" `
+--name "CrawlProgram" `
 --icon ".\resources\icons\crawling.ico" `
 --version-file ".\docs\customers\api_naver_land_real_estate_detail_set_worker\version_info.txt" `
 --distpath ".\dist" `

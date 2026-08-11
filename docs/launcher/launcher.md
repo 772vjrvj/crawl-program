@@ -19,7 +19,7 @@ v2_0_2.zip
 최종 경로:
 
 ```text
-E:\나의 목록\cloudflare\version\NAVER_PLACE_LOC_ALL\v2_0_2\v2_0_2.zip
+E:\나의 목록\cloudflare\version\NAVER_LAND_REAL_ESTATE_DETAIL\v2_0_0\v2_0_0.zip
 ```
 
 ---
@@ -29,15 +29,15 @@ E:\나의 목록\cloudflare\version\NAVER_PLACE_LOC_ALL\v2_0_2\v2_0_2.zip
 Cloudflare R2 버킷에 다음 객체 경로를 생성하고 ZIP 파일을 업로드한다.
 
 ```text
-NAVER_PLACE_LOC_ALL/v2_0_2/v2_0_2.zip
+NAVER_LAND_REAL_ESTATE_DETAIL/v2_0_0/v2_0_0.zip
 ```
 
 확인 항목:
 
 ```text
-PROGRAM_ID : NAVER_PLACE_LOC_ALL
-DIR_NAME   : v2_0_2
-FILE_NAME  : v2_0_2.zip
+PROGRAM_ID : NAVER_LAND_REAL_ESTATE_DETAIL
+DIR_NAME   : v2_0_0
+FILE_NAME  : v2_0_0.zip
 ```
 
 ---

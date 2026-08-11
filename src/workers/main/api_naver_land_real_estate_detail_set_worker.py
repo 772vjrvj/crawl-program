@@ -1588,6 +1588,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         """
         end = time.time() + wait_sec
         last_reason = ""
+        last_logged_reason = ""
 
         while time.time() < end:
             try:
@@ -1595,9 +1596,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 count_result: dict[str, Any] = self._read_article_button_count()
                 if not count_result.get("ok"):
                     last_reason = str(count_result.get("reason") or "count_not_ready")
-                    self.log_signal_func(
-                        f"[매물 버튼] 클릭 전 갯수 대기중 / reason={last_reason}"
-                    )
+                    # 같은 대기 사유가 반복되면 최초 한 번만 로그를 남긴다.
+                    if last_reason != last_logged_reason:
+                        self.log_signal_func(
+                            f"[매물 버튼] 클릭 전 갯수 대기중 / reason={last_reason}"
+                        )
+                        last_logged_reason = last_reason
                     time.sleep(0.5)
                     continue
 
@@ -1613,7 +1617,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     return before_click_count
 
                 last_reason = str(result.get("reason") or "")
-                self.log_signal_func(f"[매물 버튼] 대기중 / reason={last_reason}")
+                # 클릭 대상 탐색도 같은 사유는 최초 한 번만 출력한다.
+                if last_reason != last_logged_reason:
+                    self.log_signal_func(f"[매물 버튼] 대기중 / reason={last_reason}")
+                    last_logged_reason = last_reason
 
             except Exception as e:
                 last_reason = str(e)
