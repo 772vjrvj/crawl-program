@@ -41,6 +41,13 @@ from src.ui.popup.region_set_pop import RegionSetPop
 from src.ui.popup.site_set_pop import SiteSetPop
 from src.ui.popup.closing_pop import ClosingPop
 from src.ui.popup.user_info_pop import UserInfoPop
+from src.ui.popup.program_info_pop import ProgramInfoPop
+from src.utils.program_notice_read_store import ProgramNoticeReadStore
+from src.workers.program_notice_worker import (
+    ProgramNotice,
+    ProgramNoticeWorker,
+    ProgramNoticeListResult,
+)
 from src.ui.style.style import create_common_button, main_style, LOG_STYLE, HEADER_TEXT_STYLE
 
 import sys
@@ -147,6 +154,7 @@ class MainWindow(QWidget):
         self.excel_setting_button: Optional[QWidget] = None
 
         self.bottom_left_button: Optional[QWidget] = None
+        self.program_info_wrap: Optional[QWidget] = None
         self.bottom_center_wrap: Optional[QWidget] = None
         self.bottom_logo_label: Optional[QLabel] = None
         self.bottom_title_label: Optional[QLabel] = None
@@ -182,6 +190,14 @@ class MainWindow(QWidget):
 
         self._force_close = False
         self._close_timeout_ms = 8000
+
+        # 프로그램 정보 / 공지 선조회 / 읽음 상태
+        self.program_info_pop: Optional[ProgramInfoPop] = None
+        self.program_notice_badge: Optional[QLabel] = None
+        self.program_notice_worker: Optional[ProgramNoticeWorker] = None
+        self.program_notices: list[ProgramNotice] = []
+        self.program_notices_loaded: bool = False
+        self.program_notice_read_store: Optional[ProgramNoticeReadStore] = None
 
         self.file_logger: Optional[RunFileLogger] = None
 
@@ -229,6 +245,10 @@ class MainWindow(QWidget):
         self.main_worker_set()
         self.ui_set()
         self.ensure_file_logger()
+
+        # 메인 화면이 뜬 직후 공지 전체를 미리 조회한다.
+        # 팝업에서는 이 데이터를 즉시 사용하므로 공지 카드가 늦게 나타나는 현상을 없앤다.
+        QTimer.singleShot(0, self.preload_program_notices)
 
     # 로그인 확인 체크
     def api_worker_set(self) -> None:
@@ -535,7 +555,48 @@ class MainWindow(QWidget):
         bottom_layout = QHBoxLayout()
         bottom_layout.setSpacing(12)
 
-        self.bottom_left_button = create_common_button("개발자", self.open_developer_info, self.color, 100)
+        # 프로그램 정보 버튼과 배지를 하나의 wrapper 안에 겹쳐 배치한다.
+        # 배지는 버튼의 우측 상단 모서리에 절반 정도 걸치도록 위치시킨다.
+        self.program_info_wrap = QWidget()
+        self.program_info_wrap.setFixedSize(152, 62)
+        self.program_info_wrap.setStyleSheet("background: transparent;")
+
+        self.bottom_left_button = create_common_button(
+            "프로그램 정보",
+            self.open_program_info,
+            self.color,
+            140,
+        )
+        self.bottom_left_button.setParent(self.program_info_wrap)
+        self.bottom_left_button.move(0, 11)
+
+        # 숫자는 전체 공지 수가 아니라 '아직 읽지 않은 공지 수'다.
+        self.program_notice_badge = QLabel(self.program_info_wrap)
+        self.program_notice_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.program_notice_badge.setFixedSize(22, 22)
+        self.program_notice_badge.setStyleSheet(
+            """
+            QLabel {
+                background-color: #e53935;
+                color: white;
+                border: 2px solid white;
+                border-radius: 11px;
+        
+                padding-top: 0px;
+                padding-bottom: 2px;
+        
+                font-size: 11px;
+                font-weight: bold;
+            }
+            """
+        )
+        # 140px 버튼의 우측 상단 모서리에 약 50% 걸치게 둔다.
+        self.program_notice_badge.move(129, 0)
+        self.program_notice_badge.hide()
+        self.program_notice_badge.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+            True,
+        )
 
         self.bottom_center_wrap = QWidget()
         self.bottom_center_wrap.setStyleSheet("""
@@ -595,7 +656,7 @@ class MainWindow(QWidget):
 
         self.bottom_right_button = create_common_button("DB 목록", self.open_db_info, self.color, 120)
 
-        bottom_layout.addWidget(self.bottom_left_button, 0)
+        bottom_layout.addWidget(self.program_info_wrap, 0, Qt.AlignVCenter)
         bottom_layout.addWidget(self.bottom_center_wrap, 1)
         bottom_layout.addWidget(self.bottom_right_button, 0)
 
@@ -887,8 +948,161 @@ class MainWindow(QWidget):
         pop = UserInfoPop(self)
         pop.exec()
 
-    def open_developer_info(self) -> None:
-        self.show_message("개발자 정보 및 문의는 하단 사이트를 확인해주세요.", "info", None)
+    def get_program_info_program_id(self) -> str:
+        """프로그램 정보 API에서 사용할 PROGRAM_ID를 반환한다."""
+        return str(self.site or "").strip()
+
+    def get_program_notice_read_store(self) -> Optional[ProgramNoticeReadStore]:
+        """현재 프로그램의 notice_read.json 저장소를 한 번만 생성한다."""
+        site = str(self.site or "").strip()
+        if not site:
+            return None
+
+        if self.program_notice_read_store is None:
+            self.program_notice_read_store = ProgramNoticeReadStore(site=site)
+
+        return self.program_notice_read_store
+
+    def preload_program_notices(self) -> None:
+        """
+        MainWindow 시작 시 공지 전체를 미리 조회한다.
+
+        이 결과를 메모리에 보관하고 프로그램 정보 팝업에 그대로 넘긴다.
+        """
+        program_id = self.get_program_info_program_id()
+        if not program_id:
+            self.program_notices = []
+            self.program_notices_loaded = True
+            self.update_program_notice_badge()
+            return
+
+        if (
+                self.program_notice_worker is not None
+                and self.program_notice_worker.isRunning()
+        ):
+            return
+
+        self.program_notices_loaded = False
+
+        worker = ProgramNoticeWorker(
+            server_url=server_url,
+            program_id=program_id,
+            parent=self,
+        )
+        self.program_notice_worker = worker
+        worker.sig_done.connect(self.on_program_notices_loaded)
+        worker.finished.connect(self.on_program_notice_worker_finished)
+        worker.start()
+
+    def on_program_notices_loaded(
+            self,
+            result: ProgramNoticeListResult,
+    ) -> None:
+        """공지 선조회 결과를 저장하고 미확인 배지를 갱신한다."""
+        self.program_notices_loaded = True
+
+        if not result.ok:
+            self.program_notices = []
+            self.update_program_notice_badge()
+            self.add_log(
+                "[공지사항] 공지 조회 실패: "
+                f"{result.message}"
+            )
+
+            # 사용자가 매우 빨리 팝업을 연 경우에도 로딩 상태를 끝낸다.
+            if self.program_info_pop is not None:
+                self.program_info_pop.set_notices([], loaded=True)
+            return
+
+        self.program_notices = list(result.notices)
+        self.update_program_notice_badge()
+
+        # 메인 조회가 끝나기 전에 사용자가 팝업을 열었을 때도 즉시 반영한다.
+        if self.program_info_pop is not None:
+            self.program_info_pop.set_notices(
+                self.program_notices,
+                loaded=True,
+            )
+
+    def on_program_notice_worker_finished(self) -> None:
+        self.program_notice_worker = None
+
+    def update_program_notice_badge(self) -> None:
+        """로컬 읽음 캐시와 비교해 미확인 공지 수만 빨간 배지로 표시한다."""
+        if self.program_notice_badge is None:
+            return
+
+        store = self.get_program_notice_read_store()
+        if store is None:
+            self.program_notice_badge.hide()
+            return
+
+        unread_count = store.get_unread_count(self.program_notices)
+
+        if unread_count <= 0:
+            self.program_notice_badge.hide()
+            return
+
+        if unread_count > 99:
+            text = "99+"
+            badge_width = 28
+            badge_x = 126
+        else:
+            text = str(unread_count)
+            badge_width = 22
+            badge_x = 129
+
+        self.program_notice_badge.setText(text)
+        self.program_notice_badge.setFixedSize(badge_width, 22)
+        self.program_notice_badge.move(badge_x, 0)
+        self.program_notice_badge.show()
+        self.program_notice_badge.raise_()
+
+    def on_program_notice_read(self, _notice_id: str) -> None:
+        """상세 팝업에서 공지를 읽는 즉시 MainWindow 숫자를 다시 계산한다."""
+        self.update_program_notice_badge()
+
+    def open_program_info(self) -> None:
+        """프로그램 정보 팝업을 열고 선조회한 공지를 즉시 전달한다."""
+        program_id = self.get_program_info_program_id()
+
+        if not program_id:
+            self.show_message(
+                "프로그램 정보를 확인할 수 없습니다.",
+                "warn",
+                None,
+            )
+            return
+
+        try:
+            if self.program_info_pop is not None:
+                self.program_info_pop.close()
+                self.program_info_pop.deleteLater()
+        except Exception:
+            pass
+
+        self.program_info_pop = None
+
+        store = self.get_program_notice_read_store()
+        if store is None:
+            return
+
+        pop = ProgramInfoPop(
+            parent=self,
+            server_url=server_url,
+            program_id=program_id,
+            site=str(self.site or ""),
+            notices=self.program_notices,
+            read_store=store,
+            color=self.color,
+            notice_loaded=self.program_notices_loaded,
+        )
+        pop.notice_read.connect(self.on_program_notice_read)
+        self.program_info_pop = pop
+        pop.exec()
+
+        # 상세에서 읽은 상태가 반영되어 있으므로 서버 재호출 없이 로컬 계산만 한다.
+        self.update_program_notice_badge()
 
     def open_db_info(self) -> None:
         # DB 팝업은 열 때마다 새로 생성한다.
