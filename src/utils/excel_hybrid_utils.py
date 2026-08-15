@@ -241,46 +241,48 @@ class ExcelHybridUtils:
                         col_idx,
                         width_map.get(str(header), default_width),
                     )
-                    worksheet.write(0, col_idx, header, header_format)
 
-                # constant_memory 모드에 맞춰 행 순서대로 바로 기록한다.
+                # 헤더도 셀별 write() 대신 한 행으로 기록한다.
+                worksheet.write_row(0, 0, display_headers, header_format)
+
+                # 일반 데이터는 write_row()로 한 번에 기록하고,
+                # 링크 컬럼만 같은 행에서 write_url()로 덮어쓴다.
+                # 스타일/필터/틀고정 구조는 그대로 유지하면서 Python 호출 횟수를 줄인다.
+                hyperlink_index_list = sorted(hyperlink_indexes)
+
                 for row_idx, row in enumerate(row_list, start=1):
                     row_dict = row if isinstance(row, dict) else {}
 
-                    for col_idx, column in enumerate(columns):
-                        value = row_dict.get(column, "")
+                    values = [
+                        self._clean_cell_value(row_dict.get(column, ""))
+                        for column in columns
+                    ]
 
-                        if col_idx in hyperlink_indexes:
-                            parsed = self._parse_hyperlink_value(value)
-                            if parsed:
-                                worksheet.write_url(
-                                    row_idx,
-                                    col_idx,
-                                    parsed["url"],
-                                    hyperlink_format,
-                                    parsed["text"],
-                                )
-                                continue
+                    worksheet.write_row(row_idx, 0, values)
 
-                            text = self._clean_cell_value(value)
-                            if text.startswith("http://") or text.startswith("https://"):
-                                worksheet.write_url(
-                                    row_idx,
-                                    col_idx,
-                                    text,
-                                    hyperlink_format,
-                                    text,
-                                )
-                                continue
+                    for col_idx in hyperlink_index_list:
+                        raw_value = row_dict.get(columns[col_idx], "")
+                        parsed = self._parse_hyperlink_value(raw_value)
 
-                            worksheet.write_string(row_idx, col_idx, text)
+                        if parsed:
+                            worksheet.write_url(
+                                row_idx,
+                                col_idx,
+                                parsed["url"],
+                                hyperlink_format,
+                                parsed["text"],
+                            )
                             continue
 
-                        worksheet.write_string(
-                            row_idx,
-                            col_idx,
-                            self._clean_cell_value(value),
-                        )
+                        text = values[col_idx]
+                        if text.startswith("http://") or text.startswith("https://"):
+                            worksheet.write_url(
+                                row_idx,
+                                col_idx,
+                                text,
+                                hyperlink_format,
+                                text,
+                            )
 
                 worksheet.autofilter(
                     0,

@@ -19,6 +19,7 @@ import os
 import re
 import sqlite3
 import sys
+import time
 from datetime import datetime
 from typing import Any, Optional
 from PySide6.QtCore import QRect, Qt, Signal, QTimer
@@ -1327,8 +1328,16 @@ class DbSetPop(QDialog):
         if not os.path.exists(self.db_path):
             raise FileNotFoundError(f"DB 파일이 없습니다: {self.db_path}")
 
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(
+            self.db_path,
+            timeout=30,
+        )
         conn.row_factory = sqlite3.Row
+
+        # DB popup도 SqliteUtils와 동일한 SQLite 설정 적용
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=30000")
 
         return conn
 
@@ -1637,7 +1646,43 @@ class DbSetPop(QDialog):
         return msg.clickedButton() == yes_btn
 
 
-    # 왼쪽 이력 삭제: 해당 job_id에 연결된 모든 db_tabs 테이블까지 같이 삭제
+    # 삭제 성능 로그
+    def _log_delete_perf(self, message: str) -> None:
+        text = f"[삭제작업] {message}"
+        try:
+            self.log_signal.emit(text)
+        except Exception:
+            pass
+        print(text)
+
+    @staticmethod
+    def _chunked(values: list[Any], size: int = 800) -> list[list[Any]]:
+        """SQLite 바인딩 변수 제한을 피하기 위한 간단한 청크 분할."""
+        return [values[i:i + size] for i in range(0, len(values), size)]
+
+    def _refresh_left_table_from_memory(self, selected_hist_id: Any = None) -> None:
+        """DB 전체 재조회 없이 현재 hist_rows만으로 왼쪽 표를 갱신한다."""
+        if not self.left_table:
+            return
+
+        self.left_table.load_rows(
+            self.hist_rows,
+            self.hist_columns,
+            [self.HIST_HEADER_MAP[col] for col in self.hist_columns],
+        )
+
+        if self.left_count_label:
+            self.left_count_label.setText(f"전체 row수 {len(self.hist_rows)}")
+
+        if selected_hist_id is None:
+            return
+
+        for row_index, row in enumerate(self.hist_rows):
+            if row.get("hist_id") == selected_hist_id:
+                self.left_table.selectRow(row_index)
+                break
+
+    # 왼쪽 이력 삭제: 선택한 job_id들을 각 detail/stat 테이블에서 배치 삭제한다.
     def delete_left_checked(self) -> None:
         if not self.left_table:
             return
@@ -1651,46 +1696,103 @@ class DbSetPop(QDialog):
             return
 
         targets = [self.hist_rows[i] for i in checked if i < len(self.hist_rows)]
-        table_names = list(dict.fromkeys(
-            self._safe_table_name(tab.get("table") or "")
-            for tab in self.db_tabs
-            if self._safe_table_name(tab.get("table") or "")
-        ))
+        if not targets:
+            return
+
+        table_names = []
+        for tab in self.db_tabs:
+            raw_name = str(tab.get("table") or "").strip()
+            if not raw_name:
+                continue
+            table_name = self._safe_table_name(raw_name)
+            if table_name not in table_names:
+                table_names.append(table_name)
+
+        job_ids = [str(row.get("job_id") or "").strip() for row in targets]
+        job_ids = [job_id for job_id in job_ids if job_id]
+        hist_ids = [row.get("hist_id") for row in targets if row.get("hist_id") is not None]
+        deleted_hist_ids = set(hist_ids)
+
+        current_hist_id = self.current_hist_row.get("hist_id") if self.current_hist_row else None
+        current_deleted = current_hist_id in deleted_hist_ids
 
         delete_error = None
+        total_started = time.perf_counter()
 
         self.set_working(True)
         try:
+            db_started = time.perf_counter()
             with self._connect() as conn:
-                for row in targets:
-                    hist_id = row.get("hist_id")
-                    job_id = str(row.get("job_id") or "")
+                # 테이블별 job_id 컬럼 존재 여부는 한 번만 확인한다.
+                for table_name in table_names:
+                    if not self._table_has_column(conn, table_name, "job_id"):
+                        continue
 
-                    for table_name in table_names:
-                        if self._table_has_column(conn, table_name, "job_id"):
-                            conn.execute(
-                                f"DELETE FROM {table_name} WHERE job_id = ?",
-                                (job_id,),
-                            )
+                    table_started = time.perf_counter()
+                    deleted_count = 0
 
-                    conn.execute(
-                        f"""
-                        DELETE FROM {self.db_common_name}
-                        WHERE hist_id = ?
-                          AND UPPER(table_name) = UPPER(?)
-                        """,
-                        (hist_id, self.db_name),
+                    for chunk in self._chunked(job_ids):
+                        if not chunk:
+                            continue
+                        placeholders = ",".join("?" for _ in chunk)
+                        cur = conn.execute(
+                            f"DELETE FROM {table_name} WHERE job_id IN ({placeholders})",
+                            chunk,
+                        )
+                        if cur.rowcount and cur.rowcount > 0:
+                            deleted_count += int(cur.rowcount)
+
+                    self._log_delete_perf(
+                        f"{table_name} DELETE {time.perf_counter() - table_started:.3f}초 "
+                        f"| 삭제 {deleted_count:,}건"
                     )
 
-            # 삭제 후 목록 갱신까지 작업중 팝업이 떠 있는 상태에서 끝낸다.
-            self.load_hist_rows()
+                hist_started = time.perf_counter()
+                deleted_hist_count = 0
+                for chunk in self._chunked(hist_ids):
+                    if not chunk:
+                        continue
+                    placeholders = ",".join("?" for _ in chunk)
+                    cur = conn.execute(
+                        f"""
+                        DELETE FROM {self.db_common_name}
+                        WHERE hist_id IN ({placeholders})
+                          AND UPPER(table_name) = UPPER(?)
+                        """,
+                        [*chunk, self.db_name],
+                    )
+                    if cur.rowcount and cur.rowcount > 0:
+                        deleted_hist_count += int(cur.rowcount)
+
+                self._log_delete_perf(
+                    f"{self.db_common_name} DELETE {time.perf_counter() - hist_started:.3f}초 "
+                    f"| 삭제 {deleted_hist_count:,}건"
+                )
+
+            self._log_delete_perf(f"DB 삭제 전체 {time.perf_counter() - db_started:.3f}초")
+
+            # DB를 다시 SELECT하지 않고 이미 가진 메모리 목록에서 삭제된 이력만 제거한다.
+            ui_started = time.perf_counter()
+            self.hist_rows = [
+                row for row in self.hist_rows
+                if row.get("hist_id") not in deleted_hist_ids
+            ]
+
+            if current_deleted:
+                self.clear_detail_rows()
+                self._refresh_left_table_from_memory()
+            else:
+                self._refresh_left_table_from_memory(selected_hist_id=current_hist_id)
+
+            self._log_delete_perf(f"화면 갱신 {time.perf_counter() - ui_started:.3f}초")
 
         except Exception as e:
             delete_error = e
 
         finally:
-            # 성공/실패 메시지를 띄우기 전에 작업중 팝업을 확실히 제거한다.
             self.finish_working()
+
+        self._log_delete_perf(f"왼쪽 삭제 총 {time.perf_counter() - total_started:.3f}초")
 
         if delete_error is not None:
             QMessageBox.warning(self, "오류", f"삭제 실패\n{delete_error}")
@@ -1703,7 +1805,6 @@ class DbSetPop(QDialog):
             return
 
         checked = self.right_table.checked_rows()
-
         if not checked:
             QMessageBox.information(self, "알림", "삭제할 항목을 선택해주세요.")
             return
@@ -1712,28 +1813,48 @@ class DbSetPop(QDialog):
             return
 
         targets = [self.detail_rows[i] for i in checked if i < len(self.detail_rows)]
+        row_ids = [row.get("__rowid__") for row in targets if row.get("__rowid__") is not None]
+        if not row_ids:
+            return
+
         delete_error = None
+        total_started = time.perf_counter()
 
         self.set_working(True)
         try:
+            # 기존 1행당 DELETE 1회 방식 대신 rowid IN (...)으로 묶어서 삭제한다.
+            db_started = time.perf_counter()
+            deleted_count = 0
+            table_name = self._active_table_name()
             with self._connect() as conn:
-                for row in targets:
-                    conn.execute(
-                        f"DELETE FROM {self._active_table_name()} WHERE rowid = ?",
-                        (row.get("__rowid__"),),
+                for chunk in self._chunked(row_ids):
+                    placeholders = ",".join("?" for _ in chunk)
+                    cur = conn.execute(
+                        f"DELETE FROM {table_name} WHERE rowid IN ({placeholders})",
+                        chunk,
                     )
+                    if cur.rowcount and cur.rowcount > 0:
+                        deleted_count += int(cur.rowcount)
 
-            # 삭제 후 HIST/상세 재조회까지 모두 끝낸 뒤 로딩을 닫는다.
+            self._log_delete_perf(
+                f"{table_name} 선택 DELETE {time.perf_counter() - db_started:.3f}초 "
+                f"| 삭제 {deleted_count:,}건"
+            )
+
+            refresh_started = time.perf_counter()
             if self.current_hist_row:
                 self.refresh_current_hist()
             else:
                 self.clear_detail_rows()
+            self._log_delete_perf(f"삭제 후 현재 화면 갱신 {time.perf_counter() - refresh_started:.3f}초")
 
         except Exception as e:
             delete_error = e
 
         finally:
             self.finish_working()
+
+        self._log_delete_perf(f"오른쪽 삭제 총 {time.perf_counter() - total_started:.3f}초")
 
         if delete_error is not None:
             QMessageBox.warning(self, "오류", f"삭제 실패\n{delete_error}")
@@ -1742,35 +1863,35 @@ class DbSetPop(QDialog):
         QMessageBox.information(self, "알림", "삭제되었습니다.")
 
     def refresh_current_hist(self) -> None:
+        """현재 작업의 집계와 화면만 갱신한다. hist 전체 SELECT는 다시 하지 않는다."""
         if not self.current_hist_row:
             self.load_hist_rows()
             return
 
         hist_id = self.current_hist_row.get("hist_id")
         job_id = str(self.current_hist_row.get("job_id") or "")
+        started = time.perf_counter()
 
         self.set_working(True)
         try:
+            db_started = time.perf_counter()
             with self._connect() as conn:
-                success_count = conn.execute(
+                # SUCCESS/FAIL을 별도 COUNT 두 번 하지 않고 한 번의 집계 쿼리로 계산한다.
+                count_row = conn.execute(
                     f"""
-                    SELECT COUNT(*) AS cnt
+                    SELECT
+                        SUM(CASE WHEN UPPER(COALESCE(row_status, '')) = 'SUCCESS' THEN 1 ELSE 0 END) AS success_count,
+                        SUM(CASE WHEN UPPER(COALESCE(row_status, '')) = 'FAIL' THEN 1 ELSE 0 END) AS fail_count
                     FROM {self.db_name}
                     WHERE job_id = ?
-                      AND UPPER(COALESCE(row_status, '')) = 'SUCCESS'
                     """,
                     (job_id,),
-                ).fetchone()["cnt"]
+                ).fetchone()
 
-                fail_count = conn.execute(
-                    f"""
-                    SELECT COUNT(*) AS cnt
-                    FROM {self.db_name}
-                    WHERE job_id = ?
-                      AND UPPER(COALESCE(row_status, '')) = 'FAIL'
-                    """,
-                    (job_id,),
-                ).fetchone()["cnt"]
+                success_count = int((count_row["success_count"] if count_row else 0) or 0)
+                fail_count = int((count_row["fail_count"] if count_row else 0) or 0)
+                total_count = success_count + fail_count
+                updated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 conn.execute(
                     f"""
@@ -1784,32 +1905,47 @@ class DbSetPop(QDialog):
                       AND UPPER(table_name) = UPPER(?)
                     """,
                     (
-                        int(success_count) + int(fail_count),
-                        int(success_count),
-                        int(fail_count),
-                        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        total_count,
+                        success_count,
+                        fail_count,
+                        updated_at,
                         hist_id,
                         self.db_name,
                     ),
                 )
 
-        except Exception:
-            pass
+            self._log_delete_perf(f"현재 HIST 집계/UPDATE {time.perf_counter() - db_started:.3f}초")
+
+            # 메모리의 현재 hist row만 수정하고 왼쪽 전체 DB 재조회는 생략한다.
+            self.current_hist_row["success_count"] = success_count
+            self.current_hist_row["fail_count"] = fail_count
+            if "total_count" in self.current_hist_row:
+                self.current_hist_row["total_count"] = total_count
+
+            for row in self.hist_rows:
+                if row.get("hist_id") == hist_id:
+                    row["success_count"] = success_count
+                    row["fail_count"] = fail_count
+                    if "total_count" in row:
+                        row["total_count"] = total_count
+                    self.current_hist_row = row
+                    break
+
+            left_started = time.perf_counter()
+            self._refresh_left_table_from_memory(selected_hist_id=hist_id)
+            self._log_delete_perf(f"왼쪽 목록 메모리 갱신 {time.perf_counter() - left_started:.3f}초")
+
+            detail_started = time.perf_counter()
+            self.load_detail_rows_by_job_id(job_id)
+            self._log_delete_perf(f"오른쪽 상세 재조회 {time.perf_counter() - detail_started:.3f}초")
+
+        except Exception as e:
+            self._log_delete_perf(f"현재 HIST 갱신 실패: {e}")
 
         finally:
             self.set_working(False)
 
-        self.load_hist_rows()
-
-        if not self.left_table:
-            return
-
-        for row_index, row in enumerate(self.hist_rows):
-            if row.get("hist_id") == hist_id:
-                self.left_table.selectRow(row_index)
-                self.current_hist_row = row
-                self.load_detail_rows_by_job_id(job_id)
-                break
+        self._log_delete_perf(f"refresh_current_hist 총 {time.perf_counter() - started:.3f}초")
 
     def fetch_all_detail_rows_for_current_job(self) -> list[dict[str, Any]]:
         if not self.current_job_id:
