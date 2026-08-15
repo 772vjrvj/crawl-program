@@ -27,9 +27,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.hist_error_message = None
         self.worker_name: str = "naver_land_real_estate_detail"
         self.detail_table_name: str = "naver_land_real_estate_detail"
+        self.stat_table_name: str = "naver_land_real_estate_stat"
         self.detail_success_count: int = 0
         self.detail_fail_count: int = 0
         self.auto_save_yn: bool = False
+        self.sigungu_count_yn: bool = False
 
         self.base_amount = None
         self.eng_yn = None
@@ -62,6 +64,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.out_dir: str = "output"
 
         self.naver_loc_all_real_detail = None
+        self.naver_loc_si_gun_gu = None
         self.detail_region_article_list = None
         self.work_items: list[dict[str, Any]] = []
 
@@ -70,6 +73,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.detail_api_url: str = "https://fin.land.naver.com/front-api/v1/article/basicInfo"
         self.article_key_url: str = "https://fin.land.naver.com/front-api/v1/article/key"
         self.complex_api_url: str = "https://fin.land.naver.com/front-api/v1/complex"
+        self.sigungu_article_count_url: str = "https://fin.land.naver.com/front-api/v1/article/legalDivisionArticleClusters"
+        self.sigungu_complex_count_url: str = "https://fin.land.naver.com/front-api/v1/complex/legalDivisionComplexClusters"
         self.url: str = "https://fin.land.naver.com"
 
         self.list_hook_js = None
@@ -154,7 +159,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def destroy(self) -> None:
         self.progress_signal.emit(self.before_pro_value, 1000000)
         self.log_signal_func("✅ destroy")
-        time.sleep(2.5)
         self.progress_end_signal.emit()
 
     def driver_set(self) -> None:
@@ -187,6 +191,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         schema_files = [
             os.path.join("resources", "customers", "common", "db", "schema_hist.sql"),
             os.path.join("resources", "customers", self.worker_name, "db", "schema_detail.sql"),
+            os.path.join("resources", "customers", self.worker_name, "db", "schema_stat.sql"),
         ]
 
         if not self.sqlite_driver.execute_script_files(schema_files):
@@ -195,10 +200,50 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         self.log_signal_func("✅ [DB] 스키마 초기화 완료")
 
+        # 통계 컬럼은 schema_stat.sql의 별도 통계 테이블에서 관리한다.
+        # 기존 상세 테이블에 통계 컬럼을 추가/수정하지 않는다.
+
         if not self.insert_hist_start():
             return False
 
         return True
+
+    def _ensure_detail_validation_columns(self) -> bool:
+        if not self.sqlite_driver:
+            return False
+
+        validation_columns = {
+            "totalCount": "INTEGER",
+            "crawledCount": "INTEGER",
+            "trueFalse": "TEXT",
+            "sigunguTotalCount": "INTEGER",
+            "sigunguCrawledCount": "INTEGER",
+            "sigunguTrueFalse": "TEXT",
+            "failedDongNames": "TEXT",
+            "sigunguDiffCount": "INTEGER",
+            "sigunguErrorRate": "REAL",
+        }
+
+        try:
+            rows = self.sqlite_driver.fetchall(f"PRAGMA table_info({self.detail_table_name})", ()) or []
+            existing_columns = {str(row["name"]) for row in rows if row and row["name"]}
+
+            for column_name, column_type in validation_columns.items():
+                if column_name in existing_columns:
+                    continue
+
+                query = f"ALTER TABLE {self.detail_table_name} ADD COLUMN {column_name} {column_type}"
+                if not self.sqlite_driver.execute(query, ()):
+                    self.log_signal_func(f"❌ [DB] 검증 컬럼 추가 실패 : {column_name}")
+                    return False
+
+                self.log_signal_func(f"✅ [DB] 검증 컬럼 자동 추가 : {column_name} {column_type}")
+
+            return True
+
+        except Exception as e:
+            self.log_signal_func(f"❌ [DB] 검증 컬럼 확인/추가 실패 : {e}")
+            return False
 
     def finish_job(self, status: str, error_message: Optional[str] = None) -> None:
         self.hist_status = status
@@ -416,12 +461,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
 
     def _get_db_columns(self) -> List[str]:
-        # === 신규 ===
-        # 기존 columns.json의 위치/한글명/checked/title/content는 유지하고,
-        # code만 worker 영어 컬럼과 매핑한 결과다.
-        return ['totalCount',
-                'trueFalse',
-                'atclNo',
+        # 실제 매물 컬럼을 먼저 두고, 수집 검증 컬럼 9개는 맨 뒤에 배치한다.
+        return ['atclNo',
                 'articleName',
                 'complexName',
                 'dongName',
@@ -484,9 +525,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def _get_kor_header_map(self) -> Dict[str, str]:
         # === 신규 ===
         # 한글명(value)은 기존 columns.json 기준 그대로 유지한다.
-        return {'totalCount': '갯수',
-                'trueFalse': 'T/F',
-                'atclNo': '매물번호',
+        return {'atclNo': '매물번호',
                 'articleName': '매물명',
                 'complexName': '단지명',
                 'dongName': '동이름',
@@ -543,7 +582,16 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 'id': 'ID',
                 'searchRequirement': '검색조건',
                 'articlePriceInfo': '가격정보',
-                'rank': '순위'}
+                'rank': '순위',
+                'totalCount': '읍면동 전체 수',
+                'crawledCount': '읍면동 전체 크롤링 수',
+                'trueFalse': '읍면동 T/F',
+                'sigunguTotalCount': '시군구 전체 수',
+                'sigunguCrawledCount': '시군구 전체 크롤링 수',
+                'sigunguTrueFalse': '시군구 T/F',
+                'failedDongNames': '실패 또는 스킵 읍면동',
+                'sigunguDiffCount': '오차 갯수',
+                'sigunguErrorRate': '오차 비율'}
 
     def _get_kor_columns(self) -> List[str]:
         header_map = self._get_kor_header_map()
@@ -577,46 +625,140 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.log_signal_func("❌ [엑셀] hist_id 없음")
             return False
 
-        if self.eng_yn:
-            db_columns = self._get_eng_columns()
-        else:
-            db_columns = self._get_db_columns()
+        try:
+            # ============================================================
+            # Sheet1 - 상세 데이터
+            # ============================================================
+            if self.eng_yn:
+                detail_db_columns = self._get_eng_columns()
+            else:
+                detail_db_columns = self._get_db_columns()
 
-        select_text = ",\n                    ".join(db_columns)
+            if not detail_db_columns:
+                self.log_signal_func("❌ [엑셀] detail 컬럼이 없습니다.")
+                return False
 
-        query = f"""
-                SELECT
-                    {select_text}
-                FROM {self.detail_table_name}
-                WHERE hist_id = ?
-                ORDER BY detail_id
-                """
+            detail_select_text = ",\n                    ".join(detail_db_columns)
+            detail_query = f"""
+                    SELECT
+                        {detail_select_text}
+                    FROM {self.detail_table_name}
+                    WHERE hist_id = ?
+                    ORDER BY detail_id
+                    """
 
-        row_list = sqlite_driver.fetchall(query, (self.hist_id,))
-        if not row_list:
-            self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
+            detail_rows = sqlite_driver.fetchall(detail_query, (self.hist_id,)) or []
+            detail_rows = [dict(row) for row in detail_rows]
+
+            if not detail_rows:
+                self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
+                return False
+
+            self.log_signal_func(f"[엑셀] detail 조회 완료 | count={len(detail_rows)}")
+
+            # ============================================================
+            # Sheet1 출력 데이터 구성
+            # ============================================================
+            if self.eng_yn:
+                excel_detail_rows = detail_rows
+                excel_detail_columns = self.columns or self._get_eng_columns()
+            else:
+                excel_detail_rows = self._db_rows_to_kor_rows(detail_rows)
+
+                if self.link_yn:
+                    excel_detail_rows = [
+                        self._apply_excel_hyperlinks_to_row(row)
+                        for row in excel_detail_rows
+                    ]
+
+                excel_detail_columns = self.columns or self._get_kor_columns()
+
+            # ============================================================
+            # Sheet2 - 통계 데이터
+            # ============================================================
+            stat_columns = self._get_stat_columns()
+            stat_rows: List[Dict[str, Any]] = []
+
+            if stat_columns:
+                stat_select_text = ",\n                    ".join(stat_columns)
+                stat_query = f"""
+                        SELECT
+                            {stat_select_text}
+                        FROM {self.stat_table_name}
+                        WHERE hist_id = ?
+                        ORDER BY stat_id
+                        """
+
+                fetched_stat_rows = sqlite_driver.fetchall(stat_query, (self.hist_id,)) or []
+                stat_rows = [dict(row) for row in fetched_stat_rows]
+
+            self.log_signal_func(f"[엑셀] 통계 조회 완료 | count={len(stat_rows)}")
+
+            stat_header_map = self._get_stat_header_map()
+            excel_filename = f"{self.site_name}_{self.job_id}.xlsx"
+
+            # ============================================================
+            # Sheet1 + Sheet2를 하나의 ExcelWriter에서 작성한다.
+            # 기존처럼 Sheet1 저장 후 load_workbook()으로 다시 열지 않는다.
+            # ============================================================
+            # URL은 항상 하이퍼링크 처리한다.
+            # 설정의 "링크(주소,매물번호)"가 켜진 경우에만
+            # 매물번호와 전체주소 링크를 추가 처리한다.
+            if self.eng_yn:
+                hyperlink_columns = ["atclUrl"]
+                if self.link_yn:
+                    hyperlink_columns.extend(["atclNo", "full_addr"])
+            else:
+                hyperlink_columns = ["URL"]
+                if self.link_yn:
+                    hyperlink_columns.extend(["매물번호", "전체주소"])
+
+            sheets = [
+                {
+                    "sheet_name": "Sheet1",
+                    "row_list": excel_detail_rows,
+                    "columns": excel_detail_columns,
+                    "header_map": None,
+                    "column_widths": [
+                        {"컬럼": column_name, "너비": 16}
+                        for column_name in excel_detail_columns
+                    ],
+                    "default_width": 16,
+                    "hyperlink_columns": hyperlink_columns,
+                }
+            ]
+
+            if stat_rows:
+                sheets.append({
+                    "sheet_name": "Sheet2",
+                    "row_list": stat_rows,
+                    "columns": stat_columns,
+                    "header_map": stat_header_map,
+                    "column_widths": [
+                        {"컬럼": stat_header_map.get(col, col), "너비": 18}
+                        for col in stat_columns
+                    ],
+                    "default_width": 18,
+                    "hyperlink_columns": [],
+                })
+
+            result = self.excel_driver.save_db_sheets_to_excel(
+                excel_filename=excel_filename,
+                sheets=sheets,
+                folder_path=self.folder_path,
+                sub_dir=self.out_dir,
+            )
+
+            if not result:
+                self.log_signal_func("❌ [엑셀] detail + 통계 자동 저장 실패")
+                return False
+
+            self.log_signal_func("✅ [엑셀] detail + 통계 자동 저장 완료")
+            return True
+
+        except Exception as e:
+            self.log_signal_func(f"❌ [엑셀] 자동 저장 중 오류: {e}")
             return False
-
-        row_list = [dict(row) for row in row_list]
-
-        if self.eng_yn:
-            excel_row_list = row_list
-            excel_columns = self._get_eng_columns()
-        else:
-            excel_row_list = self._db_rows_to_kor_rows(row_list)
-            if self.link_yn:
-                excel_row_list = [self._apply_excel_hyperlinks_to_row(row) for row in excel_row_list]
-            excel_columns = self.columns or self._get_kor_columns()
-
-        excel_filename = f"{self.site_name}_{self.job_id}.xlsx"
-
-        return self.excel_driver.save_db_rows_to_excel(
-            excel_filename=excel_filename,
-            row_list=excel_row_list,
-            columns=excel_columns,
-            folder_path=self.folder_path,
-            sub_dir=self.out_dir,
-        )
 
     def finalize_db_and_excel(self) -> None:
         temp_sqlite_driver = None
@@ -662,6 +804,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.auto_save_yn = bool(self.get_setting_value(self.setting, "auto_save_yn"))
         self.log_signal_func(f"엑셀 자동 저장 여부 : {self.auto_save_yn}")
 
+        # 시군구 전체 갯수 검증 사용 여부
+        self.sigungu_count_yn = bool(self.get_setting_value(self.setting, "sigungu_count_yn"))
+        self.log_signal_func(f"시군구 갯수 조회 여부 : {self.sigungu_count_yn}")
+
         # 영어컬럼 여부
         self.eng_yn: bool = self.get_setting_value(self.setting, "eng_yn")
         self.log_signal_func(f"영어컬럼 여부 : {self.eng_yn}")
@@ -680,6 +826,15 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "korea_eup_myeon_dong.json",
             "customers/naver_land_real_estate_detail/region",
         )
+
+        if self.sigungu_count_yn:
+            self.naver_loc_si_gun_gu = self.file_driver.read_json_array_from_resources(
+                "korea_si_gun_gu.json",
+                "customers/naver_land_real_estate_detail/region",
+            ) or []
+            self.log_signal_func(f"시군구 법정동 코드 로드 : {len(self.naver_loc_si_gun_gu)}건")
+        else:
+            self.naver_loc_si_gun_gu = []
 
         # 2. 등록일
         self.all_date_yn: bool = bool(self.get_setting_value(self.setting, "all_date_yn"))
@@ -906,8 +1061,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def _get_eng_columns(self) -> List[str]:
         return [
-            "totalCount",
-            "trueFalse",
             "date",
             "atclNo",
             "atclNm",
@@ -945,6 +1098,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "lng",
         ]
 
+    def _validation_value_to_text(self, value: Any) -> str:
+        if value is None:
+            return ""
+        return str(value)
+
     def _build_article_price_info(self, out: Dict[str, Any]) -> str:
         price = str(out.get("매매가") or "").strip()
         warranty = str(out.get("보증금/전세") or out.get("보증금") or "").strip()
@@ -978,8 +1136,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def _map_out_to_eng(self, out: Dict[str, Any]) -> Dict[str, Any]:
         eng_out: Dict[str, Any] = {
-            "totalCount": str(out.get("갯수") or ""),
-            "trueFalse": str(out.get("T/F") or ""),
             "date": str(out.get("매물노출시작일") or ""),
             "atclNo": str(out.get("매물번호") or ""),
             "atclNm": str(out.get("상위매물명") or ""),
@@ -1015,6 +1171,17 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "rank": "",
             "lat": str(out.get("위도") or ""),
             "lng": str(out.get("경도") or ""),
+
+            # 수집 검증 정보
+            "totalCount": self._validation_value_to_text(out.get("읍면동 전체 수", out.get("갯수"))),
+            "crawledCount": self._validation_value_to_text(out.get("읍면동 전체 크롤링 수")),
+            "trueFalse": self._validation_value_to_text(out.get("읍면동 T/F", out.get("T/F"))),
+            "sigunguTotalCount": self._validation_value_to_text(out.get("시군구 전체 수")),
+            "sigunguCrawledCount": self._validation_value_to_text(out.get("시군구 전체 크롤링 수")),
+            "sigunguTrueFalse": self._validation_value_to_text(out.get("시군구 T/F")),
+            "failedDongNames": self._validation_value_to_text(out.get("실패 또는 스킵 읍면동")),
+            "sigunguDiffCount": self._validation_value_to_text(out.get("오차 갯수")),
+            "sigunguErrorRate": self._validation_value_to_text(out.get("오차 비율")),
         }
 
         return eng_out
@@ -1124,6 +1291,433 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
         return row
 
+    def _upsert_stat_dong(
+            self,
+            sido: Any,
+            sigungu: Any,
+            eup_myeon_dong: Any,
+            total_count: int,
+            crawled_count: int,
+            true_false: str,
+    ) -> bool:
+        """
+        읍면동 단위 검증값을 통계 테이블에 저장한다.
+
+        기존 detail 성공/실패 카운트에는 영향을 주지 않는다.
+        동일 job_id + 시도 + 시군구 + 읍면동이면 기존 행을 갱신한다.
+        """
+        if not self.sqlite_driver or not self.hist_id or not self.job_id:
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+
+        query = f"""
+                INSERT INTO {self.stat_table_name} (
+                    hist_id,
+                    job_id,
+                    city,
+                    division,
+                    sector,
+                    totalCount,
+                    crawledCount,
+                    trueFalse,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(job_id, city, division, sector)
+                DO UPDATE SET
+                    hist_id = excluded.hist_id,
+                    totalCount = excluded.totalCount,
+                    crawledCount = excluded.crawledCount,
+                    trueFalse = excluded.trueFalse,
+                    created_at = excluded.created_at
+                """
+
+        params = (
+            self.hist_id,
+            self.job_id,
+            str(sido or "").strip(),
+            str(sigungu or "").strip(),
+            str(eup_myeon_dong or "").strip(),
+            int(total_count or 0),
+            int(crawled_count or 0),
+            str(true_false or ""),
+            now,
+        )
+
+        ok = bool(self.sqlite_driver.execute(query, params))
+        if not ok:
+            self.log_signal_func(
+                f"❌ [DB] 통계 읍면동 저장 실패 | "
+                f"{sido} {sigungu} {eup_myeon_dong}"
+            )
+        return ok
+
+    def _update_stat_sigungu(
+            self,
+            sido: Any,
+            sigungu: Any,
+            total_count: Optional[int],
+            crawled_count: int,
+            true_false: str,
+            failed_dong_names: str,
+            diff_count: Optional[int],
+            error_rate: Optional[float],
+    ) -> bool:
+        """
+        시군구 최종 검증값을 해당 시군구의 통계 행 전체에 반영한다.
+
+        기존 _finalize_sigungu_validation_map()에서 이미 계산한 값을 그대로 사용한다.
+        """
+        if not self.sqlite_driver or not self.hist_id or not self.job_id:
+            return False
+
+        query = f"""
+                UPDATE {self.stat_table_name}
+                SET
+                    sigunguTotalCount = ?,
+                    sigunguCrawledCount = ?,
+                    sigunguTrueFalse = ?,
+                    failedDongNames = ?,
+                    sigunguDiffCount = ?,
+                    sigunguErrorRate = ?
+                WHERE job_id = ?
+                  AND city = ?
+                  AND division = ?
+                """
+
+        return bool(self.sqlite_driver.execute(
+            query,
+            (
+                total_count,
+                int(crawled_count or 0),
+                str(true_false or ""),
+                str(failed_dong_names or ""),
+                diff_count,
+                error_rate,
+                self.job_id,
+                str(sido or "").strip(),
+                str(sigungu or "").strip(),
+            ),
+        ))
+
+    def _get_stat_columns(self) -> List[str]:
+        return [
+            "city",
+            "division",
+            "sector",
+            "totalCount",
+            "crawledCount",
+            "trueFalse",
+            "sigunguTotalCount",
+            "sigunguCrawledCount",
+            "sigunguTrueFalse",
+            "failedDongNames",
+            "sigunguDiffCount",
+            "sigunguErrorRate",
+        ]
+
+    def _get_stat_header_map(self) -> Dict[str, str]:
+        return {
+            "city": "시도",
+            "division": "시군구",
+            "sector": "읍면동",
+            "totalCount": "읍면동 전체 수",
+            "crawledCount": "읍면동 전체 크롤링 수",
+            "trueFalse": "읍면동 T/F",
+            "sigunguTotalCount": "시군구 전체 수",
+            "sigunguCrawledCount": "시군구 전체 크롤링 수",
+            "sigunguTrueFalse": "시군구 T/F",
+            "failedDongNames": "실패 또는 스킵 읍면동",
+            "sigunguDiffCount": "오차 갯수",
+            "sigunguErrorRate": "오차 비율",
+        }
+
+    def _get_current_max_detail_id(self) -> int:
+        if not self.sqlite_driver or not self.hist_id:
+            return 0
+
+        try:
+            row = self.sqlite_driver.fetchone(
+                f"SELECT COALESCE(MAX(detail_id), 0) AS max_id FROM {self.detail_table_name} WHERE hist_id = ?",
+                (self.hist_id,),
+            )
+            return int(row["max_id"] or 0) if row else 0
+        except Exception as e:
+            self.log_signal_func(f"[시군구 검증] detail_id 조회 실패 : {e}")
+            return 0
+
+    def _find_sigungu_legal_division_number(self, sido: Any, sigungu: Any) -> str:
+        sido_text = str(sido or "").strip()
+        sigungu_text = str(sigungu or "").strip()
+
+        for item in self.naver_loc_si_gun_gu or []:
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("시도") or "").strip() != sido_text:
+                continue
+            if str(item.get("시군구") or "").strip() != sigungu_text:
+                continue
+
+            data = item.get("data") or {}
+            legal_no = str(data.get("legalDivisionNumber") or "").strip()
+            if legal_no:
+                return legal_no
+
+        return ""
+
+    def _build_sigungu_cluster_payload(self, base_payload: Dict[str, Any], legal_division_number: str) -> Dict[str, Any]:
+        # boundedArticles에서 실제 사용한 filter를 그대로 복사하고 지역 레벨만 GUN으로 교체한다.
+        source_filter = (base_payload or {}).get("filter") or {}
+        filter_payload = json.loads(json.dumps(source_filter, ensure_ascii=False))
+        filter_payload["legalDivisionNumbers"] = [legal_division_number]
+        filter_payload["legalDivisionType"] = "GUN"
+        return {"filter": filter_payload}
+
+    def _extract_legal_division_cluster_count(
+            self,
+            response_json: Dict[str, Any],
+            legal_division_number: str,
+    ) -> Optional[int]:
+        if not isinstance(response_json, dict) or response_json.get("isSuccess") is False:
+            return None
+
+        result = response_json.get("result") or []
+        if not isinstance(result, list):
+            return None
+
+        for row in result:
+            if not isinstance(row, dict):
+                continue
+            if str(row.get("legalDivisionNumber") or "").strip() != legal_division_number:
+                continue
+            try:
+                return int(row.get("count") or 0)
+            except (TypeError, ValueError):
+                return None
+
+        return None
+
+    def _fetch_sigungu_counts(
+            self,
+            sido: Any,
+            sigungu: Any,
+            base_payload: Dict[str, Any],
+    ) -> tuple[Optional[int], Optional[int]]:
+        legal_no = self._find_sigungu_legal_division_number(sido, sigungu)
+        if not legal_no:
+            self.log_signal_func(f"⚠️ [시군구 검증] 법정동 코드 없음 : {sido} {sigungu}")
+            return None, None
+
+        payload = self._build_sigungu_cluster_payload(base_payload, legal_no)
+
+        article_count: Optional[int] = None
+        complex_count: Optional[int] = None
+
+        try:
+            article_res = self._browser_fetch_json(
+                url=self.sigungu_article_count_url,
+                method="POST",
+                payload=payload,
+                wait_sec=60,
+            )
+            if article_res.get("status") == 200:
+                article_count = self._extract_legal_division_cluster_count(
+                    article_res.get("json") or {},
+                    legal_no,
+                    )
+
+            self.log_signal_func(
+                f"[시군구 매물수] {sido} {sigungu} / legalDivisionNumber={legal_no} / count={article_count}"
+            )
+        except Exception as e:
+            self.log_signal_func(f"❌ [시군구 매물수] 조회 실패 : {sido} {sigungu} / {e}")
+
+        # 단지수는 현재 DB에는 저장하지 않고 로그만 남긴다.
+        try:
+            complex_res = self._browser_fetch_json(
+                url=self.sigungu_complex_count_url,
+                method="POST",
+                payload=payload,
+                wait_sec=60,
+            )
+            if complex_res.get("status") == 200:
+                complex_count = self._extract_legal_division_cluster_count(
+                    complex_res.get("json") or {},
+                    legal_no,
+                    )
+
+            self.log_signal_func(
+                f"[시군구 단지수-로그만] {sido} {sigungu} / legalDivisionNumber={legal_no} / count={complex_count}"
+            )
+        except Exception as e:
+            self.log_signal_func(f"❌ [시군구 단지수] 조회 실패 : {sido} {sigungu} / {e}")
+
+        return article_count, complex_count
+
+    def _get_sigungu_validation_state(
+            self,
+            state_map: Dict[str, Dict[str, Any]],
+            sido: Any,
+            sigungu: Any,
+    ) -> Dict[str, Any]:
+        key = f"{str(sido or '').strip()}|{str(sigungu or '').strip()}"
+        if key not in state_map:
+            state_map[key] = {
+                "sido": str(sido or "").strip(),
+                "sigungu": str(sigungu or "").strip(),
+                "total_count": None,
+                "crawled_count": 0,
+                "failed_dongs": [],
+                "detail_ranges": [],
+                "api_attempts": 0,
+            }
+        return state_map[key]
+
+    def _load_sigungu_total_if_needed(
+            self,
+            state: Dict[str, Any],
+            base_payload: Dict[str, Any],
+    ) -> None:
+        if not self.sigungu_count_yn:
+            return
+        if state.get("total_count") is not None:
+            return
+        if not base_payload or not (base_payload.get("filter") or {}):
+            return
+        if int(state.get("api_attempts") or 0) >= 3:
+            return
+
+        state["api_attempts"] = int(state.get("api_attempts") or 0) + 1
+        article_count, _complex_count = self._fetch_sigungu_counts(
+            state.get("sido"),
+            state.get("sigungu"),
+            base_payload,
+        )
+        if article_count is not None:
+            state["total_count"] = article_count
+
+    def _append_failed_dong(self, state: Dict[str, Any], dong_name: Any) -> None:
+        dong_text = str(dong_name or "").strip()
+        if not dong_text:
+            return
+        failed_dongs = state.setdefault("failed_dongs", [])
+        if dong_text not in failed_dongs:
+            failed_dongs.append(dong_text)
+
+    def _register_sigungu_dong_validation(
+            self,
+            state: Dict[str, Any],
+            dong_name: Any,
+            actual_count: int,
+            true_false: str,
+    ) -> None:
+        state["crawled_count"] = int(state.get("crawled_count") or 0) + int(actual_count or 0)
+        if true_false != "T":
+            self._append_failed_dong(state, dong_name)
+
+    def _update_sigungu_validation_range(
+            self,
+            start_detail_id: int,
+            end_detail_id: int,
+            total_count: Optional[int],
+            crawled_count: int,
+            true_false: str,
+            failed_dong_names: str,
+            diff_count: Optional[int],
+            error_rate: Optional[float],
+    ) -> bool:
+        if not self.sqlite_driver or end_detail_id <= start_detail_id:
+            return False
+
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        query = f"""
+                UPDATE {self.detail_table_name}
+                SET
+                    sigunguTotalCount = ?,
+                    sigunguCrawledCount = ?,
+                    sigunguTrueFalse = ?,
+                    failedDongNames = ?,
+                    sigunguDiffCount = ?,
+                    sigunguErrorRate = ?,
+                    updated_at = ?
+                WHERE hist_id = ?
+                  AND detail_id > ?
+                  AND detail_id <= ?
+                """
+
+        return bool(self.sqlite_driver.execute(
+            query,
+            (
+                total_count,
+                crawled_count,
+                true_false,
+                failed_dong_names,
+                diff_count,
+                error_rate,
+                now,
+                self.hist_id,
+                start_detail_id,
+                end_detail_id,
+            ),
+        ))
+
+    def _finalize_sigungu_validation_map(self, state_map: Dict[str, Dict[str, Any]]) -> None:
+        if not self.sigungu_count_yn:
+            return
+
+        for state in state_map.values():
+            total_count = state.get("total_count")
+            crawled_count = int(state.get("crawled_count") or 0)
+            failed_dong_names = ", ".join(state.get("failed_dongs") or [])
+
+            if total_count is None:
+                true_false = ""
+                diff_count = None
+                error_rate = None
+            else:
+                total_count = int(total_count)
+                diff_count = abs(total_count - crawled_count)
+                true_false = "T" if total_count == crawled_count else "F"
+                if total_count > 0:
+                    error_rate = round((diff_count / total_count) * 100, 2)
+                else:
+                    error_rate = 0.0 if crawled_count == 0 else 100.0
+
+            for start_id, end_id in state.get("detail_ranges") or []:
+                self._update_sigungu_validation_range(
+                    start_detail_id=int(start_id),
+                    end_detail_id=int(end_id),
+                    total_count=total_count,
+                    crawled_count=crawled_count,
+                    true_false=true_false,
+                    failed_dong_names=failed_dong_names,
+                    diff_count=diff_count,
+                    error_rate=error_rate,
+                )
+
+            # 기존 시군구 검증 계산 결과를 별도 통계 테이블에 반영한다.
+            self._update_stat_sigungu(
+                sido=state.get("sido"),
+                sigungu=state.get("sigungu"),
+                total_count=total_count,
+                crawled_count=crawled_count,
+                true_false=true_false,
+                failed_dong_names=failed_dong_names,
+                diff_count=diff_count,
+                error_rate=error_rate,
+            )
+
+            error_rate_text = "" if error_rate is None else f"{error_rate:.2f}%"
+            self.log_signal_func(
+                f"[시군구 검증] {state.get('sido')} {state.get('sigungu')} "
+                f"/ 시군구 전체 수={total_count} "
+                f"/ 동 크롤링 수 합={crawled_count} "
+                f"/ T/F={true_false} "
+                f"/ 실패 읍면동={failed_dong_names or '-'} "
+                f"/ 오차 갯수={diff_count} "
+                f"/ 오차 비율={error_rate_text}"
+            )
+
     def _crawl_article_list(self):
         total_region_count = 0
         for work_item in self.work_items:
@@ -1141,6 +1735,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             current_region_list = work_item.get("detail_region_article_list") or []
             favorite_index = work_item.get("favorite_index", 0)
             work_type = work_item.get("type", "default")
+            sigungu_validation_map: Dict[str, Dict[str, Any]] = {}
 
             if work_type == "favorite":
                 self.log_signal_func(
@@ -1162,6 +1757,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 sido = region_item.get("시도")
                 sigungu = region_item.get("시군구")
                 eup_myeon_dong = region_item.get("읍면동")
+                region_start_detail_id = self._get_current_max_detail_id() if self.sigungu_count_yn else 0
 
                 if work_type == "favorite":
                     self.log_signal_func(
@@ -1363,10 +1959,29 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                             self.log_signal_func("[재시도 실패] 5회 모두 실패하여 다음 지역으로 이동")
 
                 if not success:
+                    if self.sigungu_count_yn:
+                        state = self._get_sigungu_validation_state(sigungu_validation_map, sido, sigungu)
+                        self._append_failed_dong(state, eup_myeon_dong)
                     emit_region_progress()
                     continue
 
                 if skip_current_region:
+                    if self.sigungu_count_yn:
+                        state = self._get_sigungu_validation_state(sigungu_validation_map, sido, sigungu)
+                        self._load_sigungu_total_if_needed(state, base_payload)
+
+                        if first_result:
+                            skip_total_count = int(first_result.get("totalCount") or 0)
+                            skip_true_false = "T" if skip_total_count == 0 else "F"
+                            self._register_sigungu_dong_validation(
+                                state,
+                                eup_myeon_dong,
+                                actual_count=0,
+                                true_false=skip_true_false,
+                            )
+                        else:
+                            self._append_failed_dong(state, eup_myeon_dong)
+
                     emit_region_progress()
                     time.sleep(random.uniform(1, 2))
                     continue
@@ -1383,12 +1998,34 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
                 for item in items:
                     item["_totalCount"] = total_count
+                    item["_crawledCount"] = actual_count
                     item["_trueFalse"] = true_false
+
+                sigungu_state = None
+                if self.sigungu_count_yn:
+                    sigungu_state = self._get_sigungu_validation_state(sigungu_validation_map, sido, sigungu)
+                    self._load_sigungu_total_if_needed(sigungu_state, base_payload)
+                    self._register_sigungu_dong_validation(
+                        sigungu_state,
+                        eup_myeon_dong,
+                        actual_count=actual_count,
+                        true_false=true_false,
+                    )
 
                 self.log_signal_func(
                     f"[목록 검증] 전체 갯수={total_count} "
                     f"/ 실제 크롤링 갯수={actual_count} "
                     f"/ 일치 여부={true_false}"
+                )
+
+                # 기존 검증 계산은 그대로 두고 결과만 별도 통계 테이블에 저장한다.
+                self._upsert_stat_dong(
+                    sido=sido,
+                    sigungu=sigungu,
+                    eup_myeon_dong=eup_myeon_dong,
+                    total_count=total_count,
+                    crawled_count=actual_count,
+                    true_false=true_false,
                 )
 
                 if not items:
@@ -1403,8 +2040,17 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                     # self._save_list_items(items, region_item)
                     self._save_list_items_multi(items, region_item)
 
+                if self.sigungu_count_yn and sigungu_state is not None:
+                    region_end_detail_id = self._get_current_max_detail_id()
+                    if region_end_detail_id > region_start_detail_id:
+                        sigungu_state.setdefault("detail_ranges", []).append(
+                            (region_start_detail_id, region_end_detail_id)
+                        )
+
                 emit_region_progress()
                 time.sleep(random.uniform(2, 4))
+
+            self._finalize_sigungu_validation_map(sigungu_validation_map)
 
     def _build_region_map_url(self, x, y, filter_items):
         params = [
@@ -2458,8 +3104,6 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         article_no = list_item.get("articleNumber", "")
 
         rs = {
-            "갯수": list_item.get("_totalCount", ""),
-            "T/F": list_item.get("_trueFalse", ""),
             "매물번호": article_no,
             "매물명": articleName,
             "단지명": list_item.get("complexName", ""),
@@ -2512,6 +3156,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             "추천업종": list_land.get("recommendedPurpose", ""),
             "사용승인일": yyyy_mm_dd_to(list_building.get("buildingConjunctionDate", "")),
             "검색 주소": sido + " " + sigungu + " " + eup_myeon_dong,
+
+            # 읍면동 단위 검증 정보
+            "읍면동 전체 수": list_item.get("_totalCount", ""),
+            "읍면동 전체 크롤링 수": list_item.get("_crawledCount", ""),
+            "읍면동 T/F": list_item.get("_trueFalse", ""),
         }
 
         return rs

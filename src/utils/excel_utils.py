@@ -246,6 +246,55 @@ class ExcelUtils:
                 if text.startswith("http://") or text.startswith("https://"):
                     self._set_hyperlink_cell(cell, text, text)
 
+    def _apply_hyperlink_columns(self, ws, column_names):
+        """
+        지정된 헤더 컬럼만 하이퍼링크 변환한다.
+
+        대용량 엑셀에서 전체 셀을 순회하지 않고 URL/매물번호/전체주소처럼
+        실제 링크가 필요한 컬럼만 처리하기 위한 최적화 함수다.
+        """
+        target_names = {
+            str(name or "").strip()
+            for name in (column_names or [])
+            if str(name or "").strip()
+        }
+
+        if not target_names or ws.max_row < 2 or ws.max_column < 1:
+            return
+
+        target_col_indexes = []
+
+        for col_idx in range(1, ws.max_column + 1):
+            header_value = ws.cell(row=1, column=col_idx).value
+            header_text = str(header_value or "").strip()
+
+            if header_text in target_names:
+                target_col_indexes.append(col_idx)
+
+        if not target_col_indexes:
+            return
+
+        for col_idx in target_col_indexes:
+            for row_idx in range(2, ws.max_row + 1):
+                cell = ws.cell(row=row_idx, column=col_idx)
+
+                if cell.hyperlink:
+                    continue
+
+                parsed = self._parse_hyperlink_cell_value(cell.value)
+                if parsed:
+                    self._set_hyperlink_cell(
+                        cell,
+                        parsed.get("url", ""),
+                        parsed.get("text", ""),
+                    )
+                    continue
+
+                # URL 컬럼처럼 값 자체가 http/https인 경우도 바로 링크 처리한다.
+                text = self._clean_excel_cell_value(cell.value)
+                if text.startswith("http://") or text.startswith("https://"):
+                    self._set_hyperlink_cell(cell, text, text)
+
     def _apply_column_widths(self, ws, column_widths=None, default_width=16):
         width_map = {}
 
@@ -420,6 +469,134 @@ class ExcelUtils:
         except Exception as e:
             if self.log_func:
                 self.log_func(f"❌ DB -> 엑셀 저장 실패: {e}")
+            return None if return_path else False
+
+
+    def save_db_sheets_to_excel(
+            self,
+            excel_filename,
+            sheets,
+            folder_path=None,
+            sub_dir=None,
+            return_path=False,
+    ):
+        """
+        여러 시트를 하나의 Workbook에 작성하고 마지막에 한 번만 저장한다.
+
+        기존 save_db_rows_to_excel()은 그대로 유지하고,
+        대용량 파일에 Sheet2 등을 추가하기 위해 파일을 다시 load_workbook() 하는
+        비용을 피해야 하는 경우 이 함수를 사용한다.
+        """
+        if not sheets:
+            if self.log_func:
+                self.log_func("⚠️ 저장할 엑셀 시트가 없습니다.")
+            return None if return_path else False
+
+        excel_filename = str(excel_filename or "").strip()
+        if not excel_filename:
+            if self.log_func:
+                self.log_func("❌ excel_filename 이 비어 있습니다.")
+            return None if return_path else False
+
+        if not excel_filename.lower().endswith(".xlsx"):
+            excel_filename = os.path.splitext(excel_filename)[0] + ".xlsx"
+
+        excel_path = self.build_file_path(excel_filename, folder_path, sub_dir)
+
+        try:
+            written_count = 0
+
+            with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+                for sheet_info in sheets:
+                    sheet_name = str(
+                        sheet_info.get("sheet_name")
+                        or f"Sheet{written_count + 1}"
+                    ).strip()
+
+                    row_list = sheet_info.get("row_list") or []
+                    if not row_list:
+                        if self.log_func:
+                            self.log_func(f"ℹ️ [EXCEL] 데이터 없음 - 시트 스킵: {sheet_name}")
+                        continue
+
+                    columns = sheet_info.get("columns")
+                    header_map = sheet_info.get("header_map") or {}
+                    column_widths = sheet_info.get("column_widths")
+                    default_width = sheet_info.get("default_width", 16)
+                    apply_hyperlink = bool(sheet_info.get("apply_hyperlink", False))
+                    hyperlink_columns = sheet_info.get("hyperlink_columns") or []
+
+                    if columns:
+                        df = pd.DataFrame(row_list, columns=columns)
+                    else:
+                        df = pd.DataFrame(row_list)
+
+                    if df.empty:
+                        if self.log_func:
+                            self.log_func(f"ℹ️ [EXCEL] DataFrame 비어 있음 - 시트 스킵: {sheet_name}")
+                        continue
+
+                    # DataFrame 단계에서 한 번만 값 정리한다.
+                    # 엑셀 작성 후 전체 셀을 다시 순회하는 중복 정리는 하지 않는다.
+                    for col in df.columns:
+                        df[col] = df[col].apply(self._clean_excel_cell_value)
+
+                    if header_map:
+                        df = df.rename(columns={
+                            col: str(header_map.get(col) or col)
+                            for col in df.columns
+                        })
+
+                    if self.log_func:
+                        self.log_func(
+                            f"[EXCEL] 시트 작성 시작: {sheet_name} | "
+                            f"rows={len(df)} | cols={len(df.columns)}"
+                        )
+
+                    df.to_excel(
+                        writer,
+                        index=False,
+                        sheet_name=sheet_name,
+                    )
+
+                    ws = writer.sheets[sheet_name]
+                    self._apply_header_style_and_filter(ws)
+
+                    if hyperlink_columns:
+                        self._apply_hyperlink_columns(ws, hyperlink_columns)
+                    elif apply_hyperlink:
+                        # 기존 호출 호환용 fallback
+                        self._apply_hyperlink_cells(ws)
+
+                    self._apply_column_widths(
+                        ws,
+                        column_widths=column_widths,
+                        default_width=default_width,
+                    )
+
+                    written_count += 1
+
+                    if self.log_func:
+                        self.log_func(f"✅ [EXCEL] 시트 작성 완료: {sheet_name}")
+
+                if written_count == 0:
+                    if self.log_func:
+                        self.log_func("⚠️ 실제 저장할 엑셀 데이터가 없습니다.")
+                    return None if return_path else False
+
+            if self.log_func:
+                self.log_func(f"✅ DB -> 다중 시트 엑셀 저장 완료: {excel_path}")
+
+            return excel_path if return_path else True
+
+        except PermissionError as e:
+            if self.log_func:
+                self.log_func(f"❌ DB -> 다중 시트 엑셀 저장 실패 - 파일 열림/권한 오류: {e}")
+            return None if return_path else False
+
+        except Exception as e:
+            if self.log_func:
+                self.log_func(f"❌ DB -> 다중 시트 엑셀 저장 실패: {e}")
             return None if return_path else False
 
 

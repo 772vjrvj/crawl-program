@@ -35,7 +35,7 @@ from src.ui.popup.column_set_pop import ColumnSetPop
 from src.ui.popup.countdown_pop import CountdownPop
 from src.ui.popup.detail_set_pop import DetailSetPop
 from src.ui.popup.excel_set_pop import ExcelSetPop
-from src.ui.popup.db_set_pop import DbSetPop
+from src.ui.popup.db_set_pop import DbSetPop, ProcessingDialog
 from src.ui.popup.param_set_pop import ParamSetPop
 from src.ui.popup.region_set_pop import RegionSetPop
 from src.ui.popup.site_set_pop import SiteSetPop
@@ -90,7 +90,7 @@ class OnDemandWorkerProto(StoppableThreadProto, Protocol):
     def set_excel_data_list(self, excel_data_list: List[Any]) -> None: ...
     def set_user(self, user: Any) -> None: ...
     def set_session(self, session: Optional[Session]) -> None: ...
-    
+
 
 
 # =========================================================
@@ -398,7 +398,7 @@ class MainWindow(QWidget):
     # 레이아웃 설정
     def set_layout(self) -> None:
         self.setWindowTitle("메인 화면")
-    
+
         icon_pixmap = QPixmap(32, 32)
         icon_pixmap.fill(QColor("transparent"))
         painter = QPainter(icon_pixmap)
@@ -407,36 +407,36 @@ class MainWindow(QWidget):
         painter.drawRect(0, 0, 32, 32)
         painter.end()
         self.setWindowIcon(QIcon(icon_pixmap))
-    
+
         self.setGeometry(100, 100, 1000, 700)
         self.setStyleSheet("QWidget{background:#fff;color:#111;} QLabel{color:#111;} QTextEdit{background:#fff;color:#111;}")
-    
+
         main_layout = QVBoxLayout()
-    
+
         header_layout = QHBoxLayout()
-    
+
         self.left_button_layout = QHBoxLayout()
         self.left_button_layout.setAlignment(Qt.AlignLeft)
-    
+
         self.site_list_button = create_common_button("목록", self.go_site_list, self.color, 100)
         self.log_reset_button = create_common_button("로그리셋", self.log_reset, self.color, 100)
         self.collect_button = create_common_button("시작", self.start_on_demand_worker, self.color, 100)
         self.user_info_button = create_common_button("유저정보", self.open_user_info, self.color, 100)
         self.log_out_button = create_common_button("로그아웃", self.on_log_out, self.color, 100)
-    
+
         self.left_button_layout.addWidget(self.site_list_button)
         self.left_button_layout.addWidget(self.log_reset_button)
         self.left_button_layout.addWidget(self.collect_button)
         self.left_button_layout.addWidget(self.user_info_button)
         self.left_button_layout.addWidget(self.log_out_button)
-    
+
         self.right_button_layout = QHBoxLayout()
         self.right_button_layout.setAlignment(Qt.AlignRight)
-    
+
         if self.setting:
             self.setting_button = create_common_button("기본설정", self.open_setting, self.color, 100)
             self.right_button_layout.addWidget(self.setting_button)
-    
+
         if self.setting_detail:
             self.detail_setting_button = create_common_button("상세세팅", self.open_detail_setting, self.color, 100)
             self.right_button_layout.addWidget(self.detail_setting_button)
@@ -452,27 +452,27 @@ class MainWindow(QWidget):
         if self.columns:
             self.column_setting_button = create_common_button("출력항목", self.open_column_setting, self.color, 100)
             self.right_button_layout.addWidget(self.column_setting_button)
-    
+
         if self.sites:
             self.site_setting_button = create_common_button("사이트세팅", self.open_site_setting, self.color, 100)
             self.right_button_layout.addWidget(self.site_setting_button)
-    
+
         if self.region:
             self.region_setting_button = create_common_button("지역설정", self.open_region_setting, self.color, 100)
             self.right_button_layout.addWidget(self.region_setting_button)
-    
+
         if self.popup:
             self.excel_setting_button = create_common_button("엑셀세팅", self.open_excel_setting, self.color, 100)
             self.right_button_layout.addWidget(self.excel_setting_button)
-    
+
         header_layout.addLayout(self.left_button_layout)
         header_layout.addStretch()
         header_layout.addLayout(self.right_button_layout)
-    
+
         self.header_label = QLabel(f"{self.name} 데이터 추출")
         self.header_label.setAlignment(Qt.AlignCenter)
         self.header_label.setStyleSheet(HEADER_TEXT_STYLE)
-    
+
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setRange(0, 1000000)
         self.progress_bar.setValue(0)
@@ -490,14 +490,14 @@ class MainWindow(QWidget):
                 margin: 0px;
             }
         """)
-    
+
         self.log_window = QPlainTextEdit(self)
-    
+
         self.log_window.setObjectName("log_window")
-    
+
         self.log_window.setReadOnly(True)
         self.log_window.document().setMaximumBlockCount(2000)
-    
+
         self.log_window.setStyleSheet(f"""
         QPlainTextEdit#log_window {{
             {LOG_STYLE}
@@ -527,16 +527,16 @@ class MainWindow(QWidget):
             height: 0px;
         }}
         """)
-    
+
         self.log_window.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.log_window.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.log_window.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-    
+
         bottom_layout = QHBoxLayout()
         bottom_layout.setSpacing(12)
-    
+
         self.bottom_left_button = create_common_button("개발자", self.open_developer_info, self.color, 100)
-    
+
         self.bottom_center_wrap = QWidget()
         self.bottom_center_wrap.setStyleSheet("""
             QWidget {
@@ -550,21 +550,21 @@ class MainWindow(QWidget):
                 color: #111111;
             }
         """)
-    
+
         bottom_center_layout = QHBoxLayout(self.bottom_center_wrap)
         bottom_center_layout.setContentsMargins(18, 10, 18, 10)
         bottom_center_layout.setSpacing(14)
         bottom_center_layout.setAlignment(Qt.AlignCenter)
-    
+
         self.bottom_logo_label = QLabel()
         self.bottom_logo_label.setFixedSize(64, 64)
         self.bottom_logo_label.setAlignment(Qt.AlignCenter)
         self.set_bottom_logo()
-    
+
         bottom_text_layout = QVBoxLayout()
         bottom_text_layout.setSpacing(2)
         bottom_text_layout.setAlignment(Qt.AlignCenter)
-    
+
         self.bottom_title_label = QLabel("프로그램 개발 · 수정 문의")
         self.bottom_title_label.setAlignment(Qt.AlignCenter)
         self.bottom_title_label.setStyleSheet("""
@@ -572,7 +572,7 @@ class MainWindow(QWidget):
             font-weight: 700;
             color: #111111;
         """)
-    
+
         self.bottom_url_label = QLabel(
             f'<a href="{server_url}" style="color:#1a73e8; text-decoration:none;">{server_url}</a>'
         )
@@ -584,27 +584,27 @@ class MainWindow(QWidget):
             font-weight: 500;
             color: #1a73e8;
         """)
-    
+
         bottom_text_layout.addWidget(self.bottom_title_label, 0, Qt.AlignCenter)
         bottom_text_layout.addWidget(self.bottom_url_label, 0, Qt.AlignCenter)
-    
+
         bottom_center_layout.addStretch()
         bottom_center_layout.addWidget(self.bottom_logo_label, 0, Qt.AlignCenter)
         bottom_center_layout.addLayout(bottom_text_layout, 0)
         bottom_center_layout.addStretch()
-    
+
         self.bottom_right_button = create_common_button("DB 목록", self.open_db_info, self.color, 120)
-    
+
         bottom_layout.addWidget(self.bottom_left_button, 0)
         bottom_layout.addWidget(self.bottom_center_wrap, 1)
         bottom_layout.addWidget(self.bottom_right_button, 0)
-    
+
         main_layout.addLayout(header_layout)
         main_layout.addWidget(self.header_label)
         main_layout.addWidget(self.progress_bar)
         main_layout.addWidget(self.log_window, stretch=2)
         main_layout.addLayout(bottom_layout)
-    
+
         self.setLayout(main_layout)
         self.center_window()
 
@@ -723,7 +723,20 @@ class MainWindow(QWidget):
 
     # 프로그램 중지
     def stop(self, *, show_popup: bool = True, reason: Optional[str] = None) -> None:
-        ok = self.cleanup_for_nav()
+        # 워커 정상 종료(destroy) / 사용자 중지 시 DB 팝업과 동일한 작업중 모달 표시
+        working_popup = ProcessingDialog(
+            self,
+            "⏳ 작업중입니다.\n잠시만 기다려주세요."
+        )
+        working_popup.show()
+        QApplication.processEvents()
+
+        try:
+            ok = self.cleanup_for_nav()
+        finally:
+            working_popup.hide()
+            working_popup.deleteLater()
+            QApplication.processEvents()
 
         if ok and self.collect_button:
             self.collect_button.setText("시작")
@@ -878,7 +891,9 @@ class MainWindow(QWidget):
         self.show_message("개발자 정보 및 문의는 하단 사이트를 확인해주세요.", "info", None)
 
     def open_db_info(self) -> None:
-        # === 신규 === DB 팝업은 열 때마다 새로 생성해서 최신 DB 조회
+        # DB 팝업은 열 때마다 새로 생성한다.
+        # DbSetPop 내부에서 현재 site의 config.json을 읽고
+        # db_tabs가 있으면 동적 탭, 없으면 기존 단일 상세목록으로 표시한다.
         try:
             if self.db_set_pop is not None:
                 self.db_set_pop.close()
@@ -888,9 +903,10 @@ class MainWindow(QWidget):
 
         self.db_set_pop = None
 
-        self.db_set_pop = DbSetPop(self)
-        self.db_set_pop.log_signal.connect(self.add_log)
-        self.db_set_pop.exec()
+        pop = DbSetPop(parent=self, title="DB목록")
+        pop.log_signal.connect(self.add_log)
+        self.db_set_pop = pop
+        pop.exec()
 
     def open_my_site(self) -> None:
         QDesktopServices.openUrl(QUrl(server_url))

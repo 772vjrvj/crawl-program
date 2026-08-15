@@ -676,10 +676,16 @@ class DbSetPop(QDialog):
         # 공통 이력 테이블에서 화면에 보여줄 컬럼 목록
         self.hist_columns = list(self.HIST_HEADER_MAP.keys())
 
-        # 상세 테이블에서 화면에 보여줄 컬럼 목록과 헤더명 매핑
-        self.detail_columns, self.detail_header_map = self._build_detail_columns()
+        # 우측 DB 탭 설정
+        # - config.json에 db_tabs가 있으면 해당 설정대로 동적 생성
+        # - db_tabs가 없으면 기존 db_name 1개만 사용하는 기존 화면과 동일하게 동작
+        self.db_tabs = self._build_db_tabs()
+        self.active_db_tab_index = 0
+        self.right_tab_buttons: list[QPushButton] = []
+        self.right_tab_bar: Optional[QWidget] = None
 
-        # === 신규 === 상세목록 검색 컬럼 목록
+        # 현재 활성 탭의 컬럼/검색 설정
+        self.detail_columns, self.detail_header_map = self._build_detail_columns()
         self.search_col_list = self._build_search_col_list()
 
         # 왼쪽 테이블에 표시할 공통 작업 이력 데이터
@@ -711,6 +717,11 @@ class DbSetPop(QDialog):
 
         # 오른쪽 상세목록 전체/표시 건수 표시 라벨
         self.right_count_label: Optional[QLabel] = None
+        self.right_title_label: Optional[QLabel] = None
+
+        # DB 작업 공통 로딩 팝업 상태
+        self._working_popup: Optional[ProcessingDialog] = None
+        self._working_count: int = 0
 
         # 왼쪽 작업 이력 테이블
         self.left_table: Optional[DbTableWidget] = None
@@ -839,7 +850,8 @@ class DbSetPop(QDialog):
         wrap = QWidget()
         layout = self.make_panel_layout(wrap)
 
-        layout.addWidget(self.make_title("상세목록"))
+        self.right_title_label = self.make_title(self._active_tab_name())
+        layout.addWidget(self.right_title_label)
 
         top = QHBoxLayout()
         top.setSpacing(8)
@@ -848,22 +860,12 @@ class DbSetPop(QDialog):
         top.addWidget(self.make_button("엑셀 저장", self.save_detail_to_excel, black=True, width=110))
         top.addStretch()
 
-        # 상세목록 검색 컬럼 선택
         self.right_search_col_combo = QComboBox()
         self.right_search_col_combo.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.right_search_col_combo.setCursor(Qt.CursorShape.PointingHandCursor)
         self.right_search_col_combo.setFixedSize(150, 34)
         self.right_search_col_combo.setStyleSheet(self.combo_style())
 
-        for row in self.search_col_list:
-            self.right_search_col_combo.addItem(
-                str(row.get("value") or row.get("code") or ""),
-                str(row.get("code") or ""),
-            )
-
-        self.right_search_col_combo.setEnabled(bool(self.search_col_list))
-
-        # 상세목록 검색어 입력
         self.right_search_input = QLineEdit()
         self.right_search_input.setFixedSize(180, 34)
         self.right_search_input.setPlaceholderText("검색어")
@@ -889,15 +891,38 @@ class DbSetPop(QDialog):
 
         top.addWidget(self.right_page_size_combo)
         top.addWidget(self.right_count_label)
-
         layout.addLayout(top)
 
         self.right_table = DbTableWidget(self, fill_available_width=True)
         self.right_table.verticalScrollBar().valueChanged.connect(self.on_right_scroll_changed)
         layout.addWidget(self.right_table, 1)
 
-        return wrap
+        # 상세/통계 전환 버튼.
+        # 기존 팝업 버튼과 동일한 디자인을 사용한다.
+        self.right_tab_bar = QWidget(self)
+        tab_layout = QHBoxLayout(self.right_tab_bar)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.setSpacing(8)
 
+        for index, tab in enumerate(self.db_tabs):
+            btn = QPushButton(str(tab.get("name") or f"탭 {index + 1}"))
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setFixedSize(110, 34)
+            btn.setAutoDefault(False)
+            btn.setDefault(False)
+            btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            btn.clicked.connect(lambda checked=False, i=index: self.on_db_tab_clicked(i))
+            self.right_tab_buttons.append(btn)
+            tab_layout.addWidget(btn)
+
+        tab_layout.addStretch()
+        layout.addWidget(self.right_tab_bar)
+
+        self.right_tab_bar.setVisible(len(self.db_tabs) > 1)
+        self._refresh_tab_button_styles()
+        self._apply_active_tab_config(clear_search=True)
+
+        return wrap
 
     @staticmethod
     def make_panel_layout(parent: QWidget) -> QVBoxLayout:
@@ -1103,26 +1128,116 @@ class DbSetPop(QDialog):
 
         return os.path.dirname(self.db_path)
 
-    def _build_detail_columns(self) -> tuple[list[str], dict[str, str]]:
-        columns = []
-        header_map = {}
+    def _build_db_tabs(self) -> list[dict[str, Any]]:
+        """config.json의 db_tabs를 정규화한다. 없으면 기존 db_name 1개 탭으로 처리한다."""
+        result: list[dict[str, Any]] = []
+        raw_tabs = self.config_data.get("db_tabs")
 
-        for row in self.config_data.get("columns") or []:
-            if not isinstance(row, dict):
-                continue
+        if isinstance(raw_tabs, list):
+            for index, raw in enumerate(raw_tabs):
+                if not isinstance(raw, dict):
+                    continue
 
-            code = str(row.get("code") or "").strip()
+                table_name = self._safe_table_name(raw.get("table") or raw.get("db_name") or "")
+                if not table_name:
+                    continue
 
-            if code:
-                columns.append(code)
-                header_map[code] = str(row.get("value") or code).strip()
+                result.append({
+                    "key": str(raw.get("key") or f"tab_{index}").strip(),
+                    "name": str(raw.get("name") or raw.get("label") or f"탭 {index + 1}").strip(),
+                    "table": table_name,
+                    "columns": raw.get("columns"),
+                    "search_col_list": raw.get("search_col_list"),
+                })
+
+        if not result and self.db_name:
+            result.append({
+                "key": "detail",
+                "name": "상세 데이터",
+                "table": self.db_name,
+                "columns": self.config_data.get("columns"),
+                "search_col_list": self.config_data.get("search_col_list"),
+            })
+
+        return result
+
+    def _active_tab(self) -> dict[str, Any]:
+        if not self.db_tabs:
+            return {"key": "detail", "name": "상세 데이터", "table": self.db_name}
+
+        index = max(0, min(self.active_db_tab_index, len(self.db_tabs) - 1))
+        return self.db_tabs[index]
+
+    def _active_tab_name(self) -> str:
+        return str(self._active_tab().get("name") or "상세 데이터")
+
+    def _active_table_name(self) -> str:
+        return self._safe_table_name(self._active_tab().get("table") or self.db_name or "")
+
+    def _normalize_columns(self, raw_columns: Any) -> tuple[list[str], dict[str, str]]:
+        columns: list[str] = []
+        header_map: dict[str, str] = {}
+
+        if isinstance(raw_columns, list):
+            for row in raw_columns:
+                if isinstance(row, str):
+                    code = row.strip()
+                    value = code
+                elif isinstance(row, dict):
+                    code = str(row.get("code") or "").strip()
+                    value = str(row.get("value") or code).strip()
+                else:
+                    continue
+
+                if code and re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", code):
+                    columns.append(code)
+                    header_map[code] = value or code
 
         return columns, header_map
 
-    def _build_search_col_list(self) -> list[dict[str, str]]:
-        rows = []
+    def _columns_from_db(self, table_name: str) -> tuple[list[str], dict[str, str]]:
+        """탭에 columns 설정이 없으면 실제 SQLite 컬럼을 읽어 자동 표시한다."""
+        if not table_name:
+            return [], {}
 
-        for row in self.config_data.get("search_col_list") or []:
+        try:
+            with self._connect() as conn:
+                rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+
+            hidden = {"hist_id", "job_id"}
+            columns = [
+                str(row["name"])
+                for row in rows
+                if str(row["name"] or "") not in hidden
+                   and not str(row["name"] or "").startswith("__")
+            ]
+            return columns, {col: col for col in columns}
+        except Exception:
+            return [], {}
+
+    def _build_detail_columns(self) -> tuple[list[str], dict[str, str]]:
+        tab = self._active_tab()
+        raw_columns = tab.get("columns")
+
+        # 첫 상세 탭은 기존 config 최상위 columns와 호환
+        if raw_columns is None and self._active_table_name() == self.db_name:
+            raw_columns = self.config_data.get("columns")
+
+        columns, header_map = self._normalize_columns(raw_columns)
+        if columns:
+            return columns, header_map
+
+        return self._columns_from_db(self._active_table_name())
+
+    def _build_search_col_list(self) -> list[dict[str, str]]:
+        tab = self._active_tab()
+        raw_rows = tab.get("search_col_list")
+
+        if raw_rows is None and self._active_table_name() == self.db_name:
+            raw_rows = self.config_data.get("search_col_list")
+
+        rows: list[dict[str, str]] = []
+        for row in raw_rows or []:
             if not isinstance(row, dict):
                 continue
 
@@ -1130,12 +1245,83 @@ class DbSetPop(QDialog):
             value = str(row.get("value") or code).strip()
 
             if code and re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", code):
-                rows.append({
-                    "code": code,
-                    "value": value or code,
-                })
+                rows.append({"code": code, "value": value or code})
 
         return rows
+
+    def _apply_active_tab_config(self, clear_search: bool = False) -> None:
+        self.detail_columns, self.detail_header_map = self._build_detail_columns()
+        self.search_col_list = self._build_search_col_list()
+
+        if self.right_title_label:
+            self.right_title_label.setText(self._active_tab_name())
+
+        if self.right_search_col_combo:
+            # 현재 선택값 보관
+            current_search_col = str(
+                self.right_search_col_combo.currentData() or ""
+            ).strip()
+
+            self.right_search_col_combo.blockSignals(True)
+            self.right_search_col_combo.clear()
+
+            for row in self.search_col_list:
+                self.right_search_col_combo.addItem(
+                    row["value"],
+                    row["code"]
+                )
+
+            self.right_search_col_combo.setEnabled(bool(self.search_col_list))
+
+            # 탭 전환이 아닌 일반 재조회라면 기존 검색 컬럼 복원
+            if not clear_search and current_search_col:
+                index = self.right_search_col_combo.findData(current_search_col)
+
+                if index >= 0:
+                    self.right_search_col_combo.setCurrentIndex(index)
+
+            self.right_search_col_combo.blockSignals(False)
+
+        if clear_search and self.right_search_input:
+            self.right_search_input.clear()
+
+    def _refresh_tab_button_styles(self) -> None:
+        for index, btn in enumerate(self.right_tab_buttons):
+            active = index == self.active_db_tab_index
+            # 기존 make_button()과 동일한 스타일.
+            # 활성 탭만 검정, 비활성 탭은 기본 회색 버튼으로 표시한다.
+            btn.setStyleSheet(self.button_style(black=active))
+
+    def on_db_tab_clicked(self, index: int) -> None:
+        if index < 0 or index >= len(self.db_tabs):
+            return
+        if self.active_db_tab_index == index:
+            return
+
+        self.active_db_tab_index = index
+        self._refresh_tab_button_styles()
+        self._apply_active_tab_config(clear_search=True)
+
+        if self.current_hist_row:
+            self.load_detail_rows_by_job_id(str(self.current_hist_row.get("job_id") or ""))
+        else:
+            self.detail_rows = []
+            self.detail_total_count = 0
+            self.detail_loaded_count = 0
+            if self.right_table:
+                self.right_table.load_rows(
+                    [],
+                    self.detail_columns,
+                    [self.detail_header_map.get(col, col) for col in self.detail_columns],
+                )
+            self.update_detail_count_label()
+
+    def _table_has_column(self, conn: sqlite3.Connection, table_name: str, column_name: str) -> bool:
+        try:
+            rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+            return any(str(row["name"]) == column_name for row in rows)
+        except Exception:
+            return False
 
     def _connect(self) -> sqlite3.Connection:
         if not os.path.exists(self.db_path):
@@ -1177,6 +1363,7 @@ class DbSetPop(QDialog):
         self.current_job_id = ""
         self.detail_rows = []
 
+        self.set_working(True)
         try:
             with self._connect() as conn:
                 cur = conn.execute(
@@ -1208,6 +1395,8 @@ class DbSetPop(QDialog):
             self.hist_rows = []
             QMessageBox.warning(self, "오류", f"작업목록 조회 실패\n{e}")
 
+        finally:
+            self.set_working(False)
 
         self.left_table.load_rows(
             self.hist_rows,
@@ -1244,27 +1433,58 @@ class DbSetPop(QDialog):
         )
 
 
-    def set_detail_loading(self, loading: bool) -> None:
-        self.detail_loading = bool(loading)
-        self.update_detail_count_label()
-
+    def set_working(self, loading: bool) -> None:
+        """
+        DB 작업 공통 '작업중입니다.' 팝업.
+        중첩 작업은 카운트 방식으로 관리한다.
+        """
         if loading:
+            self._working_count += 1
+
             if QApplication.overrideCursor() is None:
                 QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
-            if not hasattr(self, '_loading_popup'):
-                self._loading_popup = ProcessingDialog(self, "⏳ 데이터를 처리 중입니다...\n잠시만 기다려주세요.")
-            self._loading_popup.show()
-            QApplication.processEvents()
-        else:
-            while QApplication.overrideCursor() is not None:
-                QApplication.restoreOverrideCursor()
+            if self._working_popup is None:
+                self._working_popup = ProcessingDialog(
+                    self,
+                    "⏳ 작업중입니다.\n잠시만 기다려주세요."
+                )
 
-            # [수정] 표가 화면에 완전히 그려질 수 있도록 0.15초(150ms) 후 닫기 예약
-            if hasattr(self, '_loading_popup') and self._loading_popup.isVisible():
-                QTimer.singleShot(150, self._loading_popup.hide)
+            if not self._working_popup.isVisible():
+                self._working_popup.show()
 
             QApplication.processEvents()
+            return
+
+        self._working_count = max(0, self._working_count - 1)
+
+        if self._working_count > 0:
+            return
+
+        while QApplication.overrideCursor() is not None:
+            QApplication.restoreOverrideCursor()
+
+        if self._working_popup is not None and self._working_popup.isVisible():
+            self._working_popup.hide()
+
+        QApplication.processEvents()
+
+    def finish_working(self) -> None:
+        """현재 작업중 팝업을 즉시 완전히 닫는다."""
+        self._working_count = 0
+
+        while QApplication.overrideCursor() is not None:
+            QApplication.restoreOverrideCursor()
+
+        if self._working_popup is not None:
+            self._working_popup.hide()
+
+        QApplication.processEvents()
+
+    def set_detail_loading(self, loading: bool) -> None:
+        self.detail_loading = bool(loading)
+        self.update_detail_count_label()
+        self.set_working(loading)
 
     def on_left_row_clicked(self, row_index: int) -> None:
         if row_index < 0 or row_index >= len(self.hist_rows):
@@ -1277,6 +1497,7 @@ class DbSetPop(QDialog):
         if not self.right_table:
             return
 
+        self._apply_active_tab_config(clear_search=False)
         self.current_job_id = str(job_id or "").strip()
         self.detail_rows = []
         self.detail_total_count = 0
@@ -1294,6 +1515,7 @@ class DbSetPop(QDialog):
         if not self.current_job_id:
             return
 
+        self.set_working(True)
         try:
             with self._connect() as conn:
                 search_where, search_params = self._build_detail_search_where()
@@ -1301,7 +1523,7 @@ class DbSetPop(QDialog):
                 row = conn.execute(
                     f"""
                     SELECT COUNT(*) AS cnt
-                    FROM {self.db_name}
+                    FROM {self._active_table_name()}
                     WHERE job_id = ?
                     {search_where}
                     """,
@@ -1311,9 +1533,12 @@ class DbSetPop(QDialog):
                 self.detail_total_count = int(row["cnt"] if row else 0)
 
         except Exception as e:
-            QMessageBox.warning(self, "오류", f"상세목록 개수 조회 실패\n{e}")
+            QMessageBox.warning(self, "오류", f"데이터 개수 조회 실패\n{e}")
             self.update_detail_count_label()
             return
+
+        finally:
+            self.set_working(False)
 
         self.update_detail_count_label()
         self.load_next_detail_rows()
@@ -1367,7 +1592,7 @@ class DbSetPop(QDialog):
                 cur = conn.execute(
                     f"""
                     SELECT rowid AS __rowid__, *
-                    FROM {self.db_name}
+                    FROM {self._active_table_name()}
                     WHERE job_id = ?
                     {search_where}
                     ORDER BY rowid DESC
@@ -1383,7 +1608,7 @@ class DbSetPop(QDialog):
                 self.detail_loaded_count += len(rows)
 
         except Exception as e:
-            QMessageBox.warning(self, "오류", f"상세목록 조회 실패\n{e}")
+            QMessageBox.warning(self, "오류", f"데이터 조회 실패\n{e}")
 
         finally:
             self.set_detail_loading(False)
@@ -1412,13 +1637,12 @@ class DbSetPop(QDialog):
         return msg.clickedButton() == yes_btn
 
 
-    # 왼쪽 공통 테이블에서 삭제 좌우 모두 삭제됨
+    # 왼쪽 이력 삭제: 해당 job_id에 연결된 모든 db_tabs 테이블까지 같이 삭제
     def delete_left_checked(self) -> None:
         if not self.left_table:
             return
 
         checked = self.left_table.checked_rows()
-
         if not checked:
             QMessageBox.information(self, "알림", "삭제할 항목을 선택해주세요.")
             return
@@ -1427,17 +1651,27 @@ class DbSetPop(QDialog):
             return
 
         targets = [self.hist_rows[i] for i in checked if i < len(self.hist_rows)]
+        table_names = list(dict.fromkeys(
+            self._safe_table_name(tab.get("table") or "")
+            for tab in self.db_tabs
+            if self._safe_table_name(tab.get("table") or "")
+        ))
 
+        delete_error = None
+
+        self.set_working(True)
         try:
             with self._connect() as conn:
                 for row in targets:
                     hist_id = row.get("hist_id")
-                    job_id = row.get("job_id")
+                    job_id = str(row.get("job_id") or "")
 
-                    conn.execute(
-                        f"DELETE FROM {self.db_name} WHERE hist_id = ? OR job_id = ?",
-                        (hist_id, job_id),
-                    )
+                    for table_name in table_names:
+                        if self._table_has_column(conn, table_name, "job_id"):
+                            conn.execute(
+                                f"DELETE FROM {table_name} WHERE job_id = ?",
+                                (job_id,),
+                            )
 
                     conn.execute(
                         f"""
@@ -1448,12 +1682,21 @@ class DbSetPop(QDialog):
                         (hist_id, self.db_name),
                     )
 
-            QMessageBox.information(self, "알림", "삭제되었습니다.")
+            # 삭제 후 목록 갱신까지 작업중 팝업이 떠 있는 상태에서 끝낸다.
             self.load_hist_rows()
 
         except Exception as e:
-            QMessageBox.warning(self, "오류", f"삭제 실패\n{e}")
+            delete_error = e
 
+        finally:
+            # 성공/실패 메시지를 띄우기 전에 작업중 팝업을 확실히 제거한다.
+            self.finish_working()
+
+        if delete_error is not None:
+            QMessageBox.warning(self, "오류", f"삭제 실패\n{delete_error}")
+            return
+
+        QMessageBox.information(self, "알림", "삭제되었습니다.")
 
     def delete_right_checked(self) -> None:
         if not self.right_table:
@@ -1469,24 +1712,34 @@ class DbSetPop(QDialog):
             return
 
         targets = [self.detail_rows[i] for i in checked if i < len(self.detail_rows)]
+        delete_error = None
 
+        self.set_working(True)
         try:
             with self._connect() as conn:
                 for row in targets:
                     conn.execute(
-                        f"DELETE FROM {self.db_name} WHERE rowid = ?",
+                        f"DELETE FROM {self._active_table_name()} WHERE rowid = ?",
                         (row.get("__rowid__"),),
                     )
 
-            QMessageBox.information(self, "알림", "삭제되었습니다.")
-
+            # 삭제 후 HIST/상세 재조회까지 모두 끝낸 뒤 로딩을 닫는다.
             if self.current_hist_row:
                 self.refresh_current_hist()
             else:
                 self.clear_detail_rows()
 
         except Exception as e:
-            QMessageBox.warning(self, "오류", f"삭제 실패\n{e}")
+            delete_error = e
+
+        finally:
+            self.finish_working()
+
+        if delete_error is not None:
+            QMessageBox.warning(self, "오류", f"삭제 실패\n{delete_error}")
+            return
+
+        QMessageBox.information(self, "알림", "삭제되었습니다.")
 
     def refresh_current_hist(self) -> None:
         if not self.current_hist_row:
@@ -1496,6 +1749,7 @@ class DbSetPop(QDialog):
         hist_id = self.current_hist_row.get("hist_id")
         job_id = str(self.current_hist_row.get("job_id") or "")
 
+        self.set_working(True)
         try:
             with self._connect() as conn:
                 success_count = conn.execute(
@@ -1542,6 +1796,9 @@ class DbSetPop(QDialog):
         except Exception:
             pass
 
+        finally:
+            self.set_working(False)
+
         self.load_hist_rows()
 
         if not self.left_table:
@@ -1564,7 +1821,7 @@ class DbSetPop(QDialog):
             cur = conn.execute(
                 f"""
                         SELECT rowid AS __rowid__, *
-                        FROM {self.db_name}
+                        FROM {self._active_table_name()}
                         WHERE job_id = ?
                         {search_where}
                         ORDER BY rowid DESC
@@ -1608,17 +1865,113 @@ class DbSetPop(QDialog):
 
         return rows
 
+    def _get_tab_columns_for_excel(
+            self,
+            tab: dict[str, Any],
+    ) -> tuple[list[str], dict[str, str]]:
+        raw_columns = tab.get("columns")
+
+        table_name = self._safe_table_name(tab.get("table") or "")
+
+        # 첫 상세 테이블은 기존 최상위 columns 설정을 그대로 사용한다.
+        if raw_columns is None and table_name == self.db_name:
+            raw_columns = self.config_data.get("columns")
+
+        columns, header_map = self._normalize_columns(raw_columns)
+        if columns:
+            return columns, header_map
+
+        return self._columns_from_db(table_name)
+
+    def _fetch_all_rows_for_excel_tab(
+            self,
+            tab: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        if not self.current_job_id:
+            return []
+
+        table_name = self._safe_table_name(tab.get("table") or "")
+        if not table_name:
+            return []
+
+        with self._connect() as conn:
+            cur = conn.execute(
+                f"""
+                SELECT rowid AS __rowid__, *
+                FROM {table_name}
+                WHERE job_id = ?
+                ORDER BY rowid DESC
+                """,
+                (self.current_job_id,),
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+    def _append_excel_sheet(
+            self,
+            *,
+            excel: ExcelUtils,
+            excel_path: str,
+            sheet_name: str,
+            rows: list[dict[str, Any]],
+            columns: list[str],
+            header_map: dict[str, str],
+    ) -> bool:
+        if not rows:
+            return True
+
+        from openpyxl import load_workbook
+
+        wb = load_workbook(excel_path)
+
+        if sheet_name in wb.sheetnames:
+            del wb[sheet_name]
+
+        ws = wb.create_sheet(title=sheet_name)
+
+        headers = [header_map.get(col, col) for col in columns]
+        ws.append(headers)
+
+        for row in rows:
+            ws.append([
+                excel._clean_excel_cell_value(row.get(col, ""))
+                for col in columns
+            ])
+
+        excel._apply_header_style_and_filter(ws)
+        excel._apply_hyperlink_cells(ws)
+        excel._apply_column_widths(
+            ws,
+            column_widths=[
+                {
+                    "컬럼": header_map.get(col, col),
+                    "너비": 16,
+                }
+                for col in columns
+            ],
+            default_width=16,
+        )
+
+        wb.save(excel_path)
+        return True
+
     def save_detail_to_excel(self) -> None:
         if not self.current_job_id:
             QMessageBox.information(self, "알림", "저장할게 없습니다.")
             return
 
-        # 1. 팝업에 전달할 컬럼 데이터 생성
-        columns_data = [
-            {"code": col, "value": self.detail_header_map.get(col, col)}
-            for col in self.detail_columns
-        ]
+        if not self.db_tabs:
+            QMessageBox.information(self, "알림", "저장할게 없습니다.")
+            return
 
+        # 컬럼 선택 팝업은 상세 데이터(첫 번째 탭) 기준으로 유지한다.
+        # 기존 사용성을 건드리지 않고, 통계 시트만 추가 저장한다.
+        first_tab = self.db_tabs[0]
+        first_columns, first_header_map = self._get_tab_columns_for_excel(first_tab)
+
+        columns_data = [
+            {"code": col, "value": first_header_map.get(col, col)}
+            for col in first_columns
+        ]
 
         pop = ExcelExportPop(
             columns=columns_data,
@@ -1626,11 +1979,9 @@ class DbSetPop(QDialog):
             parent=self
         )
 
-        # 팝업에서 취소를 누른 경우 중단
         if pop.exec() != QDialog.DialogCode.Accepted:
             return
 
-        # 3. 팝업 결과 받아오기
         selected_cols = pop.selected_columns
         selected_folder = pop.selected_folder
 
@@ -1642,18 +1993,18 @@ class DbSetPop(QDialog):
             QMessageBox.warning(self, "경고", "저장 경로가 지정되지 않았습니다.")
             return
 
-        # 4. 파일명 생성 및 데이터 가져오기
         job_id = ""
         if self.current_hist_row:
             job_id = str(self.current_hist_row.get("job_id") or "").strip()
 
+        first_table_name = self._safe_table_name(first_tab.get("table") or self.db_name)
+
         filename = (
-            f"{self.db_name.lower()}_"
+            f"{first_table_name.lower()}_"
             f"{job_id or 'detail'}_"
             f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         )
 
-        ok = False
         message_title = "알림"
         message_text = ""
         message_type = "info"
@@ -1661,42 +2012,59 @@ class DbSetPop(QDialog):
         self.set_detail_loading(True)
 
         try:
-            excel_rows = self.fetch_all_detail_rows_for_current_job()
+            excel = ExcelUtils(log_func=lambda msg: self.log_signal.emit(str(msg)))
 
-            if not excel_rows:
+            # Sheet1 : 기존 상세 데이터
+            detail_rows = self._fetch_all_rows_for_excel_tab(first_tab)
+
+            if not detail_rows:
                 message_text = "저장할게 없습니다."
                 return
 
-            # 선택된 컬럼만 너비 설정에 반영
-            column_widths = [
+            detail_widths = [
                 {
-                    "컬럼": self.detail_header_map.get(col, col),
+                    "컬럼": first_header_map.get(col, col),
                     "너비": 16,
                 }
                 for col in selected_cols
             ]
 
-            excel = ExcelUtils(log_func=lambda msg: self.log_signal.emit(str(msg)))
-
-            # 팝업에서 선택한 컬럼과 경로를 주입하여 엑셀 저장
-            ok = excel.save_db_rows_to_excel(
+            excel_path = excel.save_db_rows_to_excel(
                 excel_filename=filename,
-                row_list=excel_rows,
-                columns=selected_cols,         # 전체 컬럼 대신 선택된 컬럼 사용
-                header_map=self.detail_header_map,
-                sheet_name="상세목록",
-                folder_path=selected_folder,   # 팝업에서 선택한 경로 사용
-                sub_dir="",                    # 폴더 경로를 직접 받으므로 하위 디렉토리는 비움
-                column_widths=column_widths,
+                row_list=detail_rows,
+                columns=selected_cols,
+                header_map=first_header_map,
+                sheet_name="Sheet1",
+                folder_path=selected_folder,
+                sub_dir="",
+                column_widths=detail_widths,
                 default_width=16,
+                return_path=True,
             )
 
-            if ok:
-                message_text = "엑셀이 저장되었습니다."
-            else:
+            if not excel_path:
                 message_title = "오류"
                 message_text = "엑셀 저장에 실패했습니다."
                 message_type = "warning"
+                return
+
+            # Sheet2 : 두 번째 DB 탭(통계)이 있으면 같은 파일에 추가
+            if len(self.db_tabs) >= 2:
+                second_tab = self.db_tabs[1]
+                second_columns, second_header_map = self._get_tab_columns_for_excel(second_tab)
+                second_rows = self._fetch_all_rows_for_excel_tab(second_tab)
+
+                if second_columns:
+                    self._append_excel_sheet(
+                        excel=excel,
+                        excel_path=excel_path,
+                        sheet_name="Sheet2",
+                        rows=second_rows,
+                        columns=second_columns,
+                        header_map=second_header_map,
+                    )
+
+            message_text = "엑셀이 저장되었습니다."
 
         except Exception as e:
             message_title = "오류"

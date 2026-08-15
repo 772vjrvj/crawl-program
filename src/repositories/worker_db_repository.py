@@ -60,11 +60,26 @@ class WorkerDbRepository:
             hist_table_name: str = "worker_job_hist",
             log_func: Optional[Callable[[str], None]] = None,
             detail_log_fields: Sequence[str] = (),
+            stat_table_name: Optional[str] = None,
+            stat_column_defs: Sequence[Dict[str, Any]] = (),
     ) -> None:
         # DB 및 테이블 정보
         self.db_path = db_path
         self.hist_table_name = hist_table_name
         self.detail_table_name = detail_table_name
+
+        # 통계 테이블은 사용하는 Worker만 선택적으로 지정한다.
+        # 기존 Worker는 stat_table_name/stat_column_defs를 넘기지 않아도 기존 동작 그대로 유지된다.
+        self.stat_table_name = str(stat_table_name or "").strip() or None
+        self.stat_column_defs = [
+            column
+            for column in list(stat_column_defs or [])
+            if isinstance(column, dict) and str(column.get("code") or "").strip()
+        ]
+        self.stat_db_columns = [
+            str(column["code"]).strip()
+            for column in self.stat_column_defs
+        ]
 
         # 현재 Worker 정보
         self.site_name = site_name
@@ -132,12 +147,24 @@ class WorkerDbRepository:
             schema_files: Sequence[str],
             *,
             start_job: bool = True,
+            stat_schema_file: Optional[str] = None,
     ) -> bool:
-        """DB 연결, 스키마 실행, 작업 시작을 순서대로 처리한다."""
+        """
+        DB 연결, 스키마 실행, 작업 시작을 순서대로 처리한다.
+
+        stat_schema_file은 통계 테이블을 사용하는 Worker만 선택적으로 전달한다.
+        기존 initialize(schema_files) 호출은 변경 없이 그대로 동작한다.
+        """
         if not self.connect():
             return False
 
-        if not self.sqlite.execute_script_files(schema_files):
+        effective_schema_files = list(schema_files or [])
+        if stat_schema_file:
+            stat_schema_file = str(stat_schema_file).strip()
+            if stat_schema_file and stat_schema_file not in effective_schema_files:
+                effective_schema_files.append(stat_schema_file)
+
+        if not self.sqlite.execute_script_files(effective_schema_files):
             self._log("❌ [DB] 스키마 초기화 실패")
             return False
 
@@ -529,6 +556,210 @@ class WorkerDbRepository:
             ],
             now,
             now,
+        )
+
+    # =========================================================
+    # stat 저장
+    # =========================================================
+    def insert_stat(self, row: Dict[str, Any]) -> bool:
+        """
+        현재 작업(job_id)의 통계 데이터 1건을 저장한다.
+
+        - 기존 detail success_count/fail_count에는 영향을 주지 않는다.
+        - UNIQUE(job_id, city, division, sector)가 있으면 같은 지역은 UPDATE 된다.
+        """
+        if not isinstance(row, dict):
+            self._log("❌ [DB] stat row가 dict가 아님")
+            return False
+
+        if not self._can_save_stat():
+            return False
+
+        query = self._build_stat_upsert_query()
+        params = self._build_stat_params(row)
+
+        success = self.sqlite.execute(query, params)
+
+        if success:
+            self._log(
+                f"✅ [DB] stat 저장 완료 | "
+                f"hist_id={self.hist_id} | "
+                f"job_id={self.job_id} | "
+                f"city={row.get('city', '')} | "
+                f"division={row.get('division', '')} | "
+                f"sector={row.get('sector', '')}"
+            )
+        else:
+            self._log(
+                f"❌ [DB] stat 저장 실패 | "
+                f"hist_id={self.hist_id} | "
+                f"job_id={self.job_id}"
+            )
+
+        return success
+
+    def insert_stats(self, rows: Sequence[Dict[str, Any]]) -> bool:
+        """
+        통계 데이터 여러 건을 저장한다.
+        기존 detail 작업 건수 집계에는 영향을 주지 않는다.
+        """
+        row_list = list(rows or [])
+
+        if not row_list:
+            self._log("⚠️ [DB] 저장할 stat 데이터 없음")
+            return False
+
+        if not all(isinstance(row, dict) for row in row_list):
+            self._log("❌ [DB] stat 목록에 dict가 아닌 데이터가 있음")
+            return False
+
+        if not self._can_save_stat():
+            return False
+
+        query = self._build_stat_upsert_query()
+        params_list = [
+            self._build_stat_params(row)
+            for row in row_list
+        ]
+
+        try:
+            if self.sqlite.conn is None:
+                raise RuntimeError("SQLite connection이 없습니다.")
+
+            self.sqlite.conn.executemany(query, params_list)
+            self.sqlite.conn.commit()
+
+            self._log(
+                f"✅ [DB] stat bulk 저장 완료 | "
+                f"hist_id={self.hist_id} | "
+                f"job_id={self.job_id} | "
+                f"count={len(row_list)}"
+            )
+            return True
+
+        except Exception as e:
+            if self.sqlite.conn is not None:
+                self.sqlite.conn.rollback()
+
+            self._log(
+                f"❌ [DB] stat bulk 저장 실패 | "
+                f"hist_id={self.hist_id} | "
+                f"job_id={self.job_id} | "
+                f"count={len(row_list)} | "
+                f"error={e}"
+            )
+            return False
+
+    def _can_save_stat(self) -> bool:
+        """stat 저장에 필요한 설정/DB 연결/작업 정보가 있는지 확인한다."""
+        if not self.stat_table_name:
+            self._log("❌ [DB] stat_table_name 없음 - stat 저장 실패")
+            return False
+
+        if not self.stat_db_columns:
+            self._log("❌ [DB] stat 컬럼 정의 없음 - stat 저장 실패")
+            return False
+
+        if not self.is_connected:
+            self._log("❌ [DB] 연결 없음 - stat 저장 실패")
+            return False
+
+        if self.hist_id is None or not self.job_id:
+            self._log("❌ [DB] hist_id 또는 job_id 없음 - stat 저장 실패")
+            return False
+
+        return True
+
+    def _build_stat_upsert_query(self) -> str:
+        """
+        통계 INSERT/UPSERT SQL을 생성한다.
+
+        schema_stat.sql의 UNIQUE(job_id, city, division, sector)를 기준으로
+        같은 작업/같은 지역 통계가 다시 저장되면 값을 갱신한다.
+        """
+        columns = [
+            "hist_id",
+            "job_id",
+            *self.stat_db_columns,
+            "created_at",
+        ]
+
+        column_text = ",\n                ".join(
+            self._quote(column)
+            for column in columns
+        )
+
+        placeholders = ", ".join("?" for _ in columns)
+
+        update_columns = [
+            column
+            for column in self.stat_db_columns
+            if column not in {"city", "division", "sector"}
+        ]
+
+        update_columns.extend(["hist_id", "created_at"])
+
+        update_text = ",\n                ".join(
+            f'{self._quote(column)} = excluded.{self._quote(column)}'
+            for column in update_columns
+        )
+
+        return f"""
+            INSERT INTO {self._quote(self.stat_table_name)} (
+                {column_text}
+            ) VALUES ({placeholders})
+            ON CONFLICT(job_id, city, division, sector)
+            DO UPDATE SET
+                {update_text}
+        """
+
+    def _build_stat_params(self, row: Dict[str, Any]) -> Tuple[Any, ...]:
+        """stat INSERT SQL의 컬럼 순서에 맞는 파라미터를 생성한다."""
+        now = self._now()
+
+        return (
+            self.hist_id,
+            self.job_id,
+            *[
+                self._to_db_value(row.get(column, ""))
+                for column in self.stat_db_columns
+            ],
+            now,
+        )
+
+    def fetch_stat_rows(self) -> List[Dict[str, Any]]:
+        """현재 작업(job_id)에 저장된 통계 데이터를 조회한다."""
+        if not self.stat_table_name:
+            return []
+
+        if not self.job_id:
+            self._log("❌ [DB] job_id 없음 - stat 조회 실패")
+            return []
+
+        if not self.connect():
+            self._log("❌ [DB] 연결 없음 - stat 조회 실패")
+            return []
+
+        columns = list(self.stat_db_columns)
+        if not columns:
+            return []
+
+        column_text = ",\n                ".join(
+            self._quote(column)
+            for column in columns
+        )
+
+        query = f"""
+            SELECT
+                {column_text}
+            FROM {self._quote(self.stat_table_name)}
+            WHERE job_id = ?
+            ORDER BY stat_id
+        """
+
+        return self.sqlite.fetchall(
+            query,
+            (self.job_id,),
         )
 
     # =========================================================
