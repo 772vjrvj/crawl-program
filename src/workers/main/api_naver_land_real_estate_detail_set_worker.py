@@ -25,6 +25,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.job_id = None
         self.hist_status = "RUNNING"
         self.hist_error_message = None
+        # 사용자 중지 중복 실행 방지
+        self._stopping: bool = False
         self.worker_name: str = "naver_land_real_estate_detail"
         self.detail_table_name: str = "naver_land_real_estate_detail"
         self.stat_table_name: str = "naver_land_real_estate_stat"
@@ -147,6 +149,11 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.excel_driver = None
 
     def stop(self) -> None:
+        # MainWindow의 중지/정리 과정에서 stop()이 중복 호출될 수 있으므로 1회만 수행한다.
+        if self._stopping:
+            return
+
+        self._stopping = True
         self.log_signal_func("✅ stop 시작")
         self.running = False
 
@@ -275,7 +282,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.detail_table_name,
             self.site_name,
             self.worker_name,
-            str(self.user).strip() if self.user else None,
+            getattr(self.user, "user_id", None) if self.user else None,
             now,
             "RUNNING",
             0,
@@ -377,7 +384,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.worker_name,
             self.detail_table_name,
             self.job_id,
-            str(self.user).strip() if self.user else None,
+            getattr(self.user, "user_id", None) if self.user else None,
             "SUCCESS",
             *[db_rs.get(col, "") for col in db_columns],
             now,
@@ -435,7 +442,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 self.worker_name,
                 self.detail_table_name,
                 self.job_id,
-                str(self.user).strip() if self.user else None,
+                getattr(self.user, "user_id", None) if self.user else None,
                 "SUCCESS",
                 *[db_rs.get(col, "") for col in db_columns],
                 now,
@@ -2341,6 +2348,10 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         logged_candidates: set[tuple[int, int]] = set()
 
         while time.time() < end:
+            # 중지 시 driver가 cleanup에서 None이 될 수 있으므로 즉시 후킹 대기를 끝낸다.
+            if not self.running or self.driver is None:
+                return {}
+
             try:
                 hook_list = self.driver.execute_script(
                     "return window.__naverListHookList || [];"
@@ -2401,6 +2412,9 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
             time.sleep(0.5)
 
+        if not self.running or self.driver is None:
+            return {}
+
         try:
             hook_info = self.driver.execute_script("""
             return {
@@ -2423,6 +2437,16 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         return {}
 
     def _browser_fetch_json(self, url: str, method: str = "GET", payload: dict[str, Any] = None, params: dict[str, Any] = None, wait_sec: int = 30) -> dict[str, Any]:
+        # 사용자 중지 후 Selenium driver 접근을 막아 NoneType/invalid session 오류를 방지한다.
+        if not self.running or self.driver is None:
+            return {
+                "ok": False,
+                "status": None,
+                "json": {},
+                "text": "",
+                "stopped": True,
+            }
+
         script = self.browser_fetch_json_js
         self.driver.set_script_timeout(wait_sec)
         return self.driver.execute_async_script(script, url, method, payload, params)
