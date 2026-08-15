@@ -22,6 +22,11 @@ from src.ui.popup.program_info_detail_pop import ProgramInfoDetailPop
 from src.ui.style.style import create_common_button
 from src.utils.program_notice_read_store import ProgramNoticeReadStore
 from src.workers.program_notice_worker import ProgramNotice
+from src.workers.program_release_note_worker import (
+    ProgramReleaseNote,
+    ProgramReleaseNoteResult,
+    ProgramReleaseNoteWorker,
+)
 
 
 class NoticeCard(QFrame):
@@ -101,8 +106,8 @@ class NoticeCard(QFrame):
             )
             top_row.addWidget(target_label)
 
-        # 읽지 않은 공지만 NEW 표시한다.
-        # 최신 공지는 서버에서 최신순으로 내려오므로 읽지 않았다면 최상단에 NEW가 보인다.
+        # 현재 공지 노출기간(START_AT ~ END_AT) 안에 있고
+        # 아직 읽지 않은 공지만 NEW 표시한다.
         if unread:
             new_label = QLabel("NEW")
             new_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -227,11 +232,153 @@ class NoticeCard(QFrame):
             return text.split(" ", 1)[0]
         return text
 
+    @classmethod
+    def format_period(cls, start_at: str, end_at: str) -> str:
+        """공지 노출기간을 yyyy-MM-dd ~ yyyy-MM-dd 형식으로 표시한다."""
+        start_text = cls.format_date(start_at)
+        end_text = cls.format_date(end_at)
+
+        if start_text and end_text:
+            return f"{start_text} ~ {end_text}"
+        if start_text:
+            return f"{start_text} ~"
+        if end_text:
+            return f"~ {end_text}"
+        return ""
+
     def mousePressEvent(self, event) -> None:  # type: ignore[override]
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self.notice)
             event.accept()
             return
+        super().mousePressEvent(event)
+
+
+class ReleaseNoteCard(QFrame):
+    """릴리즈 노트 목록에서 사용하는 클릭 가능한 카드."""
+
+    clicked = Signal(object)  # ProgramReleaseNote
+
+    def __init__(
+            self,
+            release_note: ProgramReleaseNote,
+            parent: Optional[QWidget] = None,
+    ) -> None:
+        super().__init__(parent)
+
+        self.release_note = release_note
+
+        self.setObjectName("releaseNoteCard")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setMinimumHeight(88)
+        self.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
+
+        self.setStyleSheet(
+            """
+            QFrame#releaseNoteCard {
+                background-color: #ffffff;
+                border: 1px solid #d9d9d9;
+                border-radius: 10px;
+            }
+            QFrame#releaseNoteCard:hover {
+                background-color: #f8f8f8;
+                border: 1px solid #bdbdbd;
+            }
+            QLabel {
+                background-color: transparent;
+                border: none;
+            }
+            """
+        )
+
+        root = QHBoxLayout(self)
+        root.setContentsMargins(16, 12, 14, 12)
+        root.setSpacing(12)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(5)
+
+        top_row = QHBoxLayout()
+        top_row.setSpacing(8)
+
+        version_label = QLabel(
+            f"v{release_note.version}"
+            if release_note.version
+            else "버전"
+        )
+        version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        version_label.setFixedHeight(24)
+        version_label.setStyleSheet(
+            """
+            QLabel {
+                min-width: 48px;
+                padding: 0 8px;
+                background-color: #f2f4f6;
+                color: #333333;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            """
+        )
+        version_label.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+            True,
+        )
+        top_row.addWidget(version_label)
+
+        top_row.addStretch(1)
+
+        date_label = QLabel(
+            NoticeCard.format_date(release_note.created_at)
+        )
+        date_label.setStyleSheet(
+            "font-size: 12px; color: #888888;"
+        )
+        date_label.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+            True,
+        )
+        top_row.addWidget(date_label)
+
+        text_layout.addLayout(top_row)
+
+        title_label = QLabel(
+            release_note.title or "릴리즈 노트"
+        )
+        title_label.setStyleSheet(
+            "font-size: 14px; font-weight: 600; color: #222222;"
+        )
+        title_label.setWordWrap(False)
+        title_label.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+            True,
+        )
+        text_layout.addWidget(title_label)
+
+        root.addLayout(text_layout, 1)
+
+        arrow = QLabel("›")
+        arrow.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        arrow.setFixedWidth(20)
+        arrow.setStyleSheet(
+            "font-size: 24px; font-weight: 500; color: #999999;"
+        )
+        arrow.setAttribute(
+            Qt.WidgetAttribute.WA_TransparentForMouseEvents,
+            True,
+        )
+        root.addWidget(arrow)
+
+    def mousePressEvent(self, event) -> None:  # type: ignore[override]
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit(self.release_note)
+            event.accept()
+            return
+
         super().mousePressEvent(event)
 
 
@@ -275,6 +422,9 @@ class ProgramInfoPop(QDialog):
         self.release_loaded = False
         self.description_loaded = False
 
+        self.release_worker: Optional[ProgramReleaseNoteWorker] = None
+        self.release_notes: list[ProgramReleaseNote] = []
+
         self.tab_buttons: list[QPushButton] = []
 
         self.setWindowTitle("프로그램 정보")
@@ -285,6 +435,10 @@ class ProgramInfoPop(QDialog):
         self._init_ui()
         self._select_tab(self.TAB_NOTICE)
         self._render_notice_cards()
+
+        # 프로그램 정보 팝업을 여는 즉시 릴리즈 노트를 백그라운드에서 조회한다.
+        # 이후 릴리즈 노트 탭을 눌렀을 때는 이미 받아온 데이터를 바로 표시한다.
+        self._load_release_notes_once()
 
     def _init_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -428,17 +582,49 @@ class ProgramInfoPop(QDialog):
     def _create_release_page(self) -> QWidget:
         page = QWidget()
         page.setStyleSheet("background-color: white;")
+
         page_layout = QVBoxLayout(page)
         page_layout.setContentsMargins(0, 0, 0, 0)
 
         frame, frame_layout = self._create_content_frame()
 
-        self.release_status_label = QLabel("등록된 릴리즈 노트가 없습니다.")
-        self.release_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.release_status_label.setStyleSheet(
-            "font-size: 13px; color: #777777; padding: 20px; border: none;"
+        self.release_status_label = QLabel("")
+        self.release_status_label.setAlignment(
+            Qt.AlignmentFlag.AlignCenter
         )
-        frame_layout.addWidget(self.release_status_label, 1)
+        self.release_status_label.setWordWrap(True)
+        self.release_status_label.setStyleSheet(
+            "font-size: 13px; color: #777777; "
+            "padding: 20px; border: none;"
+        )
+        frame_layout.addWidget(self.release_status_label)
+
+        self.release_scroll = QScrollArea()
+        self.release_scroll.setWidgetResizable(True)
+        self.release_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.release_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.release_scroll.setStyleSheet(self._scroll_style())
+
+        self.release_list_widget = QWidget()
+        self.release_list_widget.setStyleSheet(
+            "background-color: #ffffff;"
+        )
+
+        self.release_list_layout = QVBoxLayout(
+            self.release_list_widget
+        )
+        self.release_list_layout.setContentsMargins(0, 0, 4, 0)
+        self.release_list_layout.setSpacing(8)
+        self.release_list_layout.addStretch(1)
+
+        self.release_scroll.setWidget(
+            self.release_list_widget
+        )
+        frame_layout.addWidget(self.release_scroll, 1)
+
+        self.release_scroll.setVisible(False)
 
         page_layout.addWidget(frame, 1)
         return page
@@ -572,7 +758,7 @@ class ProgramInfoPop(QDialog):
             self.notice_list_layout.insertWidget(
                 self.notice_list_layout.count() - 1,
                 card,
-            )
+                )
 
     def _open_notice_detail(self, notice: ProgramNotice) -> None:
         # 실제 상세를 여는 순간 읽음으로 저장한다.
@@ -589,8 +775,15 @@ class ProgramInfoPop(QDialog):
                 if notice.program_id.upper() == "ALL"
                 else notice.program_id
             )
-        if notice.created_at:
-            meta_parts.append(notice.created_at)
+
+        # 상세보기에서는 생성일시가 아니라 실제 공지 노출기간을 보여준다.
+        # 예: 2026-09-05 ~ 2026-09-10
+        period_text = NoticeCard.format_period(
+            notice.start_at,
+            notice.end_at,
+        )
+        if period_text:
+            meta_parts.append(period_text)
 
         dialog = ProgramInfoDetailPop(
             parent=self,
@@ -604,13 +797,121 @@ class ProgramInfoPop(QDialog):
 
     def _load_release_notes_once(self) -> None:
         """
-        릴리즈 노트 탭 최초 진입 시 호출된다.
-
-        TODO: 서버 릴리즈 노트 API가 추가되면 여기에서 Worker를 시작한다.
-        공지와 달리 MainWindow 시작 시에는 호출하지 않는다.
+        릴리즈 노트 탭 최초 진입 시 한 번만 API를 호출한다.
         """
+        if self.release_loaded:
+            return
+
+        if (
+                self.release_worker is not None
+                and self.release_worker.isRunning()
+        ):
+            return
+
+        self.release_status_label.setText(
+            "릴리즈 노트를 불러오는 중입니다..."
+        )
+        self.release_status_label.setVisible(True)
+        self.release_scroll.setVisible(False)
+
+        self.release_worker = ProgramReleaseNoteWorker(
+            server_url=self.server_url,
+            program_id=self.program_id,
+            parent=self,
+        )
+
+        self.release_worker.sig_done.connect(
+            self._on_release_notes_loaded
+        )
+        self.release_worker.finished.connect(
+            self._on_release_worker_finished
+        )
+        self.release_worker.start()
+
+    def _on_release_notes_loaded(
+            self,
+            result: ProgramReleaseNoteResult,
+    ) -> None:
         self.release_loaded = True
-        self.release_status_label.setText("등록된 릴리즈 노트가 없습니다.")
+
+        if not result.ok:
+            self.release_notes = []
+            self._clear_release_cards()
+
+            self.release_status_label.setText(
+                "릴리즈 노트를 불러오지 못했습니다.\n"
+                f"{result.message}"
+            )
+            self.release_status_label.setVisible(True)
+            self.release_scroll.setVisible(False)
+            return
+
+        self.release_notes = list(result.release_notes)
+        self._render_release_cards()
+
+    def _on_release_worker_finished(self) -> None:
+        self.release_worker = None
+
+    def _clear_release_cards(self) -> None:
+        while self.release_list_layout.count() > 1:
+            item = self.release_list_layout.takeAt(0)
+            widget = item.widget()
+
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
+
+    def _render_release_cards(self) -> None:
+        self._clear_release_cards()
+
+        if not self.release_notes:
+            self.release_status_label.setText(
+                "등록된 릴리즈 노트가 없습니다."
+            )
+            self.release_status_label.setVisible(True)
+            self.release_scroll.setVisible(False)
+            return
+
+        self.release_status_label.setVisible(False)
+        self.release_scroll.setVisible(True)
+
+        for release_note in self.release_notes:
+            card = ReleaseNoteCard(release_note)
+            card.clicked.connect(
+                self._open_release_note_detail
+            )
+
+            self.release_list_layout.insertWidget(
+                self.release_list_layout.count() - 1,
+                card,
+                )
+
+    def _open_release_note_detail(
+            self,
+            release_note: ProgramReleaseNote,
+    ) -> None:
+        meta_parts: list[str] = []
+
+        if release_note.created_at:
+            meta_parts.append(
+                NoticeCard.format_date(
+                    release_note.created_at
+                )
+            )
+
+        dialog = ProgramInfoDetailPop(
+            parent=self,
+            window_title="릴리즈 노트 상세",
+            title=release_note.title,
+            content=release_note.content,
+            meta_text="  ·  ".join(meta_parts),
+            badge_text=(
+                f"v{release_note.version}"
+                if release_note.version
+                else ""
+            ),
+        )
+        dialog.exec()
 
     def _load_program_description_once(self) -> None:
         """

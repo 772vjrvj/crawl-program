@@ -19,6 +19,12 @@ class ProgramNotice:
     force: bool
     title: str
     content: str
+
+    # NEW 판단용
+    start_at: str = ""
+    end_at: str = ""
+
+    # 화면 표시/정렬 보조용
     created_at: str = ""
     updated_at: str = ""
 
@@ -42,6 +48,7 @@ def _pick(obj: dict[str, Any], *keys: str, default: Any = None) -> Any:
 
 
 def _to_notice(row: dict[str, Any]) -> ProgramNotice:
+    """서버 공지 DTO를 ProgramNotice로 변환한다."""
     force_raw = _pick(row, "force", "forceYn", "force_yn", default=False)
 
     return ProgramNotice(
@@ -58,13 +65,23 @@ def _to_notice(row: dict[str, Any]) -> ProgramNotice:
             force_raw is True
             or str(force_raw).strip().upper() in {"Y", "TRUE", "1"}
         ),
-        title=str(_pick(row, "title", default="") or "").strip(),
-        content=str(_pick(row, "content", default="") or ""),
+        title=str(
+            _pick(row, "title", default="") or ""
+        ).strip(),
+        content=str(
+            _pick(row, "content", default="") or ""
+        ),
+        start_at=str(
+            _pick(row, "startAt", "start_at", "START_AT", default="") or ""
+        ).strip(),
+        end_at=str(
+            _pick(row, "endAt", "end_at", "END_AT", default="") or ""
+        ).strip(),
         created_at=str(
-            _pick(row, "createdAt", "created_at", default="") or ""
+            _pick(row, "createdAt", "created_at", "CREATED_AT", default="") or ""
         ).strip(),
         updated_at=str(
-            _pick(row, "updatedAt", "updated_at", default="") or ""
+            _pick(row, "updatedAt", "updated_at", "UPDATED_AT", default="") or ""
         ).strip(),
     )
 
@@ -161,18 +178,20 @@ def fetch_all_program_notices(
         page_size: int = 100,
         timeout_sec: int = 7,
 ) -> ProgramNoticeListResult:
-    """
-    메인 화면에서 사용할 공지를 페이지 끝까지 전부 가져온다.
-
-    서버 정렬이 CREATED_AT DESC, NOTICE_NO DESC이면 이 순서를 그대로 유지한다.
-    """
+    """메인 화면에서 사용할 공지를 페이지 끝까지 전부 가져온다."""
 
     all_notices: list[ProgramNotice] = []
     page = 0
     total_elements = 0
 
     while True:
-        ok, message, notices, total_elements, total_pages = fetch_program_notice_page(
+        (
+            ok,
+            message,
+            notices,
+            total_elements,
+            total_pages,
+        ) = fetch_program_notice_page(
             server_base_url=server_base_url,
             program_id=program_id,
             page=page,
@@ -190,7 +209,6 @@ def fetch_all_program_notices(
 
         all_notices.extend(notices)
 
-        # totalPages가 내려오는 현재 서버 DTO 기준.
         if total_pages <= 0 or page + 1 >= total_pages:
             break
 
