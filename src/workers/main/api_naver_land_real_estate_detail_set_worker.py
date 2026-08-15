@@ -6,7 +6,7 @@ import json
 from decimal import Decimal, InvalidOperation
 
 from src.utils.api_utils import APIClient
-from src.utils.excel_utils import ExcelUtils
+from src.utils.excel_hybrid_utils import ExcelHybridUtils
 from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
 from src.utils.sqlite_utils import SqliteUtils
@@ -56,7 +56,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         self.driver = None
         self.selenium_driver = None
         self.file_driver: Optional[FileUtils] = None
-        self.excel_driver: Optional[ExcelUtils] = None
+        self.excel_driver: Optional[ExcelHybridUtils] = None
         self.sqlite_driver: Optional[SqliteUtils] = None
         self.api_client: Optional[APIClient] = None
 
@@ -84,7 +84,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def init(self) -> bool:
         try:
-            self.excel_driver = ExcelUtils(self.log_signal_func)
+            self.excel_driver = ExcelHybridUtils(self.log_signal_func)
             self.file_driver = FileUtils(self.log_signal_func)
             self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
@@ -163,7 +163,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
 
     def driver_set(self) -> None:
         if not self.excel_driver:
-            self.excel_driver = ExcelUtils(self.log_signal_func)
+            self.excel_driver = ExcelHybridUtils(self.log_signal_func)
 
         if not self.file_driver:
             self.file_driver = FileUtils(self.log_signal_func)
