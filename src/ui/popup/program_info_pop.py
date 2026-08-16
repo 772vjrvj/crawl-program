@@ -27,6 +27,11 @@ from src.workers.program_release_note_worker import (
     ProgramReleaseNoteResult,
     ProgramReleaseNoteWorker,
 )
+from src.workers.program_description_worker import (
+    ProgramDescription,
+    ProgramDescriptionResult,
+    ProgramDescriptionWorker,
+)
 
 
 class NoticeCard(QFrame):
@@ -425,6 +430,9 @@ class ProgramInfoPop(QDialog):
         self.release_worker: Optional[ProgramReleaseNoteWorker] = None
         self.release_notes: list[ProgramReleaseNote] = []
 
+        self.description_worker: Optional[ProgramDescriptionWorker] = None
+        self.program_description: Optional[ProgramDescription] = None
+
         self.tab_buttons: list[QPushButton] = []
 
         self.setWindowTitle("프로그램 정보")
@@ -436,9 +444,10 @@ class ProgramInfoPop(QDialog):
         self._select_tab(self.TAB_NOTICE)
         self._render_notice_cards()
 
-        # 프로그램 정보 팝업을 여는 즉시 릴리즈 노트를 백그라운드에서 조회한다.
-        # 이후 릴리즈 노트 탭을 눌렀을 때는 이미 받아온 데이터를 바로 표시한다.
+        # 프로그램 정보 팝업을 여는 즉시
+        # 릴리즈 노트와 프로그램 설명을 백그라운드에서 미리 조회한다.
         self._load_release_notes_once()
+        self._load_program_description_once()
 
     def _init_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -637,6 +646,17 @@ class ProgramInfoPop(QDialog):
 
         frame, frame_layout = self._create_content_frame()
 
+        self.description_status_label = QLabel("")
+        self.description_status_label.setAlignment(
+            Qt.AlignmentFlag.AlignCenter
+        )
+        self.description_status_label.setWordWrap(True)
+        self.description_status_label.setStyleSheet(
+            "font-size: 13px; color: #777777; "
+            "padding: 20px; border: none;"
+        )
+        frame_layout.addWidget(self.description_status_label)
+
         self.description_text = QTextEdit()
         self.description_text.setReadOnly(True)
         self.description_text.setPlainText("")
@@ -662,6 +682,7 @@ class ProgramInfoPop(QDialog):
             """
         )
         frame_layout.addWidget(self.description_text, 1)
+        self.description_text.setVisible(False)
 
         page_layout.addWidget(frame, 1)
         return page
@@ -758,7 +779,7 @@ class ProgramInfoPop(QDialog):
             self.notice_list_layout.insertWidget(
                 self.notice_list_layout.count() - 1,
                 card,
-                )
+            )
 
     def _open_notice_detail(self, notice: ProgramNotice) -> None:
         # 실제 상세를 여는 순간 읽음으로 저장한다.
@@ -884,7 +905,7 @@ class ProgramInfoPop(QDialog):
             self.release_list_layout.insertWidget(
                 self.release_list_layout.count() - 1,
                 card,
-                )
+            )
 
     def _open_release_note_detail(
             self,
@@ -915,10 +936,77 @@ class ProgramInfoPop(QDialog):
 
     def _load_program_description_once(self) -> None:
         """
-        프로그램 설명 탭 최초 진입 시 호출된다.
-
-        TODO: 서버 프로그램 설명 API가 추가되면 여기에서 Worker를 시작하고
-        서버 문자열을 self.description_text.setPlainText(...)로 그대로 출력한다.
+        프로그램 정보 팝업을 열 때 프로그램 설명을 한 번만 조회한다.
         """
+        if self.description_loaded:
+            return
+
+        if (
+                self.description_worker is not None
+                and self.description_worker.isRunning()
+        ):
+            return
+
+        self.description_status_label.setText(
+            "프로그램 설명을 불러오는 중입니다..."
+        )
+        self.description_status_label.setVisible(True)
+        self.description_text.setVisible(False)
+
+        self.description_worker = ProgramDescriptionWorker(
+            server_url=self.server_url,
+            program_id=self.program_id,
+            parent=self,
+        )
+
+        self.description_worker.sig_done.connect(
+            self._on_program_description_loaded
+        )
+        self.description_worker.finished.connect(
+            self._on_description_worker_finished
+        )
+        self.description_worker.start()
+
+    def _on_program_description_loaded(
+            self,
+            result: ProgramDescriptionResult,
+    ) -> None:
         self.description_loaded = True
-        self.description_text.setPlainText("")
+
+        if not result.ok:
+            self.program_description = None
+            self.description_text.setPlainText("")
+            self.description_text.setVisible(False)
+
+            self.description_status_label.setText(
+                "프로그램 설명을 불러오지 못했습니다.\n"
+                f"{result.message}"
+            )
+            self.description_status_label.setVisible(True)
+            return
+
+        self.program_description = result.data
+
+        if (
+                self.program_description is None
+                or not self.program_description.description.strip()
+        ):
+            self.description_text.setPlainText("")
+            self.description_text.setVisible(False)
+
+            self.description_status_label.setText(
+                "등록된 프로그램 설명이 없습니다."
+            )
+            self.description_status_label.setVisible(True)
+            return
+
+        # 서버에 저장한 [프로그램 소개], [주요 기능], [권장사항] 등의
+        # 문자열을 가공하지 않고 그대로 표시한다.
+        self.description_text.setPlainText(
+            self.program_description.description
+        )
+        self.description_status_label.setVisible(False)
+        self.description_text.setVisible(True)
+
+    def _on_description_worker_finished(self) -> None:
+        self.description_worker = None

@@ -768,6 +768,12 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             return False
 
     def finalize_db_and_excel(self) -> None:
+        # 실제 작업이 시작되지 않은 경우
+        # worker 객체만 생성된 상태에서는 hist_id가 없으므로
+        # DB 종료 처리 및 엑셀 저장을 수행하지 않는다.
+        if not self.hist_id:
+            return
+
         temp_sqlite_driver = None
 
         try:
@@ -778,21 +784,27 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 self.log_signal_func("❌ [DB] 최종 마감용 연결 실패")
                 return
 
+            # 작업 이력 종료 처리
             if self.update_hist_end(temp_sqlite_driver):
                 self.log_signal_func("✅ [DB] hist 최종 업데이트 완료")
             else:
                 self.log_signal_func("❌ [DB] hist 최종 업데이트 실패")
 
+            # 엑셀 자동 저장
             if self.auto_save_yn:
                 if self.export_detail_to_excel(temp_sqlite_driver):
                     self.log_signal_func("✅ [엑셀] detail 자동 저장 완료")
                 else:
                     self.log_signal_func("❌ [엑셀] detail 자동 저장 실패")
             else:
-                self.log_signal_func("ℹ️ [엑셀] 자동 저장 미사용(auto_save_yn=False)")
+                self.log_signal_func(
+                    "ℹ️ [엑셀] 자동 저장 미사용(auto_save_yn=False)"
+                )
 
         except Exception as e:
-            self.log_signal_func(f"[cleanup] finalize_db_and_excel 실패: {e}")
+            self.log_signal_func(
+                f"[cleanup] finalize_db_and_excel 실패: {e}"
+            )
 
         finally:
             try:
