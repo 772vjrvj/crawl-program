@@ -89,11 +89,13 @@ pyinstaller .\main.py `
 --exclude-module tcl `
 --add-data ".\resources\customers\naver_land_real_estate_detail\filter_data.json;resources\customers\naver_land_real_estate_detail" `
 --add-data ".\resources\customers\naver_land_real_estate_detail\region\korea_eup_myeon_dong.json;resources\customers\naver_land_real_estate_detail\region" `
+--add-data ".\resources\customers\naver_land_real_estate_detail\region\korea_si_gun_gu.json;resources\customers\naver_land_real_estate_detail\region" `
 --add-data ".\resources\customers\naver_land_real_estate_detail\js\list_hook.js;resources\customers\naver_land_real_estate_detail\js" `
 --add-data ".\resources\customers\naver_land_real_estate_detail\js\browser_fetch_json.js;resources\customers\naver_land_real_estate_detail\js" `
 --add-data ".\resources\customers\naver_land_real_estate_detail\js\click_sort_button.js;resources\customers\naver_land_real_estate_detail\js" `
 --add-data ".\resources\customers\naver_land_real_estate_detail\js\click_article_button.js;resources\customers\naver_land_real_estate_detail\js" `
 --add-data ".\resources\customers\naver_place_loc_all\naver_loc_all_real.json;resources\customers\naver_place_loc_all" `
 --add-data ".\resources\customers\naver_land_real_estate_detail\db\schema_detail.sql;resources\customers\naver_land_real_estate_detail\db" `
+--add-data ".\resources\customers\naver_land_real_estate_detail\db\schema_stat.sql;resources\customers\naver_land_real_estate_detail\db" `
 --add-data ".\resources\customers\common\db\schema_hist.sql;resources\customers\common\db" `
 --add-data ".\resources\icons\crawling.ico;resources\icons"

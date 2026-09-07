@@ -23,8 +23,8 @@ CATEGORY_MAP = {
     18: "게하·한옥",
 }
 
-CHECK_IN = "2026-08-31"
-CHECK_OUT = "2026-09-01"
+CHECK_IN = "2026-10-14"
+CHECK_OUT = "2026-10-15"
 LIMIT = 1000
 
 BASE = "https://www.yeogi.com"

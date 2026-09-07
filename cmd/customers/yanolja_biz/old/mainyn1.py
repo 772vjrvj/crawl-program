@@ -20,8 +20,8 @@ def safe_print(msg):
 
 def create_options():
     return {
-        "checkInDate": "2026-08-31",
-        "checkOutDate": "2026-09-01",
+        "checkInDate": "2026-10-14",
+        "checkOutDate": "2026-10-15",
         "capacityAdults": 2,
         "childrenAges": [],
         "filters": [],

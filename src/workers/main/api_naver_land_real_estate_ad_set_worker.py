@@ -1200,7 +1200,8 @@ class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
                 base_payload: dict[str, Any] = {}
                 first_result: dict[str, Any] = {}
 
-                for attempt in range(1, 5):
+                # range(1, 6)은 1~5까지 실행하므로 실제 5회 재시도한다.
+                for attempt in range(1, 6):
 
                     if not self.running:
                         return True
@@ -1217,22 +1218,34 @@ class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
                         self.log_signal_func("[후킹] 목록 후킹 설치 끝")
 
                         try:
-                            self.driver.execute_script("window.__naverListHookData = null;")
-                            self.log_signal_func("[후킹] 지역 진입 후 hook 데이터 초기화")
+                            # 이전 지역의 후킹 응답이 현재 지역 조회에 섞이지 않도록
+                            # 매물 버튼 클릭 직전에 후킹 데이터를 전체 초기화한다.
+                            self._clear_list_hook()
+                            self.log_signal_func("[후킹] 매물 클릭 전 hook 데이터 전체 초기화")
                         except Exception as e:
-                            self.log_signal_func(f"[후킹] 초기화 실패: {e}")
+                            self.log_signal_func(f"[후킹] 전체 초기화 실패: {e}")
 
                         self.log_signal_func("[클릭] 매물 버튼 클릭 시도")
                         try:
-                            self._click_article_button(wait_sec=5)
+                            # 클릭 전 화면에 표시된 매물 수를 저장한다.
+                            # 클릭 후 지도 이동으로 여러 boundedArticles 응답이 발생할 수
+                            # 있으므로, 현재 지역 응답을 선택하는 기준으로 사용한다.
+                            expected_article_count: int = self._click_article_button(wait_sec=10)
                         except Exception as e:
                             self.log_signal_func(f"[목록] 매물 버튼 없음/클릭 실패 -> 다음 지역으로 이동 / {e}")
                             skip_current_region = True
                             success = True
                             break
 
+                        time.sleep(8)
+
                         # 정렬 전, 먼저 초기 목록 응답 확보
-                        initial_hook_data: dict[str, Any] = self._get_first_list_hook_data(10)
+                        # 클릭 직전 매물 개수와 응답 totalCount가 일치하는 응답만 사용한다.
+                        initial_hook_data: dict[str, Any] = self._get_first_list_hook_data(
+                            wait_sec=20,
+                            expected_total_count=expected_article_count,
+                            hook_stage="초기",
+                        )
                         initial_body_text: str = initial_hook_data.get("bodyText", "")
                         initial_response_json: dict[str, Any] = initial_hook_data.get("responseJson", {}) or {}
 
@@ -1452,22 +1465,99 @@ class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
 
         return checked_codes
 
-    def _click_article_button(self, wait_sec: int = 5) -> None:
+    def _read_article_button_count(self) -> dict[str, Any]:
+        """
+        매물 버튼을 클릭하기 직전에 화면에 표시된 매물 수를 읽는다.
+
+        네이버 숫자 애니메이션 DOM에는 각 자리에 0~9가 함께 존재할 수
+        있으므로, aria-hidden="false"인 실제 표시 숫자만 이어 붙인다.
+        클릭 이후 발생하는 여러 boundedArticles 응답 중 현재 지역의
+        정상 응답을 선택하기 위한 기준으로 사용한다.
+        """
+        return self.driver.execute_script("""
+            const target = document.querySelector(
+                'button[data-nlogs-area="map.alist"]'
+            );
+
+            if (!target) {
+                return {
+                    ok: false,
+                    reason: "button_not_found"
+                };
+            }
+
+            const digitTexts = Array.from(
+                target.querySelectorAll('span[aria-hidden="false"]')
+            )
+                .map((el) => (el.textContent || "").trim())
+                .filter((text) => /^[0-9]$/.test(text));
+
+            if (!digitTexts.length) {
+                return {
+                    ok: false,
+                    reason: "visible_digit_not_found"
+                };
+            }
+
+            const countText = digitTexts.join("");
+            const count = Number(countText);
+
+            if (!Number.isInteger(count) || count < 0) {
+                return {
+                    ok: false,
+                    reason: "invalid_count",
+                    countText: countText
+                };
+            }
+
+            return {
+                ok: true,
+                count: count,
+                countText: countText
+            };
+        """) or {}
+
+    def _click_article_button(self, wait_sec: int = 5) -> int:
+        """
+        클릭 직전의 매물 수를 확보한 뒤 매물 버튼을 클릭하고 그 수를 반환한다.
+        반환값은 현재 지역의 boundedArticles 응답을 선택하는 검증 기준이다.
+        """
         end = time.time() + wait_sec
         last_reason = ""
+        last_logged_reason = ""
 
         while time.time() < end:
             try:
+                # 숫자 애니메이션이 끝나지 않았으면 다음 반복에서 다시 읽는다.
+                count_result: dict[str, Any] = self._read_article_button_count()
+                if not count_result.get("ok"):
+                    last_reason = str(count_result.get("reason") or "count_not_ready")
+
+                    # 같은 대기 사유가 반복되면 최초 한 번만 출력한다.
+                    if last_reason != last_logged_reason:
+                        self.log_signal_func(
+                            f"[매물 버튼] 클릭 전 갯수 대기중 / reason={last_reason}"
+                        )
+                        last_logged_reason = last_reason
+
+                    time.sleep(0.5)
+                    continue
+
+                before_click_count: int = int(count_result.get("count"))
                 result = self.driver.execute_script(self.click_article_button_js) or {}
 
                 if result.get("ok"):
                     self.log_signal_func(
-                        f"[매물 버튼] 클릭 완료 / 타입={result.get('foundType', '')} / text={result.get('text', '')}"
+                        f"[매물 버튼] 클릭 완료 / "
+                        f"클릭 전 갯수={before_click_count} / "
+                        f"타입={result.get('foundType', '')}"
                     )
-                    return
+                    return before_click_count
 
                 last_reason = str(result.get("reason") or "")
-                self.log_signal_func(f"[매물 버튼] 대기중 / reason={last_reason}")
+                if last_reason != last_logged_reason:
+                    self.log_signal_func(f"[매물 버튼] 대기중 / reason={last_reason}")
+                    last_logged_reason = last_reason
 
             except Exception as e:
                 last_reason = str(e)
@@ -1509,11 +1599,42 @@ class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
         script = self.list_hook_js.replace("__TARGET__", "/front-api/v1/article/boundedArticles")
         self.driver.execute_script(script)
 
+    def _clear_list_hook(self) -> None:
+        """
+        다음 사용자 동작에서 발생한 목록 요청만 수집하도록
+        기존 후킹 결과를 모두 초기화한다.
 
-    def _get_first_list_hook_data(self, wait_sec=20):
+        __naverListHookData만 초기화하면 __naverListHookList에 이전 지역
+        응답이 남을 수 있으므로 세 값을 함께 비운다.
+        """
+        self.driver.execute_script("""
+            window.__naverListHookData = null;
+            window.__naverListHookList = [];
+            window.__naverListHookUrls = [];
+        """)
+
+    def _get_first_list_hook_data(
+            self,
+            wait_sec: int = 20,
+            expected_total_count: int | None = None,
+            hook_stage: str = "목록",
+    ) -> dict[str, Any]:
+        """
+        후킹된 boundedArticles 응답 중 현재 지역에 해당하는 응답을 반환한다.
+
+        매물 버튼 클릭 후 목록 패널이 열리면서 동일 API가 여러 번 호출될
+        수 있으므로 단순히 첫 응답을 사용하지 않는다. 클릭 직전 버튼의
+        매물 수와 response.result.totalCount가 일치하는 응답만 사용하고,
+        같은 조건이면 최근 응답부터 선택한다.
+        """
         end = time.time() + wait_sec
+        logged_candidates: set[tuple[int, int]] = set()
 
         while time.time() < end:
+            # 중지 시 cleanup에서 driver가 None이 될 수 있으므로 즉시 종료한다.
+            if not self.running or self.driver is None:
+                return {}
+
             try:
                 hook_list = self.driver.execute_script(
                     "return window.__naverListHookList || [];"
@@ -1523,20 +1644,48 @@ class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
                     time.sleep(0.5)
                     continue
 
-                for item in hook_list:
+                # 최근 완료 응답부터 검사한다.
+                for hook_index in range(len(hook_list) - 1, -1, -1):
+                    item = hook_list[hook_index]
                     response_json = item.get("responseJson") or {}
                     url = item.get("url", "")
 
-                    if (
-                            "/boundedArticles" in url
-                            and "boundedArticlesCount" not in url
-                    ):
+                    if "/boundedArticles" not in url:
+                        continue
+
+                    # 개수 전용 API는 목록 응답이 아니므로 제외한다.
+                    if "boundedArticlesCount" in url:
+                        continue
+
+                    result: dict[str, Any] = response_json.get("result", {}) or {}
+                    try:
+                        response_total_count: int = int(result.get("totalCount") or 0)
+                    except (TypeError, ValueError):
+                        continue
+
+                    candidate_key = (hook_index, response_total_count)
+                    if candidate_key not in logged_candidates:
+                        logged_candidates.add(candidate_key)
                         self.log_signal_func(
-                            f"[HOOK SUCCESS] "
-                            f"url={url} "
-                            f"keys={list(response_json.keys())}"
+                            f"[HOOK CANDIDATE-{hook_stage}] "
+                            f"index={hook_index + 1}/{len(hook_list)} "
+                            f"total={response_total_count} "
+                            f"expected={expected_total_count}"
                         )
-                        return item
+
+                    if (
+                            expected_total_count is not None
+                            and response_total_count != expected_total_count
+                    ):
+                        continue
+
+                    self.log_signal_func(
+                        f"[HOOK SUCCESS-{hook_stage}] "
+                        f"index={hook_index + 1}/{len(hook_list)} "
+                        f"total={response_total_count} "
+                        f"url={url}"
+                    )
+                    return item
 
             except Exception as e:
                 self.log_signal_func(
@@ -1544,6 +1693,9 @@ class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
                 )
 
             time.sleep(0.5)
+
+        if not self.running or self.driver is None:
+            return {}
 
         try:
             hook_info = self.driver.execute_script("""
@@ -1555,7 +1707,8 @@ class ApiNaverLandRealEstateAdSetWorker(BaseApiWorker):
             """)
 
             self.log_signal_func(
-                f"[HOOK TIMEOUT] {hook_info}"
+                f"[HOOK TIMEOUT-{hook_stage}] "
+                f"expected={expected_total_count} / {hook_info}"
             )
 
         except Exception as e:

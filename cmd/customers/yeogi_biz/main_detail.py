@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # =========================
 # 설정
 # =========================
-INPUT_CSV = "yeogi_places_20260312_204547.csv"
+INPUT_CSV = "yeogi_places_20260827_211413.csv"
 OUT_PREFIX = "yeogi_place_contract"
 
 # === 신규 === 원본 CSV + API 결과 컬럼 한글 매핑
