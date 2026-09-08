@@ -5,115 +5,11 @@
   "server_name": "CrawlProgram",
   "allow_multi_instance": true,
   "instance_key": "my_pyside_app",
-  "site_list_use": ["NAVER_LAND_REAL_ESTATE_DETAIL"],
+  "site_list_use": ["NAVER_LAND_REAL_ESTATE_AD"],
   "site_list": [
-    {
-      "key": "NAVER_BAND_MEMBER",
-      "config_path": "customers/naver_band_member/config.json"
-    },
-    {
-      "key": "NAVER_SHOP_TOTAL_DETAIL",
-      "config_path": "customers/naver_shop_total_detail/config.json"
-    },
-    {
-      "key": "NAVER_PLACE_URL_ALL",
-      "config_path": "customers/naver_place_url_all/config.json"
-    },
-    {
-      "key": "NAVER_CAFE_ARTICLE",
-      "config_path": "customers/naver_cafe_article/config.json"
-    },
-    {
-      "key": "NAVER_BLOG_CONTENTS",
-      "config_path": "customers/naver_blog_contents/config.json"
-    },
-    {
-      "key": "NAVER_PLACE_LOC_ALL",
-      "config_path": "customers/naver_place_loc_all/config.json"
-    },
-    {
-      "key": "NAVER_LAND_REAL_ESTATE_DETAIL",
-      "config_path": "customers/naver_land_real_estate_detail/config.json"
-    },
     {
       "key": "NAVER_LAND_REAL_ESTATE_AD",
       "config_path": "customers/naver_land_real_estate_ad/config.json"
-    },
-    {
-      "key": "NAVER_LAND_REAL_ESTATE_AUTO",
-      "config_path": "customers/naver_land_real_estate_auto/config.json"
-    },
-    {
-      "key": "NAVER_LAND_REAL_ESTATE_DETAIL_DOWN",
-      "config_path": "customers/naver_land_real_estate_detail_down/config.json"
-    },
-    {
-      "key": "NAVER_CAFE_CTT_CNT_ONLY",
-      "config_path": "customers/naver_cafe_ctt_cnt_only/config.json"
-    },
-    {
-      "key": "KRX_NEXTRADE",
-      "config_path": "customers/krx_nextrade/config.json"
-    },
-    {
-      "key": "BIZNO_EXCEL",
-      "config_path": "customers/bizno_excel/config.json"
-    },
-    {
-      "key": "LULULEMON",
-      "config_path": "customers/lululemon/config.json"
-    },
-    {
-      "key": "KECA_ECIC",
-      "config_path": "customers/keca_ecic/config.json"
-    },
-    {
-      "key": "COMENTO_JOB",
-      "config_path": "customers/comento_job/config.json"
-    },
-    {
-      "key": "COMENTO_QNA",
-      "config_path": "customers/comento_qna/config.json"
-    },
-    {
-      "key": "DMAND_COMM",
-      "config_path": "customers/dmand_comm/config.json"
-    },
-    {
-      "key": "457DEEP",
-      "config_path": "customers/457deep/config.json"
-    },
-    {
-      "key": "KMONG",
-      "config_path": "customers/kmong/config.json"
-    },
-    {
-      "key": "COCO_LABEL",
-      "config_path": "customers/coco_label/config.json"
-    },
-    {
-      "key": "KAKAO_TALKDEAL_RANK",
-      "config_path": "customers/kakao_talkdeal_rank/config.json"
-    },
-    {
-      "key": "IDFARM",
-      "config_path": "customers/idfarm/config.json"
-    },
-    {
-      "key": "BAROTEM",
-      "config_path": "customers/barotem/config.json"
-    },
-    {
-      "key": "YEOGI_ADMIN",
-      "config_path": "customers/yeogi_admin/config.json"
-    },
-    {
-      "key": "ZIGZAG",
-      "config_path": "customers/zigzag/config.json"
-    },
-    {
-      "key": "IHERB",
-      "config_path": "customers/iherb/config.json"
     }
   ]
 }

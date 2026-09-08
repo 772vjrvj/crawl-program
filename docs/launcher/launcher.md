@@ -7,7 +7,7 @@
 다음 로컬 경로에 신규 버전 폴더를 생성하고 ZIP 파일을 넣는다.
 
 ```text
-E:\나의 목록\cloudflare\version\NAVER_PLACE_LOC_ALL\v2_0_2
+E:\나의 목록\cloudflare\version\NAVER_LAND_REAL_ESTATE_AD\v2_0_2
 ```
 
 추가할 파일:
@@ -19,7 +19,7 @@ v2_0_2.zip
 최종 경로:
 
 ```text
-E:\나의 목록\cloudflare\version\NAVER_LAND_REAL_ESTATE_DETAIL\v2_0_0\v2_0_0.zip
+E:\나의 목록\cloudflare\version\NAVER_LAND_REAL_ESTATE_AD\v2_0_0\v2_0_0.zip
 ```
 
 ---
@@ -29,13 +29,13 @@ E:\나의 목록\cloudflare\version\NAVER_LAND_REAL_ESTATE_DETAIL\v2_0_0\v2_0_0.
 Cloudflare R2 버킷에 다음 객체 경로를 생성하고 ZIP 파일을 업로드한다.
 
 ```text
-NAVER_LAND_REAL_ESTATE_DETAIL/v2_0_0/v2_0_0.zip
+NAVER_LAND_REAL_ESTATE_AD/v2_0_0/v2_0_0.zip
 ```
 
 확인 항목:
 
 ```text
-PROGRAM_ID : NAVER_LAND_REAL_ESTATE_DETAIL
+PROGRAM_ID : NAVER_LAND_REAL_ESTATE_AD
 DIR_NAME   : v2_0_0
 FILE_NAME  : v2_0_0.zip
 ```

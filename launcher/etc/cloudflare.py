@@ -63,16 +63,16 @@ API_TIMEOUT_SEC = 30
 # ============================================================
 
 # 배포 대상 프로그램 ID
-PROGRAM_ID = "NAVER_LAND_REAL_ESTATE_DETAIL"
+PROGRAM_ID = "NAVER_LAND_REAL_ESTATE_AD"
 
 # 프로그램 버전
-VERSION = "3.0.0"
+VERSION = "2.0.0"
 
 # Cloudflare R2 버전 폴더명
-DIR_NAME = "v3_0_0"
+DIR_NAME = "v2_0_0"
 
 # Cloudflare R2 ZIP 파일명
-FILE_NAME = "v3_0_0.zip"
+FILE_NAME = "v2_0_0.zip"
 
 # 신규 릴리스 사용 여부
 ENABLED = True
@@ -98,7 +98,7 @@ BUCKET_NAME = "gb7-launcher-files"
 # R2 버킷 내부의 실제 객체 경로
 #
 # 결과:
-# NAVER_BAND_MEMBER/v1_0_2/v1_0_2.zip
+# NAVER_LAND_REAL_ESTATE_AD/v1_0_2/v1_0_2.zip
 #
 # 버킷 이름은 포함하지 않는다.
 OBJECT_KEY = (
@@ -114,7 +114,7 @@ OBJECT_KEY = (
 
 # 결과 예시:
 # E:\나의 목록\cloudflare\version
-# \NAVER_PLACE_LOC_ALL\v2_0_2\v2_0_2.zip
+# \NAVER_LAND_REAL_ESTATE_AD\v2_0_2\v2_0_2.zip
 SOURCE_PATH = (
         VERSION_ROOT_DIR
         / PROGRAM_ID
@@ -128,7 +128,7 @@ SOURCE_PATH = (
 
 # 결과 예시:
 # E:\나의 목록\cloudflare\version
-# \NAVER_PLACE_LOC_ALL\v2_0_2\test
+# \NAVER_LAND_REAL_ESTATE_AD\v2_0_2\test
 DOWNLOAD_DIR = (
         VERSION_ROOT_DIR
         / PROGRAM_ID
