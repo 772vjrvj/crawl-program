@@ -349,7 +349,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
         excel_columns, excel_rows = self.db_repository.get_excel_data()
         if not excel_rows:
-            self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
+            self.log_signal_func("ℹ️ [엑셀] 저장할 detail 데이터가 없습니다.")
             return False
 
         excel_filename = f"{self.site_name}_{self.db_repository.job_id}.xlsx"
@@ -382,7 +382,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 if self.export_detail_to_excel():
                     self.log_signal_func("✅ [엑셀] detail 자동 저장 완료")
                 else:
-                    self.log_signal_func("❌ [엑셀] detail 자동 저장 실패")
+                    self.log_signal_func("ℹ️ [엑셀] detail 자동 저장 실패")
             else:
                 self.log_signal_func("ℹ️ [엑셀] 자동 저장 미사용(auto_save_yn=False)")
 

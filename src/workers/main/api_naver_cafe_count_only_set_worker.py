@@ -338,7 +338,7 @@ class ApiNaverCafeCountOnlySetWorker(BaseApiWorker):
 
         row_list = sqlite_driver.fetchall(query, (self.hist_id,))
         if not row_list:
-            self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
+            self.log_signal_func("ℹ️ [엑셀] 저장할 detail 데이터가 없습니다.")
             return False
 
         # file_tag별로 그룹핑

@@ -658,7 +658,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             detail_rows = [dict(row) for row in detail_rows]
 
             if not detail_rows:
-                self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
+                self.log_signal_func("ℹ️ [엑셀] 저장할 detail 데이터가 없습니다.")
                 return False
 
             self.log_signal_func(f"[엑셀] detail 조회 완료 | count={len(detail_rows)}")
@@ -795,7 +795,7 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
                 if self.export_detail_to_excel(temp_sqlite_driver):
                     self.log_signal_func("✅ [엑셀] detail 자동 저장 완료")
                 else:
-                    self.log_signal_func("❌ [엑셀] detail 자동 저장 실패")
+                    self.log_signal_func("ℹ️ [엑셀] detail 자동 저장 실패")
             else:
                 self.log_signal_func(
                     "ℹ️ [엑셀] 자동 저장 미사용(auto_save_yn=False)"

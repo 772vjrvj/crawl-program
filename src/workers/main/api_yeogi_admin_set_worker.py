@@ -1545,7 +1545,7 @@ class ApiYeogiAdminSetWorker(BaseApiWorker):
 
         if not excel_rows:
             self.log_signal_func(
-                "⚠️ [엑셀] 저장할 detail 데이터가 없습니다."
+                "ℹ️ [엑셀] 저장할 detail 데이터가 없습니다."
             )
             return False
 
@@ -1591,7 +1591,7 @@ class ApiYeogiAdminSetWorker(BaseApiWorker):
                     )
                 else:
                     self.log_signal_func(
-                        "❌ [엑셀] detail 자동 저장 실패"
+                        "ℹ️ [엑셀] detail 자동 저장 실패"
                     )
             else:
                 self.log_signal_func(

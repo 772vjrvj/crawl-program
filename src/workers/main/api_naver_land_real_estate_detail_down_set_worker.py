@@ -1317,7 +1317,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
 
         row_list = sqlite_driver.fetchall(query, (self.hist_id,))
         if not row_list:
-            self.log_signal_func("⚠️ [엑셀] 저장할 detail 데이터가 없습니다.")
+            self.log_signal_func("ℹ️ [엑셀] 저장할 detail 데이터가 없습니다.")
             return False
 
         row_list = [dict(row) for row in row_list]
@@ -1353,7 +1353,7 @@ class ApiNaverLandRealEstateDetailDownSetWorker(BaseApiWorker):
                 if self.export_detail_to_excel(temp_sqlite_driver):
                     self.log_signal_func("✅ [엑셀] detail 자동 저장 완료")
                 else:
-                    self.log_signal_func("❌ [엑셀] detail 자동 저장 실패")
+                    self.log_signal_func("ℹ️ [엑셀] detail 자동 저장 실패")
             else:
                 self.log_signal_func("ℹ️ [엑셀] 자동 저장 미사용(auto_save_yn=False)")
 
