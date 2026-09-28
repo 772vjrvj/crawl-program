@@ -1,244 +1,129 @@
-# main.py
-from __future__ import annotations
-
 import json
-import sys
 from pathlib import Path
-from typing import Optional
+
+import pymysql
 
 
-import os
-if sys.stdout is None:
-    sys.stdout = open(os.devnull, "w")
-if sys.stderr is None:
-    sys.stderr = open(os.devnull, "w")
+# =========================
+# DB 접속 정보 수정
+# =========================
+DB_CONFIG = {
+    "host": "modukidscenter.cafe24.com",
+    "port": 3306,
+    "user": "modukidscenter",
+    "password": "kidscenter12!",
+    "database": "modukidscenter",
+    "charset": "utf8mb4",
+    "autocommit": False,
+}
+
+BASE_DIR = Path(__file__).resolve().parent
+JSON_FILE = BASE_DIR / "last_mig" / "SCHEDULE_MASTER_updated.json"
 
 
-from PySide6.QtCore import Qt, QLockFile, QDir
-from PySide6.QtWidgets import QApplication, QMessageBox
+COLUMNS = [
+    "SCHEDULE_ID",
+    "SCHEDULE_GROUP_ID",
+    "COMPANY_ID",
+    "PROGRAM_ID",
+    "MEMBER_ID",
+    "TEACHER_ID",
+    "MEMO",
+    "SCHEDULE_CLASS_CD",
+    "SCHEDULE_TYPE_CD",
+    "SCHEDULE_STATUS_CD",
+    "START_DT",
+    "END_DT",
+    "ALL_DAY_YN",
+    "PLACE",
+    "QUICK_INPUT_TEXT",
+    "COUNSEL_INPUT_TYPE_CD",
+    "PRICE",
+    "CENTER_SHARE_YN",
+    "COMPLETE_DT",
+    "USE_YN",
+    "DELETE_YN",
+    "CREATE_DT",
+    "UPDATE_DT",
+    "UPDATE_USER_ID",
+    "MEMBER_PROGRAM_ID",
+    "REPEAT_TEMPLATE_YN",
+]
 
-from src.app_manager import AppManager
-from src.core.global_state import GlobalState
-from src.utils.app_config_loader import AppConfigLoader
-from src.utils.config import set_app_server_config
-from src.core.services.service_loader import load_services
+COLUMN_SQL = ", ".join(f"`{column}`" for column in COLUMNS)
+PLACEHOLDERS = ", ".join(["%s"] * len(COLUMNS))
 
-
-def _setup_ffmpeg_path(base_path: Path):
-    """
-    _internal/resources/bin 또는 resources/bin에 있는 ffmpeg를
-    시스템 PATH에 등록하여 Whisper가 인식하도록 합니다.
-    """
-    # PyInstaller 빌드 시 보통 base_path는 exe 위치입니다.
-    # 제공해주신 경로 구조에 맞춰 bin 폴더 위치를 잡습니다.
-    ffmpeg_bin = base_path / "_internal" / "resources" / "bin"
-
-    # 만약 위 경로가 없다면 일반 resources/bin도 확인 (개발 환경 등)
-    if not ffmpeg_bin.exists():
-        ffmpeg_bin = base_path / "resources" / "bin"
-
-    if ffmpeg_bin.exists():
-        bin_str = str(ffmpeg_bin.resolve())
-        if bin_str not in os.environ["PATH"]:
-            os.environ["PATH"] = bin_str + os.pathsep + os.environ["PATH"]
-
-
-def show_already_running_alert(existing_app: Optional[QApplication] = None) -> None:
-    app_created = False
-    app = existing_app or QApplication.instance()
-    if app is None:
-        app = QApplication(sys.argv)
-        app_created = True
-
-    msg = QMessageBox()
-    msg.setIcon(QMessageBox.Warning)
-    msg.setWindowTitle("이미 실행 중")
-    msg.setText("프로그램이 이미 실행 중입니다.\n기존 실행 중인 창을 확인해 주세요.")
-    msg.setStandardButtons(QMessageBox.Ok)
-    msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
-    msg.exec()
-
-    if app_created:
-        try:
-            app.exit(0)
-        except Exception:
-            pass
+INSERT_SQL = f"""
+INSERT INTO `SCHEDULE_MASTER` (
+    {COLUMN_SQL}
+) VALUES (
+    {PLACEHOLDERS}
+)
+"""
 
 
-# =========================================================
-# runtime path helpers
-# =========================================================
-def _get_base_path() -> Path:
-    """
-    - 개발: 프로젝트 기준
-    - 빌드(frozen): exe 위치 기준. 개발 krx_data_set.py 기준
-    """
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent
-    return Path(__file__).resolve().parent
+def main():
+    if not JSON_FILE.exists():
+        raise FileNotFoundError(f"JSON 파일이 없습니다: {JSON_FILE}")
 
+    with JSON_FILE.open("r", encoding="utf-8-sig") as file:
+        rows = json.load(file)
 
-# =========================================================
-# config helpers  # === 신규 ===
-# =========================================================
-def _read_runtime_app_json(base_path: Path) -> dict:
-    runtime_dir = base_path / "runtime"
-    app_json_path = runtime_dir / "app.json"
+    print(f"JSON 데이터: {len(rows)}건")
 
-    if not app_json_path.exists():
-        raise FileNotFoundError(f"runtime/app.json not found: {str(app_json_path)}")
+    connection = pymysql.connect(**DB_CONFIG)
+
+    success_count = 0
+    fail_count = 0
 
     try:
-        raw = app_json_path.read_text(encoding="utf-8")
+        with connection.cursor() as cursor:
+            for index, row in enumerate(rows, start=1):
+                try:
+                    company_id = row.get("COMPANY_ID")
+
+                    if not company_id:
+                        print(f"[{index}] COMPANY_ID 누락")
+                        fail_count += 1
+                        continue
+
+                    values = [
+                        row.get(column)
+                        for column in COLUMNS
+                    ]
+
+                    cursor.execute(INSERT_SQL, values)
+                    success_count += 1
+
+                    if index % 500 == 0:
+                        connection.commit()
+                        print(f"[진행상황] {index}/{len(rows)}건 처리")
+
+                except Exception as error:
+                    connection.rollback()
+                    fail_count += 1
+
+                    print(
+                        f"[실패] {index}번째 데이터 "
+                        f"SCHEDULE_ID={row.get('SCHEDULE_ID')}"
+                    )
+                    print(f"       사유: {error}")
+
+            connection.commit()
+
     except Exception:
-        raw = app_json_path.read_text(encoding="utf-8-sig")
+        connection.rollback()
+        raise
 
-    try:
-        data = json.loads(raw)
-    except Exception as e:
-        raise ValueError(f"runtime/app.json JSON 파싱 실패: {str(e)}")
+    finally:
+        connection.close()
 
-    if not isinstance(data, dict):
-        raise ValueError("runtime/app.json 최상위 구조는 object(dict)여야 합니다.")
-    return data
-
-
-def _get_allow_multi_instance(runtime_json: dict) -> bool:
-    v = runtime_json.get("allow_multi_instance", False)
-    return bool(v)
-
-
-def _get_single_instance_key(runtime_json: dict) -> str:
-    v = runtime_json.get("instance_key", "my_pyside_app")
-    v = str(v).strip()
-    return v or "my_pyside_app"
-
-
-# =========================================================
-# single instance guard
-# =========================================================
-_SINGLE_INSTANCE_LOCK: Optional[QLockFile] = None
-
-
-def _acquire_single_instance_lock(app: QApplication, lock_key: str) -> bool:
-    global _SINGLE_INSTANCE_LOCK
-
-    base_dir = Path(QDir.tempPath()) / lock_key
-    base_dir.mkdir(parents=True, exist_ok=True)
-
-    lock_path = base_dir / f"{lock_key}.lock"
-    lock = QLockFile(str(lock_path))
-    lock.setStaleLockTime(10_000)  # 10초
-
-    if not lock.tryLock(0):
-        show_already_running_alert(app)
-        return False
-
-    _SINGLE_INSTANCE_LOCK = lock
-    return True
-
-
-def _release_single_instance_lock() -> None:
-    global _SINGLE_INSTANCE_LOCK
-    lock = _SINGLE_INSTANCE_LOCK
-    _SINGLE_INSTANCE_LOCK = None
-    if lock is None:
-        return
-    try:
-        lock.unlock()
-    except Exception:
-        pass
-
-
-def _bootstrap_runtime_config(state: GlobalState) -> None:
-    base = _get_base_path()
-    runtime_dir = base / "runtime"
-    app_json_path = runtime_dir / "app.json"
-
-    loader = AppConfigLoader(str(app_json_path))
-
-    app_conf = loader.load_app_config()
-    set_app_server_config(app_conf.server_url, app_conf.server_name)
-
-    site_configs = loader.get_enabled_site_configs(app_conf)
-
-    state.set(
-        GlobalState.APP_CONFIG,
-        {
-            "site_list_use": app_conf.site_list_use,
-            "runtime_dir": str(runtime_dir),
-        },
-    )
-    state.set(GlobalState.SITE_CONFIGS, site_configs)
-
-    site_configs_by_key = {}
-    for d in (site_configs or []):
-        k = str(d.get("key") or "").strip()
-        if k:
-            site_configs_by_key[k] = d
-    state.set("site_configs_by_key", site_configs_by_key)
-
-
-def main() -> int:
-    base = _get_base_path()
-    _setup_ffmpeg_path(base)
-
-    app = QApplication(sys.argv)
-
-    try:
-        runtime_json = _read_runtime_app_json(base)
-        allow_multi = _get_allow_multi_instance(runtime_json)
-        lock_key = _get_single_instance_key(runtime_json)
-    except Exception as e:
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Critical)
-        msg.setWindowTitle("설정 로드 실패")
-        msg.setText(f"runtime/app.json을 읽는 중 오류가 발생했습니다.\n\n{str(e)}")
-        msg.setStandardButtons(QMessageBox.Ok)
-        msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
-        msg.exec()
-        return 1
-
-    if not allow_multi:
-        if not _acquire_single_instance_lock(app, lock_key):
-            return 0
-
-    state = GlobalState()
-    state.initialize()
-
-    try:
-        _bootstrap_runtime_config(state)
-
-        site_configs = state.get(GlobalState.SITE_CONFIGS) or []
-
-        services = set()
-        for conf in site_configs:
-            for svc in (conf.get("services") or []):
-                s = str(svc).strip()
-                if s:
-                    services.add(s)
-
-        load_services(services)
-
-    except Exception as e:
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Critical)
-        msg.setWindowTitle("설정 로드 실패")
-        msg.setText(f"runtime 설정을 읽는 중 오류가 발생했습니다.\n\n{str(e)}")
-        msg.setStandardButtons(QMessageBox.Ok)
-        msg.setWindowFlag(Qt.WindowStaysOnTopHint, True)
-        msg.exec()
-        _release_single_instance_lock()
-        return 1
-
-    manager = AppManager(app)
-    manager.start()
-
-    rc = app.exec()
-
-    _release_single_instance_lock()
-    return rc
+    print()
+    print("===== 마이그레이션 완료 =====")
+    print(f"전체 데이터: {len(rows)}건")
+    print(f"성공: {success_count}건")
+    print(f"실패: {fail_count}건")
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
