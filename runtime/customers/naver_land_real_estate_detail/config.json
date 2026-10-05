@@ -4,6 +4,12 @@
   "db_name": "NAVER_LAND_REAL_ESTATE_DETAIL",
   "db_common_name": "WORKER_JOB_HIST",
   "color": "#ccc",
+  "server_url": "https://goodbye772.com/geocode/reverse-batch",
+  "new_server_url": "https://goodbye772.com/geocode/reverse-batch",
+  "new_test_server_url": "http://localhost:81/geocode/reverse-batch",
+  "old_server_url": "http://220.94.196.191:5001/geocode/reverse-batch",
+  "old_test_server_url": "http://localhost:5001/geocode/reverse-batch",
+  "master_api_key": "my_secret_master_key_1234!",
   "enabled": true,
   "popup": false,
   "region": false,
@@ -28,13 +34,13 @@
     {
       "name": "매물 등록일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": 20000101,
+      "value": 20261001,
       "type": "input"
     },
     {
       "name": "매물 등록일(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": 20260805,
+      "value": 20261005,
       "type": "input"
     },
     {
@@ -46,7 +52,7 @@
     {
       "name": "정렬방식",
       "code": "articleSortType",
-      "value": "SPACE_ASC",
+      "value": "DATE_DESC",
       "type": "select",
       "options": [
         {
@@ -143,7 +149,7 @@
           "name": "매매",
           "code": "A1",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "전세",
@@ -176,7 +182,7 @@
           "name": "아파트",
           "code": "A01",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "재건축",
@@ -218,7 +224,7 @@
           "name": "단독/다가구",
           "code": "C03",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "전원주택",
@@ -253,7 +259,7 @@
               "name": "토지",
               "code": "E03",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "사무실",
@@ -271,7 +277,7 @@
               "name": "공장/창고",
               "code": "E02",
               "type": "checkbox",
-              "value": false
+              "value": true
             },
             {
               "name": "지식산업센터",
@@ -298,13 +304,13 @@
               "name": "최소",
               "code": "min",
               "type": "input",
-              "value": ""
+              "value": "500000"
             },
             {
               "name": "최대",
               "code": "max",
               "type": "input",
-              "value": ""
+              "value": "700000"
             }
           ]
         },

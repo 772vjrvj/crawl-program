@@ -4,7 +4,11 @@
   "db_name": "NAVER_LAND_REAL_ESTATE_AD",
   "db_common_name": "WORKER_JOB_HIST",
   "color": "#ccc",
-  "server_url": "http://220.94.196.191:5001/geocode/reverse-batch",
+  "server_url": "https://goodbye772.com/geocode/reverse-batch",
+  "new_server_url": "https://goodbye772.com/geocode/reverse-batch",
+  "new_test_server_url": "http://localhost:81/geocode/reverse-batch",
+  "old_server_url": "http://220.94.196.191:5001/geocode/reverse-batch",
+  "old_test_server_url": "http://localhost:5001/geocode/reverse-batch",
   "master_api_key": "my_secret_master_key_1234!",
   "enabled": true,
   "popup": false,
@@ -24,13 +28,13 @@
     {
       "name": "등록일(YYYYMMDD) 시작",
       "code": "fr_date",
-      "value": 20260618,
+      "value": 20261001,
       "type": "input"
     },
     {
       "name": "등록일(YYYYMMDD) 종료",
       "code": "to_date",
-      "value": 20260620,
+      "value": 20261002,
       "type": "input"
     },
     {
@@ -95,7 +99,7 @@
           "name": "전세",
           "code": "B1",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "월세",
@@ -122,7 +126,7 @@
           "name": "아파트",
           "code": "A01",
           "type": "checkbox",
-          "value": false
+          "value": true
         },
         {
           "name": "재건축",
@@ -176,7 +180,7 @@
           "name": "상가주택",
           "code": "D05",
           "type": "checkbox",
-          "value": true
+          "value": false
         },
         {
           "name": "재개발",
@@ -199,7 +203,7 @@
               "name": "토지",
               "code": "E03",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "사무실",
@@ -211,7 +215,7 @@
               "name": "건물",
               "code": "D03-D04-E01-Z00",
               "type": "checkbox",
-              "value": true
+              "value": false
             },
             {
               "name": "공장/창고",

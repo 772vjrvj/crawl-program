@@ -90,6 +90,32 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             self.file_driver = FileUtils(self.log_signal_func)
             self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
 
+            self.geocode_server_url = str(
+                self.get_runtime_customer_config_value(
+                    key_name="server_url",
+                    default="",
+                    customer_name=self.worker_name
+                ) or ""
+            ).strip()
+
+            self.geocode_master_api_key = str(
+                self.get_runtime_customer_config_value(
+                    key_name="master_api_key",
+                    default="",
+                    customer_name=self.worker_name
+                ) or ""
+            ).strip()
+
+            if not self.geocode_server_url:
+                self.log_signal_func("❌ server_url 설정 없음")
+                return False
+
+            if not self.geocode_master_api_key:
+                self.log_signal_func("❌ master_api_key 설정 없음")
+                return False
+
+            self.log_signal_func(f"✅ 주소 API 서버 설정 완료: {self.geocode_server_url}")
+
             if not self.db_set():
                 return False
 
@@ -2978,9 +3004,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
         """
         20개 단위의 배열을 서버로 보내서 지번/도로명 주소를 받아오는 함수
         """
-        # SERVER_URL = "http://localhost:5001/geocode/reverse-batch"
-        SERVER_URL = "http://220.94.196.191:5001/geocode/reverse-batch"
-        MASTER_API_KEY = "my_secret_master_key_1234!"
+        server_url = self.geocode_server_url
+        master_api_key = self.geocode_master_api_key
 
         payload = []
         for info in items_chunk:
@@ -3004,13 +3029,13 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
             })
 
         headers = {
-            "X-API-KEY": MASTER_API_KEY,
+            "X-API-KEY": master_api_key,
             "Content-Type": "application/json"
         }
 
         try:
             # 🌟 수정: response 객체가 리스트(list) 자체일 확률이 높음
-            response = self.api_client.post(url=SERVER_URL, headers=headers, json=payload, timeout=60)
+            response = self.api_client.post(url=server_url, headers=headers, json=payload, timeout=60)
 
             # 1. response가 list라면 성공으로 간주
             if isinstance(response, list):

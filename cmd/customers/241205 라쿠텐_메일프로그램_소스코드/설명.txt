@@ -1,0 +1,26 @@
+- 24.02.23 Update [ Extract_Rakuten_orderList_data1(Selenium사용_초기ver).exe ]
+- 24.12.05 Update [ Extract_Rakuten_orderList_data2(자동화우회_엑셀파싱오류개선ver).exe ]
+
+### 프로그램 실행 방법 ### 
+0) 압축파일 해제.
+1) 실행하는 파일과 같은 경로 내 setting 폴더(idpw.txt)가 존재하는지 확인. 
+2) cmd 실행
+3) 프로그램이 있는 경로로 이동. 예) C:\UserK\Desktop\
+   > cd C:\UserK\Desktop\
+4) E 누르고 탭키를 누른 후 엔터. (탭키 누르면 파일명 자동완성) = 최신버전 파일로 실행.
+Extract_Rakuten_orderList_data1(Selenium사용_초기ver).exe 프로그램 실행.
+5) 메일 로그인창이 새로 뜨는데 자동으로 진행되므로 끄지 말고 놔두세요. 
+
+
+### cf. 실행시 ModuleNotFoundError 에러가 발생하면? ### 
+: CMD 실행 -> 모듈 에러가 뜬 모듈명을 찾아 명령어 설치합니다.
+pip install requests
+pip install rsa
+pip install lzstring
+pip install xlsxwriter
+pip install lxml
+pip install selenium
+pip install pyperclip
+pip install beautifulsoup4
+pip install Pillow
+pip install chromedriver-autoinstaller

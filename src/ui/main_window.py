@@ -52,6 +52,9 @@ from src.ui.style.style import create_common_button, main_style, LOG_STYLE, HEAD
 
 import sys
 
+# 종료 중인 QThread는 finished까지 참조를 유지한다.
+_STOPPING_CHECK_WORKERS: set[Any] = set()
+
 # =========================================================
 # typing helpers (Protocol)
 # =========================================================
@@ -131,6 +134,8 @@ class MainWindow(QWidget):
         self.site: Optional[str] = None
         self.color: Optional[str] = None
         self.session: Optional[Session] = None
+        self._session_check_stopping = False
+        self._session_failure_handled = False
 
         # UI 레퍼런스
         self.header_label: Optional[QLabel] = None
@@ -258,11 +263,13 @@ class MainWindow(QWidget):
                 self.app_manager.go_to_login()
                 return
 
+            self._session_check_stopping = False
+            self._session_failure_handled = False
             w = CheckWorker(self.session, server_url)
             w.api_failure.connect(self.handle_api_failure)
             w.log_signal.connect(self.add_log)
-            w.start()
             self.api_worker = cast(ApiWorkerProto, w)
+            w.start()
 
     # 메인 워커 세팅
     def main_worker_set(self) -> None:
@@ -389,29 +396,43 @@ class MainWindow(QWidget):
         new_stylesheet = f"{current_stylesheet}{prop}: {value};"
         widget.setStyleSheet(new_stylesheet)
 
-    # 프로그램 일시 중지 (동일한 아이디로 로그인시)
+    def _stop_session_check(self) -> None:
+        self._session_check_stopping = True
+        worker = self.api_worker
+        self.api_worker = None
+        if worker is None:
+            return
+        # GUI 스레드에서 네트워크 요청 종료를 기다리지 않는다.
+        _STOPPING_CHECK_WORKERS.add(worker)
+        worker.finished.connect(lambda w=worker: _STOPPING_CHECK_WORKERS.discard(w))
+        worker.stop()
+        if not worker.isRunning():
+            _STOPPING_CHECK_WORKERS.discard(worker)
+
+    # 인증 실패 시에만 로그인 화면으로 이동한다.
     def handle_api_failure(self, error_message: str) -> None:
+        if (self._session_check_stopping or self._session_failure_handled
+                or self._closing):
+            return
+        # 이전 화면/세션의 Worker가 보낸 지연 신호는 무시한다.
+        if self.sender() is not self.api_worker:
+            return
+        if GlobalState().get(GlobalState.SESSION) is not self.session:
+            return
+        self._session_failure_handled = True
+        self.add_log(f"[세션 체크 실패] {error_message}")
+
         if self.collect_button is not None:
             self.collect_button.setStyleSheet(main_style(self.color))
             self.collect_button.repaint()
-
         if self.log_window is not None:
             self.log_window.setStyleSheet(LOG_STYLE)
             self.log_window.repaint()
 
         self.cleanup_for_switch()
-
-        self.add_log(f"동시사용자 접속으로 프로그램을 종료하겠습니다... {error_message}")
-        self.show_message(
-            "동시 사용자 접속이 감지되었습니다.\n다시 로그인 해주세요.",
-            "warn",
-            None
-        )
-
+        self.show_message(error_message, "warn", None)
         self.hide()
-
         QTimer.singleShot(0, self.app_manager.go_to_login)
-
         QTimer.singleShot(0, self.deleteLater)
 
 
@@ -869,6 +890,7 @@ class MainWindow(QWidget):
 
     # 사이트 이동
     def go_site_list(self) -> None:
+        self._stop_session_check()
         try:
             self.hide()
         except Exception:
@@ -889,18 +911,12 @@ class MainWindow(QWidget):
 
     # 로그아웃
     def on_log_out(self) -> None:
+        self._stop_session_check()
         try:
             self.stop(show_popup=False)
         except Exception:
             pass
 
-        try:
-            if self.api_worker is not None:
-                self.api_worker.stop()
-                self.api_worker.wait(3000)
-                self.api_worker = None
-        except Exception:
-            pass
 
         try:
             keyring.delete_password(server_name, "username")
@@ -1261,29 +1277,15 @@ class MainWindow(QWidget):
 
 
     def cleanup_for_switch(self) -> None:
-
+        self._stop_session_check()
         self.cleanup_for_nav()
 
-        try:
-            if self.api_worker is not None:
-                self.api_worker.stop()
-                self.api_worker.wait(3000)
-                self.api_worker = None
-        except Exception:
-            pass
-
-        try:
-            if self.session is not None:
-                try:
-                    self.session.cookies.clear()
-                except Exception:
-                    pass
-
-            st = GlobalState()
-            st.set("session", None)
-            self.session = None
-        except Exception:
-            pass
+        # 종료 중인 체크/크롤링 요청과 쿠키를 동시에 변경하지 않는다.
+        # 전역 Session이 새 로그인으로 바뀌었다면 그 Session은 유지한다.
+        st = GlobalState()
+        if st.get(GlobalState.SESSION) is self.session:
+            st.set(GlobalState.SESSION, None)
+        self.session = None
 
         try:
             if self.logout_worker is not None:

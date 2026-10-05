@@ -1,0 +1,17 @@
+{
+  "postgresql": {
+    "host": "127.0.0.1",
+    "port": 5432,
+    "database": "postgres",
+    "user": "postgres",
+    "password": "0772"
+  },
+  "mariadb": {
+    "host": "vjrvj.cafe24.com",
+    "port": 3306,
+    "database": "vjrvj",
+    "user": "vjrvj",
+    "password": "Ksh-8818510"
+  },
+  "batch_size": 1000
+}
