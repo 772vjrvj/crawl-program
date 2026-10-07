@@ -19,6 +19,14 @@ from src.workers.api_base_worker import BaseApiWorker
 
 class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
+    PLACE_WAIT_MIN_SECONDS: float = 3.0
+    PLACE_WAIT_MAX_SECONDS: float = 5.0
+    PLACE_BATCH_SIZE: int = 100
+    PLACE_BATCH_WAIT_SECONDS: float = 3 * 60
+    PLACE_BATCH_WAIT_AFTER_429_SECONDS: float = 5 * 60
+    SEARCH_BATCH_SIZE: int = 100
+    SEARCH_429_MAX_RETRIES: int = 3
+
     # 초기화
     def __init__(self) -> None:
         super().__init__()
@@ -53,6 +61,112 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
         # 상세 조회 실패 원인을 FAIL 행의 row_error_message로 저장하기 위한 임시 값
         self._last_detail_error_message: Optional[str] = None
+
+        # 대기시간 계산용: 중복 스킵을 제외한 상세 조회 시도 횟수
+        self._detail_request_count: int = 0
+        self._next_detail_rest_at: int = self.PLACE_BATCH_SIZE
+        self._detail_rest_seconds: float = self.PLACE_BATCH_WAIT_SECONDS
+        self._search_request_count: int = 0
+        self._next_search_rest_at: int = self.SEARCH_BATCH_SIZE
+        self._http_429_detected: bool = False
+
+    def _wait_crawl_delay(self, seconds: float, label: str = "") -> bool:
+        """대기 중 정지 요청을 확인한다. 조회/저장 방식은 변경하지 않는다."""
+        deadline = time.monotonic() + seconds
+        while self.running:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return True
+            time.sleep(min(0.2, remaining))
+        return False
+
+    def _wait_before_place_detail(self) -> bool:
+        if not self.running:
+            return False
+        if self._detail_request_count >= self._next_detail_rest_at:
+            self.log_signal_func(
+                f"⏸️ [주기적 휴식] 실제 상세 조회 {self._detail_request_count}개 "
+                f"→ {self._detail_rest_seconds / 60:g}분 대기"
+            )
+            if not self._wait_crawl_delay(self._detail_rest_seconds):
+                return False
+            self._next_detail_rest_at += self.PLACE_BATCH_SIZE
+            return True
+        if self._detail_request_count == 0:
+            return True
+        seconds = random.uniform(self.PLACE_WAIT_MIN_SECONDS, self.PLACE_WAIT_MAX_SECONDS)
+        self.log_signal_func(f"⏳ [다음 업체 대기] {seconds:.1f}초")
+        return self._wait_crawl_delay(seconds)
+
+    def _api_log_with_delay(self, message: str) -> None:
+        """기존 APIClient 로그를 그대로 전달하고 429 발생만 확인한다."""
+        self.log_signal_func(message)
+        text = str(message)
+        if re.search(r"\b429\b", text) and ("HTTP" in text or "Too Many Requests" in text):
+            self._http_429_detected = True
+            self._increase_rest_after_429()
+
+    def _increase_rest_after_429(self) -> None:
+        if self._detail_rest_seconds < self.PLACE_BATCH_WAIT_AFTER_429_SECONDS:
+            self._detail_rest_seconds = self.PLACE_BATCH_WAIT_AFTER_429_SECONDS
+            self.log_signal_func(
+                f"⚠️ [휴식시간 변경] HTTP 429 발생으로 이후 목록 검색/상세 조회 "
+                f"100회마다 {self._detail_rest_seconds / 60:g}분 휴식"
+            )
+
+    def _post_search_with_delay(self, url: str, headers: Dict[str, str],
+                                payload: List[Dict[str, Any]], keyword: str, page: int) -> Any:
+        """기존 목록 요청 그대로 실행. 429이면 같은 검색어/페이지를 재시도한다."""
+        if self.api_client is None:
+            return None
+        for retry in range(self.SEARCH_429_MAX_RETRIES + 1):
+            if not self.running:
+                return None
+            if self._search_request_count >= self._next_search_rest_at:
+                self.log_signal_func(
+                    f"⏸️ [목록 검색 휴식] 검색 요청 {self._search_request_count}회 "
+                    f"→ {self._detail_rest_seconds / 60:g}분 대기"
+                )
+                if not self._wait_crawl_delay(self._detail_rest_seconds):
+                    return None
+                self._next_search_rest_at += self.SEARCH_BATCH_SIZE
+
+            # APIClient가 오류를 로그로 남긴 뒤 None을 반환하는 경우도 감지한다.
+            self._http_429_detected = False
+            self._search_request_count += 1
+            try:
+                result = self.api_client.post(url=url, headers=headers, json=payload)
+            except Exception as e:
+                response = getattr(e, "response", None)
+                if getattr(response, "status_code", None) == 429:
+                    self._http_429_detected = True
+                if not self._http_429_detected:
+                    raise
+                result = None
+
+            if not self._http_429_detected:
+                return result
+            self._increase_rest_after_429()
+            if retry >= self.SEARCH_429_MAX_RETRIES:
+                self.log_signal_func(
+                    f"⛔ [목록 검색 중단] 429 재시도 {self.SEARCH_429_MAX_RETRIES}회 실패 "
+                    f"/ 검색어: {keyword}, 페이지: {page}. 다음 지역으로 넘어가지 않고 중단합니다."
+                )
+                self.running = False
+                return None
+
+            seconds = self.PLACE_BATCH_WAIT_AFTER_429_SECONDS
+            self.log_signal_func(
+                f"⏸️ [HTTP 429 휴식] {seconds / 60:g}분 대기 후 같은 검색 재시도 "
+                f"({retry + 1}/{self.SEARCH_429_MAX_RETRIES}) "
+                f"/ 검색어: {keyword}, 페이지: {page}"
+            )
+            if not self._wait_crawl_delay(seconds):
+                return None
+            # 429 대기와 100회 주기적 휴식이 같은 시점이면 중복해서 쉬지 않는다.
+            if self._search_request_count >= self._next_search_rest_at:
+                self._next_search_rest_at += self.SEARCH_BATCH_SIZE
+        return None
 
     # 초기화
     def init(self) -> bool:
@@ -100,7 +214,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         self.log_signal_func("✅ 드라이버 세팅")
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
-        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func, verify=True)
+        self.api_client = APIClient(use_cache=False, log_func=self._api_log_with_delay, verify=True)
 
     # 정리
     def cleanup(self) -> None:
@@ -277,6 +391,10 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             query: str,
     ) -> Tuple[Optional[Dict[str, Any]], bool]:
         """상세 조회 시간을 측정하고 성공·실패 결과를 모두 Detail에 저장한다."""
+        if not self._wait_before_place_detail():
+            return None, False
+        if self.api_client is not None:
+            self._detail_request_count += 1
         row_start_at = self._now_db()
         self._last_detail_error_message = None
 
@@ -502,7 +620,8 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                     self.log_signal_func("크롤링이 중지되었습니다.")
                     break
 
-                time.sleep(random.uniform(1, 2))
+                if not self._wait_crawl_delay(random.uniform(2, 3)):
+                    break
 
                 result = self._fetch_search_results(query, page)
                 if not result:
@@ -528,8 +647,6 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                         f"검색어: {query}, 수집: {idx} / {len(result_ids)}, 중복 아이디: {place_id}"
                     )
                     continue
-
-                time.sleep(random.uniform(2, 4))
 
                 place_info, save_ok = self._fetch_and_save_place_detail(
                     place_id,
@@ -596,7 +713,6 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
             self.before_pro_value = pro_value
 
             self.log_signal_func(f"현재 페이지 {self.current_cnt}/{self.total_cnt} : {obj}")
-            time.sleep(random.uniform(1, 2))
 
     # 전체 갯수 조회
     def _total_cnt_cal(self) -> Optional[List[str]]:
@@ -619,7 +735,8 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                         self.log_signal_func("크롤링이 중지되었습니다.")
                         break
 
-                    time.sleep(random.uniform(1, 2))
+                    if not self._wait_crawl_delay(random.uniform(2, 3)):
+                        break
                     self.log_signal_func(f"전체 {index}/{len(self.keyword_list)}, keyword: {keyword}, page: {page}")
 
                     result = self._fetch_search_results(keyword, page)
@@ -685,7 +802,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 self.log_signal_func("[에러] api_client 가 초기화되지 않았습니다.")
                 return []
 
-            res = self.api_client.post(url=url, headers=headers, json=payload)
+            res = self._post_search_with_delay(url, headers, payload, keyword, page)
             if not isinstance(res, list) or not res or not isinstance(res[0], dict):
                 return []
 
