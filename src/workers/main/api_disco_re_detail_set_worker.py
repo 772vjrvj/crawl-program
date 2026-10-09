@@ -396,9 +396,13 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         self.job_error = None
         self.geocode_js = ""
         self.get_json_js = ""
+        self.get_json_batch_js = ""
+        self._json_prefetch_cache = {}
+        self._batch_fallback_logged = False
         self.page_delay = 0.3
         self.region_delay = 2.0
         self.request_delay = 0.1
+        self.detail_thread_count = 4
         self.map_width_scale = 1.2
         self.map_height_scale = 1.2
         self.excel_header_merge_yn = True
@@ -449,6 +453,14 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             if "scale" in name and value == 0:
                 raise ValueError("지도 배율은 0보다 커야 합니다.")
             setattr(self, name, value)
+        try:
+            self.detail_thread_count = int(
+                str(self._setting(config, "detail_thread_count", 4)).strip()
+            )
+        except (TypeError, ValueError):
+            raise ValueError("상세 동시 조회 수는 1~4 사이의 정수여야 합니다.")
+        if not 1 <= self.detail_thread_count <= 4:
+            raise ValueError("상세 동시 조회 수는 1~4 사이여야 합니다.")
         self.folder_path = str(self._setting(config, "folder_path", "") or "")
         self.auto_save_yn = self._bool(self._setting(config, "auto_save_yn", False))
         self.detail_log_yn = self._bool(self._setting(config, "detail_log_yn", True))
@@ -484,9 +496,28 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         ]
         if not self.db_repository.initialize(schema_files, start_job=True):
             raise RuntimeError("공통 WorkerDbRepository 초기화 실패")
+        self._ensure_search_keyword_column()
         self.log_signal_func("[디스코] 저장 컬럼: " + json.dumps(
             [c["value"] for c in self.selected_column_defs], ensure_ascii=False))
         self.log_signal_func(f"[디스코] DB 작업 시작: {self.db_repository.job_id}")
+
+    def _ensure_search_keyword_column(self):
+        """기존 SQLite DB에도 검색 키워드 컬럼을 한 번만 추가합니다."""
+        rows = self.db_repository.sqlite.fetchall(
+            'PRAGMA table_info("disco_re_detail")'
+        )
+        column_names = {
+            str(row.get("name") or "")
+            for row in (rows or [])
+            if isinstance(row, dict)
+        }
+        if "search_keyword" in column_names:
+            return
+        if not self.db_repository.sqlite.execute(
+            'ALTER TABLE "disco_re_detail" ADD COLUMN "search_keyword" TEXT'
+        ):
+            raise RuntimeError("기존 DB에 검색 키워드 컬럼을 추가하지 못했습니다.")
+        self.log_signal_func("[디스코] 기존 DB에 검색 키워드 컬럼을 추가했습니다.")
 
     def init(self) -> bool:
         try:
@@ -500,7 +531,9 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 "disco_geocode.js", "customers/disco_re_detail/js")
             self.get_json_js = self.file_driver.read_text_from_resources(
                 "browser_get_json.js", "customers/disco_re_detail/js")
-            if not self.geocode_js or not self.get_json_js:
+            self.get_json_batch_js = self.file_driver.read_text_from_resources(
+                "browser_get_json_batch.js", "customers/disco_re_detail/js")
+            if not self.geocode_js or not self.get_json_js or not self.get_json_batch_js:
                 raise FileNotFoundError("디스코 주소검색/상세조회 JS 파일이 없습니다.")
             self.db_set()
 
@@ -650,14 +683,78 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         return result
 
     def _fetch_json(self, url, response_name):
-        if not self._pause(self.request_delay):
-            raise InterruptedError("사용자 중단")
-        self.driver.set_script_timeout(30)
-        response = self.driver.execute_async_script(self.get_json_js, url) or {}
+        response = self._json_prefetch_cache.pop(url, None)
+        if response is None:
+            if not self._pause(self.request_delay):
+                raise InterruptedError("사용자 중단")
+            self.driver.set_script_timeout(30)
+            response = self.driver.execute_async_script(self.get_json_js, url) or {}
         if not response.get("ok"):
             self._request_error(response.get("error") or f"{response_name} 요청 실패")
 
         return response.get("json")
+
+    def _prefetch_json(self, requests):
+        """브라우저 세션 안에서 상세 GET 요청을 설정 개수만큼 동시에 처리합니다."""
+        pending = [
+            {"url": url, "name": name}
+            for url, name in requests
+            if url and url not in self._json_prefetch_cache
+        ]
+        if self.detail_thread_count <= 1 or len(pending) <= 1:
+            return
+        # 실제 Selenium 세션에서만 브라우저 병렬 요청을 사용합니다.
+        if not getattr(self.driver, "session_id", None):
+            return
+        if not self._pause(self.request_delay):
+            raise InterruptedError("사용자 중단")
+
+        try:
+            self.driver.set_script_timeout(120)
+            response = self.driver.execute_async_script(
+                self.get_json_batch_js,
+                {"requests": pending, "concurrency": self.detail_thread_count},
+            ) or {}
+            results = response.get("results")
+            if not response.get("ok") or not isinstance(results, list):
+                raise RuntimeError(response.get("error") or "동시 상세 요청 실패")
+            by_url = {
+                str(row.get("url") or ""): row
+                for row in results
+                if isinstance(row, dict) and row.get("url")
+            }
+            if len(by_url) != len(pending):
+                raise RuntimeError("동시 상세 요청 결과 수가 일치하지 않습니다.")
+            self._json_prefetch_cache.update(by_url)
+        except (PermissionError, InterruptedError):
+            raise
+        except Exception as error:
+            # 일부 WebDriver 환경에서 배치 스크립트를 지원하지 않으면 기존 순차 조회로 복귀합니다.
+            if not self._batch_fallback_logged:
+                self.log_signal_func(
+                    f"[디스코] 동시 상세 조회를 사용할 수 없어 순차 조회로 전환합니다: {error}"
+                )
+                self._batch_fallback_logged = True
+
+    @staticmethod
+    def _land_history_url(pnu, list_rows):
+        url = f"https://data.disco.re/home/get_land_history/?pnu={pnu}"
+        first_row = list_rows[0] if list_rows else {}
+        lat = first_row.get("lat")
+        lng = first_row.get("lng")
+        if lat not in (None, "") and lng not in (None, ""):
+            url += f"&lng={lng}&lat={lat}"
+        return url
+
+    def _core_detail_requests(self, pnu, list_rows):
+        return [
+            (f"https://data.disco.re/home/land_by_pnu/?pnu={pnu}", "토지정보"),
+            (self._land_history_url(pnu, list_rows), "토지이동이력"),
+            (f"https://data.disco.re/home/land_price/?pnu={pnu}", "개별공시지가"),
+            (f"https://data.disco.re/home/arch_by_pnu/?pnu={pnu}", "건물정보"),
+            (self._data_url("home/get_arch_business/", {"p": pnu}), "상가업소정보"),
+            (self._data_url("home/house_price/", {"pnu": pnu}), "개별주택공시가격"),
+        ]
 
     @staticmethod
     def _request_error(message):
@@ -698,14 +795,9 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         return result
 
     def _fetch_land_history(self, pnu, list_rows):
-        url = f"https://data.disco.re/home/get_land_history/?pnu={pnu}"
-        first_row = list_rows[0] if list_rows else {}
-        lat = first_row.get("lat")
-        lng = first_row.get("lng")
-        if lat not in (None, "") and lng not in (None, ""):
-            url += f"&lng={lng}&lat={lat}"
-
-        result = self._fetch_json(url, "토지이동이력")
+        result = self._fetch_json(
+            self._land_history_url(pnu, list_rows), "토지이동이력"
+        )
         if isinstance(result, dict):
             result = result.get("data")
         if not isinstance(result, list):
@@ -937,9 +1029,10 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             "건물 정보_세대 수_호수": result.get("ho"),
         }
 
-    def _collect_short_infos(self):
+    def _collect_short_infos(self, progress_start=0, progress_end=1000000):
         rows_by_pnu = {}
         missing_pnu = 0
+        skipped_pnus = set()
         for row in self.list_items:
             pnu = str(row.get("pnu") or "").strip()
             if pnu in self._seen_pnus:
@@ -947,32 +1040,57 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             if not pnu:
                 missing_pnu += 1
                 continue
+            # 목록에는 필지 PNU(19자리)가 아닌 법정동/지역코드(10자리)가
+            # 포함될 수 있습니다. 상세조회 대상이 아니므로 실패가 아닌 SKIP 처리합니다.
+            if len(pnu) != 19 or not pnu.isdigit():
+                skipped_pnus.add(pnu)
+                self._seen_pnus.add(pnu)
+                continue
             rows_by_pnu.setdefault(pnu, []).append(row)
 
         total = len(rows_by_pnu)
         self.log_signal_func(
-            f"[디스코] 상세 요약 조회 시작: 고유 PNU {total}건"
-            + (f", PNU 없는 목록 {missing_pnu}건 제외" if missing_pnu else "")
+            f"[디스코] 상세 요약 조회 시작: 대상 PNU {total}건"
+            + (f", SKIP {len(skipped_pnus)}건" if skipped_pnus else "")
+            + (f", PNU 없는 목록 {missing_pnu}건" if missing_pnu else "")
         )
+        for pnu in sorted(skipped_pnus):
+            self.log_signal_func(
+                f"[디스코] 상세 SKIP (상세 대상이 아닌 지역코드): {pnu}"
+            )
 
         success = 0
+        progress_value = int(progress_start)
+
+        def update_detail_progress(done):
+            nonlocal progress_value
+            if total <= 0:
+                target = int(progress_end)
+            else:
+                ratio = min(1.0, max(0.0, done / total))
+                target = int(progress_start + (progress_end - progress_start) * ratio)
+            self.progress_signal.emit(progress_value, target)
+            progress_value = target
+
+        if total == 0:
+            update_detail_progress(0)
+
         for index, (pnu, list_rows) in enumerate(rows_by_pnu.items(), 1):
             if not self.running:
                 break
-
-            # 상세 API의 pnu는 19자리 필지번호여야 합니다.
-            # 10자리 법정동코드/지역코드는 상세 대상이 아니므로 저장하지 않습니다.
-            if len(pnu) != 19 or not pnu.isdigit():
-                self.log_signal_func(
-                    f"[디스코] 상세 제외 (PNU 형식 오류): {pnu} / DB 저장하지 않음"
-                )
-                self._seen_pnus.add(pnu)
-                continue
 
             # 기본정보를 먼저 만들고, 뒤에서 조회한 토지 상세정보로 같은 컬럼을 덮어씁니다.
             self._row_errors = []
             started_at = now_text()
             item = self._korean_short_info(pnu, {})
+            item["검색 키워드"] = next(
+                (
+                    str(row.get("_search_keyword") or "").strip()
+                    for row in list_rows
+                    if str(row.get("_search_keyword") or "").strip()
+                ),
+                None,
+            )
             fetched = 0
             short_info = {}
 
@@ -990,7 +1108,10 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 )
                 # 기본정보가 없으면 주소/PNU 검증이 되지 않은 행이므로
                 # 나머지 상세 API도 호출하지 않고 완전히 제외합니다.
+                update_detail_progress(index)
                 continue
+
+            self._prefetch_json(self._core_detail_requests(pnu, list_rows))
 
             try:
                 land_info = self._fetch_land_info(pnu)
@@ -1043,6 +1164,11 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                     if not arch_key or arch_key in seen_arch_keys:
                         continue
                     seen_arch_keys.add(arch_key)
+                self._prefetch_json([
+                    (f"https://data.disco.re/home/arch_floor_list/?key={key}", "건축물현황")
+                    for key in seen_arch_keys
+                ])
+                for arch_key in seen_arch_keys:
                     try:
                         floor_rows = self._fetch_arch_floors(arch_key)
                         floor_items.extend(_korean_arch_floors(floor_rows))
@@ -1142,6 +1268,7 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             if self.detail_log_yn:
                 self.log_signal_func("[디스코] 상세: " + json.dumps(selected_item, ensure_ascii=False))
             self.log_signal_func(f"[디스코] DB 저장 {index}/{total} / PNU={pnu} / {row_status}")
+            update_detail_progress(index)
 
         self.log_signal_func(
             f"[디스코] 상세 요약 조회 완료: 성공 {success}/{total}건"
@@ -1187,7 +1314,9 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 if key in self._seen_items:
                     continue
                 self._seen_items.add(key)
-                self.list_items.append(row)
+                detail_row = dict(row)
+                detail_row["_search_keyword"] = address
+                self.list_items.append(detail_row)
                 region_count += 1
 
             has_next = result.get("has_next") is True or str(result.get("has_next")).lower() == "true"
@@ -1227,6 +1356,7 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             return False
 
         completed = 0
+        processed_tasks = 0
         try:
             self.driver.get("https://www.disco.re/")
             WebDriverWait(self.driver, 20).until(
@@ -1237,6 +1367,9 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 if not self.running:
                     break
                 address = " ".join(self._region_key(region))
+                region_start = int((index - 1) / len(tasks) * 1000000)
+                detail_start = int((index - 0.9) / len(tasks) * 1000000)
+                region_end = int(index / len(tasks) * 1000000)
                 self.log_signal_func(f"[디스코] 지역 {index}/{len(tasks)}: {address}")
                 self._current_stat = {"bounds": {}, "total": None, "count": 0}
                 region_status, region_error = "SUCCESS", None
@@ -1251,24 +1384,39 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                         raise
                     region_status, region_error = "FAIL", str(error)
                     self.log_signal_func(f"[디스코] 지역 실패 ({address}): {error}")
+                stat = self._current_stat
+                # 각 지역이 끝날 때 저장하므로 다음 지역 실패에도 이전 결과는 보존됩니다.
+                self.progress_signal.emit(region_start, detail_start)
+                detail_success, detail_total = self._collect_short_infos(
+                    detail_start, region_end
+                )
                 if not self.running:
                     region_status, region_error = "STOP", "사용자 중단"
-                stat = self._current_stat
+
+                # 디스코의 total_count는 화면 마커/그룹 수가 섞여 실제 상세 대상과
+                # 일치하지 않습니다. 통계는 중복 및 SKIP을 제거한 유효 PNU 기준입니다.
+                stat_matched = (
+                    region_status == "SUCCESS"
+                    and detail_success == detail_total
+                )
                 self.db_repository.insert_stat({
                     "task_index": index,
                     "city": region.get("시도"),
                     "division": region.get("시군구"),
                     "sector": region.get("읍면동"),
-                    "totalCount": stat["total"] or 0,
-                    "crawledCount": stat["count"],
-                    "trueFalse": "T" if region_status == "SUCCESS" and stat["total"] == stat["count"] else "F",
+                    "totalCount": detail_total,
+                    "crawledCount": detail_success,
+                    "trueFalse": "T" if stat_matched else "F",
                     "status": region_status,
                     "error_message": region_error,
                     "map_bounds": json.dumps(stat["bounds"], ensure_ascii=False),
                 })
-                # 각 지역이 끝날 때 저장하므로 다음 지역 실패에도 이전 결과는 보존됩니다.
-                self._collect_short_infos()
-                self.progress_signal.emit(0, int(index / len(tasks) * 1000000))
+                self.log_signal_func(
+                    f"[디스코] 지역 통계: 전체={detail_total}, "
+                    f"수집={detail_success}, 일치={'T' if stat_matched else 'F'} "
+                    f"(중복·SKIP 제외)"
+                )
+                processed_tasks = index
                 if index < len(tasks) and not self._pause(self.region_delay):
                     break
 
@@ -1282,6 +1430,8 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 self.job_status, self.job_error = "FAIL", "일부 지역 또는 상세 조회 실패(행/지역 오류 확인)"
             else:
                 self.job_status = "SUCCESS"
+            if self.running and processed_tasks == len(tasks):
+                self.progress_signal.emit(1000000, 1000000)
             return self.job_status == "SUCCESS"
         except Exception as error:
             self.job_status = "FAIL" if self.running else "STOP"

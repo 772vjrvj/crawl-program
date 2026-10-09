@@ -28,7 +28,7 @@
     {
       "name": "지역 간 대기(초)",
       "code": "region_delay",
-      "value": 2,
+      "value": 1,
       "type": "input"
     },
     {
@@ -44,16 +44,28 @@
       "type": "input"
     },
     {
+      "name": "상세 동시 조회 수(1~4)",
+      "code": "detail_thread_count",
+      "value": 4,
+      "type": "input"
+    },
+    {
       "name": "지도 가로 범위 배율",
       "code": "map_width_scale",
-      "value": "1.0",
+      "value": "1.2",
       "type": "input"
     },
     {
       "name": "지도 세로 범위 배율",
       "code": "map_height_scale",
-      "value": "1.0",
+      "value": "1.2",
       "type": "input"
+    },
+    {
+      "name": "엑셀 부모·자식 컬럼 병합",
+      "code": "excel_header_merge_yn",
+      "value": true,
+      "type": "check"
     },
     {
       "name": "상세 JSON 로그 출력",
@@ -468,10 +480,19 @@
     {
       "시도": "서울시",
       "시군구": "강남구",
-      "읍면동": "대치동"
+      "읍면동": "압구정동"
+    },
+    {
+      "시도": "서울시",
+      "시군구": "강남구",
+      "읍면동": "역삼동"
     }
   ],
   "search_col_list": [
+    {
+      "code": "search_keyword",
+      "value": "검색 키워드"
+    },
     {
       "code": "pnu",
       "value": "PNU"
@@ -492,6 +513,11 @@
     {
       "code": "pnu",
       "value": "PNU",
+      "checked": true
+    },
+    {
+      "code": "search_keyword",
+      "value": "검색 키워드",
       "checked": true
     },
     {

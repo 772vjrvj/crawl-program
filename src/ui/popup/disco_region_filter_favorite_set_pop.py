@@ -4,6 +4,7 @@ import json
 import os
 from decimal import Decimal, ROUND_HALF_UP
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QButtonGroup, QCheckBox, QGridLayout, QHBoxLayout, QLabel, QMessageBox,
     QPushButton, QStackedWidget, QVBoxLayout, QWidget,
@@ -42,6 +43,7 @@ class DiscoRegionFilterFavoriteSetPop(RegionFilterFavoriteSetPop):
     def _button(self, text):
         button = QPushButton(text)
         button.setCheckable(True)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setMinimumHeight(32)
         button.setStyleSheet("""
             QPushButton { border: 1px solid #d9dfe6; border-radius: 7px;
@@ -50,6 +52,33 @@ class DiscoRegionFilterFavoriteSetPop(RegionFilterFavoriteSetPop):
                                   border: 1px solid #80b5ff; }
         """)
         return button
+
+    @staticmethod
+    def _checkbox_style():
+        """컬럼/DB 팝업과 같은 검정 체크박스 스타일입니다."""
+        return """
+            QCheckBox {
+                font-size: 13px;
+                color: #333;
+                padding: 6px 8px;
+                background: transparent;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+                border: 2px solid #888888;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: black;
+            }
+        """
+
+    def _style_checkbox(self, checkbox):
+        checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
+        checkbox.setStyleSheet(self._checkbox_style())
+        return checkbox
 
     def _section(self, name, parent_layout):
         widget = QWidget()
@@ -82,7 +111,8 @@ class DiscoRegionFilterFavoriteSetPop(RegionFilterFavoriteSetPop):
         tabs = QButtonGroup(self)
         stack = QStackedWidget()
         groups = node["children"]
-        stack.addWidget(QLabel("전체유형"))
+        # 전체 유형에는 별도 하위 선택지가 없으므로 빈 페이지로 두고 스택도 숨깁니다.
+        stack.addWidget(QWidget())
         all_checkbox_rows = []
 
         for index, group in enumerate(groups, 1):
@@ -108,10 +138,11 @@ class DiscoRegionFilterFavoriteSetPop(RegionFilterFavoriteSetPop):
                     cb.setChecked(item["value"])
                     cb.blockSignals(False)
                 # 전체 버튼은 개별 체크값에서 다시 계산
-                all_button.setChecked(
-                    all(cb.isChecked() for cb, _ in boxes)
-                )
+                all_selected = all(cb.isChecked() for cb, _ in boxes)
+                all_button.setChecked(all_selected)
+                all_button.setText("전체 해제" if all_selected else "전체 선택")
             stack.setCurrentIndex(index)
+            stack.setVisible(index != 0)
 
         for index, name in enumerate(["전체"] + [g["name"] for g in groups]):
             button = self._button(name)
@@ -121,33 +152,36 @@ class DiscoRegionFilterFavoriteSetPop(RegionFilterFavoriteSetPop):
         tabs.idClicked.connect(switch)
         layout.addLayout(tab_grid)
         stack.setCurrentIndex(active_index)
+        stack.setVisible(active_index != 0)
         layout.addWidget(stack)
 
     def _render_multi(self, items, layout, property_group=False):
-        all_button = self._button("전체")
+        all_button = self._button("전체 선택")
         all_button.setObjectName("group_all")
         layout.addWidget(all_button)
         grid = QGridLayout()
         boxes = []
         for index, item in enumerate(items):
-            cb = self._make_checkbox(item)
+            cb = self._style_checkbox(self._make_checkbox(item))
             cb.setFixedHeight(40)
             boxes.append((cb, item))
             grid.addWidget(cb, index // 2, index % 2)
         layout.addLayout(grid)
 
         def sync():
-            all_button.setChecked(
-                all(cb.isChecked() for cb, _ in boxes) if property_group
-                else not any(cb.isChecked() for cb, _ in boxes) or all(cb.isChecked() for cb, _ in boxes)
-            )
+            all_selected = all(cb.isChecked() for cb, _ in boxes)
+            all_button.setChecked(all_selected)
+            all_button.setText("전체 해제" if all_selected else "전체 선택")
 
         def choose_all():
+            # 하위 그룹의 전체 버튼은 한 번 누르면 전체 선택,
+            # 전체 선택 상태에서 다시 누르면 전체 해제합니다.
+            target_checked = not all(cb.isChecked() for cb, _ in boxes)
             for cb, item in boxes:
                 cb.blockSignals(True)
-                cb.setChecked(property_group)
+                cb.setChecked(target_checked)
                 cb.blockSignals(False)
-                item["value"] = property_group
+                item["value"] = target_checked
             sync()
 
         for cb, _ in boxes:
@@ -217,6 +251,7 @@ class DiscoRegionFilterFavoriteSetPop(RegionFilterFavoriteSetPop):
 
         unit_group.idClicked.connect(switch)
         exclusive = QCheckBox("전용면적 기준으로 찾기")
+        self._style_checkbox(exclusive)
         exclusive.setChecked(node["exclusiveAreaOnly"])
         exclusive.toggled.connect(lambda checked: node.update(exclusiveAreaOnly=checked))
         layout.addWidget(exclusive)

@@ -189,6 +189,7 @@ class MainWindow(QWidget):
         self.progress_worker: Optional[ProgressWorkerProto] = None
         self.on_demand_worker: Optional[OnDemandWorkerProto] = None
         self.api_worker: Optional[ApiWorkerProto] = None
+        self._progress_finalized = False
 
         self.app_manager: AppManagerProto = app_manager
 
@@ -765,6 +766,7 @@ class MainWindow(QWidget):
 
             if self.progress_bar is not None:
                 self.progress_bar.setValue(0)
+            self._progress_finalized = False
 
             if self.progress_worker is not None:
                 self.progress_worker.start()
@@ -851,11 +853,19 @@ class MainWindow(QWidget):
 
     # 프로그래스 큐 데이터 담기
     def set_progress(self, start_value: int, end_value: int) -> None:
+        if end_value >= 1000000:
+            self._progress_finalized = True
+            if self.progress_bar is not None:
+                self.progress_bar.setValue(1000000)
+                self.progress_bar.repaint()
+            return
         if self.task_queue:
             self.task_queue.put((start_value, end_value))
 
     # 프로그래스 UI 업데이트
     def update_progress(self, value: int) -> None:
+        if self._progress_finalized and value < 1000000:
+            return
         if self.progress_bar is not None:
             self.progress_bar.setValue(value)
 
