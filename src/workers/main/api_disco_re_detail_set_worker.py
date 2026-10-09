@@ -3,6 +3,7 @@
 import json
 import math
 import time
+import requests
 from datetime import datetime
 from urllib.parse import urlencode
 
@@ -13,6 +14,7 @@ from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
 from src.workers.api_base_worker import BaseApiWorker
 from src.repositories.worker_db_repository import WorkerDbRepository
+
 
 
 LIST_LIMIT = 20
@@ -378,6 +380,8 @@ def make_map_bounds(center_lat, center_lng, width_scale=1.0, height_scale=1.0):
 class ApiDiscoReDetailSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
+        self.major_repair_master_api_key = None
+        self.major_repair_server_url = None
         self.worker_name = "disco_re_detail"
         self.driver = None
         self.selenium_driver = None
@@ -536,6 +540,22 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             if not self.geocode_js or not self.get_json_js or not self.get_json_batch_js:
                 raise FileNotFoundError("디스코 주소검색/상세조회 JS 파일이 없습니다.")
             self.db_set()
+
+            self.major_repair_server_url = str(
+                self.get_runtime_customer_config_value(
+                    key_name="server_url",
+                    default="",
+                    customer_name=self.worker_name
+                ) or ""
+            ).strip()
+
+            self.major_repair_master_api_key = str(
+                self.get_runtime_customer_config_value(
+                    key_name="master_api_key",
+                    default="",
+                    customer_name=self.worker_name
+                ) or ""
+            ).strip()
 
             try:
                 coordinate_rows = self.file_driver.read_json_array_from_resources(
@@ -1243,6 +1263,25 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 item.update(self._empty_unit_info())
                 item.update(_korean_apart_prices([]))
 
+            # 대수선 관련 컬럼이 1개라도 선택되었는지 확인
+            is_major_repair_checked = any(
+                col.get("code", "").startswith("major_repair_") or "대수선" in str(col.get("value", ""))
+                for col in self.selected_column_defs
+            )
+
+            # 대수선 컬럼이 1개라도 체크된 경우에만 API 호출
+            if is_major_repair_checked:
+                try:
+                    repair_info = self._fetch_major_repair_info(pnu)
+                    if repair_info:
+                        item.update(repair_info)
+                        fetched += 1
+                except Exception as error:
+                    if isinstance(error, PermissionError):
+                        raise
+                    self._row_errors.append(f"대수선: {error}")
+                    self.log_signal_func(f"[디스코] 대수선 정보 실패 (PNU={pnu}): {error}")
+
             if not self.running:
                 break
             row_status = "SUCCESS" if fetched and not self._row_errors else ("PARTIAL" if fetched else "FAIL")
@@ -1342,6 +1381,44 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             "regions": self.region or [],
             "filters": self.setting_detail_all_style or [],
         }]
+
+    def _fetch_major_repair_info(self, pnu):
+        """웹서버(https://goodbye772.com/archhub/major-repair)를 호출하여 대수선 정보를 조회합니다."""
+        if not self.major_repair_master_api_key:
+            self.log_signal_func("[디스코] master_api_key 설정이 없어 대수선 조회를 건너뜁니다.")
+            return {}
+
+        url = "https://goodbye772.com/archhub/major-repair"
+        headers = {
+            "X-API-KEY": self.major_repair_master_api_key
+        }
+        params = {
+            "pnu": pnu
+        }
+
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        if response.status_code != 200:
+            raise RuntimeError(f"대수선 API 오류 (HTTP {response.status_code}): {response.text}")
+
+        res_json = response.json()
+        if not isinstance(res_json, dict):
+            raise ValueError("대수선 API 응답이 JSON 객체가 아닙니다.")
+
+        # 대수선 이력 배열(List)은 SQLite TEXT 컬럼에 저장하기 위해 JSON 문자열로 변환
+        history_data = res_json.get("건물 정보_대수선이력")
+        if isinstance(history_data, (list, dict)):
+            history_data = json.dumps(history_data, ensure_ascii=False)
+
+        return {
+            "건물 정보_대수선조회상태": res_json.get("건물 정보_대수선조회상태"),
+            "건물 정보_대수선조회메시지": res_json.get("건물 정보_대수선조회메시지"),
+            "건물 정보_대수선여부": res_json.get("건물 정보_대수선여부"),
+            "건물 정보_대수선건수": res_json.get("건물 정보_대수선건수"),
+            "건물 정보_최근대수선허가일": res_json.get("건물 정보_최근대수선허가일"),
+            "건물 정보_대수선이력": history_data,
+            "건물 정보_대수선조회일시": res_json.get("건물 정보_대수선조회일시"),
+            "건물 정보_대수선데이터기준일시": res_json.get("건물 정보_대수선데이터기준일시"),
+        }
 
     def main(self) -> bool:
         tasks = [

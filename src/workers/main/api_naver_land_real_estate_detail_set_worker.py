@@ -20,7 +20,8 @@ class ApiNaverLandRealEstateDetailSetWorker(BaseApiWorker):
     def __init__(self) -> None:
         super().__init__()
 
-        # === 신규 === DB 저장용 공통 상태
+        self.geocode_master_api_key = None
+        self.geocode_server_url = None
         self.hist_id = None
         self.job_id = None
         self.hist_status = "RUNNING"
