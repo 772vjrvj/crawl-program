@@ -50,8 +50,9 @@ class ColumnSetPop(QDialog):
         self.checkbox_map = {}
 
         self.setWindowTitle("컬럼 선택")
-        self.resize(850, 760)
-        self.setMinimumSize(760, 560)
+        # 기존처럼 한 줄에 5개 컬럼을 표시합니다.
+        self.resize(1600, 760)
+        self.setMinimumSize(1200, 560)
         self.setStyleSheet("background-color: white; color: #111;")
 
         self.init_ui(parent)
@@ -127,11 +128,11 @@ class ColumnSetPop(QDialog):
 
         grid_layout = QGridLayout(grid_widget)
         grid_layout.setContentsMargins(0, 0, 0, 0)
-        grid_layout.setHorizontalSpacing(10)
+        grid_layout.setHorizontalSpacing(16)
         grid_layout.setVerticalSpacing(6)
 
         col_per_row = 5
-        item_min_width = 150
+        item_min_width = 220
 
         row = 0
         col_idx = 0
@@ -424,7 +425,7 @@ class ColumnSetPop(QDialog):
     def checkbox_style(self) -> str:
         return """
             QCheckBox {
-                font-size: 14px;
+                font-size: 13px;
                 color: #333;
                 padding: 6px 8px;
             }

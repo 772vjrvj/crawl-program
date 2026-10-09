@@ -22,7 +22,7 @@ import sys
 import time
 from datetime import datetime
 from typing import Any, Optional
-from PySide6.QtCore import QRect, Qt, Signal, QTimer
+from PySide6.QtCore import QRect, Qt, Signal, QTimer, QStandardPaths
 from PySide6.QtGui import QColor, QPainter, QPen, QCursor
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -1127,7 +1127,63 @@ class DbSetPop(QDialog):
                 if value:
                     return value
 
-        return os.path.dirname(self.db_path)
+        desktop = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.DesktopLocation
+        )
+        return desktop or os.path.join(os.path.expanduser("~"), "Desktop")
+
+    def _save_folder_path(self, folder_path: str) -> bool:
+        """사용자가 선택한 엑셀 저장 폴더를 config.json에 저장합니다."""
+        folder_path = os.path.abspath(os.path.expanduser(str(folder_path or "").strip()))
+        if not folder_path or not self.config_path:
+            return False
+
+        try:
+            with open(self.config_path, "r", encoding="utf-8") as file:
+                config_data = json.load(file)
+
+            settings = config_data.setdefault("setting", [])
+            saved = False
+            for row in settings:
+                if not isinstance(row, dict):
+                    continue
+                if str(row.get("code") or "").strip() == "folder_path":
+                    row["value"] = folder_path
+                    saved = True
+                    break
+
+            if not saved:
+                settings.insert(0, {
+                    "name": "저장 폴더",
+                    "code": "folder_path",
+                    "value": folder_path,
+                    "type": "folder",
+                })
+
+            with open(self.config_path, "w", encoding="utf-8") as file:
+                json.dump(config_data, file, ensure_ascii=False, indent=2)
+                file.write("\n")
+
+            self.config_data = config_data
+            return True
+        except Exception as error:
+            self.log_signal.emit(f"[EXCEL] 저장 폴더 설정 저장 실패: {error}")
+            return False
+
+    def _excel_header_merge_enabled(self) -> bool:
+        """DB 엑셀 저장 시 부모·자식 헤더 병합 여부를 읽습니다."""
+        raw = self.config_data.get("excel_header_merge_yn")
+        if raw is None:
+            for row in self.config_data.get("setting") or []:
+                if isinstance(row, dict) and str(row.get("code") or "").strip() == "excel_header_merge_yn":
+                    raw = row.get("value")
+                    break
+
+        if isinstance(raw, bool):
+            return raw
+        return str(raw if raw is not None else "true").strip().lower() in {
+            "1", "true", "y", "yes", "on"
+        }
 
     def _build_db_tabs(self) -> list[dict[str, Any]]:
         """config.json의 db_tabs를 정규화한다. 없으면 기존 db_name 1개 탭으로 처리한다."""
@@ -2051,6 +2107,7 @@ class DbSetPop(QDialog):
             rows: list[dict[str, Any]],
             columns: list[str],
             header_map: dict[str, str],
+            merge_headers: bool = True,
     ) -> bool:
         if not rows:
             return True
@@ -2065,7 +2122,12 @@ class DbSetPop(QDialog):
         ws = wb.create_sheet(title=sheet_name)
 
         headers = [header_map.get(col, col) for col in columns]
-        ws.append(headers)
+        header_groups = excel._infer_header_groups(headers) if merge_headers else None
+        if header_groups:
+            header_depth = excel._write_grouped_headers(ws, header_groups)
+        else:
+            header_depth = 1
+            ws.append(headers)
 
         for row in rows:
             ws.append([
@@ -2073,8 +2135,13 @@ class DbSetPop(QDialog):
                 for col in columns
             ])
 
-        excel._apply_header_style_and_filter(ws)
-        excel._apply_hyperlink_cells(ws)
+        data_start_row = header_depth + 1
+        excel._apply_header_style_and_filter(
+            ws,
+            header_row=header_depth,
+            data_start_row=data_start_row,
+        )
+        excel._apply_hyperlink_cells(ws, data_start_row=data_start_row)
         excel._apply_column_widths(
             ws,
             column_widths=[
@@ -2085,6 +2152,7 @@ class DbSetPop(QDialog):
                 for col in columns
             ],
             default_width=16,
+            header_row=header_depth,
         )
 
         wb.save(excel_path)
@@ -2129,6 +2197,9 @@ class DbSetPop(QDialog):
             QMessageBox.warning(self, "경고", "저장 경로가 지정되지 않았습니다.")
             return
 
+        # 다음 DB 엑셀 저장 시에도 마지막으로 선택한 폴더를 기본값으로 사용합니다.
+        self._save_folder_path(selected_folder)
+
         job_id = ""
         if self.current_hist_row:
             job_id = str(self.current_hist_row.get("job_id") or "").strip()
@@ -2149,6 +2220,7 @@ class DbSetPop(QDialog):
 
         try:
             excel = ExcelUtils(log_func=lambda msg: self.log_signal.emit(str(msg)))
+            merge_headers = self._excel_header_merge_enabled()
 
             # Sheet1 : 기존 상세 데이터
             detail_rows = self._fetch_all_rows_for_excel_tab(first_tab)
@@ -2164,6 +2236,7 @@ class DbSetPop(QDialog):
                 }
                 for col in selected_cols
             ]
+            detail_headers = [first_header_map.get(col, col) for col in selected_cols]
 
             excel_path = excel.save_db_rows_to_excel(
                 excel_filename=filename,
@@ -2176,6 +2249,8 @@ class DbSetPop(QDialog):
                 column_widths=detail_widths,
                 default_width=16,
                 return_path=True,
+                header_groups=excel._infer_header_groups(detail_headers) if merge_headers else None,
+                merge_headers=merge_headers,
             )
 
             if not excel_path:
@@ -2198,6 +2273,7 @@ class DbSetPop(QDialog):
                         rows=second_rows,
                         columns=second_columns,
                         header_map=second_header_map,
+                        merge_headers=merge_headers,
                     )
 
             message_text = "엑셀이 저장되었습니다."

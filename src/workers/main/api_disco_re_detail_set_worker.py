@@ -18,12 +18,13 @@ from src.repositories.worker_db_repository import WorkerDbRepository
 LIST_LIMIT = 20
 MAP_LEVEL = 3
 
-# 마지막으로 제공받은 map_lv=3 화면의 네 방향 거리를 새 중심 좌표에 적용합니다.
+# 디스코 화면에서 확인한 map_lv=3의 네 방향 거리를 기준으로 사용합니다.
+# 실제 요청 범위는 config의 가로·세로 배율(기본 1.5)을 적용해 중간값으로 넓힙니다.
 EARTH_RADIUS = 6378137.0
 REFERENCE_MAP = {
-    "swLat": 37.48851242885044, "swLng": 127.04680427175172,
-    "neLat": 37.49796186831254, "neLng": 127.06658535540049,
-    "centerLat": 37.49323776697179, "centerLng": 127.05669405417913,
+    "swLat": 37.488512425802476, "swLng": 127.046812752172,
+    "neLat": 37.49796186353175, "neLng": 127.06659383688581,
+    "centerLat": 37.49323776305756, "centerLng": 127.05670253513213,
 }
 
 DEFAULT_FORM = [
@@ -328,7 +329,7 @@ def _korean_apart_prices(rows):
 
 
 def make_map_bounds(center_lat, center_lng, width_scale=1.0, height_scale=1.0):
-    """중심 위·경도로 map_lv=3의 남서/북동 좌표를 계산합니다."""
+    """중심 위·경도로 map_lv=4의 남서/북동 좌표를 계산합니다."""
     lat = float(center_lat)
     lng = float(center_lng)
     if not -85.0 < lat < 85.0 or not -180.0 <= lng <= 180.0:
@@ -398,8 +399,9 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         self.page_delay = 0.3
         self.region_delay = 2.0
         self.request_delay = 0.1
-        self.map_width_scale = 1.0
-        self.map_height_scale = 1.0
+        self.map_width_scale = 1.2
+        self.map_height_scale = 1.2
+        self.excel_header_merge_yn = True
         self._row_errors = []
         self._current_stat = None
         self._cleaned_up = False
@@ -440,7 +442,7 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         if not self.selected_column_defs:
             raise ValueError("출력항목을 하나 이상 선택해주세요.")
         for name, default in (("page_delay", 0.3), ("region_delay", 2), ("request_delay", 0.1),
-                              ("map_width_scale", 1), ("map_height_scale", 1)):
+                              ("map_width_scale", 1.2), ("map_height_scale", 1.2)):
             value = float(self._setting(config, name, default))
             if not math.isfinite(value) or value < 0 or value > (3 if "scale" in name else 60):
                 raise ValueError(f"잘못된 설정값: {name}={value}")
@@ -450,6 +452,9 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         self.folder_path = str(self._setting(config, "folder_path", "") or "")
         self.auto_save_yn = self._bool(self._setting(config, "auto_save_yn", False))
         self.detail_log_yn = self._bool(self._setting(config, "detail_log_yn", True))
+        self.excel_header_merge_yn = self._bool(
+            self._setting(config, "excel_header_merge_yn", True)
+        )
         stat_defs = []
         for tab in config.get("db_tabs", []):
             if isinstance(tab, dict) and tab.get("key") == "stat":
@@ -955,6 +960,15 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             if not self.running:
                 break
 
+            # 상세 API의 pnu는 19자리 필지번호여야 합니다.
+            # 10자리 법정동코드/지역코드는 상세 대상이 아니므로 저장하지 않습니다.
+            if len(pnu) != 19 or not pnu.isdigit():
+                self.log_signal_func(
+                    f"[디스코] 상세 제외 (PNU 형식 오류): {pnu} / DB 저장하지 않음"
+                )
+                self._seen_pnus.add(pnu)
+                continue
+
             # 기본정보를 먼저 만들고, 뒤에서 조회한 토지 상세정보로 같은 컬럼을 덮어씁니다.
             self._row_errors = []
             started_at = now_text()
@@ -970,7 +984,13 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 if isinstance(error, PermissionError):
                     raise
                 self._row_errors.append(str(error))
-                self.log_signal_func(f"[디스코] 기본정보 실패 (PNU={pnu}): {error}")
+                self._seen_pnus.add(pnu)
+                self.log_signal_func(
+                    f"[디스코] 기본정보 실패 (PNU={pnu}): {error} / DB 저장하지 않음"
+                )
+                # 기본정보가 없으면 주소/PNU 검증이 되지 않은 행이므로
+                # 나머지 상세 API도 호출하지 않고 완전히 제외합니다.
+                continue
 
             try:
                 land_info = self._fetch_land_info(pnu)
@@ -1284,18 +1304,26 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 self.db_repository.finish_job()
                 if self.auto_save_yn:
                     from src.utils.excel_utils import ExcelUtils
+
                     labels, rows = self.db_repository.get_excel_data()
                     if rows:
+                        header_groups = [
+                            [part.strip() for part in str(label or "").split("_") if part.strip()]
+                            or [str(label or "")]
+                            for label in labels
+                        ]
                         excel = ExcelUtils(self.log_signal_func)
-                        try:
-                            saved = excel.save_db_rows_to_excel(
-                                excel_filename=f"disco_re_{self.db_repository.job_id}.xlsx",
-                                row_list=rows, columns=labels,
-                                folder_path=self.folder_path, sub_dir="output")
-                            if not saved:
-                                self.log_signal_func("[디스코] 엑셀 저장 실패. DB 데이터는 유지됩니다.")
-                        finally:
-                            excel.close()
+                        saved = excel.save_db_rows_to_excel(
+                            excel_filename=f"disco_re_{self.db_repository.job_id}.xlsx",
+                            row_list=rows,
+                            columns=labels,
+                            folder_path=self.folder_path,
+                            sub_dir="output",
+                            header_groups=header_groups,
+                            merge_headers=self.excel_header_merge_yn,
+                        )
+                        if not saved:
+                            self.log_signal_func("[디스코] 엑셀 저장 실패. DB 데이터는 유지됩니다.")
             except Exception as error:
                 self.log_signal_func(f"[디스코] 작업 마감/엑셀 저장 실패: {error}")
             finally:

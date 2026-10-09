@@ -5,7 +5,7 @@ import csv
 import re
 import json
 import time
-from openpyxl.styles import PatternFill, Font
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 
@@ -166,7 +166,7 @@ class ExcelUtils:
 
         return text
 
-    def _apply_header_style_and_filter(self, ws):
+    def _apply_header_style_and_filter(self, ws, header_row=1, data_start_row=2):
         max_col = ws.max_column
         max_row = ws.max_row
 
@@ -176,12 +176,127 @@ class ExcelUtils:
         header_fill = PatternFill(fill_type="solid", fgColor="BFBFBF")
         header_font = Font(color="FFFFFF", bold=True)
 
-        for cell in ws[1]:
+        for cell in ws[header_row]:
             cell.fill = header_fill
             cell.font = header_font
 
-        ws.auto_filter.ref = ws.dimensions
-        ws.freeze_panes = "A2"
+        ws.auto_filter.ref = (
+            f"A{header_row}:{get_column_letter(max_col)}{max_row}"
+        )
+        ws.freeze_panes = f"A{data_start_row}"
+
+    def _write_grouped_headers(self, ws, header_groups):
+        """부모·자식 헤더를 여러 행으로 작성하고 같은 범위를 병합한다."""
+        groups = [
+            [str(part or "").strip() for part in group if str(part or "").strip()]
+            or [""]
+            for group in (header_groups or [])
+        ]
+        if not groups:
+            return 0
+
+        # 짧은 경로와 그 하위 경로가 함께 있으면 짧은 경로도 실제 컬럼입니다.
+        # 예: [건물 정보, 건축면적] + [건물 정보, 건축면적, 건폐율]
+        # 첫 번째 컬럼의 마지막 헤더를 비워 두지 않고 자기 이름을 표시합니다.
+        normalized_groups = []
+        for group in groups:
+            normalized = list(group)
+            if normalized and any(
+                len(other) > len(normalized)
+                and tuple(other[:len(normalized)]) == tuple(normalized)
+                for other in groups
+            ):
+                normalized.append(normalized[-1])
+            normalized_groups.append(normalized)
+        groups = normalized_groups
+
+        depth = max(len(group) for group in groups)
+        thin = Side(style="thin", color="D9D9D9")
+        fill = PatternFill(fill_type="solid", fgColor="BFBFBF")
+        font = Font(color="FFFFFF", bold=True)
+
+        for level in range(depth):
+            for column, group in enumerate(groups, start=1):
+                value = group[level] if level < len(group) else ""
+                cell = ws.cell(row=level + 1, column=column, value=value)
+                cell.fill = fill
+                cell.font = font
+                cell.alignment = Alignment(
+                    horizontal="center",
+                    vertical="center",
+                    wrap_text=True,
+                )
+                cell.border = Border(
+                    left=thin,
+                    right=thin,
+                    top=thin,
+                    bottom=thin,
+                )
+
+        # 같은 부모·자식 경로가 이어지는 범위는 가로 병합
+        for level in range(depth):
+            start = 0
+            while start < len(groups):
+                value = groups[start][level] if level < len(groups[start]) else ""
+                if not value:
+                    start += 1
+                    continue
+
+                prefix = tuple(groups[start][:level + 1])
+                end = start
+                while end + 1 < len(groups):
+                    next_prefix = tuple(groups[end + 1][:level + 1])
+                    if next_prefix != prefix:
+                        break
+                    end += 1
+
+                if end > start:
+                    ws.merge_cells(
+                        start_row=level + 1,
+                        start_column=start + 1,
+                        end_row=level + 1,
+                        end_column=end + 1,
+                    )
+                start = end + 1
+
+        # 하위 값이 없는 단일 헤더는 아래 행까지 세로 병합
+        for column, group in enumerate(groups, start=1):
+            if len(group) >= depth:
+                continue
+            start_row = len(group)
+            if start_row < depth:
+                ws.merge_cells(
+                    start_row=start_row,
+                    start_column=column,
+                    end_row=depth,
+                    end_column=column,
+                )
+
+        return depth
+
+    @staticmethod
+    def _infer_header_groups(columns):
+        """DB 팝업처럼 header_groups를 넘기지 않는 호출도 자동 인식한다."""
+        names = [
+            str(column or "").strip()
+            for column in (list(columns) if columns is not None else [])
+        ]
+        hierarchical = [name for name in names if "_" in name]
+
+        # 영문 DB snake_case 컬럼까지 임의로 병합하지 않도록
+        # 한글 계층형 컬럼이 2개 이상일 때만 자동 적용한다.
+        has_korean = any(
+            any("가" <= char <= "힣" for char in name)
+            for name in hierarchical
+        )
+        if len(hierarchical) < 2 or not has_korean:
+            return None
+
+        return [
+            [part.strip() for part in name.split("_") if part.strip()]
+            or [name]
+            for name in names
+        ]
 
     def _parse_hyperlink_cell_value(self, value):
         text = self._clean_excel_cell_value(value)
@@ -222,10 +337,10 @@ class ExcelUtils:
         cell.style = "Hyperlink"
         return True
 
-    def _apply_hyperlink_cells(self, ws):
+    def _apply_hyperlink_cells(self, ws, data_start_row=2):
         # __HYPERLINK__ + json 문자열 자동 링크
         # 셀 값 자체가 URL이면 자동 링크
-        for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+        for row in ws.iter_rows(min_row=data_start_row, max_row=ws.max_row):
             for cell in row:
                 if cell.hyperlink:
                     continue
@@ -246,7 +361,7 @@ class ExcelUtils:
                 if text.startswith("http://") or text.startswith("https://"):
                     self._set_hyperlink_cell(cell, text, text)
 
-    def _apply_hyperlink_columns(self, ws, column_names):
+    def _apply_hyperlink_columns(self, ws, column_names, header_row=1, data_start_row=2):
         """
         지정된 헤더 컬럼만 하이퍼링크 변환한다.
 
@@ -265,7 +380,7 @@ class ExcelUtils:
         target_col_indexes = []
 
         for col_idx in range(1, ws.max_column + 1):
-            header_value = ws.cell(row=1, column=col_idx).value
+            header_value = ws.cell(row=header_row, column=col_idx).value
             header_text = str(header_value or "").strip()
 
             if header_text in target_names:
@@ -275,7 +390,7 @@ class ExcelUtils:
             return
 
         for col_idx in target_col_indexes:
-            for row_idx in range(2, ws.max_row + 1):
+            for row_idx in range(data_start_row, ws.max_row + 1):
                 cell = ws.cell(row=row_idx, column=col_idx)
 
                 if cell.hyperlink:
@@ -295,7 +410,7 @@ class ExcelUtils:
                 if text.startswith("http://") or text.startswith("https://"):
                     self._set_hyperlink_cell(cell, text, text)
 
-    def _apply_column_widths(self, ws, column_widths=None, default_width=16):
+    def _apply_column_widths(self, ws, column_widths=None, default_width=16, header_row=1):
         width_map = {}
 
         for item in column_widths or []:
@@ -311,7 +426,7 @@ class ExcelUtils:
                 continue
 
         for col_idx in range(1, ws.max_column + 1):
-            header_value = ws.cell(row=1, column=col_idx).value
+            header_value = ws.cell(row=header_row, column=col_idx).value
             header_text = str(header_value or "").strip()
 
             width = width_map.get(header_text, default_width)
@@ -382,6 +497,8 @@ class ExcelUtils:
             column_widths=None,
             default_width=16,
             return_path=False,
+            header_groups=None,
+            merge_headers=True,
     ):
         """
         DB row/list/dict 데이터를 엑셀로 저장하는 공통 함수
@@ -438,22 +555,50 @@ class ExcelUtils:
                     for col in df.columns
                 })
 
+            grouped_headers = header_groups if merge_headers else None
+            if merge_headers and not grouped_headers:
+                grouped_headers = self._infer_header_groups(df.columns)
+            if grouped_headers and len(grouped_headers) != len(df.columns):
+                grouped_headers = None
             with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
-                df.to_excel(writer, index=False, sheet_name=sheet_name)
+                if grouped_headers:
+                    header_depth = max(
+                        len([part for part in group if str(part or "").strip()])
+                        for group in grouped_headers
+                    )
+                    df.to_excel(
+                        writer,
+                        index=False,
+                        header=False,
+                        startrow=header_depth,
+                        sheet_name=sheet_name,
+                    )
+                else:
+                    header_depth = 1
+                    df.to_excel(writer, index=False, sheet_name=sheet_name)
 
                 ws = writer.sheets[sheet_name]
 
-                for r in ws.iter_rows(min_row=2, max_row=len(df) + 1):
+                if grouped_headers:
+                    self._write_grouped_headers(ws, grouped_headers)
+
+                data_start_row = header_depth + 1
+                for r in ws.iter_rows(min_row=data_start_row, max_row=ws.max_row):
                     for cell in r:
                         if cell.value is not None:
                             cell.value = self._clean_excel_cell_value(cell.value)
 
-                self._apply_header_style_and_filter(ws)
-                self._apply_hyperlink_cells(ws)
+                self._apply_header_style_and_filter(
+                    ws,
+                    header_row=header_depth,
+                    data_start_row=data_start_row,
+                )
+                self._apply_hyperlink_cells(ws, data_start_row=data_start_row)
                 self._apply_column_widths(
                     ws,
                     column_widths=column_widths,
                     default_width=default_width,
+                    header_row=header_depth,
                 )
 
             if self.log_func:
