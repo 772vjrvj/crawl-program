@@ -50,9 +50,9 @@ class ColumnSetPop(QDialog):
         self.checkbox_map = {}
 
         self.setWindowTitle("컬럼 선택")
-        # 기존처럼 한 줄에 5개 컬럼을 표시합니다.
-        self.resize(1600, 760)
-        self.setMinimumSize(1200, 560)
+        # 기존 팝업 크기를 유지하고, 넓은 컬럼명은 좌우 스크롤로 확인합니다.
+        self.resize(850, 760)
+        self.setMinimumSize(760, 560)
         self.setStyleSheet("background-color: white; color: #111;")
 
         self.init_ui(parent)
@@ -128,11 +128,11 @@ class ColumnSetPop(QDialog):
 
         grid_layout = QGridLayout(grid_widget)
         grid_layout.setContentsMargins(0, 0, 0, 0)
-        grid_layout.setHorizontalSpacing(16)
+        grid_layout.setHorizontalSpacing(10)
         grid_layout.setVerticalSpacing(6)
 
         col_per_row = 5
-        item_min_width = 220
+        item_min_width = 150
 
         row = 0
         col_idx = 0

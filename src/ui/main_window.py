@@ -3,6 +3,8 @@ from __future__ import annotations  # === 신규 ===
 
 from datetime import datetime
 import copy
+import json
+import os
 from pathlib import Path
 from queue import Queue
 from typing import Optional, Any, List, Tuple, Protocol, cast
@@ -1226,8 +1228,73 @@ class MainWindow(QWidget):
         self.region_set_pop.exec()
 
     def save_selected_regions(self, selected: List[Any]) -> None:
+        selected = copy.deepcopy(selected or [])
         self.selected_regions = selected
+
+        state = GlobalState()
+        site_conf = (state.get("site_configs_by_key", {}) or {}).get(str(self.site), {})
+        if site_conf.get("filter_kind") == "disco":
+            site_conf["selected_regions"] = copy.deepcopy(selected)
+            state.set(GlobalState.REGION, copy.deepcopy(selected))
+            self._save_selected_regions_to_config(selected)
+
         self.add_log(f"{len(selected)}개 지역이 선택되었습니다.")
+
+    def _resolve_current_site_config_path(self) -> Optional[str]:
+        """현재 사이트의 runtime config.json 경로를 찾습니다."""
+        try:
+            state = GlobalState()
+            app_config = state.get(GlobalState.APP_CONFIG) or {}
+            runtime_dir = str(app_config.get("runtime_dir") or "").strip()
+            site_key = str(self.site or "").strip()
+            if not runtime_dir or not site_key:
+                return None
+
+            app_json_path = os.path.join(runtime_dir, "app.json")
+            if not os.path.exists(app_json_path):
+                return None
+
+            with open(app_json_path, "r", encoding="utf-8") as file:
+                app_json = json.load(file)
+
+            for site_item in app_json.get("site_list") or []:
+                if str(site_item.get("key") or "").strip() != site_key:
+                    continue
+                relative_path = str(site_item.get("config_path") or "").strip()
+                if not relative_path:
+                    return None
+                return os.path.normpath(
+                    os.path.join(runtime_dir, *relative_path.split("/"))
+                )
+        except Exception:
+            return None
+
+        return None
+
+    def _save_selected_regions_to_config(self, selected: List[Any]) -> None:
+        """지역설정 팝업에서 선택한 지역을 다음 실행에도 유지합니다."""
+        config_path = self._resolve_current_site_config_path()
+        if not config_path or not os.path.exists(config_path):
+            self.add_log("[오류] 지역 설정을 저장할 config.json을 찾지 못했습니다.")
+            return
+
+        temp_path = config_path + ".tmp"
+        try:
+            with open(config_path, "r", encoding="utf-8") as file:
+                config = json.load(file)
+
+            config["selected_regions"] = copy.deepcopy(selected)
+            with open(temp_path, "w", encoding="utf-8") as file:
+                json.dump(config, file, ensure_ascii=False, indent=2)
+                file.write("\n")
+            os.replace(temp_path, config_path)
+        except Exception as error:
+            try:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except OSError:
+                pass
+            self.add_log(f"[오류] 지역 설정 저장 실패: {error}")
 
     # 카운트 다운 팝업
     def show_countdown_popup(self, seconds: int) -> None:
