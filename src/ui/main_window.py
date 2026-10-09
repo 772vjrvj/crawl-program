@@ -2,6 +2,7 @@
 from __future__ import annotations  # === 신규 ===
 
 from datetime import datetime
+import copy
 from pathlib import Path
 from queue import Queue
 from typing import Optional, Any, List, Tuple, Protocol, cast
@@ -240,6 +241,12 @@ class MainWindow(QWidget):
 
         self.setting_region_filter_favorite = state.get(GlobalState.SETTING_REGION_FILTER_FAVORITE)
         self.setting_region_filter_favorite_flag = state.get(GlobalState.SETTING_REGION_FILTER_FAVORITE_FLAG)
+
+        site_conf = (state.get("site_configs_by_key", {}) or {}).get(str(self.site), {})
+        if site_conf.get("filter_kind") == "disco":
+            self.selected_regions = copy.deepcopy(site_conf.get("selected_regions") or [])
+            self.setting_detail_all_style = copy.deepcopy(site_conf.get("setting_detail_all_style") or [])
+            self.setting_region_filter_favorite = copy.deepcopy(site_conf.get("setting_region_filter_favorite") or [])
 
 
 
@@ -784,7 +791,8 @@ class MainWindow(QWidget):
             if self.sites:
                 self.on_demand_worker.set_sites(self.sites)
 
-            if self.selected_regions:
+            site_conf = (GlobalState().get("site_configs_by_key", {}) or {}).get(str(self.site), {})
+            if self.selected_regions or site_conf.get("filter_kind") == "disco":
                 self.on_demand_worker.set_region(self.selected_regions)
 
             if self.excel_data_list:
@@ -1163,12 +1171,25 @@ class MainWindow(QWidget):
         self.selected_regions = regions
         self.setting_detail_all_style = filters
         self.setting_region_filter_favorite = favorites
-        self.add_log(f"변경사항이 저장되었습니다.")
+        state = GlobalState()
+        site_conf = (state.get("site_configs_by_key", {}) or {}).get(str(self.site), {})
+        if site_conf.get("filter_kind") == "disco":
+            site_conf["selected_regions"] = copy.deepcopy(regions)
+            site_conf["setting_detail_all_style"] = copy.deepcopy(filters)
+            site_conf["setting_region_filter_favorite"] = copy.deepcopy(favorites)
+            state.set(GlobalState.SETTING_DETAIL_ALL_STYLE, copy.deepcopy(filters))
+            state.set(GlobalState.SETTING_REGION_FILTER_FAVORITE, copy.deepcopy(favorites))
+        self.add_log("변경사항이 저장되었습니다.")
 
     def open_region_filter_favorite_setting(self) -> None:
 
         if self.region_filter_favorite_set_pop is None:
-            self.region_filter_favorite_set_pop = RegionFilterFavoriteSetPop(
+            site_conf = (GlobalState().get("site_configs_by_key", {}) or {}).get(str(self.site), {})
+            popup_class = RegionFilterFavoriteSetPop
+            if site_conf.get("filter_kind") == "disco":
+                from src.ui.popup.disco_region_filter_favorite_set_pop import DiscoRegionFilterFavoriteSetPop
+                popup_class = DiscoRegionFilterFavoriteSetPop
+            self.region_filter_favorite_set_pop = popup_class(
                 parent=self,
                 selected_regions=getattr(self, "selected_regions", []),
                 setting_attr_name="setting_detail_all_style",

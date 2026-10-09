@@ -1,0 +1,992 @@
+{
+  "label": "디스코 부동산",
+  "key": "DISCO_RE_DETAIL",
+  "db_name": "DISCO_RE_DETAIL",
+  "db_common_name": "WORKER_JOB_HIST",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": false,
+  "region": false,
+  "worker_class": "src.workers.main.api_disco_re_detail_set_worker:ApiDiscoReDetailSetWorker",
+  "setting": [
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "E:\\git\\crawl-program",
+      "type": "folder",
+      "placeholder": "자동 엑셀 저장 경로",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    },
+    {
+      "name": "자동 엑셀 저장",
+      "code": "auto_save_yn",
+      "value": false,
+      "type": "check"
+    },
+    {
+      "name": "지역 간 대기(초)",
+      "code": "region_delay",
+      "value": 2,
+      "type": "input"
+    },
+    {
+      "name": "목록 페이지 간 대기(초)",
+      "code": "page_delay",
+      "value": "0.3",
+      "type": "input"
+    },
+    {
+      "name": "상세 요청 간 대기(초)",
+      "code": "request_delay",
+      "value": "0.1",
+      "type": "input"
+    },
+    {
+      "name": "지도 가로 범위 배율",
+      "code": "map_width_scale",
+      "value": "1.0",
+      "type": "input"
+    },
+    {
+      "name": "지도 세로 범위 배율",
+      "code": "map_height_scale",
+      "value": "1.0",
+      "type": "input"
+    },
+    {
+      "name": "상세 JSON 로그 출력",
+      "code": "detail_log_yn",
+      "value": true,
+      "type": "check"
+    }
+  ],
+  "setting_detail_all_style_flag": false,
+  "setting_detail_all_style": [
+    {
+      "name": "매물 유형",
+      "code": "randType",
+      "type": "disco_property",
+      "selectedGroup": "all",
+      "children": [
+        {
+          "name": "상가·사무실·공장",
+          "code": "12,10,11,17,19,18,15",
+          "items": [
+            {
+              "name": "상업용건물",
+              "code": "12",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "상가·사무실",
+              "code": "10,11",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "공장·창고",
+              "code": "17,19",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "지식산업센터",
+              "code": "18",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "숙박시설",
+              "code": "15",
+              "type": "checkbox",
+              "value": false
+            }
+          ]
+        },
+        {
+          "name": "아파트·오피스텔",
+          "code": "0,1,2,20",
+          "items": [
+            {
+              "name": "아파트",
+              "code": "0",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "주상복합",
+              "code": "1",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "오피스텔",
+              "code": "2",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "생활숙박시설",
+              "code": "20",
+              "type": "checkbox",
+              "value": false
+            }
+          ]
+        },
+        {
+          "name": "빌라·주택",
+          "code": "7,8,3,5,4,6",
+          "items": [
+            {
+              "name": "연립",
+              "code": "7",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "다세대",
+              "code": "8",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "단독·전원주택",
+              "code": "3,5",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "다가구",
+              "code": "4",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "상가주택",
+              "code": "6",
+              "type": "checkbox",
+              "value": false
+            }
+          ]
+        },
+        {
+          "name": "토지",
+          "code": "16",
+          "items": [
+            {
+              "name": "토지",
+              "code": "16",
+              "type": "checkbox",
+              "value": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "거래 유형",
+      "code": "deal_type",
+      "type": "disco_multi",
+      "items": [
+        {
+          "name": "매매",
+          "code": "0",
+          "type": "checkbox",
+          "value": false
+        },
+        {
+          "name": "전세",
+          "code": "1",
+          "type": "checkbox",
+          "value": false
+        },
+        {
+          "name": "월세",
+          "code": "2",
+          "type": "checkbox",
+          "value": false
+        }
+      ]
+    },
+    {
+      "name": "매매가 (만원)",
+      "type": "two_input",
+      "items": [
+        {
+          "name": "최소",
+          "code": "minPrice",
+          "type": "input",
+          "value": ""
+        },
+        {
+          "name": "최대",
+          "code": "maxPrice",
+          "type": "input",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "보증금 / 전세금 (만원)",
+      "type": "two_input",
+      "items": [
+        {
+          "name": "최소",
+          "code": "minDeposit",
+          "type": "input",
+          "value": ""
+        },
+        {
+          "name": "최대",
+          "code": "maxDeposit",
+          "type": "input",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "월세 (만원)",
+      "type": "two_input",
+      "items": [
+        {
+          "name": "최소",
+          "code": "minMonthly",
+          "type": "input",
+          "value": ""
+        },
+        {
+          "name": "최대",
+          "code": "maxMonthly",
+          "type": "input",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "면적 범위",
+      "type": "disco_area",
+      "items": [
+        {
+          "name": "최소",
+          "code": "minArea",
+          "type": "input",
+          "value": ""
+        },
+        {
+          "name": "최대",
+          "code": "maxArea",
+          "type": "input",
+          "value": ""
+        }
+      ],
+      "code": "area",
+      "areaUnit": "pyeong",
+      "exclusiveAreaOnly": false
+    },
+    {
+      "name": "용도지역",
+      "code": "useArea",
+      "type": "disco_use_area",
+      "children": [
+        {
+          "name": "주거지역",
+          "code": "useArea",
+          "type": "disco_multi",
+          "items": [
+            {
+              "name": "1종전용 주거",
+              "code": "1",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "2종전용 주거",
+              "code": "2",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "1종 일반 주거",
+              "code": "3",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "2종 일반 주거",
+              "code": "4",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "3종 일반 주거",
+              "code": "5",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "준 주거",
+              "code": "6",
+              "type": "checkbox",
+              "value": false
+            }
+          ]
+        },
+        {
+          "name": "상업지역",
+          "code": "useArea",
+          "type": "disco_multi",
+          "items": [
+            {
+              "name": "중심 상업",
+              "code": "7",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "일반 상업",
+              "code": "8",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "근린 상업",
+              "code": "9",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "유통 상업",
+              "code": "10",
+              "type": "checkbox",
+              "value": false
+            }
+          ]
+        },
+        {
+          "name": "공업지역",
+          "code": "useArea",
+          "type": "disco_multi",
+          "items": [
+            {
+              "name": "전용 공업",
+              "code": "11",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "일반 공업",
+              "code": "12",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "준 공업",
+              "code": "13",
+              "type": "checkbox",
+              "value": false
+            }
+          ]
+        },
+        {
+          "name": "녹지지역",
+          "code": "useArea",
+          "type": "disco_multi",
+          "items": [
+            {
+              "name": "보전녹지",
+              "code": "14",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "생산녹지",
+              "code": "15",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "자연녹지",
+              "code": "16",
+              "type": "checkbox",
+              "value": false
+            }
+          ]
+        },
+        {
+          "name": "관리지역",
+          "code": "useArea",
+          "type": "disco_multi",
+          "items": [
+            {
+              "name": "계획관리",
+              "code": "17",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "생산관리",
+              "code": "18",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "보전관리",
+              "code": "19",
+              "type": "checkbox",
+              "value": false
+            }
+          ]
+        },
+        {
+          "name": "기타",
+          "code": "useArea",
+          "type": "disco_multi",
+          "items": [
+            {
+              "name": "농림",
+              "code": "20",
+              "type": "checkbox",
+              "value": false
+            },
+            {
+              "name": "자연환경 보전",
+              "code": "21",
+              "type": "checkbox",
+              "value": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "setting_region_filter_favorite_flag": true,
+  "setting_region_filter_favorite": [],
+  "selected_regions": [
+    {
+      "시도": "서울시",
+      "시군구": "강남구",
+      "읍면동": "대치동"
+    }
+  ],
+  "search_col_list": [
+    {
+      "code": "pnu",
+      "value": "PNU"
+    },
+    {
+      "code": "address",
+      "value": "기본_주소(지번)"
+    },
+    {
+      "code": "building_name",
+      "value": "건물 정보_건물이름"
+    }
+  ],
+  "columns": [
+    {
+      "title": "기본"
+    },
+    {
+      "code": "pnu",
+      "value": "PNU",
+      "checked": true
+    },
+    {
+      "code": "city",
+      "value": "기본_시도",
+      "checked": true
+    },
+    {
+      "code": "division",
+      "value": "기본_시군구",
+      "checked": true
+    },
+    {
+      "code": "sector",
+      "value": "기본_읍면동",
+      "checked": true
+    },
+    {
+      "code": "address",
+      "value": "기본_주소(지번)",
+      "checked": true
+    },
+    {
+      "code": "road_address",
+      "value": "기본_주소(도로명)",
+      "checked": true
+    },
+    {
+      "code": "completion_date",
+      "value": "기본_준공",
+      "checked": true
+    },
+    {
+      "title": "실거래가"
+    },
+    {
+      "code": "listing_count",
+      "value": "실거래가_등록된 매물수",
+      "checked": true
+    },
+    {
+      "code": "recent_price",
+      "value": "실거래가_최근실거래가",
+      "checked": true
+    },
+    {
+      "code": "recent_price_date",
+      "value": "실거래가_최근실거래가 일자",
+      "checked": true
+    },
+    {
+      "title": "토지 정보"
+    },
+    {
+      "code": "land_area",
+      "value": "토지 정보_면적",
+      "checked": true
+    },
+    {
+      "code": "land_purpose",
+      "value": "토지 정보_지목",
+      "checked": true
+    },
+    {
+      "code": "land_district",
+      "value": "토지 정보_용도지역",
+      "checked": true
+    },
+    {
+      "code": "land_usage",
+      "value": "토지 정보_이용상황",
+      "checked": true
+    },
+    {
+      "code": "land_owner",
+      "value": "토지 정보_소유구분",
+      "checked": true
+    },
+    {
+      "code": "owner_change_date",
+      "value": "토지 정보_소유권변동일자",
+      "checked": true
+    },
+    {
+      "code": "owner_change_reason",
+      "value": "토지 정보_소유권변동원인",
+      "checked": true
+    },
+    {
+      "code": "road_contact",
+      "value": "토지 정보_도로접면",
+      "checked": true
+    },
+    {
+      "code": "terrain_height",
+      "value": "토지 정보_지형높이",
+      "checked": true
+    },
+    {
+      "code": "terrain_shape",
+      "value": "토지 정보_지형형상",
+      "checked": true
+    },
+    {
+      "title": "토지이용계획"
+    },
+    {
+      "code": "planning_main_include",
+      "value": "토지이용계획_국토의 계획 및 이용에 관한 법률_포함",
+      "checked": true
+    },
+    {
+      "code": "planning_main_overlap",
+      "value": "토지이용계획_국토의 계획 및 이용에 관한 법률_저촉",
+      "checked": true
+    },
+    {
+      "code": "planning_main_contact",
+      "value": "토지이용계획_국토의 계획 및 이용에 관한 법률_접함",
+      "checked": true
+    },
+    {
+      "code": "planning_etc_include",
+      "value": "토지이용계획_기타법률_포함",
+      "checked": true
+    },
+    {
+      "code": "planning_etc_overlap",
+      "value": "토지이용계획_기타법률_저촉",
+      "checked": true
+    },
+    {
+      "code": "planning_etc_contact",
+      "value": "토지이용계획_기타법률_접함",
+      "checked": true
+    },
+    {
+      "title": "토지 이동(변동) 사유"
+    },
+    {
+      "code": "land_history",
+      "value": "토지 이동(변동) 사유",
+      "checked": true
+    },
+    {
+      "title": "개별공시지가"
+    },
+    {
+      "code": "land_prices",
+      "value": "개별공시지가",
+      "checked": true
+    },
+    {
+      "code": "land_price_current",
+      "value": "개별공시지가_공시지가(㎡)",
+      "checked": true
+    },
+    {
+      "title": "건물 정보"
+    },
+    {
+      "code": "building_name",
+      "value": "건물 정보_건물이름",
+      "checked": true
+    },
+    {
+      "code": "main_usage",
+      "value": "건물 정보_주용도",
+      "checked": true
+    },
+    {
+      "code": "other_usage",
+      "value": "건물 정보_기타용도",
+      "checked": true
+    },
+    {
+      "code": "structure",
+      "value": "건물 정보_주구조",
+      "checked": true
+    },
+    {
+      "code": "roof",
+      "value": "건물 정보_지붕구조",
+      "checked": true
+    },
+    {
+      "code": "height",
+      "value": "건물 정보_높이",
+      "checked": true
+    },
+    {
+      "code": "floors",
+      "value": "건물 정보_지상/지하",
+      "checked": true
+    },
+    {
+      "code": "building_land_area",
+      "value": "건물 정보_대지면적",
+      "checked": true
+    },
+    {
+      "code": "building_area",
+      "value": "건물 정보_건축면적",
+      "checked": true
+    },
+    {
+      "code": "coverage_ratio",
+      "value": "건물 정보_건축면적_건폐율",
+      "checked": true
+    },
+    {
+      "code": "total_area",
+      "value": "건물 정보_연면적",
+      "checked": true
+    },
+    {
+      "code": "ratio_area",
+      "value": "건물 정보_용적률산정연면적",
+      "checked": true
+    },
+    {
+      "code": "floor_area_ratio",
+      "value": "건물 정보_용적률산정연면적_용적률",
+      "checked": true
+    },
+    {
+      "code": "households",
+      "value": "건물 정보_세대 수_세대",
+      "checked": true
+    },
+    {
+      "code": "families",
+      "value": "건물 정보_세대 수_가구",
+      "checked": true
+    },
+    {
+      "code": "units",
+      "value": "건물 정보_세대 수_호수",
+      "checked": true
+    },
+    {
+      "code": "attached_lots",
+      "value": "건물 정보_외필지 수",
+      "checked": true
+    },
+    {
+      "code": "sewage_type",
+      "value": "건물 정보_오수정화시설_형식",
+      "checked": true
+    },
+    {
+      "code": "sewage_other",
+      "value": "건물 정보_오수정화시설_형식(기타)",
+      "checked": true
+    },
+    {
+      "code": "sewage_people",
+      "value": "건물 정보_오수정화시설_용량(인용)",
+      "checked": true
+    },
+    {
+      "code": "sewage_volume",
+      "value": "건물 정보_오수정화시설_용량(루베)",
+      "checked": true
+    },
+    {
+      "code": "parking_self_indoor_count",
+      "value": "건물 정보_주차장_자주식_옥내_댓수",
+      "checked": true
+    },
+    {
+      "code": "parking_self_indoor_area",
+      "value": "건물 정보_주차장_자주식_옥내_면적",
+      "checked": true
+    },
+    {
+      "code": "parking_self_outdoor_count",
+      "value": "건물 정보_주차장_자주식_옥외_댓수",
+      "checked": true
+    },
+    {
+      "code": "parking_self_outdoor_area",
+      "value": "건물 정보_주차장_자주식_옥외_면적",
+      "checked": true
+    },
+    {
+      "code": "parking_mech_indoor_count",
+      "value": "건물 정보_주차장_기계식_옥내_댓수",
+      "checked": true
+    },
+    {
+      "code": "parking_mech_indoor_area",
+      "value": "건물 정보_주차장_기계식_옥내_면적",
+      "checked": true
+    },
+    {
+      "code": "parking_mech_outdoor_count",
+      "value": "건물 정보_주차장_기계식_옥외_댓수",
+      "checked": true
+    },
+    {
+      "code": "parking_mech_outdoor_area",
+      "value": "건물 정보_주차장_기계식_옥외_면적",
+      "checked": true
+    },
+    {
+      "code": "elevator_passenger",
+      "value": "건물 정보_승강기_승용",
+      "checked": true
+    },
+    {
+      "code": "elevator_emergency",
+      "value": "건물 정보_승강기_비상용",
+      "checked": true
+    },
+    {
+      "code": "permit_date",
+      "value": "건물 정보_일자정보_허가일",
+      "checked": true
+    },
+    {
+      "code": "construction_date",
+      "value": "건물 정보_일자정보_착공일",
+      "checked": true
+    },
+    {
+      "code": "approval_date",
+      "value": "건물 정보_일자정보_사용승인일",
+      "checked": true
+    },
+    {
+      "code": "building_floors",
+      "value": "건물 정보_건축물현황",
+      "checked": true
+    },
+    {
+      "title": "상가업소정보"
+    },
+    {
+      "code": "businesses",
+      "value": "상가업소정보",
+      "checked": true
+    },
+    {
+      "title": "개별주택공시가격"
+    },
+    {
+      "code": "house_prices",
+      "value": "개별주택공시가격",
+      "checked": true
+    },
+    {
+      "code": "house_price_current",
+      "value": "개별주택공시가격_공시가격",
+      "checked": true
+    },
+    {
+      "title": "호별정보"
+    },
+    {
+      "code": "unit_dong",
+      "value": "호별정보_동",
+      "checked": true
+    },
+    {
+      "code": "unit_floor",
+      "value": "호별정보_층",
+      "checked": true
+    },
+    {
+      "code": "unit_ho",
+      "value": "호별정보_호",
+      "checked": true
+    },
+    {
+      "code": "land_rights",
+      "value": "호별정보_대지권 비율",
+      "checked": true
+    },
+    {
+      "code": "exclusive_parts",
+      "value": "호별정보_전유부",
+      "checked": true
+    },
+    {
+      "title": "공동주택공시가격"
+    },
+    {
+      "code": "apart_prices",
+      "value": "공동주택공시가격",
+      "checked": true
+    },
+    {
+      "code": "apart_price_current",
+      "value": "공동주택공시가격_공시가격",
+      "checked": true
+    },
+    {
+      "code": "apart_dong",
+      "value": "공동주택공시가격_동",
+      "checked": true
+    },
+    {
+      "code": "apart_floor",
+      "value": "공동주택공시가격_층",
+      "checked": true
+    },
+    {
+      "code": "apart_ho",
+      "value": "공동주택공시가격_호",
+      "checked": true
+    },
+    {
+      "code": "apart_area",
+      "value": "공동주택공시가격_전용면적",
+      "checked": true
+    }
+  ],
+  "db_tabs": [
+    {
+      "key": "detail",
+      "name": "상세 데이터",
+      "table": "DISCO_RE_DETAIL"
+    },
+    {
+      "key": "stat",
+      "name": "지역 조회 통계",
+      "table": "DISCO_RE_STAT",
+      "columns": [
+        {
+          "code": "task_index",
+          "value": "조회순서",
+          "checked": true
+        },
+        {
+          "code": "city",
+          "value": "시도",
+          "checked": true
+        },
+        {
+          "code": "division",
+          "value": "시군구",
+          "checked": true
+        },
+        {
+          "code": "sector",
+          "value": "읍면동",
+          "checked": true
+        },
+        {
+          "code": "totalCount",
+          "value": "지도 범위 API 총수",
+          "checked": true
+        },
+        {
+          "code": "crawledCount",
+          "value": "지도 범위 조회수",
+          "checked": true
+        },
+        {
+          "code": "trueFalse",
+          "value": "총수 일치 여부",
+          "checked": true
+        },
+        {
+          "code": "status",
+          "value": "조회상태",
+          "checked": true
+        },
+        {
+          "code": "error_message",
+          "value": "오류",
+          "checked": true
+        },
+        {
+          "code": "map_bounds",
+          "value": "지도 범위",
+          "checked": true
+        }
+      ],
+      "search_col_list": [
+        {
+          "code": "city",
+          "value": "시도"
+        },
+        {
+          "code": "division",
+          "value": "시군구"
+        },
+        {
+          "code": "sector",
+          "value": "읍면동"
+        }
+      ]
+    }
+  ],
+  "filter_kind": "disco"
+}
