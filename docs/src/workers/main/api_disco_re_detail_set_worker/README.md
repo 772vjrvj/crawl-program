@@ -34,6 +34,7 @@ pyinstaller .\main.py `
 --exclude-module Tcl `
 --exclude-module tcl `
 --add-data ".\resources\customers\disco_re_detail\js\browser_get_json.js;resources\customers\disco_re_detail\js" `
+--add-data ".\resources\customers\disco_re_detail\js\browser_get_json_batch.js;resources\customers\disco_re_detail\js" `
 --add-data ".\resources\customers\disco_re_detail\js\disco_geocode.js;resources\customers\disco_re_detail\js" `
 --add-data ".\resources\customers\disco_re_detail\js\list_hook.js;resources\customers\disco_re_detail\js" `
 --add-data ".\resources\customers\disco_re_detail\js\browser_fetch_json.js;resources\customers\disco_re_detail\js" `
