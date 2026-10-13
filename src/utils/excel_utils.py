@@ -182,7 +182,7 @@ class ExcelUtils:
 
     def _apply_integer_columns(self, ws, column_names, header_row=1, data_start_row=2):
         """광고금액과 지상/지하 컬럼에서 불필요한 .0을 제거합니다."""
-        targets = {
+        no_comma_targets = {
             "건물 정보_지상", "건물 정보_지하",
             "ground_floor_count", "underground_floor_count",
             "광고 금액_매매가", "광고 금액_전세",
@@ -191,13 +191,22 @@ class ExcelUtils:
             "ad_sale_price", "ad_jeonse_price", "ad_monthly_deposit",
             "ad_monthly_rent", "ad_management_fee",
         }
+        targets = {
+            *no_comma_targets,
+            "실거래가_최근실거래가", "recent_price",
+            "개별공시지가_공시지가(㎡)", "land_price_current",
+            "개별주택공시가격_공시가격", "house_price_current",
+            "공동주택공시가격_공시가격", "apart_price_current",
+        }
         for column_index, column_name in enumerate(column_names, start=1):
             if str(column_name) not in targets:
                 continue
             for row_index in range(data_start_row, ws.max_row + 1):
                 cell = ws.cell(row=row_index, column=column_index)
                 cell.value = self._integer_text(cell.value)
-                cell.number_format = "#,##0"
+                cell.number_format = (
+                    "0" if str(column_name) in no_comma_targets else "#,##0"
+                )
 
     def _apply_listing_links(self, ws, column_names, data_start_row=2):
         """매물링크가 있으면 같은 행의 PNU와 지번주소에도 링크를 연결합니다."""

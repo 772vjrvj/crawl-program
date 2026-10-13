@@ -482,7 +482,7 @@
     {
       "시도": "서울시",
       "시군구": "강남구",
-      "읍면동": "압구정동"
+      "읍면동": "삼성동"
     }
   ],
   "search_col_list": [
@@ -901,37 +901,37 @@
     {
       "code": "major_repair_lookup_message",
       "value": "건물 정보_대수선조회메시지",
-      "checked": false
+      "checked": true
     },
     {
       "code": "major_repair_yn",
       "value": "건물 정보_대수선여부",
-      "checked": false
+      "checked": true
     },
     {
       "code": "major_repair_count",
       "value": "건물 정보_대수선건수",
-      "checked": false
+      "checked": true
     },
     {
       "code": "major_repair_latest_date",
       "value": "건물 정보_최근대수선허가일",
-      "checked": false
+      "checked": true
     },
     {
       "code": "major_repair_history",
       "value": "건물 정보_대수선이력",
-      "checked": false
+      "checked": true
     },
     {
       "code": "major_repair_looked_up_at",
       "value": "건물 정보_대수선조회일시",
-      "checked": false
+      "checked": true
     },
     {
       "code": "major_repair_data_as_of",
       "value": "건물 정보_대수선데이터기준일시",
-      "checked": false
+      "checked": true
     },
     {
       "code": "violation_building_yn",
@@ -941,7 +941,7 @@
     {
       "code": "violation_building_content",
       "value": "건물 정보_위반건축물내용",
-      "checked": false
+      "checked": true
     },
     {
       "code": "building_floors",
