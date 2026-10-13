@@ -588,6 +588,27 @@ class ExcelUtils:
                         if cell.value is not None:
                             cell.value = self._clean_excel_cell_value(cell.value)
 
+                # DB 조회 결과에 NULL이 섞이면 pandas가 정수 열을 float64로
+                # 바꾸면서 1.0처럼 저장할 수 있습니다. 층수는 정수로 복원하고
+                # 엑셀 표시 형식도 소수점 없이 고정합니다.
+                integer_headers = {
+                    "건물 정보_지상",
+                    "건물 정보_지하",
+                    "ground_floor_count",
+                    "underground_floor_count",
+                }
+                for column_index, column_name in enumerate(df.columns, start=1):
+                    if str(column_name) not in integer_headers:
+                        continue
+                    for row_index in range(data_start_row, ws.max_row + 1):
+                        cell = ws.cell(row=row_index, column=column_index)
+                        if (
+                                isinstance(cell.value, float)
+                                and cell.value.is_integer()
+                        ):
+                            cell.value = int(cell.value)
+                        cell.number_format = "#,##0"
+
                 self._apply_header_style_and_filter(
                     ws,
                     header_row=header_depth,

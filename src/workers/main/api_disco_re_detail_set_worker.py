@@ -2,6 +2,7 @@
 
 import json
 import math
+import re
 import time
 import requests
 from datetime import datetime
@@ -72,6 +73,26 @@ def _number_value(value):
     if not math.isfinite(number) or number <= 0:
         return None
     return int(number) if number.is_integer() else round(number, 2)
+
+
+def _disco_price_to_manwon(value):
+    """디스코의 '79억 5000만원' 또는 숫자 가격을 만원 단위로 변환합니다."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        return _number_value(value)
+
+    text = str(value).replace(",", "").replace(" ", "").strip()
+    total = 0.0
+    billion = re.search(r"([\d.]+)억", text)
+    manwon = re.search(r"([\d.]+)만(?:원)?", text)
+    if billion:
+        total += float(billion.group(1)) * 10000
+    if manwon:
+        total += float(manwon.group(1))
+    if total > 0:
+        return int(total) if total.is_integer() else round(total, 2)
+    return _number_value(text)
 
 
 def _won_to_manwon(value):
@@ -162,41 +183,47 @@ def _korean_advertisement_summary(list_rows):
 
     for row in _advertisement_rows(list_rows):
         property_code = _code_value(_first_value(
-            row, "randType", "rand_type", "propertyType", "property_type",
+            row, "e_rand_type", "randType", "rand_type", "propertyType", "property_type",
             "categoryCode", "category_code", "rt"
         ))
         property_name = _first_value(
-            row, "randTypeName", "rand_type_name", "propertyTypeName",
+            row, "estate_type_tag", "tag", "randTypeName", "rand_type_name", "propertyTypeName",
             "property_type_name", "매물유형"
         ) or PROPERTY_TYPE_NAMES.get(property_code) or _property_type_from_title(row.get("title"))
         if property_name and property_name not in property_types:
             property_types.append(str(property_name))
 
-        deal_code = _code_value(_first_value(
-            row, "_deal_type", "dealType", "deal_type", "dt"
-        ))
+        raw_deal_type = _first_value(row, "_deal_type", "dealType", "deal_type", "dt")
+        deal_code = _code_value(raw_deal_type)
         deal_name = _first_value(
             row, "dealTypeName", "deal_type_name", "거래방식"
         ) or DEAL_TYPE_NAMES.get(deal_code)
+        if not deal_name and str(raw_deal_type or "").strip() in ("매매", "전세", "월세"):
+            deal_name = str(raw_deal_type).strip()
+            deal_code = {"매매": 0, "전세": 1, "월세": 2}[deal_name]
         if deal_name and deal_name not in deal_types:
             deal_types.append(str(deal_name))
 
         # 디스코 목록의 p는 광고 대표금액이며 이미 만원 단위입니다.
         representative_price = _first_value(row, "p", "price", "deal_price")
         if deal_code == 0:
-            sale_prices.append(_first_value(row, "sale_price", "trade_price") or representative_price)
+            sale_prices.append(_disco_price_to_manwon(
+                _first_value(row, "sale_price", "trade_price") or representative_price
+            ))
         elif deal_code == 1:
-            jeonse_prices.append(_first_value(row, "jeonse_price", "deposit_price") or representative_price)
+            jeonse_prices.append(_disco_price_to_manwon(
+                _first_value(row, "jeonse_price", "deposit_price") or representative_price
+            ))
         elif deal_code == 2:
-            monthly_deposits.append(_first_value(
+            monthly_deposits.append(_disco_price_to_manwon(_first_value(
                 row, "monthly_deposit", "deposit", "dp", "d"
-            ))
-            monthly_rents.append(_first_value(
+            )))
+            monthly_rents.append(_disco_price_to_manwon(_first_value(
                 row, "monthly_rent", "rent_price", "drt", "m"
-            ) or representative_price)
-            management_fees.append(_first_value(
-                row, "management_fee", "maintenance_fee", "dc"
-            ))
+            ) or representative_price))
+            management_fees.append(_disco_price_to_manwon(_first_value(
+                row, "management_fee", "maintenance_fee", "expense_value", "dc"
+            )))
 
     return {
         "매물유형": ", ".join(property_types) or None,
@@ -848,6 +875,63 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             raise ValueError("목록에 PNU가 없는 행이 있습니다.")
         return result
 
+    def _fetch_group_advertisements(self, list_rows):
+        """목록의 group_key별 광고 전체를 조회합니다."""
+        all_rows = []
+        seen_group_keys = set()
+        script = """
+            const done = arguments[arguments.length - 1];
+            const payload = arguments[0] || {};
+            const params = new URLSearchParams();
+            for (const pair of (payload.baseForm || [])) {
+                params.append(String(pair[0]), String(pair[1]));
+            }
+            for (const [key, value] of Object.entries(payload.mapValues || {})) {
+                params.append(key, String(value));
+            }
+            params.set('groupKey', String(payload.groupKey || ''));
+            fetch('/sale/v2/detail/', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: params.toString()
+            }).then(async response => {
+                const text = await response.text();
+                if (!response.ok) {
+                    done({ok: false, error: `HTTP ${response.status}: ${text.slice(0, 300)}`});
+                    return;
+                }
+                try { done({ok: true, json: JSON.parse(text)}); }
+                catch (error) { done({ok: false, error: `JSON 변환 실패: ${error}`}); }
+            }).catch(error => done({ok: false, error: String(error)}));
+        """
+
+        for row in list_rows or []:
+            group_key = str(row.get("group_key") or row.get("groupKey") or "").strip()
+            if not group_key or group_key in seen_group_keys:
+                continue
+            seen_group_keys.add(group_key)
+            if not self._pause(self.request_delay):
+                raise InterruptedError("사용자 중단")
+            self.driver.set_script_timeout(30)
+            response = self.driver.execute_async_script(script, {
+                "groupKey": group_key,
+                "baseForm": row.get("_base_form") or [],
+                "mapValues": row.get("_map_values") or {},
+            }) or {}
+            if not response.get("ok"):
+                self._request_error(response.get("error") or "광고 그룹 조회 실패")
+            result = response.get("json")
+            rows = result.get("data") if isinstance(result, dict) else None
+            if not isinstance(rows, list):
+                raise ValueError("광고 그룹 응답에 data 배열이 없습니다.")
+            all_rows.extend(row for row in rows if isinstance(row, dict))
+        return all_rows
+
     def _fetch_json(self, url, response_name):
         response = self._json_prefetch_cache.pop(url, None)
         if response is None:
@@ -1246,7 +1330,17 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             self._row_errors = []
             started_at = now_text()
             item = self._korean_short_info(pnu, {})
-            item.update(_korean_advertisement_summary(list_rows))
+            try:
+                group_ad_rows = self._fetch_group_advertisements(list_rows)
+                item.update(_korean_advertisement_summary(group_ad_rows or list_rows))
+            except (PermissionError, InterruptedError):
+                raise
+            except Exception as error:
+                # 그룹 상세 실패 시에도 기존 목록값으로 결과를 보존합니다.
+                item.update(_korean_advertisement_summary(list_rows))
+                self.log_signal_func(
+                    f"[디스코] 광고 그룹 조회 실패, 목록값 사용 (PNU={pnu}): {error}"
+                )
             item["검색 키워드"] = next(
                 (
                     str(row.get("_search_keyword") or "").strip()
@@ -1502,6 +1596,8 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 self._seen_items.add(key)
                 detail_row = dict(row)
                 detail_row["_search_keyword"] = address
+                detail_row["_base_form"] = base_form
+                detail_row["_map_values"] = map_values
                 self.list_items.append(detail_row)
                 region_count += 1
 
