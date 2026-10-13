@@ -7,12 +7,14 @@
   "enabled": true,
   "popup": false,
   "region": false,
+  "server_url": "https://goodbye772.com/archhub/major-repair",
+  "master_api_key": "my_secret_master_key_1234!",
   "worker_class": "src.workers.main.api_disco_re_detail_set_worker:ApiDiscoReDetailSetWorker",
   "setting": [
     {
       "name": "저장 폴더",
       "code": "folder_path",
-      "value": "E:\\git\\crawl-program",
+      "value": "C:\\Users\\772vj\\Desktop",
       "type": "folder",
       "placeholder": "자동 엑셀 저장 경로",
       "button_text": "폴더 선택",
@@ -52,13 +54,13 @@
     {
       "name": "지도 가로 범위 배율",
       "code": "map_width_scale",
-      "value": "1.2",
+      "value": "1.3",
       "type": "input"
     },
     {
       "name": "지도 세로 범위 배율",
       "code": "map_height_scale",
-      "value": "1.2",
+      "value": "1.3",
       "type": "input"
     },
     {
@@ -77,401 +79,401 @@
   "setting_detail_all_style_flag": false,
   "setting_detail_all_style": [
     {
-      "name": "매물 유형",
-      "code": "randType",
-      "type": "disco_property",
-      "selectedGroup": "all",
       "children": [
         {
-          "name": "상가·사무실·공장",
           "code": "12,10,11,17,19,18,15",
           "items": [
             {
-              "name": "상업용건물",
               "code": "12",
+              "name": "상업용건물",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "상가·사무실",
               "code": "10,11",
+              "name": "상가·사무실",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "공장·창고",
               "code": "17,19",
+              "name": "공장·창고",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "지식산업센터",
               "code": "18",
+              "name": "지식산업센터",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "숙박시설",
               "code": "15",
+              "name": "숙박시설",
               "type": "checkbox",
               "value": false
             }
-          ]
+          ],
+          "name": "상가·사무실·공장"
         },
         {
-          "name": "아파트·오피스텔",
           "code": "0,1,2,20",
           "items": [
             {
-              "name": "아파트",
               "code": "0",
+              "name": "아파트",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "주상복합",
               "code": "1",
+              "name": "주상복합",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "오피스텔",
               "code": "2",
+              "name": "오피스텔",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "생활숙박시설",
               "code": "20",
+              "name": "생활숙박시설",
               "type": "checkbox",
               "value": false
             }
-          ]
+          ],
+          "name": "아파트·오피스텔"
         },
         {
-          "name": "빌라·주택",
           "code": "7,8,3,5,4,6",
           "items": [
             {
-              "name": "연립",
               "code": "7",
+              "name": "연립",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "다세대",
               "code": "8",
+              "name": "다세대",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "단독·전원주택",
               "code": "3,5",
+              "name": "단독·전원주택",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "다가구",
               "code": "4",
+              "name": "다가구",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "상가주택",
               "code": "6",
+              "name": "상가주택",
               "type": "checkbox",
               "value": false
             }
-          ]
+          ],
+          "name": "빌라·주택"
         },
         {
-          "name": "토지",
           "code": "16",
           "items": [
             {
-              "name": "토지",
               "code": "16",
+              "name": "토지",
               "type": "checkbox",
               "value": false
             }
-          ]
+          ],
+          "name": "토지"
         }
-      ]
+      ],
+      "code": "randType",
+      "name": "매물 유형",
+      "selectedGroup": "all",
+      "type": "disco_property"
     },
     {
-      "name": "거래 유형",
       "code": "deal_type",
-      "type": "disco_multi",
       "items": [
         {
-          "name": "매매",
           "code": "0",
+          "name": "매매",
           "type": "checkbox",
           "value": false
         },
         {
-          "name": "전세",
           "code": "1",
+          "name": "전세",
           "type": "checkbox",
           "value": false
         },
         {
-          "name": "월세",
           "code": "2",
+          "name": "월세",
           "type": "checkbox",
           "value": false
         }
-      ]
+      ],
+      "name": "거래 유형",
+      "type": "disco_multi"
     },
     {
-      "name": "매매가 (만원)",
-      "type": "two_input",
       "items": [
         {
-          "name": "최소",
           "code": "minPrice",
+          "name": "최소",
           "type": "input",
           "value": ""
         },
         {
-          "name": "최대",
           "code": "maxPrice",
-          "type": "input",
-          "value": ""
-        }
-      ]
-    },
-    {
-      "name": "보증금 / 전세금 (만원)",
-      "type": "two_input",
-      "items": [
-        {
-          "name": "최소",
-          "code": "minDeposit",
-          "type": "input",
-          "value": ""
-        },
-        {
           "name": "최대",
-          "code": "maxDeposit",
-          "type": "input",
-          "value": ""
-        }
-      ]
-    },
-    {
-      "name": "월세 (만원)",
-      "type": "two_input",
-      "items": [
-        {
-          "name": "최소",
-          "code": "minMonthly",
-          "type": "input",
-          "value": ""
-        },
-        {
-          "name": "최대",
-          "code": "maxMonthly",
-          "type": "input",
-          "value": ""
-        }
-      ]
-    },
-    {
-      "name": "면적 범위",
-      "type": "disco_area",
-      "items": [
-        {
-          "name": "최소",
-          "code": "minArea",
-          "type": "input",
-          "value": ""
-        },
-        {
-          "name": "최대",
-          "code": "maxArea",
           "type": "input",
           "value": ""
         }
       ],
-      "code": "area",
-      "areaUnit": "pyeong",
-      "exclusiveAreaOnly": false
+      "name": "매매가 (만원)",
+      "type": "two_input"
     },
     {
-      "name": "용도지역",
-      "code": "useArea",
-      "type": "disco_use_area",
+      "items": [
+        {
+          "code": "minDeposit",
+          "name": "최소",
+          "type": "input",
+          "value": ""
+        },
+        {
+          "code": "maxDeposit",
+          "name": "최대",
+          "type": "input",
+          "value": ""
+        }
+      ],
+      "name": "보증금 / 전세금 (만원)",
+      "type": "two_input"
+    },
+    {
+      "items": [
+        {
+          "code": "minMonthly",
+          "name": "최소",
+          "type": "input",
+          "value": ""
+        },
+        {
+          "code": "maxMonthly",
+          "name": "최대",
+          "type": "input",
+          "value": ""
+        }
+      ],
+      "name": "월세 (만원)",
+      "type": "two_input"
+    },
+    {
+      "areaUnit": "pyeong",
+      "code": "area",
+      "exclusiveAreaOnly": false,
+      "items": [
+        {
+          "code": "minArea",
+          "name": "최소",
+          "type": "input",
+          "value": ""
+        },
+        {
+          "code": "maxArea",
+          "name": "최대",
+          "type": "input",
+          "value": ""
+        }
+      ],
+      "name": "면적 범위",
+      "type": "disco_area"
+    },
+    {
       "children": [
         {
-          "name": "주거지역",
           "code": "useArea",
-          "type": "disco_multi",
           "items": [
             {
-              "name": "1종전용 주거",
               "code": "1",
+              "name": "1종전용 주거",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "2종전용 주거",
               "code": "2",
+              "name": "2종전용 주거",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "1종 일반 주거",
               "code": "3",
+              "name": "1종 일반 주거",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "2종 일반 주거",
               "code": "4",
+              "name": "2종 일반 주거",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "3종 일반 주거",
               "code": "5",
+              "name": "3종 일반 주거",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "준 주거",
               "code": "6",
+              "name": "준 주거",
               "type": "checkbox",
               "value": false
             }
-          ]
+          ],
+          "name": "주거지역",
+          "type": "disco_multi"
         },
         {
-          "name": "상업지역",
           "code": "useArea",
-          "type": "disco_multi",
           "items": [
             {
-              "name": "중심 상업",
               "code": "7",
+              "name": "중심 상업",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "일반 상업",
               "code": "8",
+              "name": "일반 상업",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "근린 상업",
               "code": "9",
+              "name": "근린 상업",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "유통 상업",
               "code": "10",
+              "name": "유통 상업",
               "type": "checkbox",
               "value": false
             }
-          ]
+          ],
+          "name": "상업지역",
+          "type": "disco_multi"
         },
         {
-          "name": "공업지역",
           "code": "useArea",
-          "type": "disco_multi",
           "items": [
             {
-              "name": "전용 공업",
               "code": "11",
+              "name": "전용 공업",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "일반 공업",
               "code": "12",
+              "name": "일반 공업",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "준 공업",
               "code": "13",
+              "name": "준 공업",
               "type": "checkbox",
               "value": false
             }
-          ]
+          ],
+          "name": "공업지역",
+          "type": "disco_multi"
         },
         {
-          "name": "녹지지역",
           "code": "useArea",
-          "type": "disco_multi",
           "items": [
             {
-              "name": "보전녹지",
               "code": "14",
+              "name": "보전녹지",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "생산녹지",
               "code": "15",
+              "name": "생산녹지",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "자연녹지",
               "code": "16",
+              "name": "자연녹지",
               "type": "checkbox",
               "value": false
             }
-          ]
+          ],
+          "name": "녹지지역",
+          "type": "disco_multi"
         },
         {
-          "name": "관리지역",
           "code": "useArea",
-          "type": "disco_multi",
           "items": [
             {
-              "name": "계획관리",
               "code": "17",
+              "name": "계획관리",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "생산관리",
               "code": "18",
+              "name": "생산관리",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "보전관리",
               "code": "19",
+              "name": "보전관리",
               "type": "checkbox",
               "value": false
             }
-          ]
+          ],
+          "name": "관리지역",
+          "type": "disco_multi"
         },
         {
-          "name": "기타",
           "code": "useArea",
-          "type": "disco_multi",
           "items": [
             {
-              "name": "농림",
               "code": "20",
+              "name": "농림",
               "type": "checkbox",
               "value": false
             },
             {
-              "name": "자연환경 보전",
               "code": "21",
+              "name": "자연환경 보전",
               "type": "checkbox",
               "value": false
             }
-          ]
+          ],
+          "name": "기타",
+          "type": "disco_multi"
         }
-      ]
+      ],
+      "code": "useArea",
+      "name": "용도지역",
+      "type": "disco_use_area"
     }
   ],
   "setting_region_filter_favorite_flag": true,
@@ -480,7 +482,7 @@
     {
       "시도": "서울시",
       "시군구": "강남구",
-      "읍면동": "압구정동"
+      "읍면동": "개포동"
     },
     {
       "시도": "서울시",
@@ -548,6 +550,44 @@
     {
       "code": "completion_date",
       "value": "기본_준공",
+      "checked": true
+    },
+    {
+      "title": "매물 정보"
+    },
+    {
+      "code": "property_type",
+      "value": "매물유형",
+      "checked": true
+    },
+    {
+      "code": "deal_type",
+      "value": "거래방식",
+      "checked": true
+    },
+    {
+      "code": "ad_sale_price",
+      "value": "광고 금액_매매가",
+      "checked": true
+    },
+    {
+      "code": "ad_jeonse_price",
+      "value": "광고 금액_전세",
+      "checked": true
+    },
+    {
+      "code": "ad_monthly_deposit",
+      "value": "광고 금액_월세_보증금",
+      "checked": true
+    },
+    {
+      "code": "ad_monthly_rent",
+      "value": "광고 금액_월세_월세",
+      "checked": true
+    },
+    {
+      "code": "ad_management_fee",
+      "value": "광고 금액_월세_관리비",
       "checked": true
     },
     {
@@ -709,8 +749,13 @@
       "checked": true
     },
     {
-      "code": "floors",
-      "value": "건물 정보_지상/지하",
+      "code": "ground_floor_count",
+      "value": "건물 정보_지상",
+      "checked": true
+    },
+    {
+      "code": "underground_floor_count",
+      "value": "건물 정보_지하",
       "checked": true
     },
     {
@@ -846,6 +891,56 @@
     {
       "code": "approval_date",
       "value": "건물 정보_일자정보_사용승인일",
+      "checked": true
+    },
+    {
+      "code": "major_repair_lookup_status",
+      "value": "건물 정보_대수선조회상태",
+      "checked": true
+    },
+    {
+      "code": "major_repair_lookup_message",
+      "value": "건물 정보_대수선조회메시지",
+      "checked": true
+    },
+    {
+      "code": "major_repair_yn",
+      "value": "건물 정보_대수선여부",
+      "checked": true
+    },
+    {
+      "code": "major_repair_count",
+      "value": "건물 정보_대수선건수",
+      "checked": true
+    },
+    {
+      "code": "major_repair_latest_date",
+      "value": "건물 정보_최근대수선허가일",
+      "checked": true
+    },
+    {
+      "code": "major_repair_history",
+      "value": "건물 정보_대수선이력",
+      "checked": true
+    },
+    {
+      "code": "major_repair_looked_up_at",
+      "value": "건물 정보_대수선조회일시",
+      "checked": true
+    },
+    {
+      "code": "major_repair_data_as_of",
+      "value": "건물 정보_대수선데이터기준일시",
+      "checked": true
+    },
+    {
+      "code": "violation_building_yn",
+      "value": "건물 정보_위반건축물여부",
+      "checked": true
+    },
+    {
+      "code": "violation_building_content",
+      "value": "건물 정보_위반건축물내용",
       "checked": true
     },
     {
