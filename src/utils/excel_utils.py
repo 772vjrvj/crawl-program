@@ -166,6 +166,64 @@ class ExcelUtils:
 
         return text
 
+    @staticmethod
+    def _integer_text(value):
+        """1, 1.0, '1.0'을 모두 소수점 없는 정수로 정리합니다."""
+        if value in (None, ""):
+            return ""
+        text = str(value).strip().replace(",", "")
+        try:
+            number = float(text)
+        except (TypeError, ValueError):
+            return value
+        if number.is_integer():
+            return int(number)
+        return value
+
+    def _apply_integer_columns(self, ws, column_names, header_row=1, data_start_row=2):
+        """광고금액과 지상/지하 컬럼에서 불필요한 .0을 제거합니다."""
+        targets = {
+            "건물 정보_지상", "건물 정보_지하",
+            "ground_floor_count", "underground_floor_count",
+            "광고 금액_매매가", "광고 금액_전세",
+            "광고 금액_월세_보증금", "광고 금액_월세_월세",
+            "광고 금액_월세_관리비",
+            "ad_sale_price", "ad_jeonse_price", "ad_monthly_deposit",
+            "ad_monthly_rent", "ad_management_fee",
+        }
+        for column_index, column_name in enumerate(column_names, start=1):
+            if str(column_name) not in targets:
+                continue
+            for row_index in range(data_start_row, ws.max_row + 1):
+                cell = ws.cell(row=row_index, column=column_index)
+                cell.value = self._integer_text(cell.value)
+                cell.number_format = "#,##0"
+
+    def _apply_listing_links(self, ws, column_names, data_start_row=2):
+        """매물링크가 있으면 같은 행의 PNU와 지번주소에도 링크를 연결합니다."""
+        names = [str(name) for name in column_names]
+        link_names = ("매물링크", "listing_url")
+        pnu_names = ("PNU", "pnu")
+        address_names = ("기본_주소(지번)", "address")
+
+        def first_index(candidates):
+            return next((names.index(name) + 1 for name in candidates if name in names), None)
+
+        link_column = first_index(link_names)
+        if link_column is None:
+            return
+        target_columns = [first_index(pnu_names), first_index(address_names), link_column]
+        target_columns = [column for column in target_columns if column is not None]
+
+        for row_index in range(data_start_row, ws.max_row + 1):
+            raw_url = str(ws.cell(row=row_index, column=link_column).value or "").strip()
+            if not raw_url.startswith(("http://", "https://")):
+                continue
+            for column_index in target_columns:
+                cell = ws.cell(row=row_index, column=column_index)
+                if cell.value not in (None, ""):
+                    self._set_hyperlink_cell(cell, raw_url, cell.value)
+
     def _apply_header_style_and_filter(self, ws, header_row=1, data_start_row=2):
         max_col = ws.max_column
         max_row = ws.max_row
@@ -591,23 +649,10 @@ class ExcelUtils:
                 # DB 조회 결과에 NULL이 섞이면 pandas가 정수 열을 float64로
                 # 바꾸면서 1.0처럼 저장할 수 있습니다. 층수는 정수로 복원하고
                 # 엑셀 표시 형식도 소수점 없이 고정합니다.
-                integer_headers = {
-                    "건물 정보_지상",
-                    "건물 정보_지하",
-                    "ground_floor_count",
-                    "underground_floor_count",
-                }
-                for column_index, column_name in enumerate(df.columns, start=1):
-                    if str(column_name) not in integer_headers:
-                        continue
-                    for row_index in range(data_start_row, ws.max_row + 1):
-                        cell = ws.cell(row=row_index, column=column_index)
-                        if (
-                                isinstance(cell.value, float)
-                                and cell.value.is_integer()
-                        ):
-                            cell.value = int(cell.value)
-                        cell.number_format = "#,##0"
+                self._apply_integer_columns(
+                    ws, df.columns, header_row=header_depth, data_start_row=data_start_row
+                )
+                self._apply_listing_links(ws, df.columns, data_start_row=data_start_row)
 
                 self._apply_header_style_and_filter(
                     ws,
@@ -726,6 +771,8 @@ class ExcelUtils:
                     )
 
                     ws = writer.sheets[sheet_name]
+                    self._apply_integer_columns(ws, df.columns)
+                    self._apply_listing_links(ws, df.columns)
                     self._apply_header_style_and_filter(ws)
 
                     if hyperlink_columns:

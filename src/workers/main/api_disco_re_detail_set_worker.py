@@ -135,6 +135,20 @@ def _minimum_positive(values):
     return min(numbers) if numbers else None
 
 
+def _listing_url(list_rows):
+    """목록/그룹 광고 중 첫 번째 유효 광고의 디스코 상세 링크를 반환합니다."""
+    for row in _advertisement_rows(list_rows):
+        direct_url = _first_value(row, "url", "link", "sale_url", "detail_url")
+        if direct_url and str(direct_url).startswith(("http://", "https://")):
+            return str(direct_url).strip()
+
+        # 디스코 웹 매물 상세 주소는 목록 응답의 suid(uuid)로 구성됩니다.
+        sale_id = _first_value(row, "suid", "uuid")
+        if sale_id:
+            return f"https://www.disco.re/m/{str(sale_id).strip()}"
+    return None
+
+
 def _property_type_from_title(value):
     """코드가 없는 광고는 제목의 명시적인 유형 표현만 보조적으로 사용합니다."""
     title = str(value or "")
@@ -228,6 +242,7 @@ def _korean_advertisement_summary(list_rows):
     return {
         "매물유형": ", ".join(property_types) or None,
         "거래방식": ", ".join(deal_types) or None,
+        "매물링크": _listing_url(list_rows),
         "광고 금액_매매가": _minimum_positive(sale_prices),
         "광고 금액_전세": _minimum_positive(jeonse_prices),
         "광고 금액_월세_보증금": _minimum_positive(monthly_deposits),
@@ -677,6 +692,7 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             "search_keyword": "TEXT",
             "property_type": "TEXT",
             "deal_type": "TEXT",
+            "listing_url": "TEXT",
             "ad_sale_price": "INTEGER",
             "ad_jeonse_price": "INTEGER",
             "ad_monthly_deposit": "INTEGER",
