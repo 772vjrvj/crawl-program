@@ -63,20 +63,150 @@ def _date_text(value):
     return str(value or "") or None
 
 
-def _price_text(value):
-    """만원 단위 실거래가를 61억, 53억 7,900만원 형태로 표시합니다."""
+def _number_value(value):
+    """숫자 값을 엑셀에서 계산 가능한 int/float 형태로 정리합니다."""
     try:
-        price = int(float(value))
+        number = float(str(value).replace(",", "").strip())
     except (TypeError, ValueError):
         return None
-    if price <= 0:
+    if not math.isfinite(number) or number <= 0:
         return None
-    billion, ten_thousand = divmod(price, 10000)
-    if billion and ten_thousand:
-        return f"{billion}억 {ten_thousand:,}만원"
-    if billion:
-        return f"{billion}억"
-    return f"{ten_thousand:,}만원"
+    return int(number) if number.is_integer() else round(number, 2)
+
+
+def _won_to_manwon(value):
+    """원 단위 공시지가/공시가격을 만원 단위 숫자로 변환합니다."""
+    number = _number_value(value)
+    if number is None:
+        return None
+    converted = float(number) / 10000
+    return int(converted) if converted.is_integer() else round(converted, 2)
+
+
+PROPERTY_TYPE_NAMES = {
+    0: "아파트", 1: "주상복합", 2: "오피스텔", 3: "단독주택",
+    4: "다가구", 5: "전원주택", 6: "상가주택", 7: "연립",
+    8: "다세대", 10: "상가", 11: "사무실", 12: "상업용건물",
+    15: "숙박시설", 16: "토지", 17: "공장", 18: "지식산업센터",
+    19: "창고", 20: "생활숙박시설",
+}
+DEAL_TYPE_NAMES = {0: "매매", 1: "전세", 2: "월세"}
+
+
+def _first_value(row, *keys):
+    for key in keys:
+        value = row.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def _code_value(value):
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _minimum_positive(values):
+    numbers = [_number_value(value) for value in values]
+    numbers = [value for value in numbers if value is not None]
+    return min(numbers) if numbers else None
+
+
+def _property_type_from_title(value):
+    """코드가 없는 광고는 제목의 명시적인 유형 표현만 보조적으로 사용합니다."""
+    title = str(value or "")
+    keyword_names = (
+        ("지식산업센터", "지식산업센터"), ("생활숙박시설", "생활숙박시설"),
+        ("상업용건물", "상업용건물"), ("상가주택", "상가주택"),
+        ("주상복합", "주상복합"), ("오피스텔", "오피스텔"),
+        ("아파트", "아파트"), ("다가구", "다가구"), ("다세대", "다세대"),
+        ("연립", "연립"), ("전원주택", "전원주택"), ("단독주택", "단독주택"),
+        ("숙박시설", "숙박시설"), ("공장", "공장"), ("창고", "창고"),
+        ("사무실", "사무실"), ("상가", "상가"), ("토지", "토지"),
+    )
+    return next((name for keyword, name in keyword_names if keyword in title), None)
+
+
+def _advertisement_rows(list_rows):
+    """목록 행과 sale/jeonse/monthly 같은 중첩 광고 행을 모두 펼칩니다."""
+    result = []
+    nested_deal_codes = {
+        "sale": 0, "trade": 0, "매매": 0,
+        "jeonse": 1, "전세": 1,
+        "monthly": 2, "rent": 2, "월세": 2,
+    }
+    for source in list_rows or []:
+        if not isinstance(source, dict):
+            continue
+        result.append(dict(source))
+        for key, deal_code in nested_deal_codes.items():
+            nested = source.get(key)
+            nested_rows = nested if isinstance(nested, list) else [nested]
+            for nested_row in nested_rows:
+                if not isinstance(nested_row, dict):
+                    continue
+                merged = dict(source)
+                merged.update(nested_row)
+                merged.setdefault("_deal_type", deal_code)
+                result.append(merged)
+    return result
+
+
+def _korean_advertisement_summary(list_rows):
+    """동일 PNU 광고 중 거래유형별 최저 금액을 만원 단위로 집계합니다."""
+    property_types, deal_types = [], []
+    sale_prices, jeonse_prices = [], []
+    monthly_deposits, monthly_rents, management_fees = [], [], []
+
+    for row in _advertisement_rows(list_rows):
+        property_code = _code_value(_first_value(
+            row, "randType", "rand_type", "propertyType", "property_type",
+            "categoryCode", "category_code", "rt"
+        ))
+        property_name = _first_value(
+            row, "randTypeName", "rand_type_name", "propertyTypeName",
+            "property_type_name", "매물유형"
+        ) or PROPERTY_TYPE_NAMES.get(property_code) or _property_type_from_title(row.get("title"))
+        if property_name and property_name not in property_types:
+            property_types.append(str(property_name))
+
+        deal_code = _code_value(_first_value(
+            row, "_deal_type", "dealType", "deal_type", "dt"
+        ))
+        deal_name = _first_value(
+            row, "dealTypeName", "deal_type_name", "거래방식"
+        ) or DEAL_TYPE_NAMES.get(deal_code)
+        if deal_name and deal_name not in deal_types:
+            deal_types.append(str(deal_name))
+
+        # 디스코 목록의 p는 광고 대표금액이며 이미 만원 단위입니다.
+        representative_price = _first_value(row, "p", "price", "deal_price")
+        if deal_code == 0:
+            sale_prices.append(_first_value(row, "sale_price", "trade_price") or representative_price)
+        elif deal_code == 1:
+            jeonse_prices.append(_first_value(row, "jeonse_price", "deposit_price") or representative_price)
+        elif deal_code == 2:
+            monthly_deposits.append(_first_value(
+                row, "monthly_deposit", "deposit", "dp", "d"
+            ))
+            monthly_rents.append(_first_value(
+                row, "monthly_rent", "rent_price", "drt", "m"
+            ) or representative_price)
+            management_fees.append(_first_value(
+                row, "management_fee", "maintenance_fee", "dc"
+            ))
+
+    return {
+        "매물유형": ", ".join(property_types) or None,
+        "거래방식": ", ".join(deal_types) or None,
+        "광고 금액_매매가": _minimum_positive(sale_prices),
+        "광고 금액_전세": _minimum_positive(jeonse_prices),
+        "광고 금액_월세_보증금": _minimum_positive(monthly_deposits),
+        "광고 금액_월세_월세": _minimum_positive(monthly_rents),
+        "광고 금액_월세_관리비": _minimum_positive(management_fees),
+    }
 
 
 def _address_parts(address):
@@ -160,7 +290,7 @@ def _korean_land_prices(rows):
     for row in rows:
         if not isinstance(row, (list, tuple)) or len(row) < 3:
             continue
-        year, month, price = row[0], str(row[1]).zfill(2), row[2]
+        year, month, price = row[0], str(row[1]).zfill(2), _won_to_manwon(row[2])
         prices.append({
             "기준년도": f"{year}.{month}",
             "공시지가(㎡)": price,
@@ -190,7 +320,8 @@ def _korean_arch_info(result):
         "건물 정보_주구조": row.get("a33"),
         "건물 정보_지붕구조": row.get("a39"),
         "건물 정보_높이": row.get("a43"),
-        "건물 정보_지상/지하": f"{row.get('a44')}/{row.get('a45')}",
+        "건물 정보_지상": row.get("a44"),
+        "건물 정보_지하": row.get("a45"),
         "건물 정보_대지면적": row.get("a26"),
         "건물 정보_건축면적": row.get("a27"),
         "건물 정보_건축면적_건폐율": row.get("a28"),
@@ -268,7 +399,7 @@ def _korean_house_prices(rows):
     for row in rows:
         if not isinstance(row, (list, tuple)) or len(row) < 3:
             continue
-        year, month, price = row[0], str(row[1]).zfill(2), row[2]
+        year, month, price = row[0], str(row[1]).zfill(2), _won_to_manwon(row[2])
         prices.append({
             "기준년도": f"{year}.{month}",
             "공시가격": price,
@@ -308,7 +439,7 @@ def _korean_apart_prices(rows):
     for row in rows:
         if not isinstance(row, (list, tuple)) or len(row) < 3:
             continue
-        year, month, price = row[0], str(row[1]).zfill(2), row[2]
+        year, month, price = row[0], str(row[1]).zfill(2), _won_to_manwon(row[2])
         prices.append({
             "기준년도": f"{year}.{month}",
             "공시가격": price,
@@ -500,13 +631,13 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         ]
         if not self.db_repository.initialize(schema_files, start_job=True):
             raise RuntimeError("공통 WorkerDbRepository 초기화 실패")
-        self._ensure_search_keyword_column()
+        self._ensure_added_columns()
         self.log_signal_func("[디스코] 저장 컬럼: " + json.dumps(
             [c["value"] for c in self.selected_column_defs], ensure_ascii=False))
         self.log_signal_func(f"[디스코] DB 작업 시작: {self.db_repository.job_id}")
 
-    def _ensure_search_keyword_column(self):
-        """기존 SQLite DB에도 검색 키워드 컬럼을 한 번만 추가합니다."""
+    def _ensure_added_columns(self):
+        """기존 SQLite DB에도 이번 작업의 신규 컬럼을 안전하게 추가합니다."""
         rows = self.db_repository.sqlite.fetchall(
             'PRAGMA table_info("disco_re_detail")'
         )
@@ -515,13 +646,28 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             for row in (rows or [])
             if isinstance(row, dict)
         }
-        if "search_keyword" in column_names:
-            return
-        if not self.db_repository.sqlite.execute(
-            'ALTER TABLE "disco_re_detail" ADD COLUMN "search_keyword" TEXT'
-        ):
-            raise RuntimeError("기존 DB에 검색 키워드 컬럼을 추가하지 못했습니다.")
-        self.log_signal_func("[디스코] 기존 DB에 검색 키워드 컬럼을 추가했습니다.")
+        added_columns = {
+            "search_keyword": "TEXT",
+            "property_type": "TEXT",
+            "deal_type": "TEXT",
+            "ad_sale_price": "INTEGER",
+            "ad_jeonse_price": "INTEGER",
+            "ad_monthly_deposit": "INTEGER",
+            "ad_monthly_rent": "INTEGER",
+            "ad_management_fee": "INTEGER",
+            "ground_floor_count": "INTEGER",
+            "underground_floor_count": "INTEGER",
+            "violation_building_yn": "TEXT",
+            "violation_building_content": "TEXT",
+        }
+        for column_name, column_type in added_columns.items():
+            if column_name in column_names:
+                continue
+            if not self.db_repository.sqlite.execute(
+                f'ALTER TABLE "disco_re_detail" ADD COLUMN "{column_name}" {column_type}'
+            ):
+                raise RuntimeError(f"기존 DB에 {column_name} 컬럼을 추가하지 못했습니다.")
+            self.log_signal_func(f"[디스코] 기존 DB에 {column_name} 컬럼을 추가했습니다.")
 
     def init(self) -> bool:
         try:
@@ -1030,7 +1176,8 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             "기본_주소(도로명)": result.get("road_address"),
             "기본_준공": completed_date,
             "실거래가_등록된 매물수": result.get("count"),
-            "실거래가_최근실거래가": _price_text(recent_price),
+            # short_info의 price는 이미 만원 단위이므로 표시문자열로 바꾸지 않습니다.
+            "실거래가_최근실거래가": _number_value(recent_price),
             "실거래가_최근실거래가 일자": recent_deal_date,
             "토지 정보_면적": result.get("land_area"),
             "토지 정보_지목": result.get("purpose"),
@@ -1039,12 +1186,8 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             "건물 정보_건물이름": result.get("name"),
             "건물 정보_대지면적": result.get("land_area"),
             "건물 정보_연면적": result.get("floor_area"),
-            "건물 정보_지상/지하": (
-                f"{result.get('ground_floor')}/{result.get('basement_floor')}"
-                if result.get("ground_floor") is not None
-                and result.get("basement_floor") is not None
-                else None
-            ),
+            "건물 정보_지상": result.get("ground_floor"),
+            "건물 정보_지하": result.get("basement_floor"),
             "건물 정보_세대 수_가구": result.get("family"),
             "건물 정보_세대 수_호수": result.get("ho"),
         }
@@ -1103,6 +1246,7 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             self._row_errors = []
             started_at = now_text()
             item = self._korean_short_info(pnu, {})
+            item.update(_korean_advertisement_summary(list_rows))
             item["검색 키워드"] = next(
                 (
                     str(row.get("_search_keyword") or "").strip()
@@ -1265,7 +1409,10 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
 
             # 대수선 관련 컬럼이 1개라도 선택되었는지 확인
             is_major_repair_checked = any(
-                col.get("code", "").startswith("major_repair_") or "대수선" in str(col.get("value", ""))
+                col.get("code", "").startswith("major_repair_")
+                or col.get("code", "").startswith("violation_building_")
+                or "대수선" in str(col.get("value", ""))
+                or "위반건축물" in str(col.get("value", ""))
                 for col in self.selected_column_defs
             )
 
@@ -1388,7 +1535,7 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             self.log_signal_func("[디스코] master_api_key 설정이 없어 대수선 조회를 건너뜁니다.")
             return {}
 
-        url = "https://goodbye772.com/archhub/major-repair"
+        url = self.major_repair_server_url or "https://goodbye772.com/archhub/major-repair"
         headers = {
             "X-API-KEY": self.major_repair_master_api_key
         }
@@ -1418,6 +1565,8 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             "건물 정보_대수선이력": history_data,
             "건물 정보_대수선조회일시": res_json.get("건물 정보_대수선조회일시"),
             "건물 정보_대수선데이터기준일시": res_json.get("건물 정보_대수선데이터기준일시"),
+            "건물 정보_위반건축물여부": res_json.get("건물 정보_위반건축물여부"),
+            "건물 정보_위반건축물내용": res_json.get("건물 정보_위반건축물내용"),
         }
 
     def main(self) -> bool:
