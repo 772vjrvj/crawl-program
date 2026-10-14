@@ -1673,7 +1673,9 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             "건물 정보_대수선조회메시지": res_json.get("건물 정보_대수선조회메시지"),
             "건물 정보_대수선여부": res_json.get("건물 정보_대수선여부"),
             "건물 정보_대수선건수": res_json.get("건물 정보_대수선건수"),
-            "건물 정보_최근대수선허가일": res_json.get("건물 정보_최근대수선허가일"),
+            "건물 정보_최근대수선사용승인일": res_json.get(
+                "건물 정보_최근대수선사용승인일"
+            ),
             "건물 정보_대수선이력": history_data,
             "건물 정보_대수선조회일시": res_json.get("건물 정보_대수선조회일시"),
             "건물 정보_대수선데이터기준일시": res_json.get("건물 정보_대수선데이터기준일시"),
