@@ -474,11 +474,32 @@
           ]
         }
       ]
+    },
+    {
+      "name": "역세권",
+      "type": "title",
+      "children": [
+        {
+          "name": "도보거리(단위 분)",
+          "code": "subway_walking_minute",
+          "type": "input",
+          "value": "10",
+          "placeholder": "예: 10 (비우면 미사용)"
+        }
+      ],
+      "parent_id": "title",
+      "checked": true
     }
   ],
   "setting_region_filter_favorite_flag": true,
   "setting_region_filter_favorite": [],
-  "selected_regions": [],
+  "selected_regions": [
+    {
+      "시도": "서울시",
+      "시군구": "강남구",
+      "읍면동": "수서동"
+    }
+  ],
   "search_col_list": [
     {
       "code": "search_keyword",
@@ -534,6 +555,19 @@
     {
       "code": "road_address",
       "value": "기본_주소(도로명)",
+      "checked": true
+    },
+    {
+      "title": "역세권"
+    },
+    {
+      "code": "nearest_subway_station",
+      "value": "가까운 지하철역",
+      "checked": true
+    },
+    {
+      "code": "subway_walking_minute",
+      "value": "도보거리(단위 분)",
       "checked": true
     },
     {
@@ -909,7 +943,7 @@
     },
     {
       "code": "major_repair_latest_date",
-      "value": "건물 정보_최근대수선허가일",
+      "value": "건물 정보_최근대수선사용승인일",
       "checked": true
     },
     {

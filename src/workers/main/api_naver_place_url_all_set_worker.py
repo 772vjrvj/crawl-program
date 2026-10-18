@@ -24,6 +24,14 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
 
     LIMIT_IMAGE_SIZE: int = 1000
 
+    # 네이버 플레이스 요청 제한 대응값
+    PLACE_WAIT_MIN_SECONDS: float = 2.5
+    PLACE_WAIT_MAX_SECONDS: float = 3.0
+    PLACE_BATCH_SIZE: int = 100
+    PLACE_BATCH_WAIT_SECONDS: float = 3 * 60
+    PLACE_BATCH_WAIT_AFTER_429_SECONDS: float = 5 * 60
+    PLACE_429_MAX_RETRIES: int = 3
+
     # 초기화
     def __init__(self) -> None:
         super().__init__()
@@ -47,6 +55,98 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
         # === 신규 ===
         self.folder_path: str = ""
         self.out_dir: str = "output_naver_place_url"
+
+        # 상세 HTML/이미지 GraphQL을 모두 같은 호출량으로 관리한다.
+        self._place_request_count: int = 0
+        self._next_place_rest_at: int = self.PLACE_BATCH_SIZE
+        self._place_rest_seconds: float = self.PLACE_BATCH_WAIT_SECONDS
+        self._http_429_detected: bool = False
+
+    def _wait_crawl_delay(self, seconds: float, label: str = "") -> bool:
+        """중지 요청을 즉시 반영할 수 있도록 짧게 나누어 대기한다."""
+        if label:
+            self.log_signal_func(label)
+
+        end_time = time.monotonic() + seconds
+        while self.running:
+            remaining = end_time - time.monotonic()
+            if remaining <= 0:
+                return True
+            time.sleep(min(0.2, remaining))
+        return False
+
+    def _increase_rest_after_429(self) -> None:
+        """429가 한 번이라도 발생하면 이후 주기 휴식을 5분으로 늘린다."""
+        if self._place_rest_seconds < self.PLACE_BATCH_WAIT_AFTER_429_SECONDS:
+            self._place_rest_seconds = self.PLACE_BATCH_WAIT_AFTER_429_SECONDS
+            self.log_signal_func(
+                "⚠️ [휴식시간 변경] HTTP 429 발생으로 이후 플레이스 상세/이미지 요청 "
+                f"{self.PLACE_BATCH_SIZE}회마다 {self._place_rest_seconds / 60:g}분 휴식합니다."
+            )
+
+    def _api_log_with_delay(self, message: str) -> None:
+        """APIClient의 로그를 유지하면서 429 응답을 감지한다."""
+        self.log_signal_func(message)
+        text = str(message)
+        if re.search(r"\b429\b", text) and ("HTTP" in text or "Too Many Requests" in text):
+            self._http_429_detected = True
+            self._increase_rest_after_429()
+
+    def _wait_before_place_request(self, request_label: str) -> bool:
+        """실제 네이버 요청 전 간격 및 100회 단위 휴식을 적용한다."""
+        if self._place_request_count >= self._next_place_rest_at:
+            self.log_signal_func(
+                f"⏸️ [주기적 휴식] 플레이스 요청 {self._place_request_count}회 "
+                f"완료. {self._place_rest_seconds / 60:g}분 대기합니다."
+            )
+            if not self._wait_crawl_delay(self._place_rest_seconds):
+                return False
+            self._next_place_rest_at += self.PLACE_BATCH_SIZE
+
+        # 첫 요청은 바로 실행하고, 이후에는 요청 사이에 랜덤 간격을 둔다.
+        if self._place_request_count > 0:
+            seconds = random.uniform(self.PLACE_WAIT_MIN_SECONDS, self.PLACE_WAIT_MAX_SECONDS)
+            if not self._wait_crawl_delay(seconds, f"⏳ [{request_label}] {seconds:.1f}초 대기"):
+                return False
+        return True
+
+    def _call_place_api(self, request_label: str, request_func: Any) -> Any:
+        """429이면 5분 뒤 같은 요청을 최대 3회 재시도한다."""
+        for retry in range(self.PLACE_429_MAX_RETRIES + 1):
+            if not self.running or not self._wait_before_place_request(request_label):
+                return None
+
+            self._http_429_detected = False
+            self._place_request_count += 1
+            result = request_func()
+
+            # APIClient가 Response를 그대로 반환하는 구현도 함께 처리한다.
+            if getattr(result, "status_code", None) == 429:
+                self._http_429_detected = True
+
+            if not self._http_429_detected:
+                return result
+
+            self._increase_rest_after_429()
+            if retry >= self.PLACE_429_MAX_RETRIES:
+                self.log_signal_func(
+                    f"⛔ [{request_label}] HTTP 429 재시도 {self.PLACE_429_MAX_RETRIES}회 실패"
+                )
+                return None
+
+            seconds = self.PLACE_BATCH_WAIT_AFTER_429_SECONDS
+            self.log_signal_func(
+                f"⏸️ [HTTP 429 휴식] {seconds / 60:g}분 대기 후 같은 요청 재시도 "
+                f"({retry + 1}/{self.PLACE_429_MAX_RETRIES})"
+            )
+            if not self._wait_crawl_delay(seconds):
+                return None
+
+            # 429 대기 직후 같은 요청에서 주기 휴식이 중복되지 않게 한다.
+            if self._place_request_count >= self._next_place_rest_at:
+                self._next_place_rest_at += self.PLACE_BATCH_SIZE
+
+        return None
 
     # 초기화
     def init(self) -> bool:
@@ -165,7 +265,7 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
 
         self.excel_driver = ExcelUtils(self.log_signal_func)
         self.file_driver = FileUtils(self.log_signal_func)
-        self.api_client = APIClient(use_cache=False, log_func=self.log_signal_func)
+        self.api_client = APIClient(use_cache=False, log_func=self._api_log_with_delay, verify=True)
 
     def safe_filename(self, name: str) -> str:
         name = re.sub(r'[\\/:*?"<>|]+', "_", str(name or "").strip())
@@ -346,13 +446,22 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
             if not self.running:
                 return image_url_list
 
-            parts: Any = self.api_client.post(url=url, headers=headers, json=self.build_payload(place_id, si, lc))
+            if not self.api_client:
+                self.log_signal_func("[에러] api_client가 초기화되지 않았습니다.")
+                return image_url_list
+
+            parts: Any = self._call_place_api(
+                f"이미지 GraphQL Place ID {place_id} ({si or 0})",
+                lambda: self.api_client.post(
+                    url=url,
+                    headers=headers,
+                    json=self.build_payload(place_id, si, lc),
+                ),
+            )
             self.log_signal_func(f"이미지 다운로드 {place_id} {si} 호출")
 
             if isinstance(parts, list):
                 parts_all.extend([p for p in parts if isinstance(p, dict)])
-
-            time.sleep(random.uniform(.5, 1))
 
         photos: List[Dict[str, Any]] = []
         for part in parts_all:
@@ -451,6 +560,17 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
 
         return image_url_list
 
+    def _find_place_detail_key(self, root_query: Any, place_id: str) -> str:
+        """네이버가 placeDetail input 필드를 바꿔도 현재 장소의 캐시 키를 찾는다."""
+        if not isinstance(root_query, dict):
+            return ""
+
+        id_token = f'"id":"{place_id}"'
+        for key in root_query.keys():
+            if isinstance(key, str) and key.startswith("placeDetail(") and id_token in key:
+                return key
+        return ""
+
     # 상세조회
     def fetch_place_info(self, place_id: str) -> Optional[Dict[str, Any]]:
         url: str = f"https://m.place.naver.com/place/{place_id}"
@@ -475,7 +595,14 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                 "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
             }
 
-            response: Any = self.api_client.get(url=url, headers=headers)
+            if not self.api_client:
+                self.log_signal_func("[에러] api_client가 초기화되지 않았습니다.")
+                return None
+
+            response: Any = self._call_place_api(
+                f"상세 HTML Place ID {place_id}",
+                lambda: self.api_client.get(url=url, headers=headers),
+            )
             if not response:
                 self.log_signal_func(f"⚠️ Place ID {place_id} 응답 없음.")
                 return None
@@ -487,13 +614,22 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
                 self.log_signal_func(f"⚠️ Place ID {place_id}의 스크립트 태그 없음 또는 비어 있음.")
                 return None
 
-            match = re.search(r"window\.__APOLLO_STATE__\s*=\s*(\{.*\});", script_tag.string)
-            if not match:
-                self.log_signal_func(f"⚠️ Place ID {place_id}의 JSON 파싱 실패.")
+            script_text = script_tag.string
+            marker = "window.__APOLLO_STATE__"
+            marker_index = script_text.find(marker)
+            if marker_index < 0:
+                self.log_signal_func(f"⚠️ Place ID {place_id} APOLLO_STATE marker 없음.")
+                return None
+
+            equal_index = script_text.find("=", marker_index)
+            json_start = script_text.find("{", equal_index)
+            if equal_index < 0 or json_start < 0:
+                self.log_signal_func(f"⚠️ Place ID {place_id}의 JSON 시작 위치를 찾지 못했습니다.")
                 return None
 
             try:
-                data: Any = json.loads(match.group(1))
+                # 뒤에 붙는 자바스크립트 코드와 무관하게 JSON 객체 하나만 정확히 읽는다.
+                data, _ = json.JSONDecoder().raw_decode(script_text[json_start:])
             except Exception as e:
                 self.log_signal_func(f"⚠️ Place ID {place_id} JSON decode 실패: {e}")
                 return None
@@ -539,22 +675,25 @@ class ApiNaverPlaceUrlAllSetWorker(BaseApiWorker):
             if not isinstance(root_query, dict):
                 root_query = {}
 
-            place_detail_key: str = f'placeDetail({{"input":{{"deviceType":"pc","id":"{place_id}","isNx":false}}}})'
-
-            if place_detail_key not in root_query:
-                place_detail_key = f'placeDetail({{"input":{{"checkRedirect":true,"deviceType":"pc","id":"{place_id}","isNx":false}}}})'
+            place_detail_key = self._find_place_detail_key(root_query, place_id)
+            if not place_detail_key:
+                self.log_signal_func(f"⚠️ Place ID {place_id} placeDetail key를 찾지 못했습니다.")
+                return None
 
             place_detail_obj: Any = root_query.get(place_detail_key, {})
             if not isinstance(place_detail_obj, dict):
                 place_detail_obj = {}
 
-            business_hours: Any = place_detail_obj.get("businessHours({\"source\":[\"tpirates\",\"shopWindow\"]})", [])
-            if not business_hours:
-                business_hours = place_detail_obj.get("businessHours({\"source\":[\"tpirates\",\"jto\",\"shopWindow\"]})", [])
-
-            new_business_hours_json: Any = place_detail_obj.get("newBusinessHours", [])
-            if not new_business_hours_json:
-                new_business_hours_json = place_detail_obj.get("newBusinessHours({\"format\":\"restaurant\"})", [])
+            # source/format 인자가 바뀌어도 접두어 기준으로 현재 응답 값을 사용한다.
+            business_hours: Any = []
+            new_business_hours_json: Any = []
+            for key, value in place_detail_obj.items():
+                if not business_hours and isinstance(key, str) and key.startswith("businessHours"):
+                    business_hours = value
+                if not new_business_hours_json and isinstance(key, str) and key.startswith("newBusinessHours"):
+                    new_business_hours_json = value
+                if business_hours and new_business_hours_json:
+                    break
 
             urls: List[str] = []
             shop_window: Any = place_detail_obj.get("shopWindow", {})
