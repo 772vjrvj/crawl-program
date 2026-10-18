@@ -19,12 +19,13 @@ from src.workers.api_base_worker import BaseApiWorker
 
 class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
 
-    PLACE_WAIT_MIN_SECONDS: float = 3.0
-    PLACE_WAIT_MAX_SECONDS: float = 5.0
+    PLACE_WAIT_MIN_SECONDS: float = 2.5
+    PLACE_WAIT_MAX_SECONDS: float = 3.0
     PLACE_BATCH_SIZE: int = 100
     PLACE_BATCH_WAIT_SECONDS: float = 3 * 60
     PLACE_BATCH_WAIT_AFTER_429_SECONDS: float = 5 * 60
     SEARCH_BATCH_SIZE: int = 100
+    SEARCH_PAGE_SIZE: int = 70
     SEARCH_429_MAX_RETRIES: int = 3
 
     # 초기화
@@ -762,39 +763,36 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         url = "https://pcmap-api.place.naver.com/graphql"
 
         headers: Dict[str, str] = {
-            "method": "POST",
+            "accept": "*/*",
             "accept-language": "ko",
             "content-type": "application/json",
-            "referer": "https://pcmap.place.naver.com",
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+            "origin": "https://pcmap.place.naver.com",
+            "referer": "https://pcmap.place.naver.com/",
+            "user-agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/155.0.0.0 Safari/537.36"
+            ),
         }
 
+        # 2026-10-18 변경된 pcmap GraphQL 목록 요청 형식.
+        # 전국 수집에는 업체 ID만 필요하므로 id/name 필드만 조회한다.
         payload: List[Dict[str, Any]] = [{
-            "operationName": "getPlacesList",
+            "operationName": "getRestaurantsPcmap",
             "variables": {
-                "useReverseGeocode": True,
                 "input": {
                     "query": keyword,
-                    "start": (page - 1) * 100 + 1,
-                    "display": 100,
-                    "adult": True,
-                    "spq": True,
-                    "queryRank": "",
+                    "start": (page - 1) * self.SEARCH_PAGE_SIZE + 1,
+                    "display": self.SEARCH_PAGE_SIZE,
                     "x": "",
                     "y": "",
-                    "clientX": "",
-                    "clientY": "",
+                    "bounds": "",
+                    "isCurrentLocationSearch": None,
                     "deviceType": "pcmap",
-                    "bounds": ""
-                },
-                "isNmap": True,
-                "isBounds": True,
-                "reverseGeocodingInput": {
-                    "x": "",
-                    "y": ""
+                    "isPcmap": True,
                 }
             },
-            "query": "query getPlacesList($input: PlacesInput, $isNmap: Boolean!, $isBounds: Boolean!, $reverseGeocodingInput: ReverseGeocodingInput, $useReverseGeocode: Boolean = false) {  businesses: places(input: $input) {    total    items {      id      name      normalizedName      category      cid      detailCid {        c0        c1        c2        c3        __typename      }      categoryCodeList      dbType      distance      roadAddress      address      fullAddress      commonAddress      bookingUrl      phone      virtualPhone      businessHours      daysOff      imageUrl      imageCount      x      y      poiInfo {        polyline {          shapeKey {            id            name            version            __typename          }          boundary {            minX            minY            maxX            maxY            __typename          }          details {            totalDistance            arrivalAddress            departureAddress            __typename          }          __typename        }        polygon {          shapeKey {            id            name            version            __typename          }          boundary {            minX            minY            maxX            maxY            __typename          }          __typename        }        __typename      }      subwayId      markerId @include(if: $isNmap)      markerLabel @include(if: $isNmap) {        text        style        stylePreset        __typename      }      imageMarker @include(if: $isNmap) {        marker        markerSelected        __typename      }      oilPrice @include(if: $isNmap) {        gasoline        diesel        lpg        __typename      }      isPublicGas      isDelivery      isTableOrder      isPreOrder      isTakeOut      isCvsDelivery      hasBooking      naverBookingCategory      bookingDisplayName      bookingBusinessId      bookingVisitId      bookingPickupId      baemin {        businessHours {          deliveryTime {            start            end            __typename          }          closeDate {            start            end            __typename          }          temporaryCloseDate {            start            end            __typename          }          __typename        }        __typename      }      yogiyo {        businessHours {          actualDeliveryTime {            start            end            __typename          }          bizHours {            start            end            __typename          }          __typename        }        __typename      }      isPollingStation      hasNPay      talktalkUrl      visitorReviewCount      visitorReviewScore      blogCafeReviewCount      bookingReviewCount      streetPanorama {        id        pan        tilt        lat        lon        __typename      }      naverBookingHubId      bookingHubUrl      bookingHubButtonName      newOpening      newBusinessHours {        status        description        dayOff        dayOffDescription        __typename      }      coupon {        total        promotions {          promotionSeq          couponSeq          conditionType          image {            url            __typename          }          title          description          type          couponUseType          __typename        }        __typename      }      mid      hasMobilePhoneNumber      hiking {        distance        startName        endName        __typename      }      __typename    }    optionsForMap @include(if: $isBounds) {      ...OptionsForMap      displayCorrectAnswer      correctAnswerPlaceId      __typename    }    searchGuide {      queryResults {        regions {          displayTitle          query          region {            rcode            __typename          }          __typename        }        isBusinessName        __typename      }      queryIndex      types      __typename    }    queryString    siteSort    __typename  }  reverseGeocodingAddr(input: $reverseGeocodingInput) @include(if: $useReverseGeocode) {    ...ReverseGeocodingAddr    __typename  }}fragment OptionsForMap on OptionsForMap {  maxZoom  minZoom  includeMyLocation  maxIncludePoiCount  center  spotId  keepMapBounds  __typename}fragment ReverseGeocodingAddr on ReverseGeocodingResult {  rcode  region  __typename}"
+            "query": "query getRestaurantsPcmap($input: PlaceListInput, $reverseGeocodingInput: ReverseGeocodingInput, $useReverseGeocode: Boolean = false, $isNmap: Boolean = false, $callAdBusinesses: Boolean = false) {\n  restaurants: placeList(input: $input) {\n    businessTypeCategory\n    businesses {\n      total\n      items {\n        apolloCacheId\n        coupon {\n          ...CouponItems\n          __typename\n        }\n        ...CommonBusinessItems\n        ...RestaurantBusinessItem\n        __typename\n      }\n      showMembershipBenefit\n      brand\n      queryString\n      siteSort\n      searchGuide {\n        ...SearchGuide\n        __typename\n      }\n      __typename\n    }\n    filtersInfo {\n      ...FiltersInfo\n      __typename\n    }\n    adBusinesses @include(if: $callAdBusinesses) {\n      total\n      bucket\n      bucketTest\n      isMaxAdCountIncreased\n      ... on RestaurantAdsResult {\n        items {\n          apolloCacheId\n          ...RestaurantAdItemFields\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    optionsForMap {\n      ...OptionsForMap\n      __typename\n    }\n    nlu {\n      ...NluFields\n      __typename\n    }\n    houseBanners {\n      ...HouseBanners\n      __typename\n    }\n    savelistBanner {\n      ...SavelistBanner\n      __typename\n    }\n    __typename\n  }\n  reverseGeocodingAddr(input: $reverseGeocodingInput) @include(if: $useReverseGeocode) {\n    ...ReverseGeocodingAddr\n    __typename\n  }\n}\n\nfragment CommonBusinessItems on BusinessSummary {\n  id\n  dbType\n  name\n  businessCategory\n  category\n  hasBooking\n  hasNPay\n  x\n  y\n  distance\n  imageUrl\n  imageCount\n  phone\n  virtualPhone\n  streetPanorama {\n    id\n    pan\n    tilt\n    lat\n    lon\n    fov\n    __typename\n  }\n  roadAddress\n  address\n  commonAddress\n  blogCafeReviewCount\n  bookingReviewCount\n  bookingBusinessId\n  talktalkUrl\n  detailCid {\n    c0\n    c1\n    c2\n    c3\n    __typename\n  }\n  options\n  promotionTitle\n  newOpening\n  hasWheelchairEntrance\n  markerId @include(if: $isNmap)\n  markerLabel @include(if: $isNmap) {\n    text\n    style\n    __typename\n  }\n  imageMarker @include(if: $isNmap) {\n    marker\n    markerSelected\n    __typename\n  }\n  __typename\n}\n\nfragment SearchGuide on SearchGuide {\n  queryResults {\n    regions {\n      displayTitle\n      query\n      region {\n        rcode\n        __typename\n      }\n      __typename\n    }\n    isBusinessName\n    __typename\n  }\n  queryIndex\n  types\n  __typename\n}\n\nfragment CouponItems on Coupon {\n  total\n  promotions {\n    conditionType\n    image {\n      url\n      __typename\n    }\n    title\n    description\n    type\n    couponUseType\n    couponLandingUrl\n    __typename\n  }\n  __typename\n}\n\nfragment FiltersInfo on PlaceListFiltersInfo {\n  filters {\n    key\n    displayName\n    clickCode\n    nlogCode\n    nlogAreaCode\n    items {\n      apolloCacheId\n      id\n      name\n      value\n      clickCode\n      nlogCode\n      nlogAreaCode\n      count\n      iconUrl\n      disabled\n      sub {\n        id\n        name\n        value\n        clickCode\n        nlogCode\n        nlogAreaCode\n        __typename\n      }\n      __typename\n    }\n    selectedValue\n    separator\n    unselectValue\n    __typename\n  }\n  __typename\n}\n\nfragment NluFields on Nlu {\n  queryType\n  user {\n    gender\n    __typename\n  }\n  queryResult {\n    ptn0\n    ptn1\n    region\n    spot\n    tradeName\n    service\n    selectedRegion {\n      name\n      index\n      x\n      y\n      __typename\n    }\n    selectedRegionIndex\n    otherRegions {\n      name\n      index\n      __typename\n    }\n    property\n    keyword\n    queryType\n    nluQuery\n    businessType\n    cid\n    branch\n    franchise\n    titleKeyword\n    location {\n      x\n      y\n      default\n      longitude\n      latitude\n      dong\n      si\n      __typename\n    }\n    noRegionQuery\n    priority\n    showLocationBarFlag\n    themeId\n    filterBooking\n    repRegion\n    repSpot\n    dbQuery {\n      isDefault\n      name\n      type\n      getType\n      useFilter\n      hasComponents\n      __typename\n    }\n    type\n    category\n    menu\n    context\n    styles {\n      id\n      text\n      __typename\n    }\n    gender\n    themes\n    __typename\n  }\n  __typename\n}\n\nfragment OptionsForMap on OptionsForMap {\n  maxZoom\n  minZoom\n  includeMyLocation\n  maxIncludePoiCount\n  center\n  spotId\n  keepMapBounds\n  __typename\n}\n\nfragment ReverseGeocodingAddr on ReverseGeocodingResult {\n  rcode\n  region\n  __typename\n}\n\nfragment SavelistBanner on SavelistBanner {\n  title\n  link {\n    mo\n    pc\n    __typename\n  }\n  __typename\n}\n\nfragment HouseBanners on HouseBanner {\n  id\n  slotIndex\n  imageUrl\n  linkUrl\n  bgColor\n  altText\n  __typename\n}\n\nfragment RestaurantBusinessItem on PlaceListBusinessesItem {\n  fullAddress\n  categoryCodeList\n  visitorReviewCount\n  visitorReviewScore\n  imageUrls\n  visitorImages {\n    reviewId\n    imageUrl\n    profileImageUrl\n    nickname\n    __typename\n  }\n  visitorReviews {\n    id\n    review\n    reviewId\n    __typename\n  }\n  microReview\n  broadcastInfo {\n    program\n    __typename\n  }\n  michelinGuide {\n    year\n    star\n    comment\n    url\n    hasGrade\n    isBib\n    alternateText\n    hasExtraNew\n    region\n    __typename\n  }\n  broadcasts {\n    program\n    menu\n    broadcast_date\n    __typename\n  }\n  naverBookingCategory\n  saveCount\n  uniqueBroadcasts\n  naverOrder {\n    items {\n      id\n      type\n      __typename\n    }\n    isDelivery\n    isTableOrder\n    isPreOrder\n    isPickup\n    __typename\n  }\n  bookingDisplayName\n  popularMenuImages {\n    name\n    price\n    menuUrl\n    imageUrl\n    __typename\n  }\n  newBusinessHours {\n    status\n    description\n    __typename\n  }\n  repeatVisit {\n    title\n    __typename\n  }\n  realTimeBookingInfo {\n    description\n    hasMultipleBookingItems\n    bookingUrl\n    itemId\n    itemName\n    timeSlots {\n      date\n      time\n      timeRaw\n      available\n      __typename\n    }\n    __typename\n  }\n  posInfo {\n    isPOS\n    items {\n      value\n      title\n      description\n      __typename\n    }\n    __typename\n  }\n  nPayConnect {\n    benefitText\n    __typename\n  }\n  membershipBenefit {\n    benefitType\n    representativeColor\n    representativeImageUrl\n    membershipBenefitLandingUrl\n    benefitName\n    totalCouponCount\n    promotions {\n      promotionSeq\n      image {\n        url\n        __typename\n      }\n      title\n      type\n      couponUseType\n      __typename\n    }\n    __typename\n  }\n  __typename\n}\n\nfragment RestaurantAdItemFields on RestaurantAdSummary {\n  adId\n  adClickLog {\n    clickUrl\n    smartOrderClickUrl\n    trackingParameters {\n      n_ad_group_type\n      n_query\n      __typename\n    }\n    __typename\n  }\n  impressionEventUrl\n  effectiveImpressionEventUrl\n  adDescription\n  id\n  dbType\n  name\n  businessCategory\n  category\n  categoryCodeList\n  hasBooking\n  hasNPay\n  x\n  y\n  distance\n  imageUrl\n  imageCount\n  phone\n  virtualPhone\n  streetPanorama {\n    id\n    pan\n    tilt\n    lat\n    lon\n    __typename\n  }\n  roadAddress\n  address\n  commonAddress\n  blogCafeReviewCount\n  bookingReviewCount\n  totalReviewCount\n  bookingUrl\n  bookingBusinessId\n  talktalkUrl\n  detailCid {\n    c0\n    c1\n    c2\n    c3\n    __typename\n  }\n  options\n  promotionTitle\n  businessHours\n  markerId @include(if: $isNmap)\n  markerLabel @include(if: $isNmap) {\n    text\n    style\n    __typename\n  }\n  imageMarker @include(if: $isNmap) {\n    marker\n    markerSelected\n    __typename\n  }\n  newBusinessHours {\n    status\n    description\n    dayOff\n    dayOffDescription\n    __typename\n  }\n  coupon {\n    total\n    promotions {\n      promotionSeq\n      couponSeq\n      conditionType\n      image {\n        url\n        __typename\n      }\n      title\n      description\n      type\n      couponUseType\n      couponLandingUrl\n      __typename\n    }\n    __typename\n  }\n  hasMobilePhoneNumber\n  hasWheelchairEntrance\n  isAdvoost\n  imageUrls\n  bookingReviewScore\n  bookingHubUrl\n  bookingHubButtonName\n  microReview\n  broadcastInfo {\n    program\n    __typename\n  }\n  michelinGuide {\n    year\n    star\n    comment\n    url\n    hasGrade\n    isBib\n    alternateText\n    __typename\n  }\n  broadcasts {\n    program\n    menu\n    broadcast_date\n    __typename\n  }\n  naverBookingCategory\n  saveCount\n  uniqueBroadcasts\n  isDelivery\n  isCvsDelivery\n  bookingDisplayName\n  popularMenuImages {\n    name\n    price\n    menuUrl\n    imageUrl\n    __typename\n  }\n  adImages\n  smartplaceImages\n  naverOrder {\n    isPickup\n    isTableOrder\n    isPreOrder\n    isDelivery\n    items {\n      id\n      type\n      __typename\n    }\n    __typename\n  }\n  visitorReviewCount\n  visitorReviewScore\n  visitorImages {\n    reviewId\n    imageUrl\n    profileImageUrl\n    nickname\n    __typename\n  }\n  visitorReviews {\n    id\n    review\n    reviewId\n    __typename\n  }\n  newOpening\n  repeatVisit {\n    title\n    __typename\n  }\n  posInfo {\n    isPOS\n    items {\n      value\n      title\n      description\n      __typename\n    }\n    __typename\n  }\n  nPayConnect {\n    benefitText\n    __typename\n  }\n  realTimeBookingInfo {\n    description\n    hasMultipleBookingItems\n    bookingUrl\n    itemId\n    itemName\n    timeSlots {\n      date\n      time\n      timeRaw\n      available\n      __typename\n    }\n    __typename\n  }\n  __typename\n}"
         }]
 
         try:
@@ -802,18 +800,55 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 self.log_signal_func("[에러] api_client 가 초기화되지 않았습니다.")
                 return []
 
-            res = self._post_search_with_delay(url, headers, payload, keyword, page)
+            res = self._post_search_with_delay(
+                url,
+                headers,
+                payload,
+                keyword,
+                page,
+            )
             if not isinstance(res, list) or not res or not isinstance(res[0], dict):
                 return []
 
-            items = res[0].get("data", {}).get("businesses", {}).get("items", [])
+            errors = res[0].get("errors")
+            if errors:
+                self.log_signal_func(
+                    f"[에러] 네이버 목록 GraphQL 오류: "
+                    f"keyword={keyword}, page={page}, errors={errors}"
+                )
+                return []
+
+            businesses = (
+                res[0]
+                .get("data", {})
+                .get("restaurants", {})
+                .get("businesses", {})
+            )
+            if not isinstance(businesses, dict):
+                return []
+
+            items = businesses.get("items", [])
             if not isinstance(items, list):
                 return []
 
-            return [item.get("id") for item in items if isinstance(item, dict) and item.get("id")]
+            place_ids = [
+                str(item.get("id"))
+                for item in items
+                if isinstance(item, dict) and item.get("id")
+            ]
+
+            self.log_signal_func(
+                f"✅ 목록 조회 완료: keyword={keyword}, page={page}, "
+                f"start={(page - 1) * self.SEARCH_PAGE_SIZE + 1}, "
+                f"count={len(place_ids)}, total={businesses.get('total', 0)}"
+            )
+            return place_ids
 
         except Exception as e:
-            self.log_signal_func(f"[에러] fetch_search_results 실패: {e}")
+            self.log_signal_func(
+                f"[에러] fetch_search_results 실패: "
+                f"keyword={keyword}, page={page}, error={e}"
+            )
             return []
 
     # placeDetail ROOT_QUERY key 유연하게 찾기
@@ -1283,7 +1318,7 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
                 "img_origin": img_origin,
                 "map": f"https://map.naver.com/p/entry/place/{place_id}",
                 "amenities": conveniences,
-                "themes": ", ".join(themes) if themes else "",
+                "themes": ", ".join([t for t in themes if t]) if themes else "",
                 "menuText": menuText,
                 "seatText": seatText,
                 "parkingAvailable": parkingAvailable,
@@ -1510,3 +1545,5 @@ class ApiNaverPlaceLocAllSetWorker(BaseApiWorker):
         except Exception as e:
             self.log_signal_func(f"❌ 영업시간 포맷 실패: {e}")
             return ""
+
+
