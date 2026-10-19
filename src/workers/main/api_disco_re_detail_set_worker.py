@@ -6,9 +6,11 @@ import re
 import time
 import requests
 from datetime import datetime
-from urllib.parse import urlencode
+from urllib.parse import urlencode, parse_qs, urlsplit
 
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 
 from src.utils.disco_filters import build_disco_form
 from src.utils.file_utils import FileUtils
@@ -534,11 +536,11 @@ def make_map_bounds(center_lat, center_lng, width_scale=1.0, height_scale=1.0):
     sw_lat, sw_lng = to_lat_lng(
         center_x - left * width_scale,
         center_y - down * height_scale,
-    )
+        )
     ne_lat, ne_lng = to_lat_lng(
         center_x + right * width_scale,
         center_y + up * height_scale,
-    )
+        )
     return {
         "swLat": sw_lat,
         "swLng": sw_lng,
@@ -547,6 +549,202 @@ def make_map_bounds(center_lat, center_lng, width_scale=1.0, height_scale=1.0):
         "map_lv": MAP_LEVEL,
         "centerLat": lat,
         "centerLng": lng,
+    }
+
+
+# 네이버 지도 검색/도보 길찾기 응답을 fetch + XMLHttpRequest 양쪽에서 수집합니다.
+# 별도 JS 파일 없이 이 워커 파일만 교체하면 됩니다.
+NAVER_SUBWAY_HOOK_JS = r"""
+(() => {
+    if (window.__discoSubwayHook) return;
+    const state = window.__discoSubwayHook = {generation: 0, rows: []};
+    const wanted = url => /\/p\/api\/(?:search\/allSearch|directions\/walk)(?:\?|$)/.test(url);
+    const save = (generation, url, status, data, bodyText) => {
+        if (generation !== state.generation) return;
+        state.rows.push({url, status, data, generation, bodyText: bodyText || ""});
+        if (state.rows.length > 40) state.rows.shift();
+    };
+    const oldFetch = window.fetch;
+    window.fetch = async function (...args) {
+        const generation = state.generation;
+        const url = String(typeof args[0] === 'string' ? args[0] : args[0]?.url || args[0]);
+        let bodyText = args[1]?.body || '';
+        if (!bodyText && typeof Request !== 'undefined' && args[0] instanceof Request) {
+            try { bodyText = await args[0].clone().text(); } catch (_) {}
+        }
+        const response = await oldFetch.apply(this, args);
+        if (wanted(url)) {
+            response.clone().json().then(data => save(generation, url, response.status, data, bodyText)).catch(() => {});
+        }
+        return response;
+    };
+    const oldOpen = XMLHttpRequest.prototype.open;
+    const oldSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function (method, url) {
+        this.__discoUrl = String(url);
+        return oldOpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function () {
+        const generation = state.generation, url = this.__discoUrl || '', bodyText = arguments[0] || '';
+        if (wanted(url)) this.addEventListener('load', function () {
+            try {
+                const data = this.responseType === 'json' ? this.response : JSON.parse(this.responseText);
+                save(generation, url, this.status, data, bodyText);
+            } catch (_) {}
+        }, {once: true});
+        return oldSend.apply(this, arguments);
+    };
+})();
+"""
+
+
+def _subway_filter_limit(filters):
+    """출력 컬럼 체크와 분리: 상위 '역세권' 체크 + 입력값만 사용합니다."""
+    limits = []
+
+    def visit(nodes, enabled=True):
+        if isinstance(nodes, dict):
+            nodes = [nodes]
+        for node in nodes or []:
+            if not isinstance(node, dict):
+                continue
+            active = enabled
+            if 'checked' in node:
+                active = active and str(node['checked']).lower() in ('true', '1', 'y', 'yes', 'on')
+            if not active:
+                continue
+            if node.get('code') in ('subway_walking_minute', 'subwayWalkingMinute'):
+                raw = str(node.get('value') if node.get('value') is not None else '').strip()
+                if raw:
+                    if not re.fullmatch(r'[0-9]+', raw) or int(raw) <= 0:
+                        raise ValueError('역세권 도보 시간은 1 이상의 정수(분)로 입력해주세요.')
+                    limits.append(int(raw))
+            for name in ('children', 'items'):
+                visit(node.get(name), active)
+
+    visit(filters)
+    return min(limits) if limits else None
+
+
+def _naver_first_subway_name(payload):
+    """'지하철역' 검색 결과에서 첫 지하철역 이름을 보조값으로 얻습니다."""
+    result = payload.get('result') if isinstance(payload, dict) else None
+    if not isinstance(result, dict):
+        return None
+    place = result.get('place') or {}
+    rows = place.get('list') if isinstance(place, dict) else None
+    first_name = None
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        theme = row.get('theme') or {}
+        if not isinstance(theme, dict):
+            theme = {}
+        category = ' '.join(str(row.get(key) or '') for key in ('category', 'categoryName'))
+        is_subway = (
+                str(theme.get('isSubway') or '') == '1'
+                or '지하철' in category
+                or '전철' in category
+        )
+        name = str(row.get('name') or row.get('display') or row.get('title') or '').strip()
+        if name:
+            name = re.sub(r'<[^>]+>', '', name)
+            first_name = first_name or name
+            if is_subway:
+                return name
+    # 검색어 자체가 '지하철역'이므로 응답에 isSubway 표시가 없는 버전에서도
+    # 네이버가 거리순으로 돌려준 첫 장소를 사용합니다.
+    return first_name
+
+
+def _naver_search_has_results(payload):
+    """allSearch 응답에 장소/지번/도로명 검색 결과가 하나라도 있는지 확인합니다."""
+    result = payload.get('result') if isinstance(payload, dict) else None
+    if not isinstance(result, dict):
+        return False
+
+    def contains_rows(value):
+        if isinstance(value, list):
+            return any(
+                isinstance(row, dict)
+                and any(row.get(key) not in (None, '') for key in (
+                    'name', 'title', 'display', 'address', 'jibunAddress',
+                    'roadAddress', 'x', 'y', 'id', 'placeId',
+                ))
+                for row in value
+            )
+        if not isinstance(value, dict):
+            return False
+        rows = value.get('list')
+        if isinstance(rows, list) and contains_rows(rows):
+            return True
+        return any(
+            contains_rows(child)
+            for key, child in value.items()
+            if key != 'list' and isinstance(child, (dict, list))
+        )
+
+    return contains_rows(result)
+
+
+def _naver_walking_result(payload, fallback_station=None):
+    """도보 길찾기 응답에서 추천(reco) 경로의 실제 초·미터 값을 읽습니다."""
+    if not isinstance(payload, dict):
+        raise ValueError('네이버 도보 길찾기 JSON 응답 형식이 아닙니다.')
+    routes = payload.get('routes')
+    if not isinstance(routes, list):
+        result = payload.get('result') or {}
+        routes = result.get('routes') if isinstance(result, dict) else None
+    if not isinstance(routes, list):
+        raise ValueError('네이버 도보 길찾기 응답에 routes가 없습니다.')
+
+    route = next(
+        (
+            row for row in routes
+            if isinstance(row, dict)
+               and isinstance(row.get('summary'), dict)
+               and row['summary'].get('option') == 'reco'
+        ),
+        None,
+    )
+    if route is None:
+        raise ValueError('네이버 도보 길찾기 응답에 추천(reco) 경로가 없습니다.')
+
+    summary = route['summary']
+    try:
+        distance = int(float(summary.get('distance')))
+        duration = int(float(summary.get('duration')))
+    except (TypeError, ValueError):
+        raise ValueError('네이버 추천 경로의 거리 또는 시간이 숫자가 아닙니다.')
+    if distance < 0 or duration <= 0:
+        raise ValueError('네이버 추천 경로의 거리 또는 시간이 올바르지 않습니다.')
+
+    way_names = []
+    for way in summary.get('ways') or []:
+        if not isinstance(way, dict):
+            continue
+        name = str(way.get('name') or '').strip()
+        if name:
+            way_names.append(name)
+
+    station = None
+    fallback_station = str(fallback_station or '').strip()
+    if fallback_station:
+        station = next(
+            (name for name in way_names if fallback_station in name or name in fallback_station),
+            None,
+        )
+    if not station:
+        station = next((name for name in way_names if '역' in name), None)
+    station = station or fallback_station
+    if not station:
+        raise ValueError('네이버 추천 경로에서 지하철역 이름을 확인하지 못했습니다.')
+
+    return {
+        'nearest_subway_station': station,
+        'subway_walking_minute': math.ceil(duration / 60),
+        '_subway_walking_seconds': duration,
+        '_subway_walking_distance_meter': distance,
     }
 
 
@@ -589,6 +787,11 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         self.folder_path = ""
         self.auto_save_yn = False
         self.detail_log_yn = True
+        self._naver_window_handle = None
+        self._naver_subway_cache = {}
+        self._active_subway_limit = None
+        self._subway_lookup_failures = 0
+        self._subway_filtered_count = 0
 
     def set_columns(self, columns):
         self.column_defs = [
@@ -650,7 +853,7 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 stat_defs = [
                     dict(row) for row in tab.get("columns", [])
                     if isinstance(row, dict) and row.get("code")
-                    and row.get("checked", True)
+                       and row.get("checked", True)
                 ]
                 break
         user = getattr(self, "user", None)
@@ -693,6 +896,8 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             "property_type": "TEXT",
             "deal_type": "TEXT",
             "listing_url": "TEXT",
+            "nearest_subway_station": "TEXT",
+            "subway_walking_minute": "INTEGER",
             "ad_sale_price": "INTEGER",
             "ad_jeonse_price": "INTEGER",
             "ad_monthly_deposit": "INTEGER",
@@ -707,7 +912,7 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             if column_name in column_names:
                 continue
             if not self.db_repository.sqlite.execute(
-                f'ALTER TABLE "disco_re_detail" ADD COLUMN "{column_name}" {column_type}'
+                    f'ALTER TABLE "disco_re_detail" ADD COLUMN "{column_name}" {column_type}'
             ):
                 raise RuntimeError(f"기존 DB에 {column_name} 컬럼을 추가하지 못했습니다.")
             self.log_signal_func(f"[디스코] 기존 DB에 {column_name} 컬럼을 추가했습니다.")
@@ -795,20 +1000,20 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         data = region.get("data") or {}
         coordinates = data.get("coordinates") or region.get("coordinates") or {}
         lng = (
-            coordinates.get("xCoordinate")
-            or coordinates.get("lng")
-            or coordinates.get("longitude")
-            or region.get("lng")
-            or region.get("longitude")
-            or region.get("경도")
+                coordinates.get("xCoordinate")
+                or coordinates.get("lng")
+                or coordinates.get("longitude")
+                or region.get("lng")
+                or region.get("longitude")
+                or region.get("경도")
         )
         lat = (
-            coordinates.get("yCoordinate")
-            or coordinates.get("lat")
-            or coordinates.get("latitude")
-            or region.get("lat")
-            or region.get("latitude")
-            or region.get("위도")
+                coordinates.get("yCoordinate")
+                or coordinates.get("lat")
+                or coordinates.get("latitude")
+                or region.get("lat")
+                or region.get("latitude")
+                or region.get("위도")
         )
         if lng in (None, "") or lat in (None, ""):
             return None
@@ -1292,11 +1497,294 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             "건물 정보_세대 수_호수": result.get("ho"),
         }
 
+    def _naver_check_running(self):
+        if not self.running:
+            raise InterruptedError('사용자 중단')
+
+    def _naver_open_window(self):
+        """기존 Selenium 세션에서 네이버 지도 전용 창을 한 번만 생성합니다."""
+        self._naver_check_running()
+        if self._naver_window_handle in self.driver.window_handles:
+            self.driver.switch_to.window(self._naver_window_handle)
+            return False
+        self.driver.switch_to.new_window('window')
+        self._naver_window_handle = self.driver.current_window_handle
+        # 문서가 바뀌어도 앱의 첫 네트워크 요청보다 먼저 후킹합니다.
+        self.driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument',
+                                    {'source': NAVER_SUBWAY_HOOK_JS})
+        self.driver.get('https://map.naver.com/')
+        self.log_signal_func('[디스코] 도보 필터용 네이버 지도 창을 열었습니다.')
+        return True
+
+    def _naver_clear_hook(self):
+        self.driver.execute_script(NAVER_SUBWAY_HOOK_JS)
+        self.driver.execute_script('''
+            window.__discoSubwayHook.generation += 1;
+            window.__discoSubwayHook.rows = [];
+        ''')
+
+    def _naver_wait_hook(self, path, timeout=20, query=None):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            self._naver_check_running()
+            if query is not None:
+                for element in self.driver.find_elements(By.CSS_SELECTOR, '.notice_title'):
+                    if not element.is_displayed():
+                        continue
+                    notice = str(element.text or '').strip()
+                    if query in notice and '검색 결과가 없습니다' in notice:
+                        raise LookupError(f'네이버 지도에 검색 결과가 없습니다: {query}')
+
+            rows = self.driver.execute_script(
+                'return window.__discoSubwayHook ? window.__discoSubwayHook.rows : [];') or []
+            for row in reversed(rows):
+                url = str(row.get('url') or '')
+                if path not in url:
+                    continue
+                if query is not None:
+                    params = parse_qs(urlsplit(url).query)
+                    response_query = (
+                            params.get('query', [''])[0]
+                            or params.get('queryString', [''])[0]
+                    )
+                    if response_query and response_query != query:
+                        continue
+                status = row.get('status')
+                if status in (401, 403, 429):
+                    raise PermissionError(f'네이버 요청 제한/인증 확인 필요 (HTTP {status})')
+                if status != 200:
+                    raise RuntimeError(f'네이버 {path} 조회 실패 (HTTP {status})')
+                if not isinstance(row.get('data'), dict):
+                    raise ValueError(f'네이버 {path} JSON 응답 형식 오류')
+                return row
+            self._pause(0.15)
+        raise TimeoutError(f'네이버 네트워크 후킹 시간 초과: {path}')
+
+    def _naver_search_input(self):
+        """네이버 지도 상단의 현재 표시 중인 통합 검색 입력창을 찾습니다."""
+        def search_input(driver):
+            self._naver_check_running()
+            for element in driver.find_elements(
+                    By.CSS_SELECTOR, 'input.input_search[role="combobox"]'):
+                if element.is_displayed() and element.is_enabled():
+                    return element
+            return False
+        return WebDriverWait(self.driver, 20, poll_frequency=0.2).until(search_input)
+
+    def _naver_submit_search(self, query):
+        """검색창에 직접 문자열을 입력하고 Enter를 눌러 발생한 응답을 후킹합니다."""
+        self._naver_check_running()
+        if not self._pause(max(self.request_delay, 0.2)):
+            raise InterruptedError('사용자 중단')
+        element = self._naver_search_input()
+        element.click()
+        element.send_keys(Keys.CONTROL, 'a')
+        element.send_keys(Keys.BACKSPACE)
+        self._naver_clear_hook()
+        element.send_keys(query)
+        element.send_keys(Keys.ENTER)
+        data = self._naver_wait_hook(
+            '/p/api/search/allSearch', timeout=12, query=query
+        )['data']
+        if not _naver_search_has_results(data):
+            raise LookupError(f'네이버 지도에 검색 결과가 없습니다: {query}')
+        # Enter 검색 응답 직후 화면이 다시 그려질 시간을 조금 준 뒤 다음 단계로 이동합니다.
+        if not self._pause(0.7):
+            raise InterruptedError('사용자 중단')
+        return data
+
+    def _naver_open_directions_panel(self):
+        """상단 내비게이션의 '길찾기' 버튼을 눌러 입력 화면을 엽니다."""
+        def directions_button(driver):
+            self._naver_check_running()
+            selectors = (
+                '//button[contains(concat(" ", normalize-space(@class), " "), " btn_navbar ")]'
+                '[.//span[normalize-space()="길찾기"]]',
+                '//button[.//span[normalize-space()="길찾기"]]',
+            )
+            for selector in selectors:
+                for element in driver.find_elements(By.XPATH, selector):
+                    if element.is_displayed() and element.is_enabled():
+                        return element
+            return False
+
+        button = WebDriverWait(self.driver, 20, poll_frequency=0.2).until(directions_button)
+        button.click()
+        self._naver_direction_input('start')
+        self._naver_direction_input('goal')
+        if not self._pause(0.6):
+            raise InterruptedError('사용자 중단')
+
+    def _naver_direction_input(self, point):
+        """길찾기의 출발지(start) 또는 도착지(goal) 입력창을 찾습니다."""
+        if point not in ('start', 'goal'):
+            raise ValueError(f'지원하지 않는 길찾기 입력 구분: {point}')
+
+        selector = f'.search_input_box_wrap.{point} input.input_search[role="combobox"]'
+
+        def direction_input(driver):
+            self._naver_check_running()
+            for element in driver.find_elements(By.CSS_SELECTOR, selector):
+                if element.is_displayed() and element.is_enabled():
+                    return element
+            return False
+
+        return WebDriverWait(self.driver, 20, poll_frequency=0.2).until(direction_input)
+
+    def _naver_set_direction_point(self, point, query):
+        """길찾기 입력창에 값을 넣고 검색 목록의 첫 결과를 Enter로 확정합니다."""
+        self._naver_check_running()
+        element = self._naver_direction_input(point)
+        element.click()
+        element.send_keys(Keys.CONTROL, 'a')
+        element.send_keys(Keys.BACKSPACE)
+        element.send_keys(query)
+
+        # 자동완성 목록이 열리면 첫 결과를 명시적으로 선택합니다. 목록이 늦게
+        # 열리거나 없는 경우에는 Enter로 네이버 자체 검색/확정 동작을 수행합니다.
+        deadline = time.monotonic() + 3
+        expanded = False
+        while time.monotonic() < deadline:
+            self._naver_check_running()
+            try:
+                expanded = element.get_attribute('aria-expanded') == 'true'
+            except Exception:
+                element = self._naver_direction_input(point)
+            if expanded:
+                break
+            self._pause(0.15)
+        if expanded:
+            element.send_keys(Keys.ARROW_DOWN)
+        element.send_keys(Keys.ENTER)
+        # 출발지/도착지 확정 후 React 상태가 반영되기 전에 다음 입력으로 넘어가지 않습니다.
+        if not self._pause(max(self.request_delay, 0.8)):
+            raise InterruptedError('사용자 중단')
+
+    def _naver_select_walking(self):
+        """길찾기 이동수단을 도보로 선택합니다."""
+        def walking_button(driver):
+            self._naver_check_running()
+            for element in driver.find_elements(
+                    By.XPATH, '//button[@role="tab"][.//span[normalize-space()="도보"]]'):
+                if element.is_displayed() and element.is_enabled():
+                    return element
+            return False
+
+        button = WebDriverWait(self.driver, 20, poll_frequency=0.2).until(walking_button)
+        if button.get_attribute('aria-selected') != 'true':
+            button.click()
+            if not self._pause(0.5):
+                raise InterruptedError('사용자 중단')
+
+    def _naver_request_walking_route(self):
+        """길찾기를 클릭하고, 응답이 없을 때만 버튼을 다시 찾아 한 번 재시도합니다."""
+        def search_button(driver):
+            self._naver_check_running()
+            for element in driver.find_elements(
+                    By.CSS_SELECTOR, '.search_btn_area button.btn_direction.search'):
+                if element.is_displayed() and element.is_enabled():
+                    return element
+            return False
+
+        for attempt in range(2):
+            self._naver_clear_hook()
+            try:
+                button = WebDriverWait(
+                    self.driver, 5, poll_frequency=0.2
+                ).until(search_button)
+                self.driver.execute_script(
+                    'arguments[0].scrollIntoView({block: "center", inline: "center"});',
+                    button,
+                )
+                button.click()
+            except InterruptedError:
+                raise
+            except Exception as error:
+                if attempt == 0:
+                    self.log_signal_func(
+                        f'[디스코] 네이버 길찾기 첫 클릭 실패, 버튼 재검색 후 재시도: {error}'
+                    )
+                    if not self._pause(0.4):
+                        raise InterruptedError('사용자 중단')
+                    continue
+                raise
+
+            try:
+                # 첫 클릭이 실제로 적용되지 않은 경우를 오래 기다리지 않습니다.
+                wait_seconds = 4 if attempt == 0 else 6
+                return self._naver_wait_hook(
+                    '/p/api/directions/walk', timeout=wait_seconds
+                )['data']
+            except TimeoutError:
+                if attempt == 0:
+                    self.log_signal_func(
+                        '[디스코] 네이버 길찾기 응답 없음, 버튼 재검색 후 한 번 더 클릭합니다.'
+                    )
+                    if not self._pause(0.4):
+                        raise InterruptedError('사용자 중단')
+                    continue
+                raise TimeoutError('네이버 길찾기 버튼을 2회 클릭했지만 도보 응답이 없습니다.')
+
+        raise TimeoutError('네이버 길찾기 재시도에 실패했습니다.')
+
+    def _lookup_naver_subway(self, pnu, item):
+        if pnu in self._naver_subway_cache:
+            return self._naver_subway_cache[pnu]
+        address = str(
+            item.get('기본_주소(지번)')
+            or item.get('기본_주소(도로명)')
+            or ''
+        ).strip()
+        if not address:
+            raise ValueError('디스코 매물 주소가 없습니다.')
+        previous_handle = self.driver.current_window_handle
+        try:
+            created = self._naver_open_window()
+            # 앞 매물의 길찾기 화면을 그대로 쓰면 출발·도착지가 섞일 수 있으므로
+            # 두 번째 매물부터는 지도 홈으로 되돌린 뒤 같은 UI 순서를 반복합니다.
+            if not created:
+                self.driver.get('https://map.naver.com/')
+            WebDriverWait(self.driver, 20, poll_frequency=0.2).until(
+                lambda driver: driver.execute_script('return document.readyState') == 'complete'
+            )
+            self._naver_search_input()
+
+            try:
+                self._naver_submit_search(address)
+                station_payload = self._naver_submit_search('근처지하철역')
+            except LookupError as error:
+                result = (None, str(error))
+                self._naver_subway_cache[pnu] = result
+                return result
+            fallback_station = _naver_first_subway_name(station_payload)
+            if not fallback_station:
+                result = (None, '네이버 지도에서 주변 지하철역 검색 결과를 찾지 못했습니다.')
+                self._naver_subway_cache[pnu] = result
+                return result
+
+            self._naver_open_directions_panel()
+            self._naver_select_walking()
+            # 지하철역에서 매물까지 걷는 방향으로 입력합니다.
+            self._naver_set_direction_point('start', fallback_station)
+            self._naver_set_direction_point('goal', address)
+            route_payload = self._naver_request_walking_route()
+            value = _naver_walking_result(route_payload, fallback_station)
+            result = (value, None)
+            self._naver_subway_cache[pnu] = result
+            return result
+        finally:
+            # 디스코의 후속 목록/상세 요청은 반드시 원래 창에서 실행합니다.
+            if previous_handle in self.driver.window_handles:
+                self.driver.switch_to.window(previous_handle)
+
     def _collect_short_infos(self, progress_start=0, progress_end=1000000):
         rows_by_pnu = {}
         missing_pnu = 0
         skipped_pnus = set()
         for row in self.list_items:
+            # 다른 즐겨찾기의 도보 조건으로 수집한 행을 섞지 않습니다.
+            if row.get("_subway_limit") != self._active_subway_limit:
+                continue
             pnu = str(row.get("pnu") or "").strip()
             if pnu in self._seen_pnus:
                 continue
@@ -1323,6 +1811,7 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             )
 
         success = 0
+        filtered_count = 0
         progress_value = int(progress_start)
 
         def update_detail_progress(done):
@@ -1385,6 +1874,44 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 update_detail_progress(index)
                 continue
 
+            # 도보 설정이 꺼져 있으면 네이버 창 생성/검색/요청을 전혀 수행하지 않습니다.
+            if self._active_subway_limit is not None:
+                try:
+                    walk, reason = self._lookup_naver_subway(pnu, item)
+                except (PermissionError, InterruptedError):
+                    raise
+                except Exception as error:
+                    self._subway_lookup_failures += 1
+                    self.log_signal_func(f"[디스코] 도보 조회 실패로 제외: PNU={pnu} / {error}")
+                    update_detail_progress(index)
+                    continue
+                walking_seconds = walk.get('_subway_walking_seconds') if walk else None
+                over_limit = (
+                        walk is None
+                        or not isinstance(walking_seconds, int)
+                        or walking_seconds > self._active_subway_limit * 60
+                )
+                if over_limit:
+                    filtered_count += 1
+                    self._subway_filtered_count += 1
+                    if walk is None:
+                        reason = reason or '네이버 추천 도보 경로가 없습니다.'
+                    else:
+                        reason = reason or (f'{walk["nearest_subway_station"]} 도보 '
+                                            f'{walk["subway_walking_minute"]}분 > '
+                                            f'설정 {self._active_subway_limit}분')
+                    self.log_signal_func(f"[디스코] 도보 조건 제외: PNU={pnu} / {reason}")
+                    # 제외 PNU는 완료로 기록하지 않아 다른 즐겨찾기 조건에서 재평가합니다.
+                    update_detail_progress(index)
+                    continue
+                item["가까운 지하철역"] = walk["nearest_subway_station"]
+                item["도보거리(단위 분)"] = walk["subway_walking_minute"]
+                self.log_signal_func(f'[디스코] 도보 조건 통과: PNU={pnu} / '
+                                     f'{walk["nearest_subway_station"]} 도보 {walk["subway_walking_minute"]}분 '
+                                     f'({walk["_subway_walking_distance_meter"]}m, '
+                                     f'{walk["_subway_walking_seconds"]}초 / '
+                                     f'설정 {self._active_subway_limit}분 이내)')
+
             self._prefetch_json(self._core_detail_requests(pnu, list_rows))
 
             try:
@@ -1426,9 +1953,9 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 item.update(_korean_arch_info(arch_info))
                 floor_items = []
                 arch_rows = (
-                    arch_info.get("title_section")
-                    or arch_info.get("overall_title_section")
-                    or []
+                        arch_info.get("title_section")
+                        or arch_info.get("overall_title_section")
+                        or []
                 )
                 seen_arch_keys = set()
                 for arch_row in arch_rows:
@@ -1569,7 +2096,9 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         self.log_signal_func(
             f"[디스코] 상세 요약 조회 완료: 성공 {success}/{total}건"
         )
-        return success, total
+        if filtered_count:
+            self.log_signal_func(f"[디스코] 도보 조건 제외 {filtered_count}건 (오류 건수와 별도)")
+        return success, total - filtered_count
 
     def _collect_region(self, region, filters):
         address = " ".join(self._region_key(region))
@@ -1607,11 +2136,13 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             for key, row in zip(page_keys, rows):
                 region_keys.add(key)
                 self._current_stat["count"] = len(region_keys)
-                if key in self._seen_items:
+                seen_key = (key, self._active_subway_limit)
+                if seen_key in self._seen_items:
                     continue
-                self._seen_items.add(key)
+                self._seen_items.add(seen_key)
                 detail_row = dict(row)
                 detail_row["_search_keyword"] = address
+                detail_row["_subway_limit"] = self._active_subway_limit
                 detail_row["_base_form"] = base_form
                 detail_row["_map_values"] = map_values
                 self.list_items.append(detail_row)
@@ -1706,6 +2237,11 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             for index, (region, filters) in enumerate(tasks, 1):
                 if not self.running:
                     break
+                self._active_subway_limit = _subway_filter_limit(filters)
+                self.log_signal_func(
+                    "[디스코] 도보 필터: " + (f"{self._active_subway_limit}분 이내" if self._active_subway_limit is not None
+                                       else "미사용 (네이버 조회 생략)")
+                )
                 address = " ".join(self._region_key(region))
                 region_start = int((index - 1) / len(tasks) * 1000000)
                 detail_start = int((index - 0.9) / len(tasks) * 1000000)
@@ -1736,8 +2272,8 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 # 디스코의 total_count는 화면 마커/그룹 수가 섞여 실제 상세 대상과
                 # 일치하지 않습니다. 통계는 중복 및 SKIP을 제거한 유효 PNU 기준입니다.
                 stat_matched = (
-                    region_status == "SUCCESS"
-                    and detail_success == detail_total
+                        region_status == "SUCCESS"
+                        and detail_success == detail_total
                 )
                 self.db_repository.insert_stat({
                     "task_index": index,
@@ -1766,7 +2302,7 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             )
             if not self.running:
                 self.job_status, self.job_error = "STOP", "사용자 중단"
-            elif completed != len(tasks) or self.db_repository.fail_count:
+            elif completed != len(tasks) or self.db_repository.fail_count or self._subway_lookup_failures:
                 self.job_status, self.job_error = "FAIL", "일부 지역 또는 상세 조회 실패(행/지역 오류 확인)"
             else:
                 self.job_status = "SUCCESS"
@@ -1818,6 +2354,9 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 self.log_signal_func(f"[디스코] 작업 마감/엑셀 저장 실패: {error}")
             finally:
                 self.db_repository.close()
+        self._naver_window_handle = None
+        self._naver_subway_cache.clear()
+        # 네이버 전용 창도 같은 Selenium 세션이므로 quit()에서 함께 종료됩니다.
         driver, self.driver = self.driver, None
         if driver is not None:
             try:

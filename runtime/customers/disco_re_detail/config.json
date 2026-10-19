@@ -483,7 +483,7 @@
           "name": "도보거리(단위 분)",
           "code": "subway_walking_minute",
           "type": "input",
-          "value": "10",
+          "value": "30",
           "placeholder": "예: 10 (비우면 미사용)"
         }
       ],
@@ -497,7 +497,7 @@
     {
       "시도": "서울시",
       "시군구": "강남구",
-      "읍면동": "수서동"
+      "읍면동": "율현동"
     }
   ],
   "search_col_list": [
