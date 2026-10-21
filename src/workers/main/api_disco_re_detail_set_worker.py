@@ -504,52 +504,6 @@ def make_map_bounds(center_lat, center_lng, width_scale=1.0, height_scale=1.0):
     }
 
 
-# 네이버 지도 검색/도보 길찾기 응답을 fetch + XMLHttpRequest 양쪽에서 수집합니다.
-# 별도 JS 파일 없이 이 워커 파일만 교체하면 됩니다.
-NAVER_SUBWAY_HOOK_JS = r"""
-(() => {
-    if (window.__discoSubwayHook) return;
-    const state = window.__discoSubwayHook = {generation: 0, rows: []};
-    const wanted = url => /\/p\/api\/(?:search\/allSearch|directions\/walk)(?:\?|$)/.test(url);
-    const save = (generation, url, status, data, bodyText) => {
-        if (generation !== state.generation) return;
-        state.rows.push({url, status, data, generation, bodyText: bodyText || ""});
-        if (state.rows.length > 40) state.rows.shift();
-    };
-    const oldFetch = window.fetch;
-    window.fetch = async function (...args) {
-        const generation = state.generation;
-        const url = String(typeof args[0] === 'string' ? args[0] : args[0]?.url || args[0]);
-        let bodyText = args[1]?.body || '';
-        if (!bodyText && typeof Request !== 'undefined' && args[0] instanceof Request) {
-            try { bodyText = await args[0].clone().text(); } catch (_) {}
-        }
-        const response = await oldFetch.apply(this, args);
-        if (wanted(url)) {
-            response.clone().json().then(data => save(generation, url, response.status, data, bodyText)).catch(() => {});
-        }
-        return response;
-    };
-    const oldOpen = XMLHttpRequest.prototype.open;
-    const oldSend = XMLHttpRequest.prototype.send;
-    XMLHttpRequest.prototype.open = function (method, url) {
-        this.__discoUrl = String(url);
-        return oldOpen.apply(this, arguments);
-    };
-    XMLHttpRequest.prototype.send = function () {
-        const generation = state.generation, url = this.__discoUrl || '', bodyText = arguments[0] || '';
-        if (wanted(url)) this.addEventListener('load', function () {
-            try {
-                const data = this.responseType === 'json' ? this.response : JSON.parse(this.responseText);
-                save(generation, url, this.status, data, bodyText);
-            } catch (_) {}
-        }, {once: true});
-        return oldSend.apply(this, arguments);
-    };
-})();
-"""
-
-
 def _subway_filter_limit(filters):
     """출력 컬럼 체크와 분리: 상위 '역세권' 체크 + 입력값만 사용합니다."""
     limits = []
@@ -713,6 +667,7 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         self.selenium_driver = None
         self.file_driver = None
         self.browser_fetch_js = ""
+        self.naver_subway_hook_js = ""
         self.region_coordinates = {}
         self._stopping = False
         self.list_items = []
@@ -888,7 +843,10 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                 "browser_get_json.js", "customers/disco_re_detail/js")
             self.get_json_batch_js = self.file_driver.read_text_from_resources(
                 "browser_get_json_batch.js", "customers/disco_re_detail/js")
-            if not self.geocode_js or not self.get_json_js or not self.get_json_batch_js:
+            self.naver_subway_hook_js = self.file_driver.read_text_from_resources(
+                "naver_subway_hook.js", "customers/disco_re_detail/js")
+            if not all((self.geocode_js, self.get_json_js, self.get_json_batch_js,
+                        self.naver_subway_hook_js)):
                 raise FileNotFoundError("디스코 주소검색/상세조회 JS 파일이 없습니다.")
             self.db_set()
 
@@ -1456,13 +1414,13 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         self._naver_window_handle = self.driver.current_window_handle
         # 문서가 바뀌어도 앱의 첫 네트워크 요청보다 먼저 후킹합니다.
         self.driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument',
-                                    {'source': NAVER_SUBWAY_HOOK_JS})
+                                    {'source': self.naver_subway_hook_js})
         self.driver.get('https://map.naver.com/')
         self.log_signal_func('[디스코] 도보 필터용 네이버 지도 창을 열었습니다.')
         return True
 
     def _naver_clear_hook(self):
-        self.driver.execute_script(NAVER_SUBWAY_HOOK_JS)
+        self.driver.execute_script(self.naver_subway_hook_js)
         self.driver.execute_script('''
             window.__discoSubwayHook.generation += 1;
             window.__discoSubwayHook.rows = [];

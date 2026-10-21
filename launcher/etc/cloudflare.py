@@ -63,16 +63,16 @@ API_TIMEOUT_SEC = 30
 # ============================================================
 
 # 배포 대상 프로그램 ID
-PROGRAM_ID = "DISCO_RE_DETAIL"
+PROGRAM_ID = "NAVER_DISCO_RE_DETAIL"
 
 # 프로그램 버전
-VERSION = "1.2.0"
+VERSION = "1.0.0"
 
 # Cloudflare R2 버전 폴더명
-DIR_NAME = "v1_2_0"
+DIR_NAME = "v1_0_0"
 
 # Cloudflare R2 ZIP 파일명
-FILE_NAME = "v1_2_0.zip"
+FILE_NAME = "v1_0_0.zip"
 
 # 신규 릴리스 사용 여부
 ENABLED = True
