@@ -2,6 +2,7 @@
 
 import json
 import math
+import random
 import re
 import time
 import requests
@@ -11,6 +12,7 @@ from urllib.parse import urlencode, parse_qs, urlsplit
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import TimeoutException as SeleniumTimeoutException
 
 from src.utils.disco_filters import build_disco_form
 from src.utils.file_utils import FileUtils
@@ -47,16 +49,13 @@ DEFAULT_FORM = [
     ("ownerVerifiedOnly", ""),
 ]
 
+# 네이버 지도 화면 또는 후킹 응답이 일시적으로 늦을 때 재시도할 예외입니다.
+NAVER_TRANSIENT_ERRORS = (TimeoutError, SeleniumTimeoutException)
+NAVER_RECOVERABLE_ERRORS = (LookupError, TimeoutError, SeleniumTimeoutException)
+
 
 def now_text():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-
-# 디스코 페이지가 지역 검색에 사용하는 카카오 geocoder를 그대로 호출합니다.
-
-
-# 디스코 페이지 안에서 같은 출처 및 data.disco.re의 JSON을 조회합니다.
-
-
 
 def _date_text(value):
     """YYYYMMDD를 YYYY-MM-DD로 바꿉니다."""
@@ -327,28 +326,66 @@ def _korean_land_history(rows):
     ]
 
 
-def _korean_land_prices(rows):
-    """개별공시지가 표를 기준년도/공시지가 배열과 현재 금액으로 만듭니다."""
+def _korean_price_table(rows, value_name):
+    """공시지가·주택가격 공통 배열과 최신 금액을 만듭니다."""
     prices = []
     sortable = []
     for row in rows:
         if not isinstance(row, (list, tuple)) or len(row) < 3:
             continue
         year, month, price = row[0], str(row[1]).zfill(2), _won_to_manwon(row[2])
-        prices.append({
-            "기준년도": f"{year}.{month}",
-            "공시지가(㎡)": price,
-        })
+        prices.append({"기준년도": f"{year}.{month}", value_name: price})
         try:
             sortable.append((int(year), int(month), price))
         except (TypeError, ValueError):
             pass
+    return prices, max(sortable, default=(None, None, None))[2]
 
-    current_price = max(sortable, default=(None, None, None))[2]
+
+def _korean_land_prices(rows):
+    """개별공시지가 표를 기준년도/공시지가 배열과 현재 금액으로 만듭니다."""
+    prices, current = _korean_price_table(rows, "공시지가(㎡)")
     return {
         "개별공시지가": prices,
-        "개별공시지가_공시지가(㎡)": current_price,
+        "개별공시지가_공시지가(㎡)": current,
     }
+
+
+def _mapped_fields(row, fields, date_sources=()):
+    return {
+        label: _date_text(row.get(source)) if source in date_sources else row.get(source)
+        for label, source in fields
+    }
+
+
+ARCH_INFO_FIELDS = (
+    ("건물 정보_건물이름", "a23"), ("건물 정보_주용도", "a36"),
+    ("건물 정보_기타용도", "a37"), ("건물 정보_주구조", "a33"),
+    ("건물 정보_지붕구조", "a39"), ("건물 정보_높이", "a43"),
+    ("건물 정보_지상", "a44"), ("건물 정보_지하", "a45"),
+    ("건물 정보_대지면적", "a26"), ("건물 정보_건축면적", "a27"),
+    ("건물 정보_건축면적_건폐율", "a28"), ("건물 정보_연면적", "a29"),
+    ("건물 정보_용적률산정연면적", "a30"), ("건물 정보_용적률산정연면적_용적률", "a31"),
+    ("건물 정보_세대 수_세대", "a41"), ("건물 정보_세대 수_가구", "a42"),
+    ("건물 정보_세대 수_호수", "a67"), ("건물 정보_외필지 수", "a17"),
+    ("건물 정보_오수정화시설_형식", "g23"), ("건물 정보_오수정화시설_형식(기타)", "g24"),
+    ("건물 정보_오수정화시설_용량(인용)", "g26"), ("건물 정보_오수정화시설_용량(루베)", "g27"),
+    ("건물 정보_주차장_자주식_옥내_댓수", "a55"), ("건물 정보_주차장_자주식_옥내_면적", "a56"),
+    ("건물 정보_주차장_자주식_옥외_댓수", "a57"), ("건물 정보_주차장_자주식_옥외_면적", "a58"),
+    ("건물 정보_주차장_기계식_옥내_댓수", "a51"), ("건물 정보_주차장_기계식_옥내_면적", "a52"),
+    ("건물 정보_주차장_기계식_옥외_댓수", "a53"), ("건물 정보_주차장_기계식_옥외_면적", "a54"),
+    ("건물 정보_승강기_승용", "a46"), ("건물 정보_승강기_비상용", "a47"),
+    ("건물 정보_일자정보_허가일", "a59"), ("건물 정보_일자정보_착공일", "a60"),
+    ("건물 정보_일자정보_사용승인일", "a61"),
+)
+ARCH_FLOOR_FIELDS = (
+    ("건축물구분", "d31"), ("층", "floor"), ("주용도", "d27"),
+    ("기타용도", "d28"), ("구조", "d24"), ("면적", "d29"), ("건물이름", "d32"),
+)
+EXCLUSIVE_PART_FIELDS = (
+    ("구분", "e28"), ("층", "e31"), ("면적", "e38"),
+    ("건축물", "e30"), ("용도", "e37"),
+)
 
 
 def _korean_arch_info(result):
@@ -356,60 +393,13 @@ def _korean_arch_info(result):
     rows = result.get("title_section") or result.get("overall_title_section") or []
     if not rows or not isinstance(rows[0], dict):
         return {}
-    row = rows[0]
-    return {
-        "건물 정보_건물이름": row.get("a23"),
-        "건물 정보_주용도": row.get("a36"),
-        "건물 정보_기타용도": row.get("a37"),
-        "건물 정보_주구조": row.get("a33"),
-        "건물 정보_지붕구조": row.get("a39"),
-        "건물 정보_높이": row.get("a43"),
-        "건물 정보_지상": row.get("a44"),
-        "건물 정보_지하": row.get("a45"),
-        "건물 정보_대지면적": row.get("a26"),
-        "건물 정보_건축면적": row.get("a27"),
-        "건물 정보_건축면적_건폐율": row.get("a28"),
-        "건물 정보_연면적": row.get("a29"),
-        "건물 정보_용적률산정연면적": row.get("a30"),
-        "건물 정보_용적률산정연면적_용적률": row.get("a31"),
-        "건물 정보_세대 수_세대": row.get("a41"),
-        "건물 정보_세대 수_가구": row.get("a42"),
-        "건물 정보_세대 수_호수": row.get("a67"),
-        "건물 정보_외필지 수": row.get("a17"),
-        "건물 정보_오수정화시설_형식": row.get("g23"),
-        "건물 정보_오수정화시설_형식(기타)": row.get("g24"),
-        "건물 정보_오수정화시설_용량(인용)": row.get("g26"),
-        "건물 정보_오수정화시설_용량(루베)": row.get("g27"),
-        "건물 정보_주차장_자주식_옥내_댓수": row.get("a55"),
-        "건물 정보_주차장_자주식_옥내_면적": row.get("a56"),
-        "건물 정보_주차장_자주식_옥외_댓수": row.get("a57"),
-        "건물 정보_주차장_자주식_옥외_면적": row.get("a58"),
-        "건물 정보_주차장_기계식_옥내_댓수": row.get("a51"),
-        "건물 정보_주차장_기계식_옥내_면적": row.get("a52"),
-        "건물 정보_주차장_기계식_옥외_댓수": row.get("a53"),
-        "건물 정보_주차장_기계식_옥외_면적": row.get("a54"),
-        "건물 정보_승강기_승용": row.get("a46"),
-        "건물 정보_승강기_비상용": row.get("a47"),
-        "건물 정보_일자정보_허가일": _date_text(row.get("a59")),
-        "건물 정보_일자정보_착공일": _date_text(row.get("a60")),
-        "건물 정보_일자정보_사용승인일": _date_text(row.get("a61")),
-    }
+    return _mapped_fields(rows[0], ARCH_INFO_FIELDS, {"a59", "a60", "a61"})
 
 
 def _korean_arch_floors(rows):
     """arch_floor_list 응답을 건축물현황의 한글 키 배열로 변환합니다."""
     return [
-        {
-            "건축물구분": row.get("d31"),
-            "층": row.get("floor"),
-            "주용도": row.get("d27"),
-            "기타용도": row.get("d28"),
-            "구조": row.get("d24"),
-            "면적": row.get("d29"),
-            "건물이름": row.get("d32"),
-        }
-        for row in rows
-        if isinstance(row, dict)
+        _mapped_fields(row, ARCH_FLOOR_FIELDS) for row in rows if isinstance(row, dict)
     ]
 
 
@@ -438,62 +428,24 @@ def _korean_businesses(rows):
 
 def _korean_house_prices(rows):
     """개별주택공시가격을 화면 표와 현재 가격으로 변환합니다."""
-    prices = []
-    sortable = []
-    for row in rows:
-        if not isinstance(row, (list, tuple)) or len(row) < 3:
-            continue
-        year, month, price = row[0], str(row[1]).zfill(2), _won_to_manwon(row[2])
-        prices.append({
-            "기준년도": f"{year}.{month}",
-            "공시가격": price,
-        })
-        try:
-            sortable.append((int(year), int(month), price))
-        except (TypeError, ValueError):
-            pass
+    prices, current = _korean_price_table(rows, "공시가격")
     return {
         "개별주택공시가격": prices,
-        "개별주택공시가격_공시가격": max(
-            sortable,
-            default=(None, None, None),
-        )[2],
+        "개별주택공시가격_공시가격": current,
     }
 
 
 def _korean_exclusive_parts(rows):
     """전유부 표를 화면의 한글 키 배열로 변환합니다."""
     return [
-        {
-            "구분": row.get("e28"),
-            "층": row.get("e31"),
-            "면적": row.get("e38"),
-            "건축물": row.get("e30"),
-            "용도": row.get("e37"),
-        }
-        for row in rows
-        if isinstance(row, dict)
+        _mapped_fields(row, EXCLUSIVE_PART_FIELDS)
+        for row in rows if isinstance(row, dict)
     ]
 
 
 def _korean_apart_prices(rows):
     """공동주택공시가격을 화면 표와 현재 가격으로 변환합니다."""
-    prices = []
-    sortable = []
-    for row in rows:
-        if not isinstance(row, (list, tuple)) or len(row) < 3:
-            continue
-        year, month, price = row[0], str(row[1]).zfill(2), _won_to_manwon(row[2])
-        prices.append({
-            "기준년도": f"{year}.{month}",
-            "공시가격": price,
-        })
-        try:
-            sortable.append((int(year), int(month), price))
-        except (TypeError, ValueError):
-            pass
-
-    current = max(sortable, default=(None, None, None))[2]
+    prices, current = _korean_price_table(rows, "공시가격")
     first = rows[0] if rows and isinstance(rows[0], (list, tuple)) else []
     return {
         "공동주택공시가격": prices,
@@ -727,16 +679,19 @@ def _naver_walking_result(payload, fallback_station=None):
         if name:
             way_names.append(name)
 
-    station = None
     fallback_station = str(fallback_station or '').strip()
-    if fallback_station:
+    # 길찾기 출발지로 실제 선택한 '근처지하철역' 검색 결과를 우선합니다.
+    # ways에는 목적지 주소도 포함되므로 단순히 '역' 포함 여부로 판단하면
+    # '역삼동', '역촌동', '역곡동' 같은 주소를 역 이름으로 오인할 수 있습니다.
+    station = fallback_station
+    if not station:
         station = next(
-            (name for name in way_names if fallback_station in name or name in fallback_station),
+            (
+                name for name in way_names
+                if re.search(r'(?:^|\s)[^\s]+역(?:\s|$)', name)
+            ),
             None,
         )
-    if not station:
-        station = next((name for name in way_names if '역' in name), None)
-    station = station or fallback_station
     if not station:
         raise ValueError('네이버 추천 경로에서 지하철역 이름을 확인하지 못했습니다.')
 
@@ -789,6 +744,8 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         self.detail_log_yn = True
         self._naver_window_handle = None
         self._naver_subway_cache = {}
+        self._naver_consecutive_search_misses = 0
+        self._naver_last_missed_address = None
         self._active_subway_limit = None
         self._subway_lookup_failures = 0
         self._subway_filtered_count = 0
@@ -1247,79 +1204,62 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             "호별정보_전유부": [],
         }
 
-    def _fetch_short_info(self, pnu):
-        result = self._fetch_json(
-            f"/common/short_info/?p={pnu}",
-            "기본정보",
-        )
-        if not isinstance(result, dict):
-            raise ValueError("기본정보 응답이 JSON 객체가 아닙니다.")
+    def _fetch_typed_json(self, url, name, expected_type, error_message, extract=None):
+        result = self._fetch_json(url, name)
+        result = extract(result) if extract else result
+        if not isinstance(result, expected_type):
+            raise ValueError(error_message)
         return result
+
+    def _fetch_short_info(self, pnu):
+        return self._fetch_typed_json(
+            f"/common/short_info/?p={pnu}", "기본정보", dict,
+            "기본정보 응답이 JSON 객체가 아닙니다.",
+        )
 
     def _fetch_land_info(self, pnu):
-        result = self._fetch_json(
-            f"https://data.disco.re/home/land_by_pnu/?pnu={pnu}",
-            "토지정보",
+        return self._fetch_typed_json(
+            f"https://data.disco.re/home/land_by_pnu/?pnu={pnu}", "토지정보", dict,
+            "토지정보 응답이 JSON 객체가 아닙니다.",
         )
-        if not isinstance(result, dict):
-            raise ValueError("토지정보 응답이 JSON 객체가 아닙니다.")
-        return result
 
     def _fetch_land_history(self, pnu, list_rows):
-        result = self._fetch_json(
-            self._land_history_url(pnu, list_rows), "토지이동이력"
+        return self._fetch_typed_json(
+            self._land_history_url(pnu, list_rows), "토지이동이력", list,
+            "토지이동이력 응답이 JSON 배열이 아닙니다.",
+            lambda result: result.get("data") if isinstance(result, dict) else result,
         )
-        if isinstance(result, dict):
-            result = result.get("data")
-        if not isinstance(result, list):
-            raise ValueError("토지이동이력 응답이 JSON 배열이 아닙니다.")
-        return result
 
     def _fetch_land_prices(self, pnu):
-        result = self._fetch_json(
-            f"https://data.disco.re/home/land_price/?pnu={pnu}",
-            "개별공시지가",
+        return self._fetch_typed_json(
+            f"https://data.disco.re/home/land_price/?pnu={pnu}", "개별공시지가", list,
+            "개별공시지가 응답이 JSON 배열이 아닙니다.",
         )
-        if not isinstance(result, list):
-            raise ValueError("개별공시지가 응답이 JSON 배열이 아닙니다.")
-        return result
 
     def _fetch_arch_info(self, pnu):
-        result = self._fetch_json(
-            f"https://data.disco.re/home/arch_by_pnu/?pnu={pnu}",
-            "건물정보",
+        return self._fetch_typed_json(
+            f"https://data.disco.re/home/arch_by_pnu/?pnu={pnu}", "건물정보", dict,
+            "건물정보 응답이 JSON 객체가 아닙니다.",
         )
-        if not isinstance(result, dict):
-            raise ValueError("건물정보 응답이 JSON 객체가 아닙니다.")
-        return result
 
     def _fetch_arch_floors(self, key):
-        result = self._fetch_json(
-            f"https://data.disco.re/home/arch_floor_list/?key={key}",
-            "건축물현황",
+        return self._fetch_typed_json(
+            f"https://data.disco.re/home/arch_floor_list/?key={key}", "건축물현황", list,
+            "건축물현황 응답이 JSON 배열이 아닙니다.",
         )
-        if not isinstance(result, list):
-            raise ValueError("건축물현황 응답이 JSON 배열이 아닙니다.")
-        return result
 
     def _fetch_businesses(self, pnu):
-        result = self._fetch_json(
+        return self._fetch_typed_json(
             self._data_url("home/get_arch_business/", {"p": pnu}),
-            "상가업소정보",
+            "상가업소정보", list, "상가업소정보 응답에 data 배열이 없습니다.",
+            lambda result: result.get("data") if isinstance(result, dict) else None,
         )
-        rows = result.get("data") if isinstance(result, dict) else None
-        if not isinstance(rows, list):
-            raise ValueError("상가업소정보 응답에 data 배열이 없습니다.")
-        return rows
 
     def _fetch_house_prices(self, pnu):
-        result = self._fetch_json(
+        return self._fetch_typed_json(
             self._data_url("home/house_price/", {"pnu": pnu}),
-            "개별주택공시가격",
+            "개별주택공시가격", list, "개별주택공시가격 응답이 JSON 배열이 아닙니다.",
         )
-        if not isinstance(result, list):
-            raise ValueError("개별주택공시가격 응답이 JSON 배열이 아닙니다.")
-        return result
 
     def _fetch_first_unit_info(self, pnu):
         """디스코 화면과 같이 첫 동·층·호의 대지권과 전유부를 조회합니다."""
@@ -1501,6 +1441,11 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         if not self.running:
             raise InterruptedError('사용자 중단')
 
+    def _naver_event_pause(self, minimum, maximum):
+        """네이버 UI 이벤트 사이에 짧고 일정하지 않은 간격을 둡니다."""
+        if not self._pause(random.uniform(minimum, maximum)):
+            raise InterruptedError('사용자 중단')
+
     def _naver_open_window(self):
         """기존 Selenium 세션에서 네이버 지도 전용 창을 한 번만 생성합니다."""
         self._naver_check_running()
@@ -1566,30 +1511,66 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             self._naver_check_running()
             for element in driver.find_elements(
                     By.CSS_SELECTOR, 'input.input_search[role="combobox"]'):
-                if element.is_displayed() and element.is_enabled():
+                # 길찾기 화면의 출발지/도착지 입력창은 통합 검색창으로 보지 않습니다.
+                direction_parent = element.find_elements(
+                    By.XPATH,
+                    './ancestor::*[contains(concat(" ", normalize-space(@class), " "), '
+                    '" search_input_box_wrap ")]'
+                )
+                if (not direction_parent
+                        and element.is_displayed()
+                        and element.is_enabled()):
                     return element
             return False
         return WebDriverWait(self.driver, 20, poll_frequency=0.2).until(search_input)
 
+    def _naver_prepare_search_home(self, force=False):
+        """사용 가능한 통합 검색창이 있으면 재사용하고, 없을 때만 지도 홈을 엽니다."""
+        self._naver_check_running()
+        if not force:
+            for element in self.driver.find_elements(
+                    By.CSS_SELECTOR, 'input.input_search[role="combobox"]'):
+                direction_parent = element.find_elements(
+                    By.XPATH,
+                    './ancestor::*[contains(concat(" ", normalize-space(@class), " "), '
+                    '" search_input_box_wrap ")]'
+                )
+                if (not direction_parent
+                        and element.is_displayed()
+                        and element.is_enabled()):
+                    return element
+
+        self.driver.get('https://map.naver.com/')
+        WebDriverWait(self.driver, 20, poll_frequency=0.2).until(
+            lambda driver: driver.execute_script('return document.readyState') == 'complete'
+        )
+        return self._naver_search_input()
+
     def _naver_submit_search(self, query):
         """검색창에 직접 문자열을 입력하고 Enter를 눌러 발생한 응답을 후킹합니다."""
         self._naver_check_running()
-        if not self._pause(max(self.request_delay, 0.2)):
+        if not self._pause(max(self.request_delay, random.uniform(0.2, 0.35))):
             raise InterruptedError('사용자 중단')
         element = self._naver_search_input()
         element.click()
+        self._naver_event_pause(0.15, 0.25)
         element.send_keys(Keys.CONTROL, 'a')
+        self._naver_event_pause(0.08, 0.15)
         element.send_keys(Keys.BACKSPACE)
+        self._naver_event_pause(0.12, 0.2)
         self._naver_clear_hook()
         element.send_keys(query)
+        # 검색어 입력 직후 Enter를 누르면 React 입력 상태가 간헐적으로 반영되지 않습니다.
+        self._naver_event_pause(0.4, 0.6)
         element.send_keys(Keys.ENTER)
         data = self._naver_wait_hook(
             '/p/api/search/allSearch', timeout=12, query=query
         )['data']
         if not _naver_search_has_results(data):
             raise LookupError(f'네이버 지도에 검색 결과가 없습니다: {query}')
-        # Enter 검색 응답 직후 화면이 다시 그려질 시간을 조금 준 뒤 다음 단계로 이동합니다.
-        if not self._pause(0.7):
+        # Enter 직후 화면 갱신이 끝나기 전에 다음 검색을 넣지 않고, 요청 간격도
+        # 매번 같지 않게 하여 짧은 시간에 요청이 몰리지 않도록 합니다.
+        if not self._pause(random.uniform(0.7, 1.0)):
             raise InterruptedError('사용자 중단')
         return data
 
@@ -1609,11 +1590,11 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             return False
 
         button = WebDriverWait(self.driver, 20, poll_frequency=0.2).until(directions_button)
+        self._naver_event_pause(0.5, 0.8)
         button.click()
+        self._naver_event_pause(0.8, 1.2)
         self._naver_direction_input('start')
         self._naver_direction_input('goal')
-        if not self._pause(0.6):
-            raise InterruptedError('사용자 중단')
 
     def _naver_direction_input(self, point):
         """길찾기의 출발지(start) 또는 도착지(goal) 입력창을 찾습니다."""
@@ -1635,14 +1616,20 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
         """길찾기 입력창에 값을 넣고 검색 목록의 첫 결과를 Enter로 확정합니다."""
         self._naver_check_running()
         element = self._naver_direction_input(point)
+        self._naver_event_pause(0.1, 0.2)
         element.click()
+        self._naver_event_pause(0.08, 0.15)
         element.send_keys(Keys.CONTROL, 'a')
+        self._naver_event_pause(0.05, 0.1)
         element.send_keys(Keys.BACKSPACE)
+        self._naver_event_pause(0.08, 0.15)
         element.send_keys(query)
+        # 자동완성 요청이 시작되기 전에 Enter를 보내지 않습니다.
+        self._naver_event_pause(0.3, 0.5)
 
         # 자동완성 목록이 열리면 첫 결과를 명시적으로 선택합니다. 목록이 늦게
         # 열리거나 없는 경우에는 Enter로 네이버 자체 검색/확정 동작을 수행합니다.
-        deadline = time.monotonic() + 3
+        deadline = time.monotonic() + 1.0
         expanded = False
         while time.monotonic() < deadline:
             self._naver_check_running()
@@ -1655,9 +1642,10 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             self._pause(0.15)
         if expanded:
             element.send_keys(Keys.ARROW_DOWN)
+            self._naver_event_pause(0.08, 0.15)
         element.send_keys(Keys.ENTER)
         # 출발지/도착지 확정 후 React 상태가 반영되기 전에 다음 입력으로 넘어가지 않습니다.
-        if not self._pause(max(self.request_delay, 0.8)):
+        if not self._pause(max(self.request_delay, random.uniform(0.35, 0.55))):
             raise InterruptedError('사용자 중단')
 
     def _naver_select_walking(self):
@@ -1672,9 +1660,9 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
 
         button = WebDriverWait(self.driver, 20, poll_frequency=0.2).until(walking_button)
         if button.get_attribute('aria-selected') != 'true':
+            self._naver_event_pause(0.4, 0.7)
             button.click()
-            if not self._pause(0.5):
-                raise InterruptedError('사용자 중단')
+            self._naver_event_pause(0.6, 0.9)
 
     def _naver_request_walking_route(self):
         """길찾기를 클릭하고, 응답이 없을 때만 버튼을 다시 찾아 한 번 재시도합니다."""
@@ -1696,6 +1684,7 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                     'arguments[0].scrollIntoView({block: "center", inline: "center"});',
                     button,
                 )
+                self._naver_event_pause(0.6, 1.0)
                 button.click()
             except InterruptedError:
                 raise
@@ -1712,9 +1701,12 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             try:
                 # 첫 클릭이 실제로 적용되지 않은 경우를 오래 기다리지 않습니다.
                 wait_seconds = 4 if attempt == 0 else 6
-                return self._naver_wait_hook(
+                route_payload = self._naver_wait_hook(
                     '/p/api/directions/walk', timeout=wait_seconds
                 )['data']
+                # 응답 직후 화면을 닫지 않고 실제 길찾기 결과가 잠시 보이게 합니다.
+                self._naver_event_pause(1.5, 2.0)
+                return route_payload
             except TimeoutError:
                 if attempt == 0:
                     self.log_signal_func(
@@ -1727,55 +1719,223 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
 
         raise TimeoutError('네이버 길찾기 재시도에 실패했습니다.')
 
+    def _naver_lookup_route_once(self, address, force_home=False):
+        """네이버 UI에서 주소→근처 지하철역→도보 길찾기를 한 번 수행합니다."""
+        self._naver_prepare_search_home(force=force_home)
+        self._naver_submit_search(address)
+        station_payload = self._naver_submit_search('근처지하철역')
+        fallback_station = _naver_first_subway_name(station_payload)
+        if not fallback_station:
+            raise LookupError('네이버 지도에서 주변 지하철역 검색 결과를 찾지 못했습니다.')
+
+        self._naver_open_directions_panel()
+        self._naver_select_walking()
+        # 지하철역에서 매물까지 걷는 방향으로 입력합니다.
+        self._naver_set_direction_point('start', fallback_station)
+        self._naver_set_direction_point('goal', address)
+        route_payload = self._naver_request_walking_route()
+        result = _naver_walking_result(route_payload, fallback_station)
+
+        # 주소 검색 뒤에도 이전 지도 위치가 남으면 수백 분 거리의 엉뚱한 역이
+        # 반환될 수 있습니다. 그런 결과는 저장하지 않고 홈에서 다시 조회합니다.
+        walking_seconds = result.get('_subway_walking_seconds')
+        if isinstance(walking_seconds, (int, float)) and walking_seconds >= 180 * 60:
+            raise TimeoutError(
+                '네이버 지도 위치가 갱신되지 않은 비정상 도보 결과: '
+                f'{result.get("nearest_subway_station")} '
+                f'{result.get("subway_walking_minute")}분'
+            )
+        return result
+
+    def _naver_reset_search_misses(self):
+        self._naver_consecutive_search_misses = 0
+        self._naver_last_missed_address = None
+
+    def _naver_lookup_route_with_recovery(self, address):
+        """현재 화면 재검색 후 실패하면 지도 홈에서 한 번 더 처음부터 수행합니다."""
+        last_error = None
+        try:
+            return self._naver_lookup_route_once(address)
+        except NAVER_TRANSIENT_ERRORS as transient_error:
+            # 네트워크 후킹 또는 Selenium 화면 대기가 늦어진 경우 지도 홈에서
+            # 주소 검색부터 전체 과정을 다시 시작합니다.
+            last_error = transient_error
+            error_text = str(transient_error).strip() or type(transient_error).__name__
+            self.log_signal_func(
+                '[디스코] 네이버 화면/네트워크 응답 지연, '
+                f'지도 홈에서 처음부터 재시도: {address} / {error_text}'
+            )
+            self._naver_event_pause(1.0, 1.5)
+            try:
+                return self._naver_lookup_route_once(address, force_home=True)
+            except NAVER_RECOVERABLE_ERRORS as home_error:
+                raise home_error from last_error
+        except LookupError as first_error:
+            last_error = first_error
+            self.log_signal_func(
+                f'[디스코] 네이버 조회 실패, 현재 화면에서 1회 재검색: {address}'
+            )
+            self._naver_event_pause(2.0, 3.0)
+
+        try:
+            return self._naver_lookup_route_once(address)
+        except NAVER_RECOVERABLE_ERRORS as retry_error:
+            last_error = retry_error
+            self.log_signal_func(
+                f'[디스코] 네이버 재검색 실패, 지도 홈에서 처음부터 재시도: {address}'
+            )
+            self._naver_event_pause(1.0, 1.5)
+
+        try:
+            return self._naver_lookup_route_once(address, force_home=True)
+        except NAVER_RECOVERABLE_ERRORS as home_error:
+            raise home_error from last_error
+
     def _lookup_naver_subway(self, pnu, item):
         if pnu in self._naver_subway_cache:
             return self._naver_subway_cache[pnu]
-        address = str(
-            item.get('기본_주소(지번)')
-            or item.get('기본_주소(도로명)')
-            or ''
-        ).strip()
-        if not address:
+
+        jibun_address = str(item.get('기본_주소(지번)') or '').strip()
+        road_address = str(item.get('기본_주소(도로명)') or '').strip()
+        addresses = []
+        for candidate in (jibun_address, road_address):
+            if candidate and candidate not in addresses:
+                addresses.append(candidate)
+        if not addresses:
             raise ValueError('디스코 매물 주소가 없습니다.')
+
+        address = addresses[0]
+        cooldown_applied = False
         previous_handle = self.driver.current_window_handle
         try:
-            created = self._naver_open_window()
-            # 앞 매물의 길찾기 화면을 그대로 쓰면 출발·도착지가 섞일 수 있으므로
-            # 두 번째 매물부터는 지도 홈으로 되돌린 뒤 같은 UI 순서를 반복합니다.
-            if not created:
-                self.driver.get('https://map.naver.com/')
-            WebDriverWait(self.driver, 20, poll_frequency=0.2).until(
-                lambda driver: driver.execute_script('return document.readyState') == 'complete'
-            )
-            self._naver_search_input()
-
+            self._naver_open_window()
             try:
-                self._naver_submit_search(address)
-                station_payload = self._naver_submit_search('근처지하철역')
-            except LookupError as error:
-                result = (None, str(error))
-                self._naver_subway_cache[pnu] = result
-                return result
-            fallback_station = _naver_first_subway_name(station_payload)
-            if not fallback_station:
-                result = (None, '네이버 지도에서 주변 지하철역 검색 결과를 찾지 못했습니다.')
-                self._naver_subway_cache[pnu] = result
-                return result
+                value = self._naver_lookup_route_with_recovery(address)
+            except NAVER_RECOVERABLE_ERRORS as primary_error:
+                last_error = primary_error
+                value = None
 
-            self._naver_open_directions_panel()
-            self._naver_select_walking()
-            # 지하철역에서 매물까지 걷는 방향으로 입력합니다.
-            self._naver_set_direction_point('start', fallback_station)
-            self._naver_set_direction_point('goal', address)
-            route_payload = self._naver_request_walking_route()
-            value = _naver_walking_result(route_payload, fallback_station)
+                # 지번 주소가 네이버에 없고 도로명 주소만 등록된 경우를 한 번 더
+                # 확인합니다. 앞에서 홈 재시도까지 했으므로 도로명은 1회만 요청합니다.
+                if isinstance(primary_error, LookupError) and len(addresses) > 1:
+                    alternate = addresses[1]
+                    self.log_signal_func(
+                        f'[디스코] 네이버 도로명 주소로 대체 검색: {alternate}'
+                    )
+                    self._naver_event_pause(1.0, 1.5)
+                    try:
+                        value = self._naver_lookup_route_once(
+                            alternate, force_home=True
+                        )
+                        address = alternate
+                    except NAVER_RECOVERABLE_ERRORS as alternate_error:
+                        last_error = alternate_error
+
+                if value is None:
+                    # 현재 화면 재검색과 홈 재시도가 모두 실패했으므로 약 10초간
+                    # 요청을 멈춥니다. 길찾기 응답 누락이면 홈에서 마지막으로 재시도합니다.
+                    cooldown = random.uniform(9.0, 11.0)
+                    if isinstance(last_error, NAVER_TRANSIENT_ERRORS):
+                        self.log_signal_func(
+                            '[디스코] 네이버 길찾기 응답이 계속 없어 '
+                            f'{cooldown:.1f}초 후 홈에서 마지막으로 재시도합니다: {address}'
+                        )
+                    else:
+                        self.log_signal_func(
+                            '[디스코] 네이버 조회가 계속 실패하여 '
+                            f'{cooldown:.1f}초 쉬고 다음 매물로 진행합니다: {address}'
+                        )
+                    if not self._pause(cooldown):
+                        raise InterruptedError('사용자 중단')
+                    cooldown_applied = True
+
+                    if isinstance(last_error, NAVER_TRANSIENT_ERRORS):
+                        try:
+                            value = self._naver_lookup_route_once(
+                                addresses[0], force_home=True
+                            )
+                            address = addresses[0]
+                        except NAVER_RECOVERABLE_ERRORS as final_error:
+                            last_error = final_error
+
+                    if value is None:
+                        if address != self._naver_last_missed_address:
+                            self._naver_consecutive_search_misses += 1
+                        self._naver_last_missed_address = address
+
+                        # 충분한 재시도와 휴식 후에도 서로 다른 주소가 3건 연속 실패하면
+                        # 개별 주소 문제가 아닌 일시 조회 제한으로 판단합니다.
+                        if self._naver_consecutive_search_misses >= 3:
+                            raise PermissionError(
+                                '네이버 지도 조회가 서로 다른 주소에서 3건 연속 실패했습니다. '
+                                '정상 매물의 대량 오제외를 막기 위해 작업을 중단합니다. '
+                                f'마지막 응답: {last_error}'
+                            )
+
+                        # 실패 결과는 캐시하지 않아 다른 즐겨찾기 조건에서 다시 평가합니다.
+                        error_text = str(last_error).strip() or type(last_error).__name__
+                        return (None, error_text)
+
+            self._naver_reset_search_misses()
             result = (value, None)
+            # 성공 결과만 캐시합니다. 일시적인 빈 검색 응답은 저장하지 않습니다.
             self._naver_subway_cache[pnu] = result
             return result
         finally:
             # 디스코의 후속 목록/상세 요청은 반드시 원래 창에서 실행합니다.
             if previous_handle in self.driver.window_handles:
                 self.driver.switch_to.window(previous_handle)
+            # 매물 사이의 간격을 두어 네이버 검색 요청이 짧은 시간에 몰리지 않게 합니다.
+            if self.running and not cooldown_applied:
+                self._pause(random.uniform(2.0, 3.0))
+
+    def _detail_step(self, pnu, label, action, fallback=None, error_prefix=None):
+        """상세 하위 API의 공통 성공/부분실패 처리를 수행합니다."""
+        try:
+            action()
+            return 1
+        except PermissionError:
+            raise
+        except Exception as error:
+            self._row_errors.append(
+                f"{error_prefix}: {error}" if error_prefix else str(error)
+            )
+            if fallback:
+                fallback()
+            self.log_signal_func(f"[디스코] {label} 실패 (PNU={pnu}): {error}")
+            return 0
+
+    def _collect_arch_details(self, pnu, item):
+        arch_info = self._fetch_arch_info(pnu)
+        item.update(_korean_arch_info(arch_info))
+        arch_rows = arch_info.get("title_section") or arch_info.get("overall_title_section") or []
+        arch_keys = {
+            str(row.get("a1") or "").strip()
+            for row in arch_rows if isinstance(row, dict) and row.get("a1")
+        }
+        self._prefetch_json([
+            (f"https://data.disco.re/home/arch_floor_list/?key={key}", "건축물현황")
+            for key in arch_keys
+        ])
+        floors = []
+        for key in arch_keys:
+            try:
+                floors.extend(_korean_arch_floors(self._fetch_arch_floors(key)))
+            except PermissionError:
+                raise
+            except Exception as error:
+                self._row_errors.append(str(error))
+                self.log_signal_func(
+                    f"[디스코] 건축물현황 실패 (PNU={pnu}, key={key}): {error}"
+                )
+        item["건물 정보_건축물현황"] = floors
+
+    def _major_repair_selected(self):
+        return any(
+            col.get("code", "").startswith(("major_repair_", "violation_building_"))
+            or any(word in str(col.get("value", "")) for word in ("대수선", "위반건축물"))
+            for col in self.selected_column_defs
+        )
 
     def _collect_short_infos(self, progress_start=0, progress_end=1000000):
         rows_by_pnu = {}
@@ -1913,158 +2073,62 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
                                      f'설정 {self._active_subway_limit}분 이내)')
 
             self._prefetch_json(self._core_detail_requests(pnu, list_rows))
-
-            try:
-                land_info = self._fetch_land_info(pnu)
-                item.update(_korean_land_info(land_info))
-                fetched += 1
-            except Exception as error:
-                if isinstance(error, PermissionError):
-                    raise
-                self._row_errors.append(str(error))
-                self.log_signal_func(f"[디스코] 토지정보 실패 (PNU={pnu}): {error}")
-
-            try:
-                history_rows = self._fetch_land_history(pnu, list_rows)
-                histories = _korean_land_history(history_rows)
-                item["토지 이동(변동) 사유"] = histories
-                fetched += 1
-            except Exception as error:
-                if isinstance(error, PermissionError):
-                    raise
-                self._row_errors.append(str(error))
-                item["토지 이동(변동) 사유"] = []
-                self.log_signal_func(f"[디스코] 토지이동이력 실패 (PNU={pnu}): {error}")
-
-            try:
-                price_rows = self._fetch_land_prices(pnu)
-                item.update(_korean_land_prices(price_rows))
-                fetched += 1
-            except Exception as error:
-                if isinstance(error, PermissionError):
-                    raise
-                self._row_errors.append(str(error))
-                item["개별공시지가"] = []
-                item["개별공시지가_공시지가(㎡)"] = None
-                self.log_signal_func(f"[디스코] 개별공시지가 실패 (PNU={pnu}): {error}")
-
-            try:
-                arch_info = self._fetch_arch_info(pnu)
-                item.update(_korean_arch_info(arch_info))
-                floor_items = []
-                arch_rows = (
-                        arch_info.get("title_section")
-                        or arch_info.get("overall_title_section")
-                        or []
-                )
-                seen_arch_keys = set()
-                for arch_row in arch_rows:
-                    if not isinstance(arch_row, dict):
-                        continue
-                    arch_key = str(arch_row.get("a1") or "").strip()
-                    if not arch_key or arch_key in seen_arch_keys:
-                        continue
-                    seen_arch_keys.add(arch_key)
-                self._prefetch_json([
-                    (f"https://data.disco.re/home/arch_floor_list/?key={key}", "건축물현황")
-                    for key in seen_arch_keys
-                ])
-                for arch_key in seen_arch_keys:
-                    try:
-                        floor_rows = self._fetch_arch_floors(arch_key)
-                        floor_items.extend(_korean_arch_floors(floor_rows))
-                    except Exception as error:
-                        if isinstance(error, PermissionError):
-                            raise
-                        self._row_errors.append(str(error))
-                        self.log_signal_func(
-                            f"[디스코] 건축물현황 실패 "
-                            f"(PNU={pnu}, key={arch_key}): {error}"
-                        )
-                item["건물 정보_건축물현황"] = floor_items
-                fetched += 1
-            except Exception as error:
-                if isinstance(error, PermissionError):
-                    raise
-                self._row_errors.append(str(error))
-                item["건물 정보_건축물현황"] = []
-                self.log_signal_func(f"[디스코] 건물정보 실패 (PNU={pnu}): {error}")
-
-            try:
-                business_rows = self._fetch_businesses(pnu)
-                item["상가업소정보"] = _korean_businesses(business_rows)
-                fetched += 1
-            except Exception as error:
-                if isinstance(error, PermissionError):
-                    raise
-                self._row_errors.append(str(error))
-                item["상가업소정보"] = []
-                self.log_signal_func(f"[디스코] 상가업소정보 실패 (PNU={pnu}): {error}")
-
-            try:
-                house_price_rows = self._fetch_house_prices(pnu)
-                item.update(_korean_house_prices(house_price_rows))
-                fetched += 1
-            except Exception as error:
-                if isinstance(error, PermissionError):
-                    raise
-                self._row_errors.append(str(error))
-                item["개별주택공시가격"] = []
-                item["개별주택공시가격_공시가격"] = None
-                self.log_signal_func(
-                    f"[디스코] 개별주택공시가격 실패 (PNU={pnu}): {error}"
-                )
+            fetched += self._detail_step(
+                pnu, "토지정보",
+                lambda: item.update(_korean_land_info(self._fetch_land_info(pnu))),
+            )
+            fetched += self._detail_step(
+                pnu, "토지이동이력",
+                lambda: item.__setitem__(
+                    "토지 이동(변동) 사유",
+                    _korean_land_history(self._fetch_land_history(pnu, list_rows)),
+                ),
+                lambda: item.__setitem__("토지 이동(변동) 사유", []),
+            )
+            fetched += self._detail_step(
+                pnu, "개별공시지가",
+                lambda: item.update(_korean_land_prices(self._fetch_land_prices(pnu))),
+                lambda: item.update(_korean_land_prices([])),
+            )
+            fetched += self._detail_step(
+                pnu, "건물정보", lambda: self._collect_arch_details(pnu, item),
+                lambda: item.__setitem__("건물 정보_건축물현황", []),
+            )
+            fetched += self._detail_step(
+                pnu, "상가업소정보",
+                lambda: item.__setitem__(
+                    "상가업소정보", _korean_businesses(self._fetch_businesses(pnu))
+                ),
+                lambda: item.__setitem__("상가업소정보", []),
+            )
+            fetched += self._detail_step(
+                pnu, "개별주택공시가격",
+                lambda: item.update(_korean_house_prices(self._fetch_house_prices(pnu))),
+                lambda: item.update(_korean_house_prices([])),
+            )
 
             is_ziphap = str(short_info.get("ziphap") or "").strip() == "1"
             if is_ziphap:
-                try:
-                    unit_info = self._fetch_first_unit_info(pnu)
-                    item.update(unit_info or self._empty_unit_info())
-                    fetched += 1
-                except Exception as error:
-                    if isinstance(error, PermissionError):
-                        raise
-                    self._row_errors.append(str(error))
-                    item.update(self._empty_unit_info())
-                    self.log_signal_func(f"[디스코] 호별정보 실패 (PNU={pnu}): {error}")
-
-                try:
-                    apart_price_rows = self._fetch_first_apart_prices(pnu)
-                    item.update(_korean_apart_prices(apart_price_rows))
-                    fetched += 1
-                except Exception as error:
-                    if isinstance(error, PermissionError):
-                        raise
-                    self._row_errors.append(str(error))
-                    item.update(_korean_apart_prices([]))
-                    self.log_signal_func(
-                        f"[디스코] 공동주택공시가격 실패 (PNU={pnu}): {error}"
-                    )
+                fetched += self._detail_step(
+                    pnu, "호별정보",
+                    lambda: item.update(self._fetch_first_unit_info(pnu) or self._empty_unit_info()),
+                    lambda: item.update(self._empty_unit_info()),
+                )
+                fetched += self._detail_step(
+                    pnu, "공동주택공시가격",
+                    lambda: item.update(_korean_apart_prices(self._fetch_first_apart_prices(pnu))),
+                    lambda: item.update(_korean_apart_prices([])),
+                )
             else:
                 item.update(self._empty_unit_info())
                 item.update(_korean_apart_prices([]))
 
-            # 대수선 관련 컬럼이 1개라도 선택되었는지 확인
-            is_major_repair_checked = any(
-                col.get("code", "").startswith("major_repair_")
-                or col.get("code", "").startswith("violation_building_")
-                or "대수선" in str(col.get("value", ""))
-                or "위반건축물" in str(col.get("value", ""))
-                for col in self.selected_column_defs
-            )
-
-            # 대수선 컬럼이 1개라도 체크된 경우에만 API 호출
-            if is_major_repair_checked:
-                try:
-                    repair_info = self._fetch_major_repair_info(pnu)
-                    if repair_info:
-                        item.update(repair_info)
-                        fetched += 1
-                except Exception as error:
-                    if isinstance(error, PermissionError):
-                        raise
-                    self._row_errors.append(f"대수선: {error}")
-                    self.log_signal_func(f"[디스코] 대수선 정보 실패 (PNU={pnu}): {error}")
+            if self._major_repair_selected():
+                fetched += self._detail_step(
+                    pnu, "대수선 정보",
+                    lambda: item.update(self._fetch_major_repair_info(pnu) or {}),
+                    error_prefix="대수선",
+                )
 
             if not self.running:
                 break
@@ -2179,40 +2243,27 @@ class ApiDiscoReDetailSetWorker(BaseApiWorker):
             return {}
 
         url = self.major_repair_server_url or "https://goodbye772.com/archhub/major-repair"
-        headers = {
-            "X-API-KEY": self.major_repair_master_api_key
-        }
-        params = {
-            "pnu": pnu
-        }
-
-        response = requests.get(url, headers=headers, params=params, timeout=10)
+        response = requests.get(
+            url, headers={"X-API-KEY": self.major_repair_master_api_key},
+            params={"pnu": pnu}, timeout=10,
+        )
         if response.status_code != 200:
             raise RuntimeError(f"대수선 API 오류 (HTTP {response.status_code}): {response.text}")
 
-        res_json = response.json()
-        if not isinstance(res_json, dict):
+        data = response.json()
+        if not isinstance(data, dict):
             raise ValueError("대수선 API 응답이 JSON 객체가 아닙니다.")
-
-        # 대수선 이력 배열(List)은 SQLite TEXT 컬럼에 저장하기 위해 JSON 문자열로 변환
-        history_data = res_json.get("건물 정보_대수선이력")
-        if isinstance(history_data, (list, dict)):
-            history_data = json.dumps(history_data, ensure_ascii=False)
-
-        return {
-            "건물 정보_대수선조회상태": res_json.get("건물 정보_대수선조회상태"),
-            "건물 정보_대수선조회메시지": res_json.get("건물 정보_대수선조회메시지"),
-            "건물 정보_대수선여부": res_json.get("건물 정보_대수선여부"),
-            "건물 정보_대수선건수": res_json.get("건물 정보_대수선건수"),
-            "건물 정보_최근대수선사용승인일": res_json.get(
-                "건물 정보_최근대수선사용승인일"
-            ),
-            "건물 정보_대수선이력": history_data,
-            "건물 정보_대수선조회일시": res_json.get("건물 정보_대수선조회일시"),
-            "건물 정보_대수선데이터기준일시": res_json.get("건물 정보_대수선데이터기준일시"),
-            "건물 정보_위반건축물여부": res_json.get("건물 정보_위반건축물여부"),
-            "건물 정보_위반건축물내용": res_json.get("건물 정보_위반건축물내용"),
-        }
+        keys = (
+            "건물 정보_대수선조회상태", "건물 정보_대수선조회메시지", "건물 정보_대수선여부",
+            "건물 정보_대수선건수", "건물 정보_최근대수선사용승인일", "건물 정보_대수선이력",
+            "건물 정보_대수선조회일시", "건물 정보_대수선데이터기준일시",
+            "건물 정보_위반건축물여부", "건물 정보_위반건축물내용",
+        )
+        result = {key: data.get(key) for key in keys}
+        history = result["건물 정보_대수선이력"]
+        if isinstance(history, (list, dict)):
+            result["건물 정보_대수선이력"] = json.dumps(history, ensure_ascii=False)
+        return result
 
     def main(self) -> bool:
         tasks = [
