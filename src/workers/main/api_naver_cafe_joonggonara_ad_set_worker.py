@@ -1347,11 +1347,39 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
             time.sleep(CHAT_LOADING_DELAY_SEC)
             wait_document_ready(driver)
 
-            product_chat_button = WebDriverWait(driver, 30).until(
-                EC.element_to_be_clickable(
-                    (By.CSS_SELECTOR, "button[aria-label='채팅하기']")
+
+            # 채팅 버튼 또는 판매 종료 문구가 나타날 때까지 대기
+            def find_product_state(current_driver):
+                # 판매 종료 상품이면 바로 건너뛴다.
+                sold_out_messages = current_driver.find_elements(
+                    By.XPATH,
+                    "//span[normalize-space()='이 상품은 더 이상 판매되지 않아요.']",
                 )
+
+                if any(message.is_displayed() for message in sold_out_messages):
+                    return "sold_out", None
+
+                # 정상 상품이면 채팅하기 버튼을 찾는다.
+                buttons = current_driver.find_elements(
+                    By.CSS_SELECTOR,
+                    "button[aria-label='채팅하기']",
+                )
+
+                for button in buttons:
+                    if button.is_displayed() and button.is_enabled():
+                        return "ready", button
+
+                return False
+
+
+            product_state, product_chat_button = WebDriverWait(driver, 10).until(
+                find_product_state
             )
+
+            if product_state == "sold_out":
+                print("[상품 상세] 더 이상 판매되지 않는 상품입니다. 다음 게시글로 이동합니다.")
+                return "", None
+
             driver.execute_script(
                 "arguments[0].scrollIntoView({block: 'center'});",
                 product_chat_button,
