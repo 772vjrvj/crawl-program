@@ -36,6 +36,9 @@ class BaseApiWorker(QThread):
         self.region: Optional[Any] = None
 
         self.columns: list[str] = []
+
+        # 체크된 컬럼의 원본 정보: code, value 등
+        self.selected_columns: list[dict[str, Any]] = []
         self.sites: list[str] = []
         self.setting: Optional[Any] = None
         self.running: bool = True
@@ -138,10 +141,27 @@ class BaseApiWorker(QThread):
     def set_session(self, session: Optional[Session]) -> None:
         self.session = session
 
-    def set_columns(self, columns: Optional[Sequence[dict[str, Any]]]) -> None:
+    def set_columns(
+            self,
+            columns: Optional[Sequence[dict[str, Any]]],
+    ) -> None:
         self.columns = []
+        self.selected_columns = []
+
         if columns:
-            self.columns = [str(col.get("value")) for col in columns if col.get("checked", False)]
+            # 기존 방식 유지: 체크한 컬럼의 출력명
+            self.columns = [
+                str(col.get("value"))
+                for col in columns
+                if col.get("checked", False)
+            ]
+
+            # 추가: 체크한 컬럼의 원본 정보
+            self.selected_columns = [
+                dict(col)
+                for col in columns
+                if col.get("checked", False)
+            ]
 
     def set_sites(self, sites: Optional[Sequence[dict[str, Any]]]) -> None:
         self.sites = []

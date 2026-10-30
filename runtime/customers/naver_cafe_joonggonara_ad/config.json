@@ -1,0 +1,139 @@
+{
+  "label": "네이버 카페 중고나라",
+  "key": "NAVER_CAFE_JOONGGONARA_AD",
+  "db_name": "NAVER_CAFE_JOONGGONARA_AD",
+  "db_common_name": "WORKER_JOB_HIST",
+  "color": "#ccc",
+  "enabled": true,
+  "popup": false,
+  "region": false,
+  "worker_class": "src.workers.main.api_naver_cafe_joonggonara_ad_set_worker:ApiNaverCafeJoonggonaraAdSetWorker",
+  "setting": [
+    {
+      "name": "저장 폴더",
+      "code": "folder_path",
+      "value": "E:\\git\\crawl-program",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    },
+    {
+      "name": "이미지 파일 경로",
+      "code": "image_path",
+      "value": "E:\\git\\crawl-program",
+      "type": "folder",
+      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
+      "button_text": "폴더 선택",
+      "dialog_title": "저장 폴더 선택",
+      "path_type": "main"
+    },
+    {
+      "name": "조회 시작 페이지",
+      "code": "start_page",
+      "value": 1,
+      "type": "input",
+      "placeholder": "조회 시작 페이지를 입력하세요"
+    },
+    {
+      "name": "중복 제거",
+      "code": "remove_duplicate_yn",
+      "value": true,
+      "type": "check"
+    }
+  ],
+  "search_col_list": [
+    {
+      "code": "articleId",
+      "value": "게시글 ID"
+    },
+    {
+      "code": "subject",
+      "value": "제목"
+    },
+    {
+      "code": "nickName",
+      "value": "닉네임"
+    },
+    {
+      "code": "successYn",
+      "value": "성공 여부"
+    }
+  ],
+  "columns": [
+    {
+      "title": "게시글 정보"
+    },
+    {
+      "code": "articleId",
+      "value": "게시글 ID",
+      "checked": true
+    },
+    {
+      "code": "menuName",
+      "value": "게시판명",
+      "checked": true
+    },
+    {
+      "code": "subject",
+      "value": "제목",
+      "checked": true
+    },
+    {
+      "code": "boardType",
+      "value": "게시판 유형",
+      "checked": true
+    },
+    {
+      "code": "nickName",
+      "value": "닉네임",
+      "checked": true
+    },
+    {
+      "code": "memberKey",
+      "value": "회원 키",
+      "checked": true
+    },
+    {
+      "code": "writeDateTimestamp",
+      "value": "작성일 타임스탬프",
+      "checked": false
+    },
+    {
+      "code": "writeDate",
+      "value": "작성일",
+      "checked": true
+    },
+    {
+      "title": "처리 결과"
+    },
+    {
+      "code": "successYn",
+      "value": "성공 여부",
+      "checked": true
+    },
+    {
+      "code": "errorMessage",
+      "value": "오류 메시지",
+      "checked": true
+    },
+    {
+      "code": "created_at",
+      "value": "생성일시",
+      "checked": true
+    },
+    {
+      "code": "updated_at",
+      "value": "수정일시",
+      "checked": false
+    }
+  ],
+  "db_tabs": [
+    {
+      "key": "detail",
+      "name": "상세 데이터",
+      "table": "NAVER_CAFE_JOONGGONARA_AD"
+    }
+  ]
+}
