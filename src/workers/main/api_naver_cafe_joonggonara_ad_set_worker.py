@@ -505,6 +505,35 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
 
         return True
 
+    def is_member_already_processed(self, member_key: str) -> bool:
+        """전체 작업 이력에서 전송 버튼을 클릭한 회원인지 확인한다."""
+        sqlite_driver = SqliteUtils(self.log_signal_func)
+        try:
+            if not sqlite_driver.connect(self.get_runtime_db_path()):
+                raise RuntimeError("중복 확인용 DB 연결 실패")
+            # 오류와 조회 결과 없음을 구별하기 위해 예외를 그대로 전달한다.
+            row = sqlite_driver.conn.execute(
+                f"SELECT 1 FROM {self.detail_table_name} "
+                "WHERE memberKey = ? AND successYn = ? LIMIT 1",
+                (member_key, "Y"),
+            ).fetchone()
+            return row is not None
+        finally:
+            sqlite_driver.close()
+
+    def save_processed_article(self, article: dict) -> None:
+        """전송 버튼 클릭 결과를 상세 테이블에 저장한다."""
+        sqlite_driver = SqliteUtils(self.log_signal_func)
+        try:
+            if not sqlite_driver.connect(self.get_runtime_db_path()):
+                raise RuntimeError("상세 저장용 DB 연결 실패")
+            if not self.insert_detail_row(sqlite_driver, article):
+                raise RuntimeError(
+                    "전송 버튼 클릭 후 DB 저장 실패: 중복 전송 방지를 위해 작업을 중단합니다."
+                )
+        finally:
+            sqlite_driver.close()
+
     # =========================================================
     # 작업 이력 마감
     # =========================================================
@@ -675,9 +704,28 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
                         f"닉네임={article['nickName']}"
                     )
 
-                    # 게시글 상세 이동 → 상품 상세 → 채팅하기 클릭
+                    # 중복 제거 설정이 켜진 경우, 처리한 회원은 건너뛴다.
+                    member_key = str(article.get("memberKey") or "").strip()
+                    if self.remove_duplicate_yn:
+                        if not member_key:
+                            self.log_signal_func(
+                                f"⚠️ [중복 확인] memberKey 없음 - 건너뜀 | articleId={article['articleId']}"
+                            )
+                            continue
+                        if self.is_member_already_processed(member_key):
+                            self.log_signal_func(
+                                f"ℹ️ [중복 확인] 이미 처리한 회원 | articleId={article['articleId']}"
+                            )
+                            continue
+
                     # 게시글 상세 이동 → 채팅방 → 이미지 전송 버튼 클릭
                     if self.open_article_chat(article):
+                        # Y는 실제 수신 확인이 아니라 전송 버튼 클릭을 뜻한다.
+                        article["successYn"] = "Y"
+                        article["errorMessage"] = ""
+                        article["memberKey"] = member_key or None
+                        self.save_processed_article(article)
+
                         # 전송 버튼 클릭 횟수 증가
                         self.push_cnt += 1
 
@@ -687,20 +735,11 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
                             f"누적={self.push_cnt}건"
                         )
 
-                        # 10건마다 다음 계정으로 변경
+                        # 전송 버튼 클릭 13건마다 다음 계정으로 변경
                         if self.push_cnt % 13 == 0:
-                            next_user_index = self.user_index + 1
 
-                            # 다음 계정이 없으면 작업 종료
-                            if next_user_index >= len(self.user_list):
-                                self.log_signal_func(
-                                    "ℹ️ [계정 변경] 다음 계정이 없어 작업을 종료합니다."
-                                )
-
-                                self.finish_job("SUCCESS")
-                                return True
-
-                            self.user_index = next_user_index
+                            # 마지막 계정 다음에는 첫 번째 계정으로 돌아간다.
+                            self.user_index = (self.user_index + 1) % len(self.user_list)
                             self.now_user = self.user_list[self.user_index]
 
                             self.log_signal_func(
@@ -724,7 +763,6 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
                                 f"✅ [계정 변경] 로그인 완료 | "
                                 f"아이디={self.now_user['id']}"
                             )
-
                     else:
                         self.log_signal_func(
                             f"⚠️ [채팅] 처리 실패 | "
@@ -735,7 +773,6 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
                 if not self.running:
                     break
 
-
                 # 다음 페이지로 넘어가기 전 3초 휴식
                 self.log_signal_func(
                     f"⏳ [목록] {page}페이지 처리 완료 - 3초 휴식"
@@ -745,7 +782,6 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
                     break
 
                 page += 1
-
 
             if not self.running:
                 self.finish_job("STOP", "사용자 중단")
@@ -1429,7 +1465,7 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
         driver = self.driver
 
         # 채팅 입력창이 표시될 때까지 대기
-        textarea = WebDriverWait(driver, 30).until(
+        textarea = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
                 (
                     By.CSS_SELECTOR,
@@ -1557,4 +1593,5 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
 
         self.log_signal_func("✅ destroy")
         self.progress_end_signal.emit()
+
 
