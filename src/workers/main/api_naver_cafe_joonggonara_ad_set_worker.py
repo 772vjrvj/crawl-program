@@ -148,19 +148,13 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
             self.get_setting_value(self.setting, "folder_path") or ""
         ).strip()
 
-        # 이미지 폴더
-        image_folder = str(
-            self.get_setting_value(self.setting, "image_path") or ""
-        ).strip()
+        # 프로젝트 실행 경로의 images 폴더 사용
+        image_folder = os.path.join(
+            self.get_project_root(),
+            "images",
+        )
 
-        # 선택한 폴더가 없다면 실행 경로의 images 폴더 사용
-        if not image_folder:
-            image_folder = os.path.join(
-                self.get_project_root(),
-                "images",
-            )
-
-        # 선택한 폴더 안의 고정 이미지 파일 사용
+        # images 폴더 안의 고정 이미지 파일 사용
         self.image_path = os.path.abspath(
             os.path.join(image_folder, "joonggonara_ad.png")
         )
@@ -1621,5 +1615,6 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
 
         self.log_signal_func("✅ destroy")
         self.progress_end_signal.emit()
+
 
 

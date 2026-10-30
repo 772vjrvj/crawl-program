@@ -20,19 +20,9 @@
       "path_type": "main"
     },
     {
-      "name": "이미지 파일 경로",
-      "code": "image_path",
-      "value": "E:\\git\\crawl-program",
-      "type": "folder",
-      "placeholder": "저장할 폴더를 선택하세요(기본 문서)",
-      "button_text": "폴더 선택",
-      "dialog_title": "저장 폴더 선택",
-      "path_type": "main"
-    },
-    {
       "name": "조회 시작 페이지",
       "code": "start_page",
-      "value": 1,
+      "value": 20000,
       "type": "input",
       "placeholder": "조회 시작 페이지를 입력하세요"
     },
