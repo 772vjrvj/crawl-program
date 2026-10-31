@@ -8,8 +8,6 @@ from typing import Optional
 
 from PIL import Image
 
-from src.utils.excel_hybrid_utils import ExcelHybridUtils
-from src.utils.file_utils import FileUtils
 from src.utils.selenium_utils import SeleniumUtils
 from src.utils.sqlite_utils import SqliteUtils
 from src.workers.api_base_worker import BaseApiWorker
@@ -59,22 +57,16 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
         # =====================================================
         # 설정값
         # =====================================================
-        self.folder_path: str = ""
         self.image_path: str = ""
         self.start_page = None
         self.remove_duplicate_yn = None
         self.user_list: list[dict[str, str]] = []
-
-        # 엑셀 저장 시 사용할 하위 폴더
-        self.out_dir: str = "output"
 
         # =====================================================
         # 드라이버
         # =====================================================
         self.driver = None
         self.selenium_driver: Optional[SeleniumUtils] = None
-        self.file_driver: Optional[FileUtils] = None
-        self.excel_driver: Optional[ExcelHybridUtils] = None
         self.sqlite_driver: Optional[SqliteUtils] = None
 
         # 진행률
@@ -93,10 +85,6 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
     def init(self) -> bool:
         try:
             self.log_signal_func("✅ 초기화 시작")
-
-            # 기존 워커와 동일하게 엑셀 / 파일 유틸 초기화
-            self.excel_driver = ExcelHybridUtils(self.log_signal_func)
-            self.file_driver = FileUtils(self.log_signal_func)
 
             # DB 연결 / 스키마 초기화 / 작업 시작 이력 등록
             if not self.db_set():
@@ -143,11 +131,6 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
         설정 JSON에서 값을 가져와 로그에 출력한다.
         """
 
-        # 저장 폴더
-        self.folder_path = str(
-            self.get_setting_value(self.setting, "folder_path") or ""
-        ).strip()
-
         # 프로젝트 실행 경로의 images 폴더 사용
         image_folder = os.path.join(
             self.get_project_root(),
@@ -172,7 +155,6 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
         )
 
         self.log_signal_func("========== 설정값 ==========")
-        self.log_signal_func(f"저장 폴더 : {self.folder_path}")
         self.log_signal_func(f"이미지 폴더 : {image_folder}")
         self.log_signal_func(f"이미지 파일 경로 : {self.image_path}")
         self.log_signal_func(f"조회 시작 페이지 : {self.start_page}")
@@ -263,16 +245,6 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
         """
         기존 워커와 동일한 방식으로 드라이버를 초기화한다.
         """
-        if not self.excel_driver:
-            self.excel_driver = ExcelHybridUtils(
-                self.log_signal_func
-            )
-
-        if not self.file_driver:
-            self.file_driver = FileUtils(
-                self.log_signal_func
-            )
-
         self.selenium_driver = SeleniumUtils(
             headless=False,
             debug=True,
@@ -288,7 +260,7 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
         if not self.driver:
             raise RuntimeError("셀레니움 브라우저 실행 실패")
 
-        self.log_signal_func("✅ 엑셀 / 파일 / 셀레니움 드라이버 설정 완료")
+        self.log_signal_func("✅ 셀레니움 드라이버 설정 완료")
 
     # =========================================================
     # DB 초기화
@@ -1568,28 +1540,8 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
         finally:
             self.selenium_driver = None
 
-        try:
-            if self.file_driver:
-                self.file_driver.close()
-        except Exception as e:
-            self.log_signal_func(
-                f"[cleanup] file_driver.close 실패: {e}"
-            )
-        finally:
-            self.file_driver = None
-
         # 기존 워커처럼 별도 연결로 작업 이력 마감
         self.finalize_db()
-
-        try:
-            if self.excel_driver:
-                self.excel_driver.close()
-        except Exception as e:
-            self.log_signal_func(
-                f"[cleanup] excel_driver.close 실패: {e}"
-            )
-        finally:
-            self.excel_driver = None
 
     def stop(self) -> None:
         # 기존 워커와 동일하게 중복 호출 방지
@@ -1615,6 +1567,7 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
 
         self.log_signal_func("✅ destroy")
         self.progress_end_signal.emit()
+
 
 
 
