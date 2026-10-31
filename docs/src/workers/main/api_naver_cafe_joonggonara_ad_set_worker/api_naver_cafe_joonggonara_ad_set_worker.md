@@ -27,6 +27,9 @@ leegamin2000 / !rhkddn1004
 
 
 
+
+
+
 ```powershell
 pyinstaller .\main.py `
 --noconfirm `

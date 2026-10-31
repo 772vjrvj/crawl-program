@@ -63,7 +63,7 @@ API_TIMEOUT_SEC = 30
 # ============================================================
 
 # 배포 대상 프로그램 ID
-PROGRAM_ID = "NAVER_DISCO_RE_DETAIL"
+PROGRAM_ID = "NAVER_CAFE_JOONGGONARA_AD"
 
 # 프로그램 버전
 VERSION = "1.0.0"

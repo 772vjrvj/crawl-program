@@ -14,6 +14,11 @@
 고객 배포용 GUI면:
 --windowed `
 
+
+빌드 실행 powershel
+.\docs\src\workers\main\api_naver_cafe_joonggonara_ad_set_worker\naver_cafe_joonggonara_ad.ps1
+
+
 pyinstaller .\main.py `
 --noconfirm `
 --clean `
@@ -34,3 +39,4 @@ pyinstaller .\main.py `
 --add-data ".\resources\customers\naver_land_real_estate_ad\db\schema_detail.sql;resources\customers\naver_land_real_estate_ad\db" `
 --add-data ".\resources\customers\common\db\schema_hist.sql;resources\customers\common\db" `
 --add-data ".\resources\icons\crawling.ico;resources\icons"
+
