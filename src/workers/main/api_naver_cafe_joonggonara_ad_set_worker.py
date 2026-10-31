@@ -16,15 +16,13 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 
-from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import (
     TimeoutException,
     ElementClickInterceptedException,
-    NoSuchWindowException,
-    StaleElementReferenceException,
+
 )
 from selenium.webdriver.remote.webdriver import WebDriver
 
@@ -59,6 +57,7 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
         # =====================================================
         self.image_path: str = ""
         self.start_page = None
+        self.account_send_limit: int = 13
         self.remove_duplicate_yn = None
         self.user_list: list[dict[str, str]] = []
 
@@ -148,6 +147,20 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
             "start_page",
         )
 
+        # 계정당 전송 버튼 클릭 횟수 (미설정 시 13건)
+        account_send_limit = self.get_setting_value(
+            self.setting,
+            "account_send_limit",
+        )
+        if account_send_limit is None or str(account_send_limit).strip() == "":
+            account_send_limit = 13
+        try:
+            self.account_send_limit = int(str(account_send_limit).strip())
+        except (TypeError, ValueError):
+            raise ValueError("계정당 전송 건수는 1 이상의 정수여야 합니다.")
+        if self.account_send_limit < 1:
+            raise ValueError("계정당 전송 건수는 1 이상의 정수여야 합니다.")
+
         # 중복 제거 여부
         self.remove_duplicate_yn = self.get_setting_value(
             self.setting,
@@ -158,6 +171,7 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
         self.log_signal_func(f"이미지 폴더 : {image_folder}")
         self.log_signal_func(f"이미지 파일 경로 : {self.image_path}")
         self.log_signal_func(f"조회 시작 페이지 : {self.start_page}")
+        self.log_signal_func(f"계정당 전송 건수 : {self.account_send_limit}")
         self.log_signal_func(f"중복 제거 여부 : {self.remove_duplicate_yn}")
         self.log_signal_func("============================")
 
@@ -701,8 +715,8 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
                             f"누적={self.push_cnt}건"
                         )
 
-                        # 전송 버튼 클릭 13건마다 다음 계정으로 변경
-                        if self.push_cnt % 13 == 0:
+                        # 설정한 전송 건수마다 다음 계정으로 변경
+                        if self.push_cnt % self.account_send_limit == 0:
 
                             # 마지막 계정 다음에는 첫 번째 계정으로 돌아간다.
                             self.user_index = (self.user_index + 1) % len(self.user_list)
@@ -1567,6 +1581,7 @@ class ApiNaverCafeJoonggonaraAdSetWorker(BaseApiWorker):
 
         self.log_signal_func("✅ destroy")
         self.progress_end_signal.emit()
+
 
 
 
